@@ -9,20 +9,24 @@
 #include "ShaderCompiler.h"
 #include "LogManager.h"
 #include "WindowProc.h"
-
+#include <DirectXTex.h>
 using namespace logs;
 
 
 class DirectXComon{
 public:
+	/// <summary>
 	// 初期化
+	/// </summary>
 	void Initialize(WindowProc* windowProc);
 	/// <summary>
 	// 終了処理
 	/// </summary>
 	void Finalize();
-
-
+/// <summary>
+/// 
+/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metadata);
 private:
 
 	void CreateFactory(); // DXGIファクトリーの生成
@@ -55,8 +59,6 @@ private:
 	/// <summary>
 	///  メンバ変数
 	/// </summary>
-		
-	
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_; // DXGIファクトリー
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_; // 使用するアダプタ
 	Microsoft::WRL::ComPtr<ID3D12Device> device_; // D3D12デバイス

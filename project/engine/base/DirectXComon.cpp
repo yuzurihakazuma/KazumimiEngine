@@ -130,7 +130,6 @@ void DirectXComon::CreateCommand(){
 /// <summary>
 /// スワップチェーンの生成
 /// </summary>
-
 void DirectXComon::CreateSwapChain(){
 
 	// スワップチェーンを生成する
@@ -151,5 +150,62 @@ void DirectXComon::CreateSwapChain(){
 	assert(SUCCEEDED(hr_));
 
 }
+/// <summary>
+/// 深度バァファの生成
+/// </summary>
+void DirectXComon::CreateDepthBuffer(){
+	// 生成するResourceの設定
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2Dテクスチャ
+	desc.Width =static_cast<UINT>(windowProc_->GetClientWidth()); // Textureの幅
+	desc.Height =static_cast<UINT>(windowProc_->GetClientHeight()); // Textureの幅
+	desc.DepthOrArraySize = 1; // 奥行きor 配列Textureの配列数
+	desc.MipLevels = 1; // mipmap
+	desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // DepthStencilとして利用可能なフォーマット
+	desc.SampleDesc.Count = 1; // サンプリングカウント。1固定
+	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN; // 標準的なレイアウト
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; // デプスステンシルとして使うのでフラグを立てる
+	// 利用するHeapの設定。非常に特殊な運用・
+	D3D12_HEAP_PROPERTIES heapProperties {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // 細かい設定を行う
+	// 深度値のクリア設定
+	D3D12_CLEAR_VALUE depthClearValue {};
+	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // フォーマット。Resourceと合わせる
+	depthClearValue.DepthStencil.Depth = 1.0f;
+	depthClearValue.DepthStencil.Stencil = 0;
+
+}
+
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metadata){
+
+	// metadataを基にResourceの設定
+	D3D12_RESOURCE_DESC resourceDesc {};
+	resourceDesc.Width = UINT(metadata.width); // Textrueの幅
+	resourceDesc.Height = UINT(metadata.height); // Textrueの高さ
+	resourceDesc.MipLevels = UINT16(metadata.mipLevels); // mipmapの数
+	resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize); // 奥行きor配列Textrueの配列数
+	resourceDesc.Format = metadata.format; //TextrueのFormat 
+	resourceDesc.SampleDesc.Count = 1; // サンプリングカウント。1固定
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textrueの次元数。普段使っているのは2次元
+
+	// 利用するHeapの設定。非常に特殊な運用・
+	D3D12_HEAP_PROPERTIES heapProperties {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // 細かい設定を行う
+
+	// Resourceの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+	HRESULT hr = device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr, IID_PPV_ARGS(&resource));
+	assert(SUCCEEDED(hr));
+
+	return resource;
+
+}
+
+
 
 
