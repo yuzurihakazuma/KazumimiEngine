@@ -4,8 +4,10 @@
 
 class WindowProc{
 public:
-	
+	///<summary>
 	// ウィンドウの初期化
+	///</summary> 
+	
 	void Initialize(WNDCLASS wc, const int32_t kClientWidth = 1280 , const int32_t kClientHeight=720);
 	// ウィンドウの更新
 	void Update();

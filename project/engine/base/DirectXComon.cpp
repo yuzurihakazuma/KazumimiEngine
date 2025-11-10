@@ -19,8 +19,9 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	// コマンド関連の初期化
 	CreateCommand();
 	// スワップチェーンの生成
-	
+	CreateSwapChain();
 	// 深度バァファの生成
+	CreateDepthBuffer();
 	// 各種でスクリプタヒープの生成
 	// レンダーターゲットビューの初期化
 	// 深度ステンシルビューの初期化
@@ -174,8 +175,34 @@ void DirectXComon::CreateDepthBuffer(){
 	depthClearValue.DepthStencil.Depth = 1.0f;
 	depthClearValue.DepthStencil.Stencil = 0;
 
-}
+	// 4. リソース作成
+    hr_ = device_->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue, IID_PPV_ARGS(&depthStencilResource_)
+	);
+	assert(SUCCEEDED(hr_));
 
+
+}
+/// <summary>
+///  各種でスクリプタヒープの生成
+/// </summary>
+void DirectXComon::CreateDescriptorHeaps(){
+
+
+
+
+
+}
+/// <summary>
+//
+/// </summary>
+/// <param name="device"></param>
+/// <param name="metadata"></param>
+/// <returns></returns>
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metadata){
 
 	// metadataを基にResourceの設定
@@ -193,16 +220,16 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const
 	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // 細かい設定を行う
 
 	// Resourceの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
-	HRESULT hr = device->CreateCommittedResource(
+	resource_ = nullptr;
+	HRESULT hr_ = device->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr, IID_PPV_ARGS(&resource));
-	assert(SUCCEEDED(hr));
+		nullptr, IID_PPV_ARGS(&resource_));
+	assert(SUCCEEDED(hr_));
 
-	return resource;
+	return resource_;
 
 }
 

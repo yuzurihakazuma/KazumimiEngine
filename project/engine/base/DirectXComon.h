@@ -9,7 +9,7 @@
 #include "ShaderCompiler.h"
 #include "LogManager.h"
 #include "WindowProc.h"
-#include <DirectXTex.h>
+#include "externals/DirectXTex/DirectXTex.h"
 using namespace logs;
 
 
@@ -94,6 +94,10 @@ private:
 
 	// 使用するアダプタ用の変数。最初にnullptrを入れておく
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdaptr_ = nullptr;
+	// Resourceの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_ = nullptr;
 
+	// Resourceの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource_ = nullptr;
 };
 
