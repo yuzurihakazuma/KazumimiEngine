@@ -26,7 +26,34 @@ public:
 /// <summary>
 /// 
 /// </summary>
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
+	/// <summary>
+	/// </summary>
+	/// <param name="device"></param>
+	/// <param name="heapType"></param>
+	/// <param name="numDescriptors"></param>
+	/// <param name="shaderVisible"></param>
+	/// <returns></returns>
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,UINT numDescriptors, bool shaderVisible);
+	/// <summary>
+	/// 指定番号のCPUディスクリプタハンドルを取得
+	/// </summary>
+	/// <param name="descriptorHeap"></param>
+	/// <param name="descriptorSize"></param>
+	/// <param name="index"></param>
+	/// <returns></returns>
+	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
+	/// <summary>
+	///　指定番号のGPUディスクリプタハンドルを取得
+	/// </summary>
+	/// <param name="descriptorHeap"></param>
+	/// <param name="descriptorSize"></param>
+	/// <param name="index"></param>
+	/// <returns></returns>
+	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
+	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
+
 private:
 
 	void CreateFactory(); // DXGIファクトリーの生成
@@ -99,5 +126,10 @@ private:
 
 	// Resourceの生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource_ = nullptr;
+
+
+	static constexpr UINT kBackBufferCount = 2; // バックバッファの数
+	Microsoft::WRL::ComPtr<ID3D12Resource>   backBuffers_[kBackBufferCount]; // バックバッファ
+	UINT rtvDescSize_ = 0; // RTVのディスクリプタサイズ
 };
 

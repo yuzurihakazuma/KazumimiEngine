@@ -29,12 +29,16 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	// ビューポートの初期化
 	// シザー矩形の初期化
 	// DXCコンパイラの生成
-	
+
 
 
 
 
 }
+
+
+
+
 
 /// <summary>
 /// DXGIファクトリーの生成
@@ -42,8 +46,8 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 void DirectXComon::CreateFactory(){
 	// HRESULTはWindows系のエラーコードであり、
 	// 関数が成功したかどうかをSUCCEDEDマクロで判定できる
-	 hr_ = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
-	 assert(SUCCEEDED(hr_));
+	hr_ = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
+	assert(SUCCEEDED(hr_));
 }
 /// <summary>
 ///  //GPUアダプタの選択
@@ -158,8 +162,8 @@ void DirectXComon::CreateDepthBuffer(){
 	// 生成するResourceの設定
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2Dテクスチャ
-	desc.Width =static_cast<UINT>(windowProc_->GetClientWidth()); // Textureの幅
-	desc.Height =static_cast<UINT>(windowProc_->GetClientHeight()); // Textureの幅
+	desc.Width = static_cast< UINT >( windowProc_->GetClientWidth() ); // Textureの幅
+	desc.Height = static_cast< UINT >( windowProc_->GetClientHeight() ); // Textureの幅
 	desc.DepthOrArraySize = 1; // 奥行きor 配列Textureの配列数
 	desc.MipLevels = 1; // mipmap
 	desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // DepthStencilとして利用可能なフォーマット
@@ -176,7 +180,7 @@ void DirectXComon::CreateDepthBuffer(){
 	depthClearValue.DepthStencil.Stencil = 0;
 
 	// 4. リソース作成
-    hr_ = device_->CreateCommittedResource(
+	hr_ = device_->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
@@ -192,18 +196,55 @@ void DirectXComon::CreateDepthBuffer(){
 /// </summary>
 void DirectXComon::CreateDescriptorHeaps(){
 
-
+	// RTV用のヒープでディスクリプタの数は2。RTVはshader内で触るものではないので,ShaderVisibleはfalse
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	// SPV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	// DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので,ShaderVisibleはfalse
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHaap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	// DescriptorSizeを取得しておく
+	const uint32_t desriptorSizeSRV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	const uint32_t desriptorSizeRTV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	const uint32_t desriptorSizeDSV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 
 
 }
 /// <summary>
-//
+/// レンダーターゲットビューの初期化
+/// </summary>
+void DirectXComon::CreateRenderTargetViews(){
+
+	// DescriptorSizeを取得しておく
+	rtvDescSize_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc {}; // レンダーターゲットビューの設定
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D; // 2dテクスチャとして読み込む
+	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // リニア出力なら UNORM に変える
+	rtvDesc.Texture2D.MipSlice = 0; // ミップマップの何番目を使うか
+	rtvDesc.Texture2D.PlaneSlice = 0; // プレーン何番目を使うか
+
+	// ヒープ先頭
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+
+	// バックバッファごとにRTV作成
+	for ( UINT i = 0; i < kBackBufferCount; ++i ) {
+		hr_ = swapChain_->GetBuffer(i, IID_PPV_ARGS(&backBuffers_[i]));
+		assert(SUCCEEDED(hr_));
+		// RTVの生成
+		device_->CreateRenderTargetView(backBuffers_[i].Get(), &rtvDesc, handle);
+
+		// 次のディスクリプタへ
+		handle.ptr += rtvDescSize_;
+	}
+
+}
+/// <summary>
+//  テクスチャリソースの生成
 /// </summary>
 /// <param name="device"></param>
 /// <param name="metadata"></param>
 /// <returns></returns>
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const Microsoft::WRL::ComPtr<ID3D12Device>& device, const DirectX::TexMetadata& metadata){
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const DirectX::TexMetadata& metadata){
 
 	// metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};
@@ -221,7 +262,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const
 
 	// Resourceの生成
 	resource_ = nullptr;
-	HRESULT hr_ = device->CreateCommittedResource(
+	HRESULT hr_ = device_->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -232,7 +273,69 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const
 	return resource_;
 
 }
+/// <summary>
+// ディスクリプタヒープの生成
+/// </summary>
+/// <param name="device"></param>
+/// <param name="heapType"></param>
+/// <param name="numDescriptors"></param>
+/// <param name="shaderVisible"></param>
+/// <returns></returns>
+Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXComon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible){
+	// HRESULTはWindows系のエラーコードであり、
+	// 関数が成功したかどうかをSUCCEDEDマクロで判定できる
+	hr_ = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
 
+	// ディスクリプタヒープの生成
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = nullptr;
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc {};
+	descriptorHeapDesc.Type = heapType; // 連打―ターゲットビュー用
+	descriptorHeapDesc.NumDescriptors = numDescriptors; // ダブルバッファ用に2つ。多くても別に構わない。
+	descriptorHeapDesc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	hr_ = device_->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&descriptorHeap));
+	// ディスクリプタヒープが作れなかったので起動できない
+	assert(SUCCEEDED(hr_));
+	return descriptorHeap;
+}
+/// <summary>
+///　CPUディスクリプタハンドルの取得
+/// </summary>
+/// <param name="descriptorHeap"></param>
+/// <param name="descriptorSize"></param>
+/// <param name="index"></param>
+/// <returns></returns>
+D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index){
 
+	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	handleCPU.ptr += ( descriptorSize * index );
+	return handleCPU;
+}
+/// <summary>
+///　CPUディスクリプタハンドルの取得
+/// </summary>
+D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
+	return GetCPUDescriptorHandle(srvHeap_, descriptorSize, index);
+}
+/// <summary>
+///　GPUディスクリプタハンドルの取得
+/// </summary>
+/// <param name="descriptorHeap"></param>
+/// <param name="descriptorSize"></param>
+/// <param name="index"></param>
+/// <returns></returns>
+D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index){
+
+	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	handleGPU.ptr += ( descriptorSize * index );
+	return handleGPU;
+}
+/// <summary>
+///　GPUディスクリプタハンドルの取得
+/// </summary>
+D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
+
+	return GetGPUDescriptorHandle(srvHeap_, descriptorSize, index);
+
+}
 
 
