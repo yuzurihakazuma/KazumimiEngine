@@ -23,17 +23,19 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	// 深度バァファの生成
 	CreateDepthBuffer();
 	// 各種でスクリプタヒープの生成
+	CreateDescriptorHeaps();
 	// レンダーターゲットビューの初期化
+	CreateRenderTargetViews();
 	// 深度ステンシルビューの初期化
+	CreateDepthStencilView();
 	// フェンスの初期化
+	CreateFence();
 	// ビューポートの初期化
+	InitializeViewport();
 	// シザー矩形の初期化
+	InitializeScissorRect();
 	// DXCコンパイラの生成
-
-
-
-
-
+	CreateDXCCompiler();
 }
 
 
@@ -239,11 +241,95 @@ void DirectXComon::CreateRenderTargetViews(){
 
 }
 /// <summary>
+/// 深度ステンシルビューの初期化
+/// </summary>
+void DirectXComon::CreateDepthStencilView(){
+
+
+	// DSVの設定
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc {};
+	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // Format。基本的にはResourceに合わせる
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; //2dTexture
+
+	// ヒープの先頭ハンドル取得
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+
+	// DSVHeapの設定にDSVをつくる
+	device_->CreateDepthStencilView(depthBuffer_.Get(), &dsvDesc, dsvHandle);
+
+
+}
+
+/// <summary>
+/// フェンスの初期化
+/// </summary>
+void DirectXComon::CreateFence(){
+
+	// 初期化0でFenceを作る
+
+	fenceValue_ = 0;
+	hr_ = device_->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
+	assert(SUCCEEDED(hr_));
+
+	// FenceのSignalを待つためのイベントを作成する
+	HANDLE fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
+	assert(fenceEvent_ != nullptr);
+
+}
+/// <summary>
+/// ビューポートの初期化
+/// </summary>
+void DirectXComon::InitializeViewport(){
+
+	// クライアントサイズ取得
+	float width = static_cast< float >( windowProc_->GetClientWidth() );
+	float height = static_cast< float >( windowProc_->GetClientHeight() );
+
+	// クライアント領域のサイズと一緒にして画面全体に表示
+	viewport_.Width = width;
+	viewport_.Height = height;
+	viewport_.TopLeftX = 0.0f;
+	viewport_.TopLeftY = 0.0f;
+	viewport_.MinDepth = 0.0f;
+	viewport_.MaxDepth = 1.0f;
+
+}
+/// <summary>
+/// シザー矩形の初期化
+/// </summary>
+void DirectXComon::InitializeScissorRect(){
+
+
+	// クライアントサイズ取得
+	float width = static_cast< LONG >( windowProc_->GetClientWidth() );
+	float height = static_cast< LONG >( windowProc_->GetClientHeight() );
+
+	// 基本的にビューボートと同じ矩形が構成されるようにする
+	scissorRect_.left = 0;
+	scissorRect_.right = width;
+	scissorRect_.top = 0;
+	scissorRect_.bottom = height;
+
+}
+/// <summary>
+/// DXCコンパイラの生成
+/// </summary>
+void DirectXComon::CreateDXCCompiler(){
+
+
+	hr_ = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
+	assert(SUCCEEDED(hr_));
+	hr_ = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
+	assert(SUCCEEDED(hr_));
+	hr_ = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
+	assert(SUCCEEDED(hr_));
+
+}
+
+
+/// <summary>
 //  テクスチャリソースの生成
 /// </summary>
-/// <param name="device"></param>
-/// <param name="metadata"></param>
-/// <returns></returns>
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const DirectX::TexMetadata& metadata){
 
 	// metadataを基にResourceの設定
@@ -297,6 +383,10 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXComon::CreateDescriptorHeap(
 	assert(SUCCEEDED(hr_));
 	return descriptorHeap;
 }
+
+
+#pragma region GetCPU
+
 /// <summary>
 ///　CPUディスクリプタハンドルの取得
 /// </summary>
@@ -316,6 +406,12 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(const Microsoft
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
 	return GetCPUDescriptorHandle(srvHeap_, descriptorSize, index);
 }
+
+
+#pragma endregion
+
+#pragma region GetGPU
+
 /// <summary>
 ///　GPUディスクリプタハンドルの取得
 /// </summary>
@@ -337,5 +433,4 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(uint32_t descri
 	return GetGPUDescriptorHandle(srvHeap_, descriptorSize, index);
 
 }
-
-
+#pragma endregion

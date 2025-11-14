@@ -82,7 +82,6 @@ private:
 
 	void CreateDXCCompiler(); // DXCコンパイラの生成
 
-
 	/// <summary>
 	///  メンバ変数
 	/// </summary>
@@ -131,5 +130,15 @@ private:
 	static constexpr UINT kBackBufferCount = 2; // バックバッファの数
 	Microsoft::WRL::ComPtr<ID3D12Resource>   backBuffers_[kBackBufferCount]; // バックバッファ
 	UINT rtvDescSize_ = 0; // RTVのディスクリプタサイズ
+
+	// フェンス本体
+	Microsoft::WRL::ComPtr<ID3D12Fence> fence_ = nullptr;
+
+	// カレントのフェンス値
+	uint64_t fenceValue_ = 0;
+
+	// フェンス待ち用のイベントハンドル
+	HANDLE fenceEvent_ = nullptr;
+
 };
 
