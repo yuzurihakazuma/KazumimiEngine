@@ -37,11 +37,109 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	// DXCコンパイラの生成
 	CreateDXCCompiler();
 }
+/// <summary>
+// 描画前処理
+/// </summary>
+void DirectXComon::PreDraw(){
+
+	// コマンドアロケータ & コマンドリストをリセット
+	hr_ = commandAllocator_->Reset();
+	assert(SUCCEEDED(hr_));
+	hr_ = commandList_->Reset(commandAllocator_.Get(), nullptr);
+	assert(SUCCEEDED(hr_));
+
+	// これから書き込むバックバッファのインデックスを取得
+	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
+
+	// TransitionBarrierの設定
+	D3D12_RESOURCE_BARRIER barrier {};
+	// 今回のバリアはTransition
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	// Noneにしておく
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	// バリアを張る対象のリソース。現在のバックバッファに対して行う
+	barrier.Transition.pResource = backBuffers_[backBufferIndex].Get();
+	// 遷移前(現在)のResourceState
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	// 遷移後のResoureceState
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	// TransitionBarrierを張る
+	commandList_->ResourceBarrier(1, &barrier);
+
+	// 今のバックバッファ用 RTV ハンドル計算
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
+		rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += static_cast< SIZE_T >( backBufferIndex ) * rtvDescSize_;
+
+	// DSV ハンドル取得
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
+		dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+
+	// レンダーターゲット / 深度ステンシルをセット
+	commandList_->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
+	// 画面クリア & 深度クリア
+	const float clearColor[4] = { 0.1f, 0.25f, 0.5f, 1.0f };
+	commandList_->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	commandList_->ClearDepthStencilView(
+		dsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH,
+		1.0f, 0, 0, nullptr);
+
+	// ビューポート / シザー設定
+	commandList_->RSSetViewports(1, &viewport_);
+	commandList_->RSSetScissorRects(1, &scissorRect_);
+
+	// SRV 用ディスクリプタヒープをセット（テクスチャを使う draw の前に一度だけ）
+	if ( srvHeap_ ) {
+		ID3D12DescriptorHeap* heaps[] = { srvHeap_.Get() };
+		commandList_->SetDescriptorHeaps(_countof(heaps), heaps);
+	}
 
 
 
+}
+/// <summary>
+// 描画後処理
+/// </summary>
+void DirectXComon::PostDraw(){
 
+	// これから表示するバックバッファのインデックスを取得
+	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
 
+	// バックバッファを「描画用 → 表示用(PRESENT)」に戻すバリア
+	D3D12_RESOURCE_BARRIER barrier {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = backBuffers_[backBufferIndex].Get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	commandList_->ResourceBarrier(1, &barrier);
+
+	//  コマンドリストを確定
+	hr_ = commandList_->Close();
+	assert(SUCCEEDED(hr_));
+	// コマンドリストをコマンドキューにセットして実行
+	ID3D12CommandList* cmdLists[] = { commandList_.Get() };
+	commandQueue_->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+
+	// 画面の表示
+	hr_ = swapChain_->Present(1, 0);
+	assert(SUCCEEDED(hr_));
+
+	// フェンスで GPU 完了待ち
+	const UINT64 fenceToWaitFor = ++fenceValue_;
+	hr_ = commandQueue_->Signal(fence_.Get(), fenceToWaitFor);
+	assert(SUCCEEDED(hr_));
+
+	if ( fence_->GetCompletedValue() < fenceToWaitFor ) {
+		hr_ = fence_->SetEventOnCompletion(fenceToWaitFor, fenceEvent_);
+		assert(SUCCEEDED(hr_));
+		WaitForSingleObject(fenceEvent_, INFINITE);
+	}
+
+}
 /// <summary>
 /// DXGIファクトリーの生成
 /// </summary>

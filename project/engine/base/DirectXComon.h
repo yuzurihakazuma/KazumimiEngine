@@ -19,13 +19,14 @@ public:
 	// 初期化
 	/// </summary>
 	void Initialize(WindowProc* windowProc);
+
+	void PreDraw(); // 描画前処理
+
+	void PostDraw(); // 描画後処理
+
 	/// <summary>
-	// 終了処理
+	/// 
 	/// </summary>
-	void Finalize();
-/// <summary>
-/// 
-/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
 	/// <summary>
 	/// </summary>
@@ -34,7 +35,7 @@ public:
 	/// <param name="numDescriptors"></param>
 	/// <param name="shaderVisible"></param>
 	/// <returns></returns>
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType,UINT numDescriptors, bool shaderVisible);
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
 	/// <summary>
 	/// 指定番号のCPUディスクリプタハンドルを取得
 	/// </summary>
@@ -53,6 +54,20 @@ public:
 	/// <returns></returns>
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
+	
+	
+	// SRVヒープも外から使いたければこういうのもアリ
+	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvHeap_.Get(); }
+
+	/// <summary>
+	/// Deviceのゲッター
+	/// </summary>
+	ID3D12Device* GetDevice() const{ return device_.Get(); }
+	/// <summary>
+	// コマンドリストのゲッター
+	/// </summary>
+	ID3D12GraphicsCommandList* GetCommandList() const{ return commandList_.Get(); }
+	
 
 private:
 
@@ -109,7 +124,7 @@ private:
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;; // インクルードハンドラ
 
 
-	
+
 
 	HRESULT hr_; // HRESULT保存用
 
@@ -131,14 +146,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource>   backBuffers_[kBackBufferCount]; // バックバッファ
 	UINT rtvDescSize_ = 0; // RTVのディスクリプタサイズ
 
-	// フェンス本体
-	Microsoft::WRL::ComPtr<ID3D12Fence> fence_ = nullptr;
-
+	
 	// カレントのフェンス値
 	uint64_t fenceValue_ = 0;
 
-	// フェンス待ち用のイベントハンドル
-	HANDLE fenceEvent_ = nullptr;
-
+	
 };
 
