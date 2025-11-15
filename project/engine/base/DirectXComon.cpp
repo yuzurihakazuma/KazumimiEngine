@@ -423,38 +423,6 @@ void DirectXComon::CreateDXCCompiler(){
 
 
 /// <summary>
-//  テクスチャリソースの生成
-/// </summary>
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXComon::CreateTextureResource(const DirectX::TexMetadata& metadata){
-
-	// metadataを基にResourceの設定
-	D3D12_RESOURCE_DESC resourceDesc {};
-	resourceDesc.Width = UINT(metadata.width); // Textrueの幅
-	resourceDesc.Height = UINT(metadata.height); // Textrueの高さ
-	resourceDesc.MipLevels = UINT16(metadata.mipLevels); // mipmapの数
-	resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize); // 奥行きor配列Textrueの配列数
-	resourceDesc.Format = metadata.format; //TextrueのFormat 
-	resourceDesc.SampleDesc.Count = 1; // サンプリングカウント。1固定
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textrueの次元数。普段使っているのは2次元
-
-	// 利用するHeapの設定。非常に特殊な運用・
-	D3D12_HEAP_PROPERTIES heapProperties {};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // 細かい設定を行う
-
-	// Resourceの生成
-	resource_ = nullptr;
-	HRESULT hr_ = device_->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr, IID_PPV_ARGS(&resource_));
-	assert(SUCCEEDED(hr_));
-
-	return resource_;
-
-}
-/// <summary>
 // ディスクリプタヒープの生成
 /// </summary>
 /// <param name="device"></param>

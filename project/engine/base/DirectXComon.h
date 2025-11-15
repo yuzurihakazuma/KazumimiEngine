@@ -4,72 +4,57 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxcapi.h>
-#include <d3d12.h>
 #include<cassert>
 #include "ShaderCompiler.h"
 #include "LogManager.h"
 #include "WindowProc.h"
 #include "externals/DirectXTex/DirectXTex.h"
+#include "Dx12ResourceFactory.h"
+#include "Dx12TextrueManager.h"
+
+
 using namespace logs;
 
 
 class DirectXComon{
 public:
-	/// <summary>
-	// 初期化
-	/// </summary>
+	/// <summary>初期化</summary>
 	void Initialize(WindowProc* windowProc);
 
-	void PreDraw(); // 描画前処理
-
+	void PreDraw();  // 描画前処理
 	void PostDraw(); // 描画後処理
 
-	/// <summary>
-	/// 
-	/// </summary>
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
-	/// <summary>
-	/// </summary>
-	/// <param name="device"></param>
-	/// <param name="heapType"></param>
-	/// <param name="numDescriptors"></param>
-	/// <param name="shaderVisible"></param>
-	/// <returns></returns>
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
-	/// <summary>
-	/// 指定番号のCPUディスクリプタハンドルを取得
-	/// </summary>
-	/// <param name="descriptorHeap"></param>
-	/// <param name="descriptorSize"></param>
-	/// <param name="index"></param>
-	/// <returns></returns>
-	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
+	
+	/// <summary>ディスクリプタヒープ作成
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
+
+	/// <summary>指定番号のCPUディスクリプタハンドルを取得
+	static D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(
+		const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
+		uint32_t descriptorSize,
+		uint32_t index);
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
-	/// <summary>
-	///　指定番号のGPUディスクリプタハンドルを取得
-	/// </summary>
-	/// <param name="descriptorHeap"></param>
-	/// <param name="descriptorSize"></param>
-	/// <param name="index"></param>
-	/// <returns></returns>
-	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
+
+	/// <summary>指定番号のGPUディスクリプタハンドルを取得
+	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(
+		const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
+		uint32_t descriptorSize,
+		uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
 
-
-	// SRVヒープも外から使いたければこういうのもアリ
+	// SRVヒープ
 	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
 
-	/// <summary>
 	/// Deviceのゲッター
-	/// </summary>
 	ID3D12Device* GetDevice() const{ return device_.Get(); }
-	/// <summary>
-	// コマンドリストのゲッター
-	/// </summary>
+
+	/// <summary>コマンドリストのゲッター
 	ID3D12GraphicsCommandList* GetCommandList() const{ return commandList_.Get(); }
 
-
 private:
+
+	// -------------------- 初期化・生成系 --------------------
 
 	void CreateFactory(); // DXGIファクトリーの生成
 
@@ -97,63 +82,55 @@ private:
 
 	void CreateDXCCompiler(); // DXCコンパイラの生成
 
-	/// <summary>
-	///  メンバ変数
-	/// </summary>
-	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_; // DXGIファクトリー
-	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_; // 使用するアダプタ
-	Microsoft::WRL::ComPtr<ID3D12Device> device_; // D3D12デバイス
+	// -------------------- DXGI・デバイス関連 --------------------
+	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー
+	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_;        // 使用するアダプタ
+	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdaptr_ = nullptr; // 選択されたアダプタ
+	Microsoft::WRL::ComPtr<ID3D12Device> device_;          // D3D12デバイス
 
-	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue_; // コマンドキュー
+	// -------------------- コマンド関連 --------------------
+	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue_;        // コマンドキュー
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator_; // コマンドアロケータ
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_; // コマンドリスト
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_;   // コマンドリスト
 
-	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain_; // スワップチェーン
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer_; // 深度バッファ
+	// -------------------- スワップチェーン・バックバッファ --------------------
+	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain_;                // スワップチェーン
+	static constexpr UINT kBackBufferCount = 2;                        // バックバッファの数
+	Microsoft::WRL::ComPtr<ID3D12Resource> backBuffers_[kBackBufferCount]; // バックバッファ
+	UINT rtvDescSize_ = 0;                                             // RTVのディスクリプタサイズ
+
+	// -------------------- ディスクリプタヒープ --------------------
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;   // RTV用のヒープ
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;   // SRV用のヒープ（ディスクリプタの数は128）
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHaap_;   // DSV用のヒープ（ディスクリプタの数は1）
+
+	uint32_t desriptorSizeSRV_; // SRVのディスクリプタサイズ
+	uint32_t desriptorSizeRTV_; // RTVのディスクリプタサイズ
+	uint32_t desriptorSizeDSV_; // DSVのディスクリプタサイズ
+
+	// -------------------- 深度・ステンシル --------------------
+	Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer_;           // 深度バッファ
+	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;  // ステンシルリソース
+
+	// -------------------- その他リソース --------------------
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource; // 汎用リソース（用途によって変更可）
+
+	// -------------------- システム関連 --------------------
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_; // フェンス
+	HANDLE fenceEvent_ = nullptr;           // フェンス用イベントハンドル
+	uint64_t fenceValue_ = 0;               // カレントのフェンス値
+	D3D12_VIEWPORT viewport_ {};            // ビューポート
+	D3D12_RECT scissorRect_ {};             // シザー矩形
 
-	HANDLE fenceEvent_ = nullptr; // フェンス用イベントハンドル
-	D3D12_VIEWPORT viewport_ {}; // ビューポート
-	D3D12_RECT scissorRect_ {}; // シザー矩形
+	// -------------------- DXCコンパイラ関連 --------------------
+	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;                 // DXCユーティリティ
+	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;          // DXCコンパイラ
+	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;  // インクルードハンドラ
 
-	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_; // DXCユーティリティ
-	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_; // DXCコンパイラ
-	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;; // インクルードハンドラ
-	// RTV用のヒープ
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;
-	// SPV用のヒープでディスクリプタの数は128。
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
-	// DSV用のヒープでディスクリプタの数は1。
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHaap_;
-
-	 uint32_t desriptorSizeSRV_;
-	 uint32_t desriptorSizeRTV_;
-	 uint32_t desriptorSizeDSV_;
-
-
-	HRESULT hr_; // HRESULT保存用
-
-	LogManager logManager_; // ログマネージャー
-
+	// -------------------- その他 --------------------
+	HRESULT hr_;                      // HRESULT保存用
+	LogManager logManager_;          // ログマネージャー
 	WindowProc* windowProc_ = nullptr; // ウィンドウプロシージャ
-
-
-	// 使用するアダプタ用の変数。最初にnullptrを入れておく
-	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdaptr_ = nullptr;
-	// Resourceの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_ = nullptr;
-
-	// Resourceの生成
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource_ = nullptr;
-
-
-	static constexpr UINT kBackBufferCount = 2; // バックバッファの数
-	Microsoft::WRL::ComPtr<ID3D12Resource>   backBuffers_[kBackBufferCount]; // バックバッファ
-	UINT rtvDescSize_ = 0; // RTVのディスクリプタサイズ
-
-
-	// カレントのフェンス値
-	uint64_t fenceValue_ = 0;
 
 
 };
