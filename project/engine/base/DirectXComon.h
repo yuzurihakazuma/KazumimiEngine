@@ -24,7 +24,6 @@ public:
 	void PreDraw();  // 描画前処理
 	void PostDraw(); // 描画後処理
 
-	
 	/// <summary>ディスクリプタヒープ作成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
@@ -48,6 +47,8 @@ public:
 
 	/// Deviceのゲッター
 	ID3D12Device* GetDevice() const{ return device_.Get(); }
+
+	void SetDevice(Microsoft::WRL::ComPtr<ID3D12Device> device){ device_ = device; }
 
 	/// <summary>コマンドリストのゲッター
 	ID3D12GraphicsCommandList* GetCommandList() const{ return commandList_.Get(); }

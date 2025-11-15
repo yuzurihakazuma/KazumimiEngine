@@ -17,16 +17,23 @@ class Dx12TextrueManager{
 
 public:
 
+	Dx12TextrueManager(ComPtr<ID3D12Device> device)
+		: device_(device){}
+
 	DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
 	ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
 
 	[[nodiscard]] // 03_00EX
 	ComPtr<ID3D12Resource> UploadTextureData(const ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, 
-		const ComPtr<ID3D12GraphicsCommandList>& commandList);
+		ID3D12GraphicsCommandList* commandList);
 	
 	ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
 
+	// device を外部からセットする関数（追加）
+	void SetDevice(ComPtr<ID3D12Device> device){
+		device_ = device;
+	}
 
 private:
 	

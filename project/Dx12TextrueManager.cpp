@@ -57,14 +57,14 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateTextureResource
 
 
 [[nodiscard]]
-Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, const Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>& commandList){
+Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
 	DirectX::PrepareUpload(device_.Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
 	uint64_t intermediateSize = GetRequiredIntermediateSize(texture.Get(), 0, static_cast< UINT >( subresources.size() ));
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = resourceBuffer_->CreateBufferResource(intermediateSize);
 
-	UpdateSubresources(commandList.Get(), texture.Get(), intermediateResource.Get(), 0, 0, static_cast< UINT >( subresources.size() ), subresources.data());
+	UpdateSubresources(commandList, texture.Get(), intermediateResource.Get(), 0, 0, static_cast< UINT >( subresources.size() ), subresources.data());
 
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

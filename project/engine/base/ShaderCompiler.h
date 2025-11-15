@@ -17,18 +17,14 @@ public:
 		// CompilerするShaderファイルへのパス
 		const std::wstring& filePath,
 		// Compilerに仕様するProfile
-		const wchar_t* profile,
-		// 初期化で生成したものを4つ
-		const Microsoft::WRL::ComPtr<IDxcUtils>& dxcUtils,
-		const Microsoft::WRL::ComPtr<IDxcCompiler3>& dxcCompiler,
-		const Microsoft::WRL::ComPtr<IDxcIncludeHandler>& includeHandler);
+		const wchar_t* profile);
 
 
 
 private:
-	/*Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;
+	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;
-	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;*/
+	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;
 
 
 };

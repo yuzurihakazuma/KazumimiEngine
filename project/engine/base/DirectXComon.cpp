@@ -7,8 +7,7 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	// NULLチェック
 	assert(windowProc);
 
-	// メンバ変数にセット
-	windowProc_ = windowProc;
+	this->windowProc_ = windowProc;
 
 	// デバイスの生成
 	CreateFactory();
