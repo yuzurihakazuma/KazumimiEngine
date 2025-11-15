@@ -4,13 +4,14 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxcapi.h>
-#include <d3d12.h>
 #include<cassert>
 #include "ShaderCompiler.h"
 #include "LogManager.h"
 #include "WindowProc.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "Dx12ResourceFactory.h"
+#include "Dx12TextrueManager.h"
+
 
 using namespace logs;
 
