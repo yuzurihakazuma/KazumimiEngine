@@ -148,6 +148,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Dx12ResourceFactory.cpp" />
     <ClCompile Include="Dx12TextrueManager.cpp" />
     <ClCompile Include="engine\base\DirectXComon.cpp" />
     <ClCompile Include="engine\base\CrashDumper.cpp" />
@@ -205,6 +206,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Dx12ResourceFactory.h" />
     <ClInclude Include="Dx12TextrueManager.h" />
     <ClInclude Include="engine\base\DirectXComon.h" />
     <ClInclude Include="engine\base\CrashDumper.h" />

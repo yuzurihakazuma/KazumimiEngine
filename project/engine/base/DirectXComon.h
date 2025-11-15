@@ -10,6 +10,8 @@
 #include "LogManager.h"
 #include "WindowProc.h"
 #include "externals/DirectXTex/DirectXTex.h"
+#include "Dx12ResourceFactory.h"
+
 using namespace logs;
 
 
@@ -21,9 +23,7 @@ public:
 	void PreDraw();  // 描画前処理
 	void PostDraw(); // 描画後処理
 
-	/// <summary>テクスチャ用のリソース作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
-
+	
 	/// <summary>ディスクリプタヒープ作成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
@@ -112,7 +112,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;  // ステンシルリソース
 
 	// -------------------- その他リソース --------------------
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource_; // 汎用リソース（用途によって変更可）
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource; // 汎用リソース（用途によって変更可）
 
 	// -------------------- システム関連 --------------------
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_; // フェンス
