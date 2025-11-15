@@ -54,10 +54,10 @@ public:
 	/// <returns></returns>
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
-	
-	
+
+
 	// SRVヒープも外から使いたければこういうのもアリ
-	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvHeap_.Get(); }
+	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
 
 	/// <summary>
 	/// Deviceのゲッター
@@ -67,7 +67,7 @@ public:
 	// コマンドリストのゲッター
 	/// </summary>
 	ID3D12GraphicsCommandList* GetCommandList() const{ return commandList_.Get(); }
-	
+
 
 private:
 
@@ -109,9 +109,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList_; // コマンドリスト
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain_; // スワップチェーン
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvHeap_; // レンダーターゲットビュー用デスクリプタヒープ
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvHeap_; // 深度ステンシルビュー用デスクリプタヒープ
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvHeap_; // シェーダーリソースビュー用デスクリプタヒープ
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer_; // 深度バッファ
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_; // フェンス
 
@@ -122,8 +119,16 @@ private:
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_; // DXCユーティリティ
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_; // DXCコンパイラ
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;; // インクルードハンドラ
+	// RTV用のヒープ
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;
+	// SPV用のヒープでディスクリプタの数は128。
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;
+	// DSV用のヒープでディスクリプタの数は1。
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHaap_;
 
-
+	 uint32_t desriptorSizeSRV_;
+	 uint32_t desriptorSizeRTV_;
+	 uint32_t desriptorSizeDSV_;
 
 
 	HRESULT hr_; // HRESULT保存用
@@ -146,10 +151,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource>   backBuffers_[kBackBufferCount]; // バックバッファ
 	UINT rtvDescSize_ = 0; // RTVのディスクリプタサイズ
 
-	
+
 	// カレントのフェンス値
 	uint64_t fenceValue_ = 0;
 
-	
+
 };
 

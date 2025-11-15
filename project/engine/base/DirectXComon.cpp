@@ -68,12 +68,12 @@ void DirectXComon::PreDraw(){
 
 	// 今のバックバッファ用 RTV ハンドル計算
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
-		rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+		rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += static_cast< SIZE_T >( backBufferIndex ) * rtvDescSize_;
 
 	// DSV ハンドル取得
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
-		dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+		dsvDescriptorHaap_->GetCPUDescriptorHandleForHeapStart();
 
 	// レンダーターゲット / 深度ステンシルをセット
 	commandList_->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
@@ -91,8 +91,8 @@ void DirectXComon::PreDraw(){
 	commandList_->RSSetScissorRects(1, &scissorRect_);
 
 	// SRV 用ディスクリプタヒープをセット（テクスチャを使う draw の前に一度だけ）
-	if ( srvHeap_ ) {
-		ID3D12DescriptorHeap* heaps[] = { srvHeap_.Get() };
+	if ( srvDescriptorHeap_ ) {
+		ID3D12DescriptorHeap* heaps[] = { srvDescriptorHeap_.Get() };
 		commandList_->SetDescriptorHeaps(_countof(heaps), heaps);
 	}
 
@@ -295,17 +295,14 @@ void DirectXComon::CreateDepthBuffer(){
 ///  各種でスクリプタヒープの生成
 /// </summary>
 void DirectXComon::CreateDescriptorHeaps(){
-
-	// RTV用のヒープでディスクリプタの数は2。RTVはshader内で触るものではないので,ShaderVisibleはfalse
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
-	// SPV用のヒープでディスクリプタの数は128。SRVはShader内で触るものなので、ShaderVisibleはtrue
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
-	// DSV用のヒープでディスクリプタの数は1。DSVはShader内で触るものではないので,ShaderVisibleはfalse
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHaap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	
+	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+	dsvDescriptorHaap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	// DescriptorSizeを取得しておく
-	const uint32_t desriptorSizeSRV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	const uint32_t desriptorSizeRTV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	const uint32_t desriptorSizeDSV = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	 desriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	 desriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	 desriptorSizeDSV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 
 
@@ -323,8 +320,8 @@ void DirectXComon::CreateRenderTargetViews(){
 	rtvDesc.Texture2D.MipSlice = 0; // ミップマップの何番目を使うか
 	rtvDesc.Texture2D.PlaneSlice = 0; // プレーン何番目を使うか
 
-	// ヒープ先頭
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvHeap_->GetCPUDescriptorHandleForHeapStart();
+	// ★ ハンドルをちゃんと受け取る
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
 	// バックバッファごとにRTV作成
 	for ( UINT i = 0; i < kBackBufferCount; ++i ) {
@@ -350,7 +347,7 @@ void DirectXComon::CreateDepthStencilView(){
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; //2dTexture
 
 	// ヒープの先頭ハンドル取得
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvHeap_->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHaap_->GetCPUDescriptorHandleForHeapStart();
 
 	// DSVHeapの設定にDSVをつくる
 	device_->CreateDepthStencilView(depthBuffer_.Get(), &dsvDesc, dsvHandle);
@@ -502,7 +499,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(const Microsoft
 ///　CPUディスクリプタハンドルの取得
 /// </summary>
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
-	return GetCPUDescriptorHandle(srvHeap_, descriptorSize, index);
+	return GetCPUDescriptorHandle(srvDescriptorHeap_, descriptorSize, index);
 }
 
 
@@ -528,7 +525,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(const Microsoft
 /// </summary>
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
 
-	return GetGPUDescriptorHandle(srvHeap_, descriptorSize, index);
+	return GetGPUDescriptorHandle(srvDescriptorHeap_, descriptorSize, index);
 
 }
 #pragma endregion

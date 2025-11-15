@@ -5,6 +5,7 @@
 #include <wtypes.h>
 #include <d3d12.h>
 #include <wrl.h> // Microsoft::WRL::ComPtr
+#include "DirectXComon.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -24,5 +25,8 @@ private:
     UINT numFrames_ = 0;
     ComPtr<ID3D12Device> device_ = nullptr;
     ComPtr<ID3D12DescriptorHeap> srvHeap_ = nullptr;
+
+   
+
 };
 
