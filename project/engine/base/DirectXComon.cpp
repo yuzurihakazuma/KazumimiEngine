@@ -14,15 +14,10 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	CreateFactory();
 	// GPUアダプタの選択
 	SelectAdapter();
-	assert(useAdaptr_ != nullptr); // ★ここ
-
 	// D3D12デバイスの生成
 	CreateDevice();
-	assert(device_ != nullptr);  // ★ここ
-
 	// コマンド関連の初期化
 	CreateCommand();
-	assert(commandList_ != nullptr); // ★ここ
 	// スワップチェーンの生成
 	CreateSwapChain();
 	// 深度バァファの生成
@@ -78,7 +73,7 @@ void DirectXComon::PreDraw(){
 
 	// DSV ハンドル取得
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
-		dsvDescriptorHaap_->GetCPUDescriptorHandleForHeapStart();
+		dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
 	// レンダーターゲット / 深度ステンシルをセット
 	commandList_->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
@@ -151,7 +146,13 @@ void DirectXComon::PostDraw(){
 void DirectXComon::CreateFactory(){
 	// HRESULTはWindows系のエラーコードであり、
 	// 関数が成功したかどうかをSUCCEDEDマクロで判定できる
-	hr_ = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
+	UINT flags = 0; // フラグ
+
+#if _DEBUG
+	flags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+	hr_ = CreateDXGIFactory2(flags,IID_PPV_ARGS(&dxgiFactory_));
 	assert(SUCCEEDED(hr_));
 }
 /// <summary>
@@ -159,32 +160,44 @@ void DirectXComon::CreateFactory(){
 /// </summary>
 void DirectXComon::SelectAdapter(){
 
-	// いい順にアダプタを頼む
-	for ( UINT i = 0; dxgiFactory_->EnumAdapterByGpuPreference(i,
-		DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&useAdaptr_)) !=
-		DXGI_ERROR_NOT_FOUND; ++i ) {
-		// アダプタ―の情報を習得する
-		DXGI_ADAPTER_DESC3 adapterDesc {};
-		hr_ = useAdaptr_->GetDesc3(&adapterDesc);
-		assert(SUCCEEDED(hr_));// 取得できないのは一大事
-		// ソフトウェアアダプタでなければ採用！
-		if ( !( adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE ) ) {
-			// 採用したアダプタの情報をログに出力。wstringの方なので注意
-			logManager_.Log(logManager_.ConvertString(std::format(L"Use Adapater:{}\n", adapterDesc.Description)));
-			break;
+	ComPtr<IDXGIAdapter4> adapter;
+
+	for ( UINT i = 0;
+		dxgiFactory_->EnumAdapterByGpuPreference(
+			i,
+			DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+			IID_PPV_ARGS(&adapter)
+		) != DXGI_ERROR_NOT_FOUND;
+		++i )
+	{
+		DXGI_ADAPTER_DESC3 desc {};
+		adapter->GetDesc3(&desc);
+
+		if ( !( desc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE ) ) {
+			// ★ここで代入する！
+			useAdapter_ = adapter;
+			
+			logManager_.Log(
+				logManager_.ConvertString(
+					std::format(L"Use Adapter: {}\n", desc.Description)
+				)
+			);
+			return;
 		}
-		useAdaptr_ = nullptr; // ソフトウェアアダプタの場合は見なかったことにする
-
+	
 	}
-	// 適切なアダプタが見つからなかったので起動できない
-	assert(useAdaptr_ != nullptr);
-
-
+	adapter.Reset();
+	assert(false && "No hardware adapter found!");
 }
 /// <summary>
 /// D3D12デバイスの生成
 /// </summary>
 void DirectXComon::CreateDevice(){
+
+
+
+	assert(useAdapter_ != nullptr && "Adapter is null! SelectAdapter() failed.");
+
 
 	// 昨日レベルとログ出力用の文字列
 	D3D_FEATURE_LEVEL featureLevels[] = {
@@ -194,7 +207,7 @@ void DirectXComon::CreateDevice(){
 	// 高い順に生成できるか試していく
 	for ( size_t i = 0; i < _countof(featureLevels); ++i ) {
 		// 採用したアダプターでデバイスを生成
-		hr_ = D3D12CreateDevice(useAdaptr_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
+		hr_ = D3D12CreateDevice(useAdapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
 		// 指定した機能レベルでデバイスが生成できたかを確認
 		if ( SUCCEEDED(hr_) ) {
 			// 生成できたのでログ出力を行ってループを抜ける
@@ -252,6 +265,9 @@ void DirectXComon::CreateSwapChain(){
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 描画のターゲットとして利用する
 	swapChainDesc.BufferCount = 2; // ダブルバッファ
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // モニタにうつしたら、中身を破棄
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE; // アルファチャネルは使わない
+
+
 	// コマンドキュー、ウィンドウハンドル、設定を渡して生成する
 	hr_ = dxgiFactory_->CreateSwapChainForHwnd(commandQueue_.Get(), windowProc_->GetHwnd(), &swapChainDesc, nullptr, nullptr, tempSwapChain.GetAddressOf());
 	assert(SUCCEEDED(hr_));
@@ -290,7 +306,7 @@ void DirectXComon::CreateDepthBuffer(){
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&depthClearValue, IID_PPV_ARGS(&depthBuffer_)
+		&depthClearValue, IID_PPV_ARGS(&depthStencilResource_)
 	);
 	assert(SUCCEEDED(hr_));
 
@@ -303,7 +319,7 @@ void DirectXComon::CreateDescriptorHeaps(){
 	
 	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
-	dsvDescriptorHaap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	dsvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	// DescriptorSizeを取得しておく
 	 desriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	 desriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -352,10 +368,10 @@ void DirectXComon::CreateDepthStencilView(){
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; //2dTexture
 
 	// ヒープの先頭ハンドル取得
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHaap_->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
 	// DSVHeapの設定にDSVをつくる
-	device_->CreateDepthStencilView(depthBuffer_.Get(), &dsvDesc, dsvHandle);
+	device_->CreateDepthStencilView(depthStencilResource_.Get(), &dsvDesc, dsvHandle);
 
 
 }

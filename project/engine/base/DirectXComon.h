@@ -87,7 +87,7 @@ private:
 
 	// -------------------- DXGI・デバイス関連 --------------------
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー
-	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdaptr_ = nullptr; // 選択されたアダプタ
+	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdapter_ = nullptr; // 選択されたアダプタ
 	Microsoft::WRL::ComPtr<ID3D12Device> device_;          // D3D12デバイス
 
 	// -------------------- コマンド関連 --------------------
@@ -104,7 +104,7 @@ private:
 	// -------------------- ディスクリプタヒープ --------------------
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;   // RTV用のヒープ
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;   // SRV用のヒープ（ディスクリプタの数は128）
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHaap_;   // DSV用のヒープ（ディスクリプタの数は1）
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;   // DSV用のヒープ（ディスクリプタの数は1）
 
 	uint32_t desriptorSizeSRV_; // SRVのディスクリプタサイズ
 	uint32_t desriptorSizeRTV_; // RTVのディスクリプタサイズ

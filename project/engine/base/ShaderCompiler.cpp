@@ -10,7 +10,36 @@ extern logs::LogManager logManager;
 
 bool ShaderCompiler::Initialize(){
 
-	return true;
+	HRESULT hr;
+
+	// 1. DXCユーティリティ (dxcUtils_) の作成
+	// ↓ これが実行されると dxcUtils_ が NULL ではなくなります
+	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
+	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to create DxcUtils\n");
+		return false;
+	}
+
+	// 2. DXCコンパイラ (dxcCompiler_) の作成
+	// ↓ これが実行されると dxcCompiler_ が NULL ではなくなります
+	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
+	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to create DxcCompiler\n");
+		return false;
+	}
+
+	// 3. インクルードハンドラ (includeHandler_) の作成
+	// ↓ これが実行されると includeHandler_ が NULL ではなくなります
+	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
+	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to create IncludeHandler\n");
+		return false;
+	}
+
+	return true; // すべて成功
 
 }
 

@@ -171,9 +171,9 @@ std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの
 
 
 
-Dx12ResourceFactory* resourceFactory = new Dx12ResourceFactory();
+Dx12ResourceFactory* resourceFactory = new Dx12ResourceFactory(); // リソースファクトリーのインスタンス
 
-Dx12TextrueManager* dx12TextrueManager = new Dx12TextrueManager(); // テクスチャマネージャーのインスタンス
+; Dx12TextrueManager* dx12TextrueManager = new Dx12TextrueManager(); // テクスチャマネージャーのインスタンス
 
 #pragma region リソースリークチェック
 
@@ -487,17 +487,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	CrashDumper::Install();
 	DirectXComon dxCommon; // DirectX12共通初期化クラスのインスタンス
 
-	D3DResourceLeakChecker leakCheck;
-
-	ID3D12Device* device = dxCommon.GetDevice();
-	ID3D12GraphicsCommandList* commandList = dxCommon.GetCommandList();
-	assert(commandList != nullptr);
-
-
-	// リソースチェック
-	Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
-
-	logManager.Initialize(); // ログの初期化
 
 
 	// ウィンドウのタイトル
@@ -509,9 +498,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	wc.lpfnWndProc = windowProc.WndProc; // ウィンドウプロシージャの関数ポインタ
 
 
+
+
 	// ウィンドウプロシージャの初期化
 	windowProc.Initialize(wc, windowProc.GetClientWidth(), windowProc.GetClientHeight());
 
+
+	dxCommon.Initialize(&windowProc);
+
+
+	D3DResourceLeakChecker leakCheck;
+
+	ID3D12Device* device = dxCommon.GetDevice();
+	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
+	ID3D12GraphicsCommandList* commandList = dxCommon.GetCommandList();
+	assert(commandList != nullptr);
+
+
+	// リソースチェック
+	Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
+
+	logManager.Initialize(); // ログの初期化
+
+
+	
+	
 	// 入力クラスの初期化
 	input.Initialize();
 
@@ -525,25 +536,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-
-
-#ifdef _DEBUG
-
-	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-	if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
-		// デバックレイヤーを有効化する
-		debugController->EnableDebugLayer();
-		// さらにGPU側でもチェックを行うようにする
-		debugController->SetEnableGPUBasedValidation(TRUE);
-	}
-#endif // _DEBUG
+//
+//
+//#ifdef _DEBUG
+//
+//	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
+//	if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
+//		// デバックレイヤーを有効化する
+//		debugController->EnableDebugLayer();
+//		// さらにGPU側でもチェックを行うようにする
+//		debugController->SetEnableGPUBasedValidation(TRUE);
+//	}
+//#endif // _DEBUG
 
 
 
 
 	
 
-	dxCommon.Initialize(&windowProc);
 
 	resourceFactory->SetDevice(device);
 	
@@ -563,58 +573,58 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-#ifdef _DEBUG
-
-	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
-	if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
-		// やばいエラー時に止まる
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-		// エラー時に止まる
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-		// 警告時に泊まる
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-		// 抑制するメッセージのＩＤ
-		D3D12_MESSAGE_ID denyIds[] = {
-			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
-			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
-			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
-		// 抑制するレベル
-		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
-		D3D12_INFO_QUEUE_FILTER filter {};
-		filter.DenyList.NumIDs = _countof(denyIds);
-		filter.DenyList.pIDList = denyIds;
-		filter.DenyList.NumSeverities = _countof(severities);
-		filter.DenyList.pSeverityList = severities;
-		// 指定したメッセージの表示wp抑制する
-		infoQueue->PushStorageFilter(&filter);
-	}
-
-#endif // _DEBUG
+//#ifdef _DEBUG
+//
+//	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
+//	if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
+//		// やばいエラー時に止まる
+//		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+//		// エラー時に止まる
+//		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+//		// 警告時に泊まる
+//		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+//		// 抑制するメッセージのＩＤ
+//		D3D12_MESSAGE_ID denyIds[] = {
+//			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
+//			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
+//			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
+//		// 抑制するレベル
+//		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+//		D3D12_INFO_QUEUE_FILTER filter {};
+//		filter.DenyList.NumIDs = _countof(denyIds);
+//		filter.DenyList.pIDList = denyIds;
+//		filter.DenyList.NumSeverities = _countof(severities);
+//		filter.DenyList.pSeverityList = severities;
+//		// 指定したメッセージの表示wp抑制する
+//		infoQueue->PushStorageFilter(&filter);
+//	}
+//
+//#endif // _DEBUG
 
 
 #pragma region Particles
 
-	// パーティクルの数を定義
-	const uint32_t kNumMaxInstance = 10;
-	// Instancing用のTransformationMatrixリソースを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> instancingRessource = resourceFactory->CreateBufferResource(sizeof(ParticleForGPU) * kNumMaxInstance);
-	// 書き込むためのアドレスを取得
-	ParticleForGPU* instancingData = nullptr;
-	instancingRessource->Map(0, nullptr, reinterpret_cast< void** >( &instancingData ));
+	//// パーティクルの数を定義
+	//const uint32_t kNumMaxInstance = 10;
+	//// Instancing用のTransformationMatrixリソースを作る
+	//Microsoft::WRL::ComPtr<ID3D12Resource> instancingRessource = resourceFactory->CreateBufferResource(sizeof(ParticleForGPU) * kNumMaxInstance);
+	//// 書き込むためのアドレスを取得
+	//ParticleForGPU* instancingData = nullptr;
+	//instancingRessource->Map(0, nullptr, reinterpret_cast< void** >( &instancingData ));
 
-	Particle particles[kNumMaxInstance];
-	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
+	//Particle particles[kNumMaxInstance];
+	//std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
 
-	// 単位行列を書き込んでおく
-	for ( uint32_t index = 0; index < kNumMaxInstance; ++index ){
+	//// 単位行列を書き込んでおく
+	//for ( uint32_t index = 0; index < kNumMaxInstance; ++index ){
 
 
-		particles[index] = MakeNewParticle(randomEngine);
-		instancingData[index].WVP = MakeIdentity4x4();
-		instancingData[index].World = MakeIdentity4x4();
-		instancingData[index].color = particles[index].color;
+	//	particles[index] = MakeNewParticle(randomEngine);
+	//	instancingData[index].WVP = MakeIdentity4x4();
+	//	instancingData[index].World = MakeIdentity4x4();
+	//	instancingData[index].color = particles[index].color;
 
-	}
+	//}
 
 #pragma endregion
 
@@ -668,7 +678,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	ID3D12DescriptorHeap* srvDescriptorHeap = dxCommon.GetSrvHeap();
 	// デバイスからSRVディスクリプタサイズを取得
 	UINT desriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	ComPtr<ID3D12Resource> textureResource; // 生成済みテクスチャ
+	//ComPtr<ID3D12Resource> textureResource; // 生成済みテクスチャ
 
 
 	// metaDataを基にSRVの設定
@@ -1361,16 +1371,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// 画面クリアなど描画前処理
 		dxCommon.PreDraw();
 
-
-		// ImGuiの開始処理
-		imgui.Begin();
-
-		// 開発用UIの処理。実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換える
-		ImGui::ShowDemoWindow();
-		
-
 		commandList = dxCommon.GetCommandList();
 
+
+		
+		
+
+		
 
 		// キーボード情報の取得開始
 
@@ -1443,63 +1450,63 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//-------------------------------
 		//ImGui
 		//-------------------------------
-		ImGui::Begin("Settings");
+		//// ImGuiの開始処理
+		//imgui.Begin();
 
-		ImGui::ColorEdit4("Color", &materialData->color.x);
-		ImGui::SliderAngle("RotateX", &transformSprite.rotate.x, -500, 500);
-		ImGui::SliderAngle("RotateY", &transformSprite.rotate.y, -500, 500);
-		ImGui::SliderAngle("RotateZ", &transformSprite.rotate.z, -500, 500);
-		ImGui::DragFloat3("transform", &transformSprite.translate.x, -180, 180);
-		ImGui::DragFloat3("transformSprite", &transform.translate.x);
-		ImGui::SliderAngle("RotateXSprite", &transform.rotate.x, -500, 500);
-		ImGui::SliderAngle("RotateYSprite", &transform.rotate.y, -500, 500);
-		ImGui::SliderAngle("RotateZSprite", &transform.rotate.z, -500, 500);
-
-		if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
-			if ( useMonsterBall ) {
-				useFence = false;
-				useCircle = false;
-			}
-		}
-
-		if ( ImGui::Checkbox("fence", &useFence) ) {
-			if ( useFence ) {
-				useMonsterBall = false;
-				useCircle = false;
-			}
-		}
-
-		if ( ImGui::Checkbox("circle", &useCircle) ) {
-			if ( useCircle ) {
-				useMonsterBall = false;
-				useFence = false;
-			}
-		}
-
-		ImGui::ColorEdit4("LightColor", &directionalLightData->color.x);
-		ImGui::SliderFloat("LightX", &directionalLightData->direction.x, -10.0f, 10.0f);
-		ImGui::SliderFloat("LightY", &directionalLightData->direction.y, -10.0f, 10.0f);
-		ImGui::SliderFloat("LightZ", &directionalLightData->direction.z, -10.0f, 10.0f);
-		ImGui::DragFloat2("UVTransform", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-		ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-		ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+		//// 開発用UIの処理。実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換える
+		//ImGui::ShowDemoWindow();
 
 
+		//ImGui::ColorEdit4("Color", &materialData->color.x);
+		//ImGui::SliderAngle("RotateX", &transformSprite.rotate.x, -500, 500);
+		//ImGui::SliderAngle("RotateY", &transformSprite.rotate.y, -500, 500);
+		//ImGui::SliderAngle("RotateZ", &transformSprite.rotate.z, -500, 500);
+		//ImGui::DragFloat3("transform", &transformSprite.translate.x, -180, 180);
+		//ImGui::DragFloat3("transformSprite", &transform.translate.x);
+		//ImGui::SliderAngle("RotateXSprite", &transform.rotate.x, -500, 500);
+		//ImGui::SliderAngle("RotateYSprite", &transform.rotate.y, -500, 500);
+		//ImGui::SliderAngle("RotateZSprite", &transform.rotate.z, -500, 500);
 
-		directionalLightData->direction = Normalize(directionalLightData->direction);
+		//if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
+		//	if ( useMonsterBall ) {
+		//		useFence = false;
+		//		useCircle = false;
+		//	}
+		//}
 
-		Matrix4x4 uvTransformMatrix = MakeScale(uvTransformSprite.scale);
-		uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZ(uvTransformSprite.rotate.z));
-		uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslate(uvTransformSprite.translate));
-		materialDataSprite->uvTransfrom = uvTransformMatrix;
+		//if ( ImGui::Checkbox("fence", &useFence) ) {
+		//	if ( useFence ) {
+		//		useMonsterBall = false;
+		//		useCircle = false;
+		//	}
+		//}
+
+		//if ( ImGui::Checkbox("circle", &useCircle) ) {
+		//	if ( useCircle ) {
+		//		useMonsterBall = false;
+		//		useFence = false;
+		//	}
+		//}
+
+		//ImGui::ColorEdit4("LightColor", &directionalLightData->color.x);
+		//ImGui::SliderFloat("LightX", &directionalLightData->direction.x, -10.0f, 10.0f);
+		//ImGui::SliderFloat("LightY", &directionalLightData->direction.y, -10.0f, 10.0f);
+		//ImGui::SliderFloat("LightZ", &directionalLightData->direction.z, -10.0f, 10.0f);
+		//ImGui::DragFloat2("UVTransform", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+		//ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+		//ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 
 
-		ImGui::End();
 
-		// ImGuiの内部コマンドを生成する
-		ImGui::Render();
+		//directionalLightData->direction = Normalize(directionalLightData->direction);
+
+		//Matrix4x4 uvTransformMatrix = MakeScale(uvTransformSprite.scale);
+		//uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZ(uvTransformSprite.rotate.z));
+		//uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslate(uvTransformSprite.translate));
+		//materialDataSprite->uvTransfrom = uvTransformMatrix;
 
 
+	
 
 
 
@@ -1586,24 +1593,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-		//// トポロジの設定
-		//commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		//// VBVを設定 : IBVを設定
-		//commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-		//commandList->IASetIndexBuffer(&indexBufferViewSprite);
+		// トポロジの設定
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		// VBVを設定 : IBVを設定
+		commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+		commandList->IASetIndexBuffer(&indexBufferViewSprite);
 
-		//// マテリアル定数バッファ
-		//commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+		// マテリアル定数バッファ
+		commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 
-		//// 行列定数バッファ
-		////commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+		// 行列定数バッファ
+		//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
 
-		//// ここで更新してSpriteの画像を変えないようにする
-		//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+		// ここで更新してSpriteの画像を変えないようにする
+		commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
 
 		//描画！(DraoCall/ドローコール)
-	   //commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+	   commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 
 
@@ -1619,7 +1626,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	    
 		 // ⑤ ImGui end → 描画コマンドを積む
-         imgui.End(commandList);
+        // imgui.End(commandList);
 
 		// DirectX 描画後処理（Present / フェンス）
 		dxCommon.PostDraw();
@@ -1632,7 +1639,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	}
 	// imguiの終了処理
-	imgui.Shutdown();
+	//imgui.Shutdown();
 
 #pragma region オブジェクトを解放
 
