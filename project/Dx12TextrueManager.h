@@ -17,8 +17,6 @@ class Dx12TextrueManager{
 
 public:
 
-	Dx12TextrueManager(ComPtr<ID3D12Device> device)
-		: device_(device){}
 
 	DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
@@ -33,6 +31,10 @@ public:
 	// device を外部からセットする関数（追加）
 	void SetDevice(ComPtr<ID3D12Device> device){
 		device_ = device;
+	}
+
+	void SetResourceFactory(Dx12ResourceFactory* resourceBuffer){
+		resourceBuffer_ = resourceBuffer;
 	}
 
 private:

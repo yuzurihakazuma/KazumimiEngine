@@ -171,6 +171,10 @@ std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの
 
 
 
+Dx12ResourceFactory* resourceFactory = new Dx12ResourceFactory();
+
+Dx12TextrueManager* dx12TextrueManager = new Dx12TextrueManager(); // テクスチャマネージャーのインスタンス
+
 #pragma region リソースリークチェック
 
 struct D3DResourceLeakChecker{
@@ -481,12 +485,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 誰も補掟しなかった場合に(Unhandled),補掟する関数を登録
 	// main関数は始まってすぐに登録するといい
 	CrashDumper::Install();
-	DirectXComon directXcomon; // DirectX12共通初期化クラスのインスタンス
+	DirectXComon dxCommon; // DirectX12共通初期化クラスのインスタンス
 
 	D3DResourceLeakChecker leakCheck;
 
-	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory;
-	Microsoft::WRL::ComPtr<ID3D12Device> device = directXcomon.GetDevice();
+	ID3D12Device* device = dxCommon.GetDevice();
+	ID3D12GraphicsCommandList* commandList = dxCommon.GetCommandList();
+	assert(commandList != nullptr);
+
+
 	// リソースチェック
 	Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
 
@@ -536,21 +543,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	
 
-	directXcomon.Initialize(&windowProc);
+	dxCommon.Initialize(&windowProc);
 
-	Dx12TextrueManager* dx12TextrueManager = new Dx12TextrueManager(directXcomon.GetDevice()); // テクスチャマネージャーのインスタンス
-	assert(directXcomon.GetCommandList() != nullptr);
-	Dx12ResourceFactory* resourceFactory = new Dx12ResourceFactory(directXcomon.GetDevice());
-	assert(directXcomon.GetCommandList() != nullptr);
+	resourceFactory->SetDevice(device);
+	
+	dx12TextrueManager->SetDevice(device);
+	dx12TextrueManager->SetResourceFactory(resourceFactory);
+
 
 	// ImGui 管理クラス
 	ImGuiManager imgui;
 	imgui.Initialize(
 		windowProc.GetHwnd(),
-		directXcomon.GetDevice(),
+		dxCommon.GetDevice(),
 		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
 		2,                              // Frame count
-		directXcomon.GetSrvHeap()       // SRV ヒープ
+		dxCommon.GetSrvHeap()       // SRV ヒープ
 	);
 
 
@@ -612,10 +620,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 #pragma region CommandList
 
-	// コマンドリストの取得
-	ID3D12GraphicsCommandList* commandList= directXcomon.GetCommandList();
-	assert(commandList != nullptr);
-
+	
+	
 
 	// Textrueを読んで転送する
 	DirectX::ScratchImage mipImages = dx12TextrueManager->LoadTexture("resources/uvChecker.png");
@@ -659,7 +665,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	//---------------------
 
 	// 必要な変数（呼び出し元で用意しておくもの）
-	ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap;
+	ID3D12DescriptorHeap* srvDescriptorHeap = dxCommon.GetSrvHeap();
 	// デバイスからSRVディスクリプタサイズを取得
 	UINT desriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	ComPtr<ID3D12Resource> textureResource; // 生成済みテクスチャ
@@ -1353,7 +1359,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 		// 画面クリアなど描画前処理
-		directXcomon.PreDraw();
+		dxCommon.PreDraw();
 
 
 		// ImGuiの開始処理
@@ -1361,9 +1367,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 		// 開発用UIの処理。実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換える
 		ImGui::ShowDemoWindow();
+		
 
-
-		commandList = directXcomon.GetCommandList();
+		commandList = dxCommon.GetCommandList();
 
 
 		// キーボード情報の取得開始
@@ -1616,7 +1622,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
          imgui.End(commandList);
 
 		// DirectX 描画後処理（Present / フェンス）
-		directXcomon.PostDraw();
+		dxCommon.PostDraw();
 
 		if ( input.Triggerkey(DIK_ESCAPE) ) {
 			break;

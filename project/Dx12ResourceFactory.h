@@ -12,12 +12,17 @@ using Microsoft::WRL::ComPtr;
 class Dx12ResourceFactory{
 public:
 
-    Dx12ResourceFactory(ComPtr<ID3D12Device> device)
-        : device_(device){}
+   
 
 
     //DirectX12 のリソース生成を担当
     ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+
+    // device を外部からセットする関数（追加）
+    void SetDevice(ComPtr<ID3D12Device> device){
+        device_ = device;
+    }
+
 
     // 必要なら SRV 用テクスチャや RTV 用バッファなどもここに追加できる
 private:

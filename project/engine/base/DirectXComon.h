@@ -12,7 +12,9 @@
 #include "Dx12ResourceFactory.h"
 #include "Dx12TextrueManager.h"
 
-
+#pragma comment(lib,"d3d12.lib")
+#pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"dxguid.lib")
 using namespace logs;
 
 
@@ -85,7 +87,6 @@ private:
 
 	// -------------------- DXGI・デバイス関連 --------------------
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー
-	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_;        // 使用するアダプタ
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> useAdaptr_ = nullptr; // 選択されたアダプタ
 	Microsoft::WRL::ComPtr<ID3D12Device> device_;          // D3D12デバイス
 

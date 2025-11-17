@@ -1,6 +1,7 @@
 #include "DirectXComon.h"
 #include <cassert>
 
+
 using namespace logs;
 
 void DirectXComon::Initialize(WindowProc* windowProc){
@@ -13,10 +14,15 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	CreateFactory();
 	// GPUアダプタの選択
 	SelectAdapter();
+	assert(useAdaptr_ != nullptr); // ★ここ
+
 	// D3D12デバイスの生成
 	CreateDevice();
+	assert(device_ != nullptr);  // ★ここ
+
 	// コマンド関連の初期化
 	CreateCommand();
+	assert(commandList_ != nullptr); // ★ここ
 	// スワップチェーンの生成
 	CreateSwapChain();
 	// 深度バァファの生成
@@ -284,7 +290,7 @@ void DirectXComon::CreateDepthBuffer(){
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&depthClearValue, IID_PPV_ARGS(&depthStencilResource_)
+		&depthClearValue, IID_PPV_ARGS(&depthBuffer_)
 	);
 	assert(SUCCEEDED(hr_));
 
@@ -366,7 +372,7 @@ void DirectXComon::CreateFence(){
 	assert(SUCCEEDED(hr_));
 
 	// FenceのSignalを待つためのイベントを作成する
-	HANDLE fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
+	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent_ != nullptr);
 
 }
@@ -394,15 +400,12 @@ void DirectXComon::InitializeViewport(){
 void DirectXComon::InitializeScissorRect(){
 
 
-	// クライアントサイズ取得
-	float width = static_cast< LONG >( windowProc_->GetClientWidth() );
-	float height = static_cast< LONG >( windowProc_->GetClientHeight() );
-
+	
 	// 基本的にビューボートと同じ矩形が構成されるようにする
 	scissorRect_.left = 0;
-	scissorRect_.right = width;
+	scissorRect_.right = windowProc_->GetClientWidth();
 	scissorRect_.top = 0;
-	scissorRect_.bottom = height;
+	scissorRect_.bottom = windowProc_->GetClientHeight();
 
 }
 /// <summary>
@@ -430,9 +433,6 @@ void DirectXComon::CreateDXCCompiler(){
 /// <param name="shaderVisible"></param>
 /// <returns></returns>
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXComon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible){
-	// HRESULTはWindows系のエラーコードであり、
-	// 関数が成功したかどうかをSUCCEDEDマクロで判定できる
-	hr_ = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
 
 	// ディスクリプタヒープの生成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap = nullptr;

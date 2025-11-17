@@ -32,6 +32,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateTextureResource
 	resourceDesc.Format = metadata.format; //TextrueのFormat 
 	resourceDesc.SampleDesc.Count = 1; // サンプリングカウント。1固定
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textrueの次元数。普段使っているのは2次元
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;  
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;       
+
+
 
 	// 利用するHeapの設定。非常に特殊な運用・
 	D3D12_HEAP_PROPERTIES heapProperties {};
@@ -56,7 +60,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateTextureResource
 
 
 
-[[nodiscard]]
 Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
@@ -93,6 +96,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateDepthStencilTex
 	resourceDesc.SampleDesc.Count = 1; // サンプリングカウント。1固定
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2次元
 	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; //DepthStencilとして使う通知
+
 
 	// 利用するHrapの設定
 	D3D12_HEAP_PROPERTIES heapProperties {};
