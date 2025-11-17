@@ -375,7 +375,6 @@ void DirectXComon::CreateDepthStencilView(){
 
 
 }
-
 /// <summary>
 /// フェンスの初期化
 /// </summary>

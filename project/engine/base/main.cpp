@@ -604,27 +604,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 #pragma region Particles
 
-	//// パーティクルの数を定義
-	//const uint32_t kNumMaxInstance = 10;
-	//// Instancing用のTransformationMatrixリソースを作る
-	//Microsoft::WRL::ComPtr<ID3D12Resource> instancingRessource = resourceFactory->CreateBufferResource(sizeof(ParticleForGPU) * kNumMaxInstance);
-	//// 書き込むためのアドレスを取得
-	//ParticleForGPU* instancingData = nullptr;
-	//instancingRessource->Map(0, nullptr, reinterpret_cast< void** >( &instancingData ));
+	// パーティクルの数を定義
+	const uint32_t kNumMaxInstance = 10;
+	// Instancing用のTransformationMatrixリソースを作る
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingRessource = resourceFactory->CreateBufferResource(sizeof(ParticleForGPU) * kNumMaxInstance);
+	// 書き込むためのアドレスを取得
+	ParticleForGPU* instancingData = nullptr;
+	instancingRessource->Map(0, nullptr, reinterpret_cast< void** >( &instancingData ));
 
-	//Particle particles[kNumMaxInstance];
-	//std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
+	Particle particles[kNumMaxInstance];
+	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
 
-	//// 単位行列を書き込んでおく
-	//for ( uint32_t index = 0; index < kNumMaxInstance; ++index ){
+	// 単位行列を書き込んでおく
+	for ( uint32_t index = 0; index < kNumMaxInstance; ++index ){
 
 
-	//	particles[index] = MakeNewParticle(randomEngine);
-	//	instancingData[index].WVP = MakeIdentity4x4();
-	//	instancingData[index].World = MakeIdentity4x4();
-	//	instancingData[index].color = particles[index].color;
+		particles[index] = MakeNewParticle(randomEngine);
+		instancingData[index].WVP = MakeIdentity4x4();
+		instancingData[index].World = MakeIdentity4x4();
+		instancingData[index].color = particles[index].color;
 
-	//}
+	}
 
 #pragma endregion
 

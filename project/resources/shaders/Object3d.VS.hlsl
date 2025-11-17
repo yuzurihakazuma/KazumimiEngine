@@ -4,7 +4,7 @@ struct TransformationMatirx
     float32_t4x4 WVP;
     float32_t4x4 World;
 };
-ConstantBuffer<TransformationMatirx> gTransformationMatrix : register(t0);
+ConstantBuffer<TransformationMatirx> gTransformationMatrix : register(b0);
 
 
 // 頂点シェーダーの入力
@@ -27,4 +27,3 @@ VertexShaderOutput main(VertexShaderInput input)
     
     return output;
 }
-
