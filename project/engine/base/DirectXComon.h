@@ -55,6 +55,9 @@ public:
 	/// <summary>コマンドリストのゲッター
 	ID3D12GraphicsCommandList* GetCommandList() const{ return commandList_.Get(); }
 
+	/// <summary>コマンドキューのゲッター
+	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
+
 private:
 
 	// -------------------- 初期化・生成系 --------------------
