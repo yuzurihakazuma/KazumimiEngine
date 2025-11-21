@@ -11,6 +11,7 @@
 #include "externals/DirectXTex/DirectXTex.h"
 #include "Dx12ResourceFactory.h"
 #include "Dx12TextrueManager.h"
+#include <chrono>
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -131,6 +132,13 @@ private:
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;                 // DXCユーティリティ
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;          // DXCコンパイラ
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;  // インクルードハンドラ
+
+	// -------------------- FPS固定概念 --------
+
+	void InitializeFixFPS(); // FPS固定の初期化
+	void UpdateFixFPS();     // FPS固定の更新
+
+	std::chrono::steady_clock::time_point reference_; // 前フレーム時間
 
 	// -------------------- その他 --------------------
 	HRESULT hr_;                      // HRESULT保存用

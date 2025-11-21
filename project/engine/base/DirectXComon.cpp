@@ -10,6 +10,8 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 
 	this->windowProc_ = windowProc;
 
+	// FPSの初期化
+	InitializeFixFPS();
 	// デバイスの生成
 	CreateFactory();
 	// GPUアダプタの選択
@@ -37,9 +39,7 @@ void DirectXComon::Initialize(WindowProc* windowProc){
 	// DXCコンパイラの生成
 	CreateDXCCompiler();
 }
-/// <summary>
 // 描画前処理
-/// </summary>
 void DirectXComon::PreDraw(){
 
 	// コマンドアロケータ & コマンドリストをリセット
@@ -99,9 +99,7 @@ void DirectXComon::PreDraw(){
 
 
 }
-/// <summary>
 // 描画後処理
-/// </summary>
 void DirectXComon::PostDraw(){
 
 	// これから表示するバックバッファのインデックスを取得
@@ -132,17 +130,17 @@ void DirectXComon::PostDraw(){
 	const UINT64 fenceToWaitFor = ++fenceValue_;
 	hr_ = commandQueue_->Signal(fence_.Get(), fenceToWaitFor);
 	assert(SUCCEEDED(hr_));
-
+	// GPUが fence の値を fenceToWaitFor まで進めるまで待つ
 	if ( fence_->GetCompletedValue() < fenceToWaitFor ) {
 		hr_ = fence_->SetEventOnCompletion(fenceToWaitFor, fenceEvent_);
 		assert(SUCCEEDED(hr_));
 		WaitForSingleObject(fenceEvent_, INFINITE);
 	}
+	// FPS固定の更新
+	UpdateFixFPS();
 
 }
-/// <summary>
 /// DXGIファクトリーの生成
-/// </summary>
 void DirectXComon::CreateFactory(){
 	// HRESULTはWindows系のエラーコードであり、
 	// 関数が成功したかどうかをSUCCEDEDマクロで判定できる
@@ -155,9 +153,7 @@ void DirectXComon::CreateFactory(){
 	hr_ = CreateDXGIFactory2(flags,IID_PPV_ARGS(&dxgiFactory_));
 	assert(SUCCEEDED(hr_));
 }
-/// <summary>
 ///  //GPUアダプタの選択
-/// </summary>
 void DirectXComon::SelectAdapter(){
 
 	ComPtr<IDXGIAdapter4> adapter;
@@ -189,9 +185,7 @@ void DirectXComon::SelectAdapter(){
 	adapter.Reset();
 	assert(false && "No hardware adapter found!");
 }
-/// <summary>
 /// D3D12デバイスの生成
-/// </summary>
 void DirectXComon::CreateDevice(){
 
 
@@ -220,9 +214,7 @@ void DirectXComon::CreateDevice(){
 	assert(device_ != nullptr);
 	logManager_.Log(logManager_.ConvertString(L"Complete create D3D12Device!!!\n"));// 初期化完了のログを出す
 }
-/// <summary>
 /// コマンド関連の初期化
-/// </summary>
 void DirectXComon::CreateCommand(){
 	assert(device_); // デバイスが生成済みであることを確認
 
@@ -250,9 +242,7 @@ void DirectXComon::CreateCommand(){
 	// ここ重要：初期はCloseしておく
 	commandList_->Close();
 }
-/// <summary>
 /// スワップチェーンの生成
-/// </summary>
 void DirectXComon::CreateSwapChain(){
 
 	// スワップチェーンを生成する
@@ -276,9 +266,7 @@ void DirectXComon::CreateSwapChain(){
 	assert(SUCCEEDED(hr_));
 
 }
-/// <summary>
 /// 深度バァファの生成
-/// </summary>
 void DirectXComon::CreateDepthBuffer(){
 	// 生成するResourceの設定
 	D3D12_RESOURCE_DESC desc = {};
@@ -312,9 +300,7 @@ void DirectXComon::CreateDepthBuffer(){
 
 
 }
-/// <summary>
 ///  各種でスクリプタヒープの生成
-/// </summary>
 void DirectXComon::CreateDescriptorHeaps(){
 	
 	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
@@ -328,9 +314,7 @@ void DirectXComon::CreateDescriptorHeaps(){
 
 
 }
-/// <summary>
 /// レンダーターゲットビューの初期化
-/// </summary>
 void DirectXComon::CreateRenderTargetViews(){
 
 	// DescriptorSizeを取得しておく
@@ -356,9 +340,7 @@ void DirectXComon::CreateRenderTargetViews(){
 	}
 
 }
-/// <summary>
 /// 深度ステンシルビューの初期化
-/// </summary>
 void DirectXComon::CreateDepthStencilView(){
 
 
@@ -375,9 +357,7 @@ void DirectXComon::CreateDepthStencilView(){
 
 
 }
-/// <summary>
 /// フェンスの初期化
-/// </summary>
 void DirectXComon::CreateFence(){
 
 	// 初期化0でFenceを作る
@@ -391,9 +371,7 @@ void DirectXComon::CreateFence(){
 	assert(fenceEvent_ != nullptr);
 
 }
-/// <summary>
 /// ビューポートの初期化
-/// </summary>
 void DirectXComon::InitializeViewport(){
 
 	// クライアントサイズ取得
@@ -409,9 +387,7 @@ void DirectXComon::InitializeViewport(){
 	viewport_.MaxDepth = 1.0f;
 
 }
-/// <summary>
 /// シザー矩形の初期化
-/// </summary>
 void DirectXComon::InitializeScissorRect(){
 
 
@@ -423,9 +399,7 @@ void DirectXComon::InitializeScissorRect(){
 	scissorRect_.bottom = windowProc_->GetClientHeight();
 
 }
-/// <summary>
 /// DXCコンパイラの生成
-/// </summary>
 void DirectXComon::CreateDXCCompiler(){
 
 
@@ -437,16 +411,34 @@ void DirectXComon::CreateDXCCompiler(){
 	assert(SUCCEEDED(hr_));
 
 }
+// FPS固定の初期化
+void DirectXComon::InitializeFixFPS(){
+	
+	// 現在時間を記録する
+	reference_ = std::chrono::steady_clock::now();
+}
+// FPS固定の更新
+void DirectXComon::UpdateFixFPS(){
+	// 1/60秒数ぴったりの時間
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	// 1/60秒よりわずかに短い時間
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+	// 現在時間を取得
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+	// 前回記録からの経過時間を取得する
+	std::chrono::duration_cast< std::chrono::microseconds >( now - reference_ );
+
+	// 1/60秒（よりわずかに短い時間）たっていない場合
+	if ( elapsed )
+	{
+
+	}
 
 
-/// <summary>
+
+}
+
 // ディスクリプタヒープの生成
-/// </summary>
-/// <param name="device"></param>
-/// <param name="heapType"></param>
-/// <param name="numDescriptors"></param>
-/// <param name="shaderVisible"></param>
-/// <returns></returns>
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXComon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible){
 
 	// ディスクリプタヒープの生成
@@ -464,22 +456,15 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXComon::CreateDescriptorHeap(
 
 #pragma region GetCPU
 
-/// <summary>
 ///　CPUディスクリプタハンドルの取得
-/// </summary>
-/// <param name="descriptorHeap"></param>
-/// <param name="descriptorSize"></param>
-/// <param name="index"></param>
-/// <returns></returns>
+
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index){
 
 	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	handleCPU.ptr += ( descriptorSize * index );
 	return handleCPU;
 }
-/// <summary>
 ///　CPUディスクリプタハンドルの取得
-/// </summary>
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
 	return GetCPUDescriptorHandle(srvDescriptorHeap_, descriptorSize, index);
 }
@@ -489,22 +474,14 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXComon::GetCPUDescriptorHandle(uint32_t descri
 
 #pragma region GetGPU
 
-/// <summary>
 ///　GPUディスクリプタハンドルの取得
-/// </summary>
-/// <param name="descriptorHeap"></param>
-/// <param name="descriptorSize"></param>
-/// <param name="index"></param>
-/// <returns></returns>
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(const Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>& descriptorHeap, uint32_t descriptorSize, uint32_t index){
 
 	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handleGPU.ptr += ( descriptorSize * index );
 	return handleGPU;
 }
-/// <summary>
 ///　GPUディスクリプタハンドルの取得
-/// </summary>
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXComon::GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index){
 
 	return GetGPUDescriptorHandle(srvDescriptorHeap_, descriptorSize, index);
