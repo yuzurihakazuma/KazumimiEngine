@@ -21,11 +21,13 @@ using namespace logs;
 
 class DirectXComon{
 public:
-	/// <summary>初期化</summary>
+	/// <summary>初期化
 	void Initialize(WindowProc* windowProc);
 
-	void PreDraw();  // 描画前処理
-	void PostDraw(); // 描画後処理
+	// <summary>描画前処理
+	void PreDraw();  
+	// <summary>描画後処理
+	void PostDraw(); 
 
 	/// <summary>ディスクリプタヒープ作成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
@@ -45,10 +47,10 @@ public:
 		uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t descriptorSize, uint32_t index);
 
-	// SRVヒープ
+	// <summary>SRVヒープ
 	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
 
-	/// Deviceのゲッター
+	/// <summary>Deviceのゲッター
 	ID3D12Device* GetDevice() const{ return device_.Get(); }
 
 	void SetDevice(Microsoft::WRL::ComPtr<ID3D12Device> device){ device_ = device; }

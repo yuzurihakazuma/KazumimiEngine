@@ -12,21 +12,31 @@ using Microsoft::WRL::ComPtr;
 class Dx12ResourceFactory{
 public:
 
-   
+    // -------------------- リソース生成 --------------------
 
-
-    //DirectX12 のリソース生成を担当
+    /// <summary>
+    /// 指定されたバイトサイズのバッファリソース（Upload Heap）を生成する
+    /// </summary>
     ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
 
-    // device を外部からセットする関数（追加）
+
+    // -------------------- デバイス設定 --------------------
+
+    /// <summary>
+    /// 外部から D3D12 デバイスを設定する
+    /// </summary>
     void SetDevice(ComPtr<ID3D12Device> device){
         device_ = device;
     }
 
 
-    // 必要なら SRV 用テクスチャや RTV 用バッファなどもここに追加できる
+    // -------------------- その他拡張予定 --------------------
+
+
 private:
-    
-    ComPtr<ID3D12Device> device_;
+
+    // -------------------- 内部リソース --------------------
+
+    ComPtr<ID3D12Device> device_ = nullptr;  // バッファ作成に使用する D3D12 デバイス
 };
 

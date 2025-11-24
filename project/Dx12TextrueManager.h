@@ -17,34 +17,66 @@ class Dx12TextrueManager{
 
 public:
 
+    // -------------------- テクスチャ読み込み --------------------
 
-	DirectX::ScratchImage LoadTexture(const std::string& filePath);
+       /// <summary>
+       /// 画像ファイルを読み込み、ScratchImage 形式で返す
+       /// </summary>
+    DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
-	ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
 
-	[[nodiscard]] // 03_00EX
-	ComPtr<ID3D12Resource> UploadTextureData(const ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, 
-		ID3D12GraphicsCommandList* commandList);
-	
-	ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
+    // -------------------- GPU テクスチャリソース生成 --------------------
 
-	// device を外部からセットする関数（追加）
-	void SetDevice(ComPtr<ID3D12Device> device){
-		device_ = device;
-	}
+    /// <summary>
+    /// TexMetadata をもとに、GPU テクスチャリソース(Resource)を生成
+    /// </summary>
+    ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
 
-	void SetResourceFactory(Dx12ResourceFactory* resourceBuffer){
-		resourceBuffer_ = resourceBuffer;
-	}
+
+    // -------------------- テクスチャデータ転送 --------------------
+
+    /// <summary>
+    /// ScratchImage 内のピクセルデータを GPU テクスチャへアップロード
+    /// </summary>
+    [[nodiscard]]
+    ComPtr<ID3D12Resource> UploadTextureData(
+        const ComPtr<ID3D12Resource>& texture,
+        const DirectX::ScratchImage& mipImages,
+        ID3D12GraphicsCommandList* commandList
+    );
+
+
+    // -------------------- 深度ステンシルテクスチャ生成 --------------------
+
+    /// <summary>
+    /// 深度ステンシル用の GPU テクスチャリソースを生成
+    /// </summary>
+    ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
+
+
+    // -------------------- デバイス・依存コンポーネント設定 --------------------
+
+    /// <summary>
+    /// DirectX12 Device を設定する
+    /// </summary>
+    void SetDevice(ComPtr<ID3D12Device> device){
+        device_ = device;
+    }
+
+    /// <summary>
+    /// 外部のリソースファクトリをセット
+    /// </summary>
+    void SetResourceFactory(Dx12ResourceFactory* resourceBuffer){
+        resourceBuffer_ = resourceBuffer;
+    }
+
 
 private:
-	
-	ComPtr<ID3D12Device> device_;
 
-	LogManager logManager;
+    // -------------------- 内部リソース --------------------
 
-	
-	Dx12ResourceFactory* resourceBuffer_;
-
+    ComPtr<ID3D12Device> device_ = nullptr;   // DX12 デバイス
+    LogManager logManager;                    // ログ出力用
+    Dx12ResourceFactory* resourceBuffer_ = nullptr; // バッファ生成の補助クラス
 };
 

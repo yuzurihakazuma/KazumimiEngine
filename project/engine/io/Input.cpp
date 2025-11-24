@@ -47,7 +47,6 @@ void Input::Update(){
 /// <summary>
 /// キーの押下をチェック
 /// </summary>
-/// <param name="keyNumber">キー番号(DIK_0等)</param>
 bool Input::Pushkey(BYTE keyNumber){
 	return ( keys[keyNumber] & 0x80 );
 }
@@ -55,7 +54,6 @@ bool Input::Pushkey(BYTE keyNumber){
 /// <summary>
 /// キーのトリガーチェック
 /// </summary>
-/// <param name="keyNumber">キー番号(DIK_0等)</param>
 bool Input::Triggerkey(BYTE keyNumber){
 	return !( preKeys[keyNumber] & 0x80 ) && ( keys[keyNumber] & 0x80 );
 }

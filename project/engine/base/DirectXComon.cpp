@@ -1,5 +1,6 @@
 #include "DirectXComon.h"
 #include <cassert>
+#include <thread>
 
 
 using namespace logs;
@@ -150,7 +151,7 @@ void DirectXComon::CreateFactory(){
 	flags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-	hr_ = CreateDXGIFactory2(flags,IID_PPV_ARGS(&dxgiFactory_));
+	hr_ = CreateDXGIFactory2(flags, IID_PPV_ARGS(&dxgiFactory_));
 	assert(SUCCEEDED(hr_));
 }
 ///  //GPUアダプタの選択
@@ -172,7 +173,7 @@ void DirectXComon::SelectAdapter(){
 		if ( !( desc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE ) ) {
 			// ★ここで代入する！
 			useAdapter_ = adapter;
-			
+
 			logManager_.Log(
 				logManager_.ConvertString(
 					std::format(L"Use Adapter: {}\n", desc.Description)
@@ -180,7 +181,7 @@ void DirectXComon::SelectAdapter(){
 			);
 			return;
 		}
-	
+
 	}
 	adapter.Reset();
 	assert(false && "No hardware adapter found!");
@@ -302,14 +303,14 @@ void DirectXComon::CreateDepthBuffer(){
 }
 ///  各種でスクリプタヒープの生成
 void DirectXComon::CreateDescriptorHeaps(){
-	
+
 	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 	dsvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	// DescriptorSizeを取得しておく
-	 desriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	 desriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	 desriptorSizeDSV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	desriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	desriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	desriptorSizeDSV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 
 
@@ -391,7 +392,7 @@ void DirectXComon::InitializeViewport(){
 void DirectXComon::InitializeScissorRect(){
 
 
-	
+
 	// 基本的にビューボートと同じ矩形が構成されるようにする
 	scissorRect_.left = 0;
 	scissorRect_.right = windowProc_->GetClientWidth();
@@ -413,7 +414,7 @@ void DirectXComon::CreateDXCCompiler(){
 }
 // FPS固定の初期化
 void DirectXComon::InitializeFixFPS(){
-	
+
 	// 現在時間を記録する
 	reference_ = std::chrono::steady_clock::now();
 }
@@ -426,15 +427,19 @@ void DirectXComon::UpdateFixFPS(){
 	// 現在時間を取得
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	// 前回記録からの経過時間を取得する
-	std::chrono::duration_cast< std::chrono::microseconds >( now - reference_ );
+	std::chrono::microseconds elapsed = std::chrono::duration_cast< std::chrono::microseconds >( now - reference_ );
 
 	// 1/60秒（よりわずかに短い時間）たっていない場合
-	if ( elapsed )
-	{
+	if ( elapsed < kMinCheckTime ){
 
+		// 1/60秒経過するまで微小なスリープを繰り返す
+		while ( std::chrono::steady_clock::now() - reference_ < kMinTime ){
+			// 1マイクロ秒スリープ
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
 	}
-
-
+	// 現在の時間を記録する
+	reference_ = std::chrono::steady_clock::now();
 
 }
 
