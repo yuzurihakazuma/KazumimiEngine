@@ -67,7 +67,7 @@ public:
 	// シェーダーコンパイラのゲッター
 	ShaderCompiler& GetShaderCompiler(){ return shaderCompiler_; } 
 
-
+	Dx12ResourceFactory* GetResourceFactory(){ return resourceFactory_; }
 
 private:
 
@@ -155,6 +155,7 @@ private:
 	LogManager logManager_;          // ログマネージャー
 	WindowProc* windowProc_ = nullptr; // ウィンドウプロシージャ
 	ShaderCompiler shaderCompiler_;
+	Dx12ResourceFactory* resourceFactory_ = nullptr;
 
 };
 
