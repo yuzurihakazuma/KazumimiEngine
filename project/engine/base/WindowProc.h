@@ -19,7 +19,7 @@ public:
 	/// <summary>
 	/// WindowsAPI の WndProc（メッセージ処理）
 	/// </summary>
-	static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
+	static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 	// -------------------- Getter 系 --------------------
 

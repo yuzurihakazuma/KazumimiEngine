@@ -148,9 +148,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Dx12ResourceFactory.cpp" />
-    <ClCompile Include="Dx12TextrueManager.cpp" />
-    <ClCompile Include="engine\base\DirectXComon.cpp" />
+    <ClCompile Include="engine\math\Dx12ResourceFactory.cpp" />
+    <ClCompile Include="engine\math\Dx12TextrueManager.cpp" />
+    <ClCompile Include="engine\base\DirectXCommon.cpp" />
     <ClCompile Include="engine\base\CrashDumper.cpp" />
     <ClCompile Include="engine\3d\DebugCamera.cpp">
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
@@ -176,6 +176,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\base\ShaderCompiler.cpp" />
     <ClCompile Include="engine\base\WindowProc.cpp" />
     <ClCompile Include="engine\io\Input.cpp" />
+    <ClCompile Include="engine\2d\SpriteCommon.cpp" />
+    <ClCompile Include="Sprite.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -206,9 +208,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Dx12ResourceFactory.h" />
-    <ClInclude Include="Dx12TextrueManager.h" />
-    <ClInclude Include="engine\base\DirectXComon.h" />
+    <ClInclude Include="engine\math\Dx12ResourceFactory.h" />
+    <ClInclude Include="engine\math\Dx12TextrueManager.h" />
+    <ClInclude Include="engine\base\DirectXCommon.h" />
     <ClInclude Include="engine\base\CrashDumper.h" />
     <ClInclude Include="engine\3d\DebugCamera.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
@@ -226,6 +228,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\base\struct.h" />
     <ClInclude Include="engine\base\WindowProc.h" />
     <ClInclude Include="engine\io\Input.h" />
+    <ClInclude Include="engine\2d\SpriteCommon.h" />
+    <ClInclude Include="Sprite.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
