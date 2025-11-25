@@ -735,7 +735,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	depthStencilDesc.StencilEnable = false;
 
-	
+
 	// コマンドリストのクローズと実行、バッファの入れ替えまで行う
 	dxCommon->PostDraw();
 
@@ -963,48 +963,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma endregion
 
 #pragma region Spriteの実装
-
 	Sprite* sprite = new Sprite();
-	sprite->Initialize(spriteCommon);
+
+	std::vector<Sprite*> sprites;
+	// 5枚生成するループ
+	for ( uint32_t i = 0; i < 5; ++i ) {
+		Sprite* newSprite = new Sprite();
+		newSprite->Initialize(spriteCommon);
+
+		// テクスチャを設定
+		newSprite->SetTextureHandle(textureSrvHandleGPU);
+
+		// 位置をずらす（例：横に200ずつズレる）
+		Vector2 pos = { 100.0f + ( i * 200.0f ), 360.0f };
+		newSprite->SetPosition(pos);
+
+		// 必要ならサイズや色もここで設定
+		 newSprite->SetScale({100.0f, 100.0f}); 
+
+		sprites.push_back(newSprite);
+	}
+
+
+	//Vector2 poition = sprite->GetPosition();
+	//float rotation = sprite->GetRotation();
+	//Vector4 color = sprite->GetColor();
+	//Vector2 scale = sprite->GetScale();
 
 	sprite->SetTextureHandle(textureSrvHandleGPU);
-	//// Sprite用の頂点リソースを作る
-	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = resourceFactory->CreateBufferResource(sizeof(VertexData) * 4);
-
-	//// 頂点バッファビューを作成する
-	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite {};
-	//// リソースの先頭のアドレスから作成する
-	//vertexBufferViewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
-	//// 使用するリソースのサイズは頂点4つ分のサイズ
-	//vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
-	//// 1頂点あたりのサイズ
-	//vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
-
-	//VertexData* vertexDataSprite = nullptr;
-	//// 書き込むためのアドレス取得
-	//vertexResourceSprite->Map(0, nullptr, reinterpret_cast< void** >( &vertexDataSprite ));
-
-	//// 1枚目の三角形
-	//// 左上
-	//vertexDataSprite[0].position = { 0.0f, 0.0f, 0.0f, 1.0f };
-	//vertexDataSprite[0].texcoord = { 0.0f, 0.0f };
-	//vertexDataSprite[0].normal = { 0.0f, 0.0f, -1.0f };
-
-	//// 左下
-	//vertexDataSprite[1].position = { 0.0f, 360.0f, 0.0f, 1.0f };
-	//vertexDataSprite[1].texcoord = { 0.0f, 1.0f };
-	//vertexDataSprite[1].normal = { 0.0f, 0.0f, -1.0f };
-
-	//// 右上
-	//vertexDataSprite[2].position = { 640.0f, 0.0f, 0.0f, 1.0f };
-	//vertexDataSprite[2].texcoord = { 1.0f, 0.0f };
-	//vertexDataSprite[2].normal = { 0.0f, 0.0f, -1.0f };
-
-	//// 右下
-	//vertexDataSprite[3].position = { 640.0f, 360.0f, 0.0f, 1.0f };
-	//vertexDataSprite[3].texcoord = { 1.0f, 1.0f };
-	//vertexDataSprite[3].normal = { 0.0f, 0.0f, -1.0f };
-
 
 
 
@@ -1077,37 +1063,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	}
 #pragma endregion
 
-#pragma region indexを使った実装
 
-	//// indexSprite用の頂点indexを作る1つ辺りのindexのサイズは32bit
-	//Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSprite = resourceFactory->CreateBufferResource(sizeof(uint32_t) * 6);
-
-	//D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite {}; // IBV
-
-	//// リソースの先頭のアドレスから使う
-	//indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
-
-	////使用するリソースのサイズはindex6つ分のサイズ 
-	//indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6;
-
-	//// indexはuint32_tとする
-	//indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
-
-	//// indexリソースにデータを書き込む
-	//uint32_t* indexDataSprite = nullptr;
-
-	//indexResourceSprite->Map(0, nullptr, reinterpret_cast< void** >( &indexDataSprite ));
-
-	//indexDataSprite[0] = 0;
-	//indexDataSprite[1] = 2;
-	//indexDataSprite[2] = 1;
-	//indexDataSprite[3] = 1;
-	//indexDataSprite[4] = 2;
-	//indexDataSprite[5] = 3;
-
-	//indexResourceSprite->Unmap(0, nullptr);
-
-#pragma endregion
 
 #pragma region indexを使った実装sphere
 
@@ -1221,20 +1177,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	materialData->enableLighting = true;
 	materialData->uvTransfrom = MakeIdentity4x4();
 
-	// Sprite用のマテリアルリソースを作る
-	Microsoft::WRL::ComPtr<ID3D12Resource> materialResourceSprite = resourceFactory->CreateBufferResource(sizeof(Material));
-
-	Material* materialDataSprite = nullptr;
-	// Mapしてデータを書き込む。色は白設定しておく
-	materialResourceSprite->Map(0, nullptr, reinterpret_cast< void** >( &materialDataSprite ));
-
-	materialDataSprite->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-	// SpriteはLightingしないのでfalseを設定する
-	materialDataSprite->enableLighting = false;
-	// UVTransformはSpriteでは使うので設定しておく。今回は単位行列を設定しておく
-	materialDataSprite->uvTransfrom = MakeIdentity4x4();
-
-
 
 #pragma endregion
 
@@ -1315,9 +1257,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		input.Update(); // ← 追加：Inputの更新処理
 
 
-	
 
-		
+
+
 
 
 
@@ -1364,7 +1306,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		transformationMatirxDataSprite->World = worldMatrixSprite;
 		transformationMatirxDataSprite->WVP = worldViewProjectionMatrixSprite;*/
 
-		sprite->Update();
+		for ( Sprite* sprite : sprites ) {
+			// もしアニメーションさせたいならここで値を変更
+			// Vector2 pos = sprite->GetPosition();
+			// pos.x += 1.0f;
+			// sprite->SetPosition(pos);
+
+			sprite->Update();
+		}
+
+		/*sprite->SetPosition(poition);
+		sprite->SetRotation(rotation);
+		sprite->SetColor(color);
+		sprite->SetScale(scale);*/
 
 
 		//-------------------------------
@@ -1423,7 +1377,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		Matrix4x4 uvTransformMatrix = MakeScale(uvTransformSprite.scale);
 		uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateZ(uvTransformSprite.rotate.z));
 		uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslate(uvTransformSprite.translate));
-		materialDataSprite->uvTransfrom = uvTransformMatrix;
+		//materialDataSprite->uvTransfrom = uvTransformMatrix;
 
 
 
@@ -1504,29 +1458,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-		sprite->Draw();
-
-		//// トポロジの設定
-		//commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		//// VBVを設定 : IBVを設定
-		//commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-		//commandList->IASetIndexBuffer(&indexBufferViewSprite);
-
-		//// マテリアル定数バッファ
-		//commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-
-		//// 行列定数バッファ
-		//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-
-		//// RootSignatureが共通である以上、バインドしないとエラーまたは不定動作になります。
-		//commandList->SetGraphicsRootConstantBufferView(3, directionalResourceLight->GetGPUVirtualAddress());
-
-		//// ここで更新してSpriteの画像を変えないようにする
-		//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-
-
-		////描画！(DraoCall/ドローコール)
-		//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+		// 全てのスプライトを描画
+		for ( Sprite* sprite : sprites ) {
+			sprite->Draw();
+		}
 
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);

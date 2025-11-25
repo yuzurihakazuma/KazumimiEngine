@@ -135,7 +135,7 @@ void DirectXCommon::PostDraw(){
 	commandQueue_->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 
 	// 画面の表示
-	hr_ = swapChain_->Present(1, 0);
+	hr_ = swapChain_->Present(0, 0);
 	assert(SUCCEEDED(hr_));
 
 	// フェンスで GPU 完了待ち
@@ -428,6 +428,11 @@ void DirectXCommon::InitializeFixFPS(){
 
 	// 現在時間を記録する
 	reference_ = std::chrono::steady_clock::now();
+
+	// OSのタイマー精度を1msにする
+	// これを行わないと sleep_for(1us) でも 15ms ほど寝てしまうことがある
+	timeBeginPeriod(1);
+
 }
 // FPS固定の更新
 void DirectXCommon::UpdateFixFPS(){
@@ -439,6 +444,12 @@ void DirectXCommon::UpdateFixFPS(){
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 	// 前回記録からの経過時間を取得する
 	std::chrono::microseconds elapsed = std::chrono::duration_cast< std::chrono::microseconds >( now - reference_ );
+
+	// 無理に取り戻そうとせず、基準時間を現在時刻にリセットして諦める
+	if ( elapsed > std::chrono::microseconds(100000) ) { // 0.1秒以上ズレたら
+		reference_ = now;
+		elapsed = std::chrono::microseconds(0); // 経過時間もリセット
+	}
 
 	// 1/60秒（よりわずかに短い時間）たっていない場合
 	if ( elapsed < kMinCheckTime ){

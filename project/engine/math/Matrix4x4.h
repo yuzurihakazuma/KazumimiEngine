@@ -36,6 +36,21 @@ inline constexpr Vector3 operator-(Vector3 lhs, const Vector3& rhs) noexcept{ re
 inline constexpr Vector3 operator*(Vector3 v, float s) noexcept{ return v *= s; }
 inline constexpr Vector3 operator*(float s, Vector3 v) noexcept{ return v *= s; } // 逆順も対応
 inline constexpr Vector3 operator/(Vector3 v, float s) noexcept{ return v /= s; }
+// Vector2の+=演算子の実装
+
+
+// 複合代入演算子
+inline constexpr Vector2& operator+=(Vector2& lhs, const Vector2& rhs) noexcept{
+	lhs.x += rhs.x;
+	lhs.y += rhs.y;
+	return lhs;
+}
+
+inline constexpr Vector2 operator+(Vector2 lhs, const Vector2& rhs) noexcept{
+	return lhs += rhs;
+}
+
+
 
 namespace MatrixMath {
 	// 行列の加法

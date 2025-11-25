@@ -19,25 +19,39 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
     // マップしてポインタ取得
     vertexResource_->Map(0, nullptr, reinterpret_cast< void** >( &vertexData_ ));
 
+	float left = 0.0f - anchorPoint_.x;
+	float right = 1.0f - anchorPoint_.x;
+	float top = 0.0f - anchorPoint_.y;
+	float bottom = 1.0f - anchorPoint_.y;
+
+	// 左右反転
+	if ( isFlipX_ ) {
+		std::swap(left, right);
+	}
+	// 上下反転
+	if ( isFlipY_ ) {
+		std::swap(top, bottom);
+	}
+
 	// 1枚目の三角形
 	// 左上
-	vertexData_[0].position = { 0.0f, 0.0f, 0.0f, 1.0f };
-	vertexData_[0].texcoord = { 0.0f, 0.0f };
+	vertexData_[0].position = { left, bottom, 0.0f, 1.0f };
+	vertexData_[0].texcoord = { 0.0f, 1.0f };
 	vertexData_[0].normal = { 0.0f, 0.0f, -1.0f };
 
 	// 左下
-	vertexData_[1].position = { 0.0f, 360.0f, 0.0f, 1.0f };
-	vertexData_[1].texcoord = { 0.0f, 1.0f };
+	vertexData_[1].position = { left, top, 0.0f, 1.0f };
+	vertexData_[1].texcoord = { 0.0f, 0.0f };
 	vertexData_[1].normal = { 0.0f, 0.0f, -1.0f };
 
 	// 右上
-	vertexData_[2].position = { 640.0f, 0.0f, 0.0f, 1.0f };
-	vertexData_[2].texcoord = { 1.0f, 0.0f };
+	vertexData_[2].position = { right, bottom, 0.0f, 1.0f };
+	vertexData_[2].texcoord = { 1.0f, 1.0f };
 	vertexData_[2].normal = { 0.0f, 0.0f, -1.0f };
 
 	// 右下
-	vertexData_[3].position = { 640.0f, 360.0f, 0.0f, 1.0f };
-	vertexData_[3].texcoord = { 1.0f, 1.0f };
+	vertexData_[3].position = { right, top, 0.0f, 1.0f };
+	vertexData_[3].texcoord = { 1.0f, 0.0f };
 	vertexData_[3].normal = { 0.0f, 0.0f, -1.0f };
 	// Sprite用のマテリアルリソースを作る
 	materialResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Material));
@@ -65,9 +79,12 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
 
 	indexResource_->Map(0, nullptr, reinterpret_cast< void** >( &indexData_ ));
 
+	// 三角形1つ目 (左上 -> 右上 -> 左下) : 時計回り
 	indexData_[0] = 0;
 	indexData_[1] = 2;
 	indexData_[2] = 1;
+
+	// 三角形2つ目 (左下 -> 右上 -> 右下) : 時計回り
 	indexData_[3] = 1;
 	indexData_[4] = 2;
 	indexData_[5] = 3;
@@ -89,12 +106,15 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
 
 void Sprite::Update(){
 
-	
+	transform.translate = { position_.x, position_.y, 0.0f };
+	transform.rotate = { 0.0f, 0.0f, rotation_ };
+	transform.scale = { scale_.x, scale_.y, 1.0f };
+
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
 	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, width_, height_, 0.0f, 100.0f);
 	Matrix4x4 viewProjection = Multiply(viewMatrix, projectionMatrix);
-	Matrix4x4 worldViewProjectionMatrix = Multiply(viewProjection, worldMatrix);
+	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjection);
 	transformationMatirxData_->WVP = worldViewProjectionMatrix;
 	transformationMatirxData_->World = worldMatrix;
 

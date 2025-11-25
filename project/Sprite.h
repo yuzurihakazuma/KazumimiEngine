@@ -29,7 +29,33 @@ public:
 	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle){
 		textureHandle_ = textureHandle;
 	}
+	// スプライトの位置を設定・取得する関数を追加
+	const Vector2 GetPosition() const{ return position_; }
+	void SetPosition(const Vector2& position){ position_ = position; }
 
+	// スプライトの回転角度を設定・取得する関数を追加
+	float GetRotation() const{ return rotation_; }
+	void SetRotation(float rotation){ rotation_ = rotation; }
+
+	// スプライトの拡大率を設定・取得する関数を追加
+	const Vector2 GetScale() const{ return scale_; }
+	void SetScale(const Vector2& scale){ scale_ = scale; }
+
+
+	// スプライトの色を設定・取得する関数を追加
+	const Vector4& GetColor() const{ return materialData_->color; }
+	void SetColor(const Vector4& color){ materialData_->color = color; }
+
+	// スプライトのアンカーポイントを設定・取得する関数を追加
+	const Vector2 GetAnchorPoint() const{ return anchorPoint_; }
+	void SetAnchorPoint(const Vector2& anchorPoint){ anchorPoint_ = anchorPoint; }
+
+	// スプライトの左右クリップ設定・取得する関数を追加
+	bool GetIsFlipX() const{ return isFlipX_; }
+	void SetIsFlipX(bool isFlipX){ isFlipX_ = isFlipX; }
+	// スプライトの上下クリップ設定・取得する関数を追加
+	bool GetIsFlipY() const{ return isFlipY_; }
+	void SetIsFlipY(bool isFlipY){ isFlipY_ = isFlipY; }
 
 private:
 	
@@ -82,6 +108,24 @@ private:
 
 	// このスプライトが使うテクスチャのハンドル
 	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle_ {};
+	
+	
+	Vector2 position_ = { 0.0f,0.0f }; // スプライトの位置
+
+	float rotation_ = 0.0f; // スプライトの回転角度
+
+	Vector2 scale_ = { 640.0f,360.0f }; // スプライトの拡大率
+
+	Vector2 anchorPoint_ = { 0.0f,0.0f }; // スプライトの拡大率
+
+	// 左右クリップ
+	bool isFlipX_ = false;
+	// 上下クリップ
+	bool isFlipY_ = false;
+	// テクスチャ左上座標
+	Vector2 texuvLeftTop_ = { 0.0f,0.0f };
+	// テクスチャ右下座標
+	Vector2 texuvRightBottom_ = { 100.0f,100.0f };
 
 };
 

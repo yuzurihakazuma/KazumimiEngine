@@ -2,6 +2,9 @@
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
+#include <Windows.h>
+#pragma comment(lib, "winmm.lib")
+
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -23,6 +26,8 @@ void WindowProc::Initialize(WNDCLASS wc, const int32_t kClientWidth, const int32
 	CreateMainWindow();
 	// メインウィンドウの表示
 	ShowMainWindow();
+
+	timeBeginPeriod(1); // タイマーの分解能を1msに設定
 
 }
 // ウィンドウクラスの設定
