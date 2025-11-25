@@ -92,7 +92,7 @@ void Sprite::Update(){
 	
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
-	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, float(windowProc.GetClientWidth()), float(windowProc.GetClientWidth()), 0.0f, 100.0f);
+	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, width_, height_, 0.0f, 100.0f);
 	Matrix4x4 viewProjection = Multiply(viewMatrix, projectionMatrix);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(viewProjection, worldMatrix);
 	transformationMatirxData_->WVP = worldViewProjectionMatrix;
@@ -122,8 +122,9 @@ void Sprite::Draw(){
 	//commandList->SetGraphicsRootConstantBufferView(3, directionalResourceLight->GetGPUVirtualAddress());
 
 	// ここで更新してSpriteの画像を変えないようにする
-	commandList->SetGraphicsRootDescriptorTable(2, spriteCommon->GetTextureHandle());
-
+	if ( textureHandle_.ptr != 0 ) { // ハンドルがセットされているか念のため確認
+		commandList->SetGraphicsRootDescriptorTable(2, textureHandle_);
+	}
 
 	//描画！(DraoCall/ドローコール)
 	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);

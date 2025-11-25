@@ -69,6 +69,7 @@ public:
 
 	Dx12ResourceFactory* GetResourceFactory(){ return resourceFactory_; }
 
+	void SetResourceFactory(Dx12ResourceFactory* factory){ resourceFactory_ = factory; }
 private:
 
 	// -------------------- 初期化・生成系 --------------------

@@ -6,6 +6,7 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon){
 	assert(dxCommon);
 
 	dxCommon_ = dxCommon;
+
 	// RootSignatureの作成
 	CreateRootSignature();
 	// GraphicsPipelineの生成（最初にRootSigが必要）

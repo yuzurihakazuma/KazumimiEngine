@@ -512,7 +512,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	dx12TextrueManager->SetDevice(device);
 	dx12TextrueManager->SetResourceFactory(resourceFactory);
 
-
+	dxCommon->SetResourceFactory(resourceFactory);
 	// ImGui 管理クラス
 	ImGuiManager imgui;
 	imgui.Initialize(
@@ -967,7 +967,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	Sprite* sprite = new Sprite();
 	sprite->Initialize(spriteCommon);
 
-
+	sprite->SetTextureHandle(textureSrvHandleGPU);
 	//// Sprite用の頂点リソースを作る
 	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = resourceFactory->CreateBufferResource(sizeof(VertexData) * 4);
 

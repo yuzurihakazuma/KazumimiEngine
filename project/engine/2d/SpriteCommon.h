@@ -25,14 +25,6 @@ public:
 	DirectXCommon* GetDxCommon() const{ return dxCommon_; }
 
 
-	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle){
-		textureSrvHandleGPU_ = handle;
-	}
-
-	D3D12_GPU_DESCRIPTOR_HANDLE GetTextureHandle() const{
-		return textureSrvHandleGPU_;
-	}
-
 private:
 
 
@@ -47,9 +39,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
 
-	
-
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU_ {};
 
 };
 

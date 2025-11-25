@@ -25,6 +25,12 @@ public:
 
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() { return vertexBufferView_; }
 
+	// テクスチャをセットする関数を追加
+	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle){
+		textureHandle_ = textureHandle;
+	}
+
+
 private:
 	
 	struct VertexData{
@@ -63,8 +69,8 @@ private:
 
 	Transform transform { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
-	WindowProc windowProc;
-
+	float width_ = 1280.0f; // 仮置き
+	float height_ = 720.0f; //
 
 	// indexSprite用の頂点indexを作る1つ辺りのindexのサイズは32bit
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
@@ -73,5 +79,9 @@ private:
 
 	// indexリソースにデータを書き込む
 	uint32_t* indexData_ = nullptr;
+
+	// このスプライトが使うテクスチャのハンドル
+	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle_ {};
+
 };
 
