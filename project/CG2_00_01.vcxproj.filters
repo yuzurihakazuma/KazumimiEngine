@@ -114,16 +114,16 @@
     <ClCompile Include="engine\base\DirectXCommon.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="engine\math\Dx12TextrueManager.cpp">
+    <ClCompile Include="engine\math\TextrueManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="engine\math\Dx12ResourceFactory.cpp">
+    <ClCompile Include="engine\math\ResourceFactory.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\2d\SpriteCommon.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Sprite.cpp">
+    <ClCompile Include="engine\2d\Sprite.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -192,16 +192,16 @@
     <ClInclude Include="engine\base\DirectXCommon.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="engine\math\Dx12TextrueManager.h">
+    <ClInclude Include="engine\math\TextrueManager.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="engine\math\Dx12ResourceFactory.h">
+    <ClInclude Include="engine\math\ResourceFactory.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\2d\SpriteCommon.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Sprite.h">
+    <ClInclude Include="engine\2d\Sprite.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

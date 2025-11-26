@@ -1,7 +1,7 @@
-#include "Dx12ResourceFactory.h"
+#include "ResourceFactory.h"
 
 
-ComPtr<ID3D12Resource> Dx12ResourceFactory::CreateBufferResource(uint64_t sizeInBytes){
+ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uint64_t sizeInBytes){
     D3D12_HEAP_PROPERTIES heapProps = {};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 

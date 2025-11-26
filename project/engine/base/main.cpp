@@ -152,7 +152,6 @@ enum BlendMods{
 // Transform変数を作る
 Transform transform { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 Transform cameraTransfrom { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} };
-Transform transformSprite { {1.0f,1.0f,1.0f,},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 Transform uvTransformSprite { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
 LogManager logManager;// ログマネージャーのインスタンス
@@ -174,9 +173,9 @@ std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの
 
 
 
-Dx12ResourceFactory* resourceFactory = new Dx12ResourceFactory(); // リソースファクトリーのインスタンス
+ResourceFactory* resourceFactory = new ResourceFactory(); // リソースファクトリーのインスタンス
 
-; Dx12TextrueManager* dx12TextrueManager = new Dx12TextrueManager(); // テクスチャマネージャーのインスタンス
+; TextrueManager* textrueManager = new TextrueManager(); // テクスチャマネージャーのインスタンス
 
 #pragma region リソースリークチェック
 
@@ -456,6 +455,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
 
+
+
 	// スプライト共通初期化
 	spriteCommon->Initialize(dxCommon);
 
@@ -488,29 +489,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	//
-	//
-	//#ifdef _DEBUG
-	//
-	//	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-	//	if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
-	//		// デバックレイヤーを有効化する
-	//		debugController->EnableDebugLayer();
-	//		// さらにGPU側でもチェックを行うようにする
-	//		debugController->SetEnableGPUBasedValidation(TRUE);
-	//	}
-	//#endif // _DEBUG
+	
+	
+	#ifdef _DEBUG
+	
+		Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
+		if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
+			// デバックレイヤーを有効化する
+			debugController->EnableDebugLayer();
+			// さらにGPU側でもチェックを行うようにする
+			debugController->SetEnableGPUBasedValidation(TRUE);
+		}
+	#endif // _DEBUG
 
 
 
 
 
-
+	textrueManager->Initialize(device, dxCommon, dxCommon->GetSrvHeap(), dxCommon->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 	resourceFactory->SetDevice(device);
 
-	dx12TextrueManager->SetDevice(device);
-	dx12TextrueManager->SetResourceFactory(resourceFactory);
+	textrueManager->SetDevice(device);
+	textrueManager->SetResourceFactory(resourceFactory);
 
 	dxCommon->SetResourceFactory(resourceFactory);
 	// ImGui 管理クラス
@@ -525,33 +526,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	//#ifdef _DEBUG
-	//
-	//	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
-	//	if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
-	//		// やばいエラー時に止まる
-	//		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-	//		// エラー時に止まる
-	//		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-	//		// 警告時に泊まる
-	//		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-	//		// 抑制するメッセージのＩＤ
-	//		D3D12_MESSAGE_ID denyIds[] = {
-	//			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
-	//			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
-	//			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
-	//		// 抑制するレベル
-	//		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
-	//		D3D12_INFO_QUEUE_FILTER filter {};
-	//		filter.DenyList.NumIDs = _countof(denyIds);
-	//		filter.DenyList.pIDList = denyIds;
-	//		filter.DenyList.NumSeverities = _countof(severities);
-	//		filter.DenyList.pSeverityList = severities;
-	//		// 指定したメッセージの表示wp抑制する
-	//		infoQueue->PushStorageFilter(&filter);
-	//	}
-	//
-	//#endif // _DEBUG
+	#ifdef _DEBUG
+	
+		Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
+		if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
+			// やばいエラー時に止まる
+			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+			// エラー時に止まる
+			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+			// 警告時に泊まる
+			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+			// 抑制するメッセージのＩＤ
+			D3D12_MESSAGE_ID denyIds[] = {
+				// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
+				// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
+				D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
+			// 抑制するレベル
+			D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+			D3D12_INFO_QUEUE_FILTER filter {};
+			filter.DenyList.NumIDs = _countof(denyIds);
+			filter.DenyList.pIDList = denyIds;
+			filter.DenyList.NumSeverities = _countof(severities);
+			filter.DenyList.pSeverityList = severities;
+			// 指定したメッセージの表示wp抑制する
+			infoQueue->PushStorageFilter(&filter);
+		}
+	
+	#endif // _DEBUG
 
 
 #pragma region Particles
@@ -588,152 +589,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	spriteCommon->PreDraw(commandList);
 
-	// Textrueを読んで転送する
-	DirectX::ScratchImage mipImages = dx12TextrueManager->LoadTexture("resources/uvChecker.png");
-	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource = dx12TextrueManager->CreateTextureResource(metadata);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = dx12TextrueManager->UploadTextureData(textrueResource, mipImages, commandList);
-
+	// 2. テクスチャの読み込みとコマンドの積み込み
+	// uvChecker
+	auto mipImages = textrueManager->LoadAndCreateSRV("resources/uvChecker.png", commandList);
 
 	// 2枚目のTextureを読んで転送する
-	DirectX::ScratchImage mipImages2 = dx12TextrueManager->LoadTexture("resources/monsterBall.png");
-	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource2 = dx12TextrueManager->CreateTextureResource(metadata2);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2 = dx12TextrueManager->UploadTextureData(textrueResource2, mipImages2, commandList);
-	// モンスターボールか否かをするために宣言
+	auto monsterBallHandle = textrueManager->LoadAndCreateSRV("resources/monsterBall.png", commandList);// モンスターボールか否かをするために宣言
 	bool useMonsterBall = false;
 
 	// 3枚目のTexTureを読んで転送する
-	DirectX::ScratchImage mipImages3 = dx12TextrueManager->LoadTexture("resources/fence.png");
-	const DirectX::TexMetadata& metadata3 = mipImages3.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource3 = dx12TextrueManager->CreateTextureResource(metadata3);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource3 = dx12TextrueManager->UploadTextureData(textrueResource3, mipImages3, commandList);
-
+	DirectX::ScratchImage mipImages3 = textrueManager->LoadTexture("resources/fence.png");
 	bool useFence = false;
 
 	// 4枚目のTexTureを読んで転送する
-	DirectX::ScratchImage mipImages5 = dx12TextrueManager->LoadTexture("resources/circle.png");
-	const DirectX::TexMetadata& metadata5 = mipImages5.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource5 = dx12TextrueManager->CreateTextureResource(metadata5);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource5 = dx12TextrueManager->UploadTextureData(textrueResource5, mipImages5, commandList);
-
+	auto fenceHandle = textrueManager->LoadAndCreateSRV("resources/fence.png", commandList);
 	bool useCircle = false;
 
 
 
 	// DepthStencilTextureをウィンドウのサイズで作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = dx12TextrueManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
+	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textrueManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
 
 
-	//---------------------
-	// uvChecker用SRV
-	//---------------------
-
-	// 必要な変数（呼び出し元で用意しておくもの）
-	ID3D12DescriptorHeap* srvDescriptorHeap = dxCommon->GetSrvHeap();
-	// デバイスからSRVディスクリプタサイズを取得
-	UINT desriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	//ComPtr<ID3D12Resource> textureResource; // 生成済みテクスチャ
-
-
-	// metaDataを基にSRVの設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
-	srvDesc.Format = metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
-
-
-	// SRVを作成するDescriptorHeapの場所を決める
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 1);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 1);
-	// SRVの生成
-	device->CreateShaderResourceView(textrueResource.Get(), &srvDesc, textureSrvHandleCPU);
-
-	//---------------------
-	// monsterBall用SRV2
-	//---------------------
-
-	// metaDataを基にSRV2の設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2 {};
-	srvDesc2.Format = metadata2.format;
-	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
-
-	// SRV2を作成するDescriptorHeapの場所を決める
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 2);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 2);
-
-	// SRV2の生成
-	device->CreateShaderResourceView(textrueResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
-
-	//---------------------
-	// fence用SRV3
-	//---------------------
-
-	// metaDataを基にSRV3の設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3 {};
-	srvDesc3.Format = metadata3.format;
-	srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	srvDesc3.Texture2D.MipLevels = UINT(metadata3.mipLevels);
-
-	// SRV3を作成するDescriptorHeapの場所を決める
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 3);
-
-	// SRV3の生成
-	device->CreateShaderResourceView(textrueResource3.Get(), &srvDesc3, textureSrvHandleCPU3);
-
-
-	//---------------------
-	// Particle用SRV5
-	//---------------------
-
-
-	//// metaDataを基にSRV3の設定
-	//D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc5 {};
-	//srvDesc5.Format = metadata5.format;
-	//srvDesc5.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	//srvDesc5.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	//srvDesc5.Texture2D.MipLevels = UINT(metadata5.mipLevels);
-
-	//// SRV3を作成するDescriptorHeapの場所を決める
-	//D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU5 = GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 5);
-	//D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU5 = GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 5);
-
-	//// SRV3の生成
-	//device->CreateShaderResourceView(textrueResource5.Get(), &srvDesc5, textureSrvHandleCPU5);
-
-	//---------------------
-	// instancingSrvDesc
-	//---------------------
-
-
-	//// metaDataを基にSRV4の設定
-	//D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc {};
-	//instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	//instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	//instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	//instancingSrvDesc.Buffer.FirstElement = 0;
-	//instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	//instancingSrvDesc.Buffer.NumElements = kNumMaxInstance;
-	//instancingSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
-	//D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 4);
-	//D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 4);
-	//device->CreateShaderResourceView(instancingRessource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
-
-	// DepthStenciLstateの設定
-	D3D12_DEPTH_STENCIL_DESC depthStencilDesc {};
-	// Depthの機能を有効化する
-	depthStencilDesc.DepthEnable = true;
-	// Depthの書き込みを行わない
-	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	// 比較関数はLessEqual。つまり、近ければ描画される
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-
-	depthStencilDesc.StencilEnable = false;
+	
 
 
 	// コマンドリストのクローズと実行、バッファの入れ替えまで行う
@@ -920,47 +798,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma endregion
 
 
-#pragma region 頂点データの作成とビュー
-
-	//// 実際に頂点リソースを作る
-	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device, sizeof(VertexData) * 6);
-
-	//// 頂点バッファビューを作成する
-	//D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
-	//// リソースの先頭のアドレスから使う
-	//vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-	//// 使用するリソースのサイズは頂点3つ分
-	//vertexBufferView.SizeInBytes = sizeof(VertexData) * 6;
-	//// 1頂点あたりのサイズ
-	//vertexBufferView.StrideInBytes = sizeof(VertexData);
-
-	//// 頂点リソースにデータを書き込む
-	//VertexData* vertexData = nullptr;
-	//// 書き込むためのアドレス取得
-	//vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-	//// 左下
-	//vertexData[0] = { -0.5f,-0.5f,0.0f,1.0f };
-	//vertexData[0].texcoord = { 0.0f,1.0f };
-	//// 上
-	//vertexData[1] = { 0.0f,0.5f,0.0f,1.0f };
-	//vertexData[1].texcoord = { 0.5f,0.0f };
-	//// 右下
-	//vertexData[2] = { 0.5f,-0.5f,0.0f,1.0f };
-	//vertexData[2].texcoord = { 1.0f,1.0f };
-
-
-	//// 左下2
-	//vertexData[3].position = { -0.5f,-0.5f,0.5f,1.0f };
-	//vertexData[3].texcoord = { 0.0f,1.0f };
-	//// 上2
-	//vertexData[4].position = { 0.0f,0.0f,0.0f,1.0f };
-	//vertexData[4].texcoord = { 0.5f,0.0f };
-	//// 右下2
-	//vertexData[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
-	//vertexData[5].texcoord = { 1.0f,1.0f };
-
-
-#pragma endregion
 
 #pragma region Spriteの実装
 	Sprite* sprite = new Sprite();
@@ -972,7 +809,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		newSprite->Initialize(spriteCommon);
 
 		// テクスチャを設定
-		newSprite->SetTextureHandle(textureSrvHandleGPU);
+		newSprite->SetTextureHandle(mipImages);
 
 		// 位置をずらす（例：横に200ずつズレる）
 		Vector2 pos = { 100.0f + ( i * 200.0f ), 360.0f };
@@ -990,7 +827,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	//Vector4 color = sprite->GetColor();
 	//Vector2 scale = sprite->GetScale();
 
-	sprite->SetTextureHandle(textureSrvHandleGPU);
+	//sprite->SetTextureHandle(mipImages);
 
 
 
@@ -1062,7 +899,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	}
 #pragma endregion
-
 
 
 #pragma region indexを使った実装sphere
@@ -1331,15 +1167,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		ImGui::ShowDemoWindow();
 
 
-		//ImGui::ColorEdit4("Color", &materialData->color.x);
-		ImGui::SliderAngle("RotateX", &transformSprite.rotate.x, -500, 500);
-		ImGui::SliderAngle("RotateY", &transformSprite.rotate.y, -500, 500);
-		ImGui::SliderAngle("RotateZ", &transformSprite.rotate.z, -500, 500);
-		ImGui::DragFloat3("transform", &transformSprite.translate.x, -180, 180);
-		ImGui::DragFloat3("transformSprite", &transform.translate.x);
-		ImGui::SliderAngle("RotateXSprite", &transform.rotate.x, -500, 500);
-		ImGui::SliderAngle("RotateYSprite", &transform.rotate.y, -500, 500);
-		ImGui::SliderAngle("RotateZSprite", &transform.rotate.z, -500, 500);
+		
 
 		if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
 			if ( useMonsterBall ) {
@@ -1462,6 +1290,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Sprite* sprite : sprites ) {
 			sprite->Draw();
 		}
+		sprites.clear();
 
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);

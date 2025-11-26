@@ -9,7 +9,7 @@
 using Microsoft::WRL::ComPtr;
 
 
-class Dx12ResourceFactory{
+class ResourceFactory{
 public:
 
     // -------------------- リソース生成 --------------------

@@ -5,17 +5,29 @@
 #include "LogManager.h"
 #include <ImGuiManager.h>
 
-#include "Dx12ResourceFactory.h"
-
+#include "ResourceFactory.h"
+#include <d3d12.h>
+#include"DirectXCommon.h"
 
 
 using Microsoft::WRL::ComPtr;
 
 using namespace logs;
 
-class Dx12TextrueManager{
+class DirectXCommon;
+
+class TextrueManager{
 
 public:
+
+	/// <summary>
+	/// 初期化
+	// </summary>
+    void Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCommon,ID3D12DescriptorHeap* srvHeap, UINT descriptorSize);
+
+    D3D12_GPU_DESCRIPTOR_HANDLE LoadAndCreateSRV(const std::string& filePath, ID3D12GraphicsCommandList* commandList);
+
+
 
     // -------------------- テクスチャ読み込み --------------------
 
@@ -66,10 +78,14 @@ public:
     /// <summary>
     /// 外部のリソースファクトリをセット
     /// </summary>
-    void SetResourceFactory(Dx12ResourceFactory* resourceBuffer){
+    void SetResourceFactory(ResourceFactory* resourceBuffer){
         resourceBuffer_ = resourceBuffer;
     }
 
+    /// ディスクリプタサイズを手動で設定する
+    void SetDescriptorSize(UINT size){
+        this->descriptorSizeSRV_ = size;
+    }
 
 private:
 
@@ -77,6 +93,13 @@ private:
 
     ComPtr<ID3D12Device> device_ = nullptr;   // DX12 デバイス
     LogManager logManager;                    // ログ出力用
-    Dx12ResourceFactory* resourceBuffer_ = nullptr; // バッファ生成の補助クラス
+    ResourceFactory* resourceBuffer_ = nullptr; // バッファ生成の補助クラス
+
+    DirectXCommon* dxCommon_ = nullptr;
+    ID3D12DescriptorHeap* srvHeap_ = nullptr;
+    UINT descriptorSizeSRV_ = 0;
+    UINT currentIndex_ = 1;
+    std::unordered_map<std::string, ComPtr<ID3D12Resource>> textureMap;
+
 };
 

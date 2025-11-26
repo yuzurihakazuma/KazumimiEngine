@@ -1,9 +1,44 @@
-#include "Dx12TextrueManager.h"
+#include "TextrueManager.h"
 
 
 
 
-DirectX::ScratchImage Dx12TextrueManager::LoadTexture(const std::string& filePath){
+void TextrueManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCommon,ID3D12DescriptorHeap* srvHeap, UINT descriptorSize){
+	this->device_ = device;
+	this->dxCommon_ = dxCommon;
+	this->srvHeap_ = srvHeap;
+	this->descriptorSizeSRV_ = descriptorSize;
+
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE TextrueManager::LoadAndCreateSRV(const std::string& filePath, ID3D12GraphicsCommandList* commandList){
+	if ( textureMap.count(filePath) ) {
+		return dxCommon_->GetGPUDescriptorHandle(srvHeap_, descriptorSizeSRV_, currentIndex_ - 1);
+	}
+
+	DirectX::ScratchImage mipImages = LoadTexture(filePath);
+	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = CreateTextureResource(metadata);
+	Microsoft::WRL::ComPtr<ID3D12Resource> intermediate = UploadTextureData(textureResource, mipImages, commandList);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
+	srvDesc.Format = metadata.format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = static_cast< UINT >( metadata.mipLevels );
+
+	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = dxCommon_->GetCPUDescriptorHandle(srvHeap_, descriptorSizeSRV_, currentIndex_);
+	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = dxCommon_->GetGPUDescriptorHandle(srvHeap_, descriptorSizeSRV_, currentIndex_);
+
+	device_->CreateShaderResourceView(textureResource.Get(), &srvDesc, handleCPU);
+
+	textureMap[filePath] = textureResource;
+	currentIndex_++;
+
+	return handleGPU;
+}
+
+DirectX::ScratchImage TextrueManager::LoadTexture(const std::string& filePath){
 	
 	// テクスチャファイルを読み込んでプログラムで扱えるようにする
 	DirectX::ScratchImage image {};
@@ -21,7 +56,7 @@ DirectX::ScratchImage Dx12TextrueManager::LoadTexture(const std::string& filePat
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateTextureResource(const DirectX::TexMetadata& metadata){
+Microsoft::WRL::ComPtr<ID3D12Resource> TextrueManager::CreateTextureResource(const DirectX::TexMetadata& metadata){
 
 	// metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};
@@ -60,7 +95,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateTextureResource
 
 
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
+Microsoft::WRL::ComPtr<ID3D12Resource> TextrueManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
 	DirectX::PrepareUpload(device_.Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
@@ -84,7 +119,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::UploadTextureData(con
 
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Dx12TextrueManager::CreateDepthStencilTextureResource( int32_t width, int32_t height){
+Microsoft::WRL::ComPtr<ID3D12Resource> TextrueManager::CreateDepthStencilTextureResource( int32_t width, int32_t height){
 	
 	// 生成するResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};

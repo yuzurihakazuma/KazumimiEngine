@@ -9,8 +9,8 @@
 #include "LogManager.h"
 #include "WindowProc.h"
 #include "externals/DirectXTex/DirectXTex.h"
-#include "Dx12ResourceFactory.h"
-#include "Dx12TextrueManager.h"
+#include "ResourceFactory.h"
+#include "TextrueManager.h"
 #include <chrono>
 
 #pragma comment(lib,"d3d12.lib")
@@ -26,9 +26,9 @@ public:
 	void Initialize(WindowProc* windowProc);
 
 	// <summary>描画前処理
-	void PreDraw();  
+	void PreDraw();
 	// <summary>描画後処理
-	void PostDraw(); 
+	void PostDraw();
 
 	/// <summary>ディスクリプタヒープ作成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
@@ -61,16 +61,28 @@ public:
 
 	/// <summary>コマンドキューのゲッター
 	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
-	
+
 	// ログマネージャーのゲッター
-	LogManager& GetLogManager(){ return logManager_; } 
-	
+	LogManager& GetLogManager(){ return logManager_; }
+
 	// シェーダーコンパイラのゲッター
-	ShaderCompiler& GetShaderCompiler(){ return shaderCompiler_; } 
+	ShaderCompiler& GetShaderCompiler(){ return shaderCompiler_; }
 
-	Dx12ResourceFactory* GetResourceFactory(){ return resourceFactory_; }
+	ResourceFactory* GetResourceFactory(){ return resourceFactory_; }
 
-	void SetResourceFactory(Dx12ResourceFactory* factory){ resourceFactory_ = factory; }
+	void SetResourceFactory(ResourceFactory* factory){ resourceFactory_ = factory; }
+
+	UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const{
+		switch ( type ) {
+		case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: return desriptorSizeSRV_;
+		case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:         return desriptorSizeRTV_;
+		case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:         return desriptorSizeDSV_;
+		default: return 0;
+		}
+	}
+
+
+
 private:
 
 	// -------------------- 初期化・生成系 --------------------
@@ -157,7 +169,7 @@ private:
 	LogManager logManager_;          // ログマネージャー
 	WindowProc* windowProc_ = nullptr; // ウィンドウプロシージャ
 	ShaderCompiler shaderCompiler_;
-	Dx12ResourceFactory* resourceFactory_ = nullptr;
+	ResourceFactory* resourceFactory_ = nullptr;
 
 };
 
