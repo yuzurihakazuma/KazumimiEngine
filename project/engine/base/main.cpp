@@ -1803,21 +1803,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( uint32_t index = 0; index < kNumMaxInstance; ++index ){
 			// 生存時間を過ぎていたら描画しない
 			if ( particles[index].lifeTime <= particles[index].currentTime ){
-				continue;
+				// ★ 寿命が尽きたら、新しく作り直す（＝再生成）
+				particles[index] = MakeNewParticle(randomEngine);
 			}
+
 			float alpha = 1.0f - ( particles[index].currentTime / particles[index].lifeTime );
 			Matrix4x4 worldMatrix = MakeAffine(particles[index].transform.scale, particles[index].transform.rotate, particles[index].transform.translate);
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
-			instancingData[index].WVP = worldViewProjectionMatrix;
-			instancingData[index].World = worldMatrix;
-			particles[index].transform.translate += particles[index].velocity * kDeltaTime; // 速度に応じて移動
-			particles[index].currentTime += kDeltaTime;// 経過時間を加算
+
+			particles[index].transform.translate += particles[index].velocity * kDeltaTime;
+			particles[index].currentTime += kDeltaTime;
+
 			instancingData[numInstance].WVP = worldViewProjectionMatrix;
 			instancingData[numInstance].World = worldMatrix;
 			instancingData[numInstance].color = particles[index].color;
-			instancingData[numInstance].color.w = alpha; // α値を設定
+			instancingData[numInstance].color.w = alpha;
 
-			numInstance++; // 有効なインスタンス数をカウント
+			numInstance++;
 		}
 
 
