@@ -67,7 +67,8 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 		L"-T",profile,    // ShaderProfileの設定
 		L"-Zi",L"-Qembed_debug", // デバック用の情報を埋め込む
 		L"-Od",           // 最適化を外しとく
-		L"-Zpr"           // メモリレイアウトは行優先
+		L"-Zpr",           // メモリレイアウトは行優先
+		L"-I", L"resources/shaders",
 	};
 	// 実際にshaderをコンバイルする
 	Microsoft::WRL::ComPtr<IDxcResult> shaderResult = nullptr;
