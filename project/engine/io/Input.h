@@ -18,7 +18,7 @@ public:
 	template<typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 
-	void Initialize();
+	void Initialize(HWND hwnd);
 
 	void Update();
 	/// <summary>

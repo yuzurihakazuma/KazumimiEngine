@@ -455,6 +455,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
 
+	// 入力クラスの初期化
+	input.Initialize(windowProc.GetHwnd());
 
 
 	// スプライト共通初期化
@@ -476,8 +478,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	// 入力クラスの初期化
-	input.Initialize();
 
 
 

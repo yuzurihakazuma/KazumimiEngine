@@ -3,7 +3,7 @@
 
 using namespace logs;
 
-void Input::Initialize(){
+void Input::Initialize(HWND hwnd){
 
 	//DirectInputの初期化
 	Microsoft::WRL::ComPtr<IDirectInput8> directInput;
@@ -17,7 +17,7 @@ void Input::Initialize(){
 	inputKey = keyboard->SetDataFormat(&c_dfDIKeyboard);
 	assert(SUCCEEDED(inputKey));
 	// 排他制御レベルのセット
-	inputKey = keyboard->SetCooperativeLevel(GetActiveWindow(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	inputKey = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(inputKey));
 	// キーボードの取得開始
 	inputKey = keyboard->Acquire();
