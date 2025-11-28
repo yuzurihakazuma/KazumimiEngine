@@ -587,8 +587,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
 
-	spriteCommon->PreDraw(commandList);
-
+	
 	// 2. テクスチャの読み込みとコマンドの積み込み
 	// uvChecker
 	auto mipImages = textrueManager->LoadAndCreateSRV("resources/uvChecker.png", commandList);
@@ -598,10 +597,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	bool useMonsterBall = false;
 
 	// 3枚目のTexTureを読んで転送する
-	DirectX::ScratchImage mipImages3 = textrueManager->LoadTexture("resources/fence.png");
-	bool useFence = false;
-
-	// 4枚目のTexTureを読んで転送する
 	auto fenceHandle = textrueManager->LoadAndCreateSRV("resources/fence.png", commandList);
 	bool useCircle = false;
 
@@ -1169,7 +1164,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 		
 
-		if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
+		/*if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
 			if ( useMonsterBall ) {
 				useFence = false;
 				useCircle = false;
@@ -1188,7 +1183,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 				useMonsterBall = false;
 				useFence = false;
 			}
-		}
+		}*/
 
 		ImGui::ColorEdit4("LightColor", &directionalLightData->color.x);
 		ImGui::SliderFloat("LightX", &directionalLightData->direction.x, -10.0f, 10.0f);
@@ -1220,6 +1215,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 		commandList = dxCommon->GetCommandList();
 
+		spriteCommon->PreDraw(commandList);
 
 
 
@@ -1290,8 +1286,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Sprite* sprite : sprites ) {
 			sprite->Draw();
 		}
-		sprites.clear();
-
+		
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);
 
@@ -1319,6 +1314,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	//出力ウィンドウへの文字出力
 	logManager.Log("HelloWored\n");
 	logManager.Log(logManager.ConvertString(std::format(L"WSTRING{}\n", windowProc.GetClientWidth())));
+	//  スプライトの解放
+	for ( Sprite* sprite : sprites ) {
+		delete sprite;
+	}
+	sprites.clear();
 
 	logManager.Finalize();
 

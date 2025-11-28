@@ -97,11 +97,11 @@ void SpriteCommon::CreateGraphicsPipeline(){
 
 	// Shaderをコンパイルする
 	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob =
-		dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3D.VS.hlsl", L"vs_6_0");
+		dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d.VS.hlsl", L"vs_6_0");
 	assert(vertexShaderBlob != nullptr);
 
 	Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob =
-		dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3D.PS.hlsl", L"ps_6_0");
+		dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d.PS.hlsl", L"ps_6_0");
 	assert(pixelShaderBlob != nullptr);
 
 	// InputLayout

@@ -33,25 +33,24 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
 		std::swap(top, bottom);
 	}
 
-	// 1枚目の三角形
-	// 左上
-	vertexData_[0].position = { left, bottom, 0.0f, 1.0f };
-	vertexData_[0].texcoord = { 0.0f, 1.0f };
+	// 0: 左上 (Top-Left)
+	vertexData_[0].position = { left, top, 0.0f, 1.0f }; // Yは上(top)
+	vertexData_[0].texcoord = { 0.0f, 0.0f };            // UVは(0,0)
 	vertexData_[0].normal = { 0.0f, 0.0f, -1.0f };
 
-	// 左下
-	vertexData_[1].position = { left, top, 0.0f, 1.0f };
-	vertexData_[1].texcoord = { 0.0f, 0.0f };
+	// 1: 左下 (Bottom-Left)
+	vertexData_[1].position = { left, bottom, 0.0f, 1.0f }; // Yは下(bottom)
+	vertexData_[1].texcoord = { 0.0f, 1.0f };               // UVは(0,1)
 	vertexData_[1].normal = { 0.0f, 0.0f, -1.0f };
 
-	// 右上
-	vertexData_[2].position = { right, bottom, 0.0f, 1.0f };
-	vertexData_[2].texcoord = { 1.0f, 1.0f };
+	// 2: 右上 (Top-Right)
+	vertexData_[2].position = { right, top, 0.0f, 1.0f };   // Yは上(top)
+	vertexData_[2].texcoord = { 1.0f, 0.0f };               // UVは(1,0)
 	vertexData_[2].normal = { 0.0f, 0.0f, -1.0f };
 
-	// 右下
-	vertexData_[3].position = { right, top, 0.0f, 1.0f };
-	vertexData_[3].texcoord = { 1.0f, 0.0f };
+	// 3: 右下 (Bottom-Right)
+	vertexData_[3].position = { right, bottom, 0.0f, 1.0f }; // Yは下(bottom)
+	vertexData_[3].texcoord = { 1.0f, 1.0f };                // UVは(1,1)
 	vertexData_[3].normal = { 0.0f, 0.0f, -1.0f };
 	// Sprite用のマテリアルリソースを作る
 	materialResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Material));

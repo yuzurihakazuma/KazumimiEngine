@@ -1,4 +1,4 @@
-#include "object3d.hlsli"
+#include "Object3d.hlsli"
 struct TransformationMatirx
 {
     float32_t4x4 WVP;
