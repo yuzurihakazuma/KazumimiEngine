@@ -12,9 +12,9 @@ void TextrueManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCo
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE TextrueManager::LoadAndCreateSRV(const std::string& filePath, ID3D12GraphicsCommandList* commandList){
-	if ( textureMap.count(filePath) ) {
+	/*if ( textureMap.count(filePath) ) {
 		return dxCommon_->GetGPUDescriptorHandle(srvHeap_, descriptorSizeSRV_, currentIndex_ - 1);
-	}
+	}*/
 
 	DirectX::ScratchImage mipImages = LoadTexture(filePath);
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
@@ -39,44 +39,83 @@ D3D12_GPU_DESCRIPTOR_HANDLE TextrueManager::LoadAndCreateSRV(const std::string& 
 }
 
 DirectX::ScratchImage TextrueManager::LoadTexture(const std::string& filePath){
-	
-	// テクスチャファイルを読み込んでプログラムで扱えるようにする
+
+	// 1. 画像ファイルを読み込む
 	DirectX::ScratchImage image {};
 	std::wstring filePathw = logManager.ConvertString(filePath);
 	HRESULT hr = DirectX::LoadFromWICFile(filePathw.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-	assert(SUCCEEDED(hr));
 
-	// ミップマップの作成
+	// 読み込み失敗時のガード
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to load texture: " + filePath + "\n");
+		assert(false);
+		return image;
+	}
+
+	// 2. ミップマップ生成
 	DirectX::ScratchImage mipImages {};
 	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
 
-	// ミップマップ付きのデータを返す
-	return mipImages;
+	// 失敗したら元の画像をそのまま使う
+	if ( FAILED(hr) ) {
+		// ★修正：ここでも圧縮解除を試みる
+		// もし元の画像自体がBC7などの場合、ここでも変換が必要かもしれません。
+		// ですが、まずは GenerateMipMaps が成功するケース（2の累乗画像）を救います。
+		return std::move(image);
+	}
 
+	// ★★★ 追加部分：圧縮フォーマットなら展開する ★★★
+	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+	if ( DirectX::IsCompressed(metadata.format) ) {
+		DirectX::ScratchImage decompressedImage {};
+		// BC7などを R8G8B8A8_UNORM_SRGB に変換
+		hr = DirectX::Decompress(
+			mipImages.GetImages(), mipImages.GetImageCount(),
+			metadata, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, decompressedImage);
 
+		if ( SUCCEEDED(hr) ) {
+			return std::move(decompressedImage);
+		}
+	}
+	// ★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+	return std::move(mipImages);
 }
-
 Microsoft::WRL::ComPtr<ID3D12Resource> TextrueManager::CreateTextureResource(const DirectX::TexMetadata& metadata){
 
-	// metadataを基にResourceの設定
+	// 1. metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};
-	resourceDesc.Width = UINT(metadata.width); // Textrueの幅
-	resourceDesc.Height = UINT(metadata.height); // Textrueの高さ
-	resourceDesc.MipLevels = UINT16(metadata.mipLevels); // mipmapの数
-	resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize); // 奥行きor配列Textrueの配列数
-	resourceDesc.Format = metadata.format; //TextrueのFormat 
-	resourceDesc.SampleDesc.Count = 1; // サンプリングカウント。1固定
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textrueの次元数。普段使っているのは2次元
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;  
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;       
+	resourceDesc.Width = UINT(metadata.width); // Textureの幅
+	resourceDesc.Height = UINT(metadata.height); // Textureの高さ
+
+	// ★安全策1: ミップマップ数が0（自動計算）や異常値になっていないか補正
+	// ミップマップ生成に失敗した画像は mipLevels=1 になっているはずですが、念のため。
+	resourceDesc.MipLevels = UINT16(metadata.mipLevels);
+	if ( resourceDesc.MipLevels == 0 ) {
+		resourceDesc.MipLevels = 1; // 0なら1に強制する
+	}
+
+	resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize);
+	resourceDesc.Format = metadata.format;
+	resourceDesc.SampleDesc.Count = 1;
+
+	// ★安全策2: 次元のキャストをやめて、明示的にTEXTURE2Dを指定する
+	// (metadata.dimensionの値がズレている可能性を排除するため)
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Alignment = 0; // 0にしておくと自動で64KBアライメントにしてくれる
+
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 
-
-	// 利用するHeapの設定。非常に特殊な運用・
+	// 2. 利用するHeapの設定
 	D3D12_HEAP_PROPERTIES heapProperties {};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // 細かい設定を行う
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 
-	// Resourceの生成
+	D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+	// 3. Resourceの生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
 	HRESULT hr_ = device_->CreateCommittedResource(
 		&heapProperties,
@@ -84,15 +123,22 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextrueManager::CreateTextureResource(con
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr, IID_PPV_ARGS(&resource));
-	assert(SUCCEEDED(hr_));
+
+	// ★安全策3: エラーチェックと詳細ログ
+	if ( FAILED(hr_) ) {
+		// ここで「どんな値で失敗したか」をログに出すことで、原因が一発でわかります
+		std::string log = std::format(
+			"CreateTextureResource Failed. \nWidth:{} Height:{} MipLevels:{} Format:{}\n",
+			resourceDesc.Width, resourceDesc.Height, resourceDesc.MipLevels, static_cast<int>(resourceDesc.Format)
+		);
+		logManager.Log(log);
+
+		// 止める
+		assert(SUCCEEDED(hr_));
+	}
 
 	return resource;
-
-
-
-
 }
-
 
 
 Microsoft::WRL::ComPtr<ID3D12Resource> TextrueManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
