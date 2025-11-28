@@ -35,7 +35,7 @@ void WindowProc::Initialize(WNDCLASS wc, const int32_t kClientWidth, const int32
 	// ウィンドウの生成
 	hwnd_ = CreateWindow(
 		wc_.lpszClassName,      // 利用するクラス名
-		L"CG2",                // タイトルバーの文字(なんでもいい)
+		L"LE2C_27_ユズリハ_カズマ",                // タイトルバーの文字(なんでもいい)
 		WS_OVERLAPPEDWINDOW,   // よく見るウィンドウスタイル
 		CW_USEDEFAULT,		   // 表示X座標(Windowsに任せる)
 		CW_USEDEFAULT,		   // 表示Y座標(WindowsOSに任せる)
