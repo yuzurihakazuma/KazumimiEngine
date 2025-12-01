@@ -587,19 +587,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
 
-	
-	// 2. テクスチャの読み込みとコマンドの積み込み
+	commandList = dxCommon->GetCommandList();
+
+
+		// 2. テクスチャの読み込みとコマンドの積み込み
 	// uvChecker
-	auto mipImages = textrueManager->LoadAndCreateSRV("resources/uvChecker.png", commandList);
+		auto mipImages = textrueManager->LoadAndCreateSRV("resources/uvChecker.png", commandList);
 
-	// 2枚目のTextureを読んで転送する
-	auto monsterBallHandle = textrueManager->LoadAndCreateSRV("resources/monsterBall.png", commandList);// モンスターボールか否かをするために宣言
-	bool useMonsterBall = false;
+		// 2枚目のTextureを読んで転送する
+		auto monsterBallHandle = textrueManager->LoadAndCreateSRV("resources/monsterBall.png", commandList);// モンスターボールか否かをするために宣言
+		bool useMonsterBall = false;
 
-	// 3枚目のTexTureを読んで転送する
-	auto fenceHandle = textrueManager->LoadAndCreateSRV("resources/fence.png", commandList);
-	bool useCircle = false;
+		// 3枚目のTexTureを読んで転送する
+		auto fenceHandle = textrueManager->LoadAndCreateSRV("resources/fence.png", commandList);
+		bool useCircle = false;
 
+
+
+	
+	
+	
 
 
 	// DepthStencilTextureをウィンドウのサイズで作成

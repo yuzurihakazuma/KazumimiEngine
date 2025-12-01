@@ -21,6 +21,13 @@ void SpriteCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pipelineState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	
+	
+	ID3D12DescriptorHeap* srvHeaps[] = {
+	   dxCommon_->GetSrvHeap().Get()
+	};
+	commandList->SetDescriptorHeaps(_countof(srvHeaps), srvHeaps);
+
 
 }
 
