@@ -102,13 +102,6 @@ void DirectXCommon::PreDraw(){
 	commandList_->RSSetViewports(1, &viewport_);
 	commandList_->RSSetScissorRects(1, &scissorRect_);
 
-	// SRV 用ディスクリプタヒープをセット（テクスチャを使う draw の前に一度だけ）
-	if ( srvDescriptorHeap_ ) {
-		ID3D12DescriptorHeap* heaps[] = { srvDescriptorHeap_.Get() };
-		commandList_->SetDescriptorHeaps(_countof(heaps), heaps);
-	}
-
-
 
 }
 // 描画後処理

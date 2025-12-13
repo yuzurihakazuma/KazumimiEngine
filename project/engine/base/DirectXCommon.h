@@ -10,7 +10,7 @@
 #include "WindowProc.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "ResourceFactory.h"
-#include "TextrueManager.h"
+#include "TextureManager.h"
 #include <chrono>
 
 #pragma comment(lib,"d3d12.lib")
@@ -67,11 +67,11 @@ public:
 
 	// シェーダーコンパイラのゲッター
 	ShaderCompiler& GetShaderCompiler(){ return shaderCompiler_; }
-
+	// DXCコンパイラのゲッター
 	ResourceFactory* GetResourceFactory(){ return resourceFactory_; }
-
-	void SetResourceFactory(ResourceFactory* factory){ resourceFactory_ = factory; }
-
+	/// DXCコンパイラのセッター
+	void SetResourceFactory(ResourceFactory* factory){ this->resourceFactory_ = factory; }
+	/// <summary>ディスクリプタサイズの取得
 	UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const{
 		switch ( type ) {
 		case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: return desriptorSizeSRV_;

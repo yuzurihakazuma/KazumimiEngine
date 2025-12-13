@@ -5,7 +5,9 @@ using namespace logs;
 void SpriteCommon::Initialize(DirectXCommon* dxCommon){
 	assert(dxCommon);
 
-	dxCommon_ = dxCommon;
+	this->dxCommon_ = dxCommon;
+
+	assert(this->dxCommon_->GetResourceFactory() != nullptr && "SpriteCommon: Received dxCommon has NO Factory!");
 
 	// RootSignatureの作成
 	CreateRootSignature();
@@ -21,14 +23,6 @@ void SpriteCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pipelineState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	
-	
-	ID3D12DescriptorHeap* srvHeaps[] = {
-	   dxCommon_->GetSrvHeap().Get()
-	};
-	commandList->SetDescriptorHeaps(_countof(srvHeaps), srvHeaps);
-
-
 }
 
 

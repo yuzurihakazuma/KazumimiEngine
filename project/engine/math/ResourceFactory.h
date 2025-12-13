@@ -26,7 +26,7 @@ public:
     /// 外部から D3D12 デバイスを設定する
     /// </summary>
     void SetDevice(ComPtr<ID3D12Device> device){
-        device_ = device;
+        this->device_ = device;
     }
 
 

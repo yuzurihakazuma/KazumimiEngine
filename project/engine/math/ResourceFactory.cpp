@@ -2,6 +2,16 @@
 
 
 ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uint64_t sizeInBytes){
+   
+    if ( device_ == nullptr ) {
+        
+        assert(false && "ResourceFactory::device_ is nullptr!");
+        return nullptr;
+    }
+
+
+    
+    
     D3D12_HEAP_PROPERTIES heapProps = {};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 

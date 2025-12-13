@@ -10,14 +10,24 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
 
     // 頂点リソースを作成（例: 4頂点）
     vertexResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(VertexData) * 4);
+    if (!vertexResource_) {
+        OutputDebugStringA("Sprite::Initialize: CreateBufferResource(vertex) failed\n");
+        return; // またはエラーフラグをセットして処理中断
+    }
 
     // ビューの設定
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = sizeof(VertexData) * 4;
     vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
-    // マップしてポインタ取得
-    vertexResource_->Map(0, nullptr, reinterpret_cast< void** >( &vertexData_ ));
+    // マップしてポインタ取得（HRESULTを確認）
+    void* mappedPtr = nullptr;
+    HRESULT hr = vertexResource_->Map(0, nullptr, &mappedPtr);
+    if (FAILED(hr) || mappedPtr == nullptr) {
+        OutputDebugStringA("Sprite::Initialize: vertexResource_->Map failed or returned null\n");
+        return;
+    }
+    vertexData_ = reinterpret_cast<VertexData*>(mappedPtr);
 
 	float left = 0.0f - anchorPoint_.x;
 	float right = 1.0f - anchorPoint_.x;

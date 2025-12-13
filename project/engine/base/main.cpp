@@ -53,6 +53,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "DirectXCommon.h"
 #include"SpriteCommon.h"
 #include"Sprite.h"
+#include "SrvManager.h"
 
 using namespace logs;
 using namespace MatrixMath;
@@ -175,7 +176,10 @@ std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの
 
 ResourceFactory* resourceFactory = new ResourceFactory(); // リソースファクトリーのインスタンス
 
-; TextrueManager* textrueManager = new TextrueManager(); // テクスチャマネージャーのインスタンス
+TextureManager* textrueManager = new TextureManager(); // テクスチャマネージャーのインスタンス
+
+SrvManager* srvManager = new SrvManager(); // SRVマネージャーのインスタンス
+
 
 #pragma region リソースリークチェック
 
@@ -454,20 +458,44 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
+	// D3D12デバイスの取得
+	ID3D12Device* device = dxCommon->GetDevice();
+	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
+
+	resourceFactory->SetDevice(device);
+
+	dxCommon->SetResourceFactory(resourceFactory);
+
+	assert(dxCommon->GetResourceFactory() != nullptr && "WinMain: Factory setting failed!");
+
+	srvManager->Initialize(dxCommon);
+
+
+	textrueManager->Initialize(device, dxCommon,srvManager);
+	textrueManager->SetDevice(device);
+	textrueManager->SetResourceFactory(resourceFactory);
+
+	// スプライト共通初期化
+	spriteCommon->Initialize(dxCommon);
+
+
+	Sprite* sprite = new Sprite();
+
+	sprite->Initialize(spriteCommon);
 
 	// 入力クラスの初期化
 	input.Initialize(windowProc.GetHwnd());
 
 
-	// スプライト共通初期化
-	spriteCommon->Initialize(dxCommon);
+
+
+
 
 	D3DResourceLeakChecker leakCheck;
 
-	ID3D12Device* device = dxCommon->GetDevice();
-	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
-	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
-	assert(commandList != nullptr);
+
+	/*ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
+	assert(commandList != nullptr);*/
 
 
 	// リソースチェック
@@ -489,31 +517,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	
-	
-	#ifdef _DEBUG
-	
-		Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-		if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
-			// デバックレイヤーを有効化する
-			debugController->EnableDebugLayer();
-			// さらにGPU側でもチェックを行うようにする
-			debugController->SetEnableGPUBasedValidation(TRUE);
-		}
-	#endif // _DEBUG
+
+
+#ifdef _DEBUG
+
+	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
+	if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
+		// デバックレイヤーを有効化する
+		debugController->EnableDebugLayer();
+		// さらにGPU側でもチェックを行うようにする
+		//debugController->SetEnableGPUBasedValidation(TRUE);
+		debugController->SetEnableGPUBasedValidation(TRUE);
+	}
+#endif // _DEBUG
 
 
 
 
 
-	textrueManager->Initialize(device, dxCommon, dxCommon->GetSrvHeap(), dxCommon->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-	resourceFactory->SetDevice(device);
 
-	textrueManager->SetDevice(device);
-	textrueManager->SetResourceFactory(resourceFactory);
-
-	dxCommon->SetResourceFactory(resourceFactory);
 	// ImGui 管理クラス
 	ImGuiManager imgui;
 	imgui.Initialize(
@@ -521,38 +544,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		dxCommon->GetDevice(),
 		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
 		2,                              // Frame count
-		dxCommon->GetSrvHeap()       // SRV ヒープ
+		srvManager->GetDescriptorHeap()
 	);
 
 
 
-	#ifdef _DEBUG
-	
-		Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
-		if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
-			// やばいエラー時に止まる
-			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-			// エラー時に止まる
-			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-			// 警告時に泊まる
-			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-			// 抑制するメッセージのＩＤ
-			D3D12_MESSAGE_ID denyIds[] = {
-				// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
-				// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
-				D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
-			// 抑制するレベル
-			D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
-			D3D12_INFO_QUEUE_FILTER filter {};
-			filter.DenyList.NumIDs = _countof(denyIds);
-			filter.DenyList.pIDList = denyIds;
-			filter.DenyList.NumSeverities = _countof(severities);
-			filter.DenyList.pSeverityList = severities;
-			// 指定したメッセージの表示wp抑制する
-			infoQueue->PushStorageFilter(&filter);
-		}
-	
-	#endif // _DEBUG
+#ifdef _DEBUG
+
+	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
+	if ( SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
+		// やばいエラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+		// エラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+		// 警告時に泊まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+		// 抑制するメッセージのＩＤ
+		D3D12_MESSAGE_ID denyIds[] = {
+			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
+			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
+		// 抑制するレベル
+		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+		D3D12_INFO_QUEUE_FILTER filter {};
+		filter.DenyList.NumIDs = _countof(denyIds);
+		filter.DenyList.pIDList = denyIds;
+		filter.DenyList.NumSeverities = _countof(severities);
+		filter.DenyList.pSeverityList = severities;
+		// 指定したメッセージの表示wp抑制する
+		infoQueue->PushStorageFilter(&filter);
+	}
+
+#endif // _DEBUG
 
 
 #pragma region Particles
@@ -584,40 +607,43 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma region CommandList
 
 
-	// コマンドリストの記録開始
-	dxCommon->PreDraw();
+	
 
-	commandList = dxCommon->GetCommandList();
+	
+	dxCommon->PreDraw(); // コマンドのオープン
+
+	ID3D12CommandAllocator* commandAllocator = nullptr;
+
+	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList(); // コマンドリストの取得
+
 
 
 		// 2. テクスチャの読み込みとコマンドの積み込み
 	// uvChecker
-		auto mipImages = textrueManager->LoadAndCreateSRV("resources/uvChecker.png", commandList);
+	D3D12_GPU_DESCRIPTOR_HANDLE uvCheckerHandle = textrueManager->LoadAndCreateSRV("resources/uvChecker.png", commandList);
 
-		// 2枚目のTextureを読んで転送する
-		auto monsterBallHandle = textrueManager->LoadAndCreateSRV("resources/monsterBall.png", commandList);// モンスターボールか否かをするために宣言
-		bool useMonsterBall = false;
+	// 2枚目のTextureを読んで転送する
+	D3D12_GPU_DESCRIPTOR_HANDLE monsterBallHandle = textrueManager->LoadAndCreateSRV("resources/monsterBall.png", commandList);// モンスターボールか否かをするために宣言
+	bool useMonsterBall = false;
 
-		// 3枚目のTexTureを読んで転送する
-		auto fenceHandle = textrueManager->LoadAndCreateSRV("resources/fence.png", commandList);
-		bool useCircle = false;
+	// 3枚目のTexTureを読んで転送する
+	D3D12_GPU_DESCRIPTOR_HANDLE fenceHandle = textrueManager->LoadAndCreateSRV("resources/fence.png", commandList);
+	bool useCircle = false;
+
+
+	dxCommon->PostDraw(); // コマンドのクローズとキューへの積み込み、実行、完了待ちまでやってくれる
 
 
 
-	
-	
-	
+
+
 
 
 	// DepthStencilTextureをウィンドウのサイズで作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textrueManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
+	//Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textrueManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
 
 
-	
 
-
-	// コマンドリストのクローズと実行、バッファの入れ替えまで行う
-	dxCommon->PostDraw();
 
 #pragma endregion
 
@@ -802,26 +828,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 #pragma region Spriteの実装
-	Sprite* sprite = new Sprite();
 
-	std::vector<Sprite*> sprites;
-	// 5枚生成するループ
-	for ( uint32_t i = 0; i < 5; ++i ) {
-		Sprite* newSprite = new Sprite();
-		newSprite->Initialize(spriteCommon);
-
-		// テクスチャを設定
-		newSprite->SetTextureHandle(mipImages);
-
-		// 位置をずらす（例：横に200ずつズレる）
-		Vector2 pos = { 100.0f + ( i * 200.0f ), 360.0f };
-		newSprite->SetPosition(pos);
-
-		// 必要ならサイズや色もここで設定
-		 newSprite->SetScale({100.0f, 100.0f}); 
-
-		sprites.push_back(newSprite);
-	}
+	
 
 
 	//Vector2 poition = sprite->GetPosition();
@@ -1049,17 +1057,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// 単位行列を書き込んでおく
 	transformationMatrixData->WVP = MakeIdentity4x4();
-
-	// Sprite用のTransformationMatirx用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = resourceFactory->CreateBufferResource(sizeof(TransformationMatrix));
-
-	// データを書き込む
-	TransformationMatrix* transformationMatirxDataSprite = nullptr;
-	// 書き込むためのアドレスを取得
-	transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatirxDataSprite ));
-	// 単位行列を書き込んでおく
-	transformationMatirxDataSprite->WVP = MakeIdentity4x4();
-
 #pragma endregion
 
 
@@ -1086,6 +1083,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
+	std::vector<Sprite*> sprites;
+	// 5枚生成するループ
+	for ( uint32_t i = 0; i < 5; ++i ) {
+		Sprite* newSprite = new Sprite();
+		newSprite->Initialize(spriteCommon);
+
+
+		// 偶数はuvChecker、奇数はmonsterBallにする例
+		if ( i % 2 == 0 ) {
+			newSprite->SetTextureHandle(uvCheckerHandle);
+		} else {
+			newSprite->SetTextureHandle(monsterBallHandle);
+		}
+
+		// 位置をずらす
+		Vector2 pos = { 100.0f + ( i * 150.0f ), 360.0f };
+		newSprite->SetPosition(pos);
+
+		// サイズ設定
+		newSprite->SetScale({ 100.0f, 100.0f });
+
+		sprites.push_back(newSprite);
+	}
+	
+
 	while ( !windowProc.GetIsClosed() ){
 
 		// ウィンドウ
@@ -1094,13 +1116,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// メインループ内
 		input.Update(); // ← 追加：Inputの更新処理
 
-
-
-
-
-
-
-
 		// キーボード情報の取得開始
 
 		// スペースキーが押されたら音を鳴らす
@@ -1108,15 +1123,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 			SoundPlayWave(xAudio2.Get(), soundData1);
 
 		}
-
-
-
-
-
-
-
-
-
 
 		//-------------------------------
 		// model描画
@@ -1136,13 +1142,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//-------------------------------
 		// Sprite
 		//-------------------------------
-	/*	Matrix4x4 worldMatrixSprite = MakeAffine(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
-		Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-		Matrix4x4 projectionMatrixSprite = Orthographic(0.0f, 0.0f, float(windowProc.GetClientWidth()), float(windowProc.GetClientWidth()), 0.0f, 100.0f);
-		Matrix4x4 viewProjection = Multiply(viewMatrixSprite, projectionMatrixSprite);
-		Matrix4x4 worldViewProjectionMatrixSprite = Multiply(viewProjection, worldMatrixSprite);
-		transformationMatirxDataSprite->World = worldMatrixSprite;
-		transformationMatirxDataSprite->WVP = worldViewProjectionMatrixSprite;*/
 
 		for ( Sprite* sprite : sprites ) {
 			// もしアニメーションさせたいならここで値を変更
@@ -1169,7 +1168,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		ImGui::ShowDemoWindow();
 
 
-		
+
 
 		/*if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
 			if ( useMonsterBall ) {
@@ -1220,8 +1219,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// 画面クリアなど描画前処理
 		dxCommon->PreDraw();
 
-		commandList = dxCommon->GetCommandList();
-
+		
+		srvManager->PreDraw();
 		spriteCommon->PreDraw(commandList);
 
 
@@ -1293,7 +1292,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Sprite* sprite : sprites ) {
 			sprite->Draw();
 		}
-		
+
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);
 
@@ -1326,6 +1325,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		delete sprite;
 	}
 	sprites.clear();
+
+	delete spriteCommon;
+	delete resourceFactory;
+	delete textrueManager;
+	delete srvManager;
 
 	logManager.Finalize();
 
