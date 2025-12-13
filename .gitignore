@@ -316,3 +316,8 @@ DirectXGame/imgui.ini
 
 # DirectXTex Compiled Shaders
 **/DirectXTex/Shaders/Compiled/
+# ImGui
+imgui.ini
+
+# build / generated files
+generated/
