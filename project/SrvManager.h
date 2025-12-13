@@ -29,6 +29,10 @@ public:
 
 	void SetGraphicsRootDescriptorTable(UINT RootParameterIndex, uint32_t srvIndex);
 
+	ID3D12DescriptorHeap* GetDescriptorHeap() const{
+		return descriptorHeaps_.Get();
+	}
+
 private:
 
 
