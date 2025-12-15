@@ -38,9 +38,6 @@ public:
 
 
 
-    D3D12_GPU_DESCRIPTOR_HANDLE LoadAndCreateSRV(const std::string& filePath, ID3D12GraphicsCommandList* commandList);
-
-
 
     // -------------------- テクスチャ読み込み --------------------
 

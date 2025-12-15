@@ -54,6 +54,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include"SpriteCommon.h"
 #include"Sprite.h"
 #include "TextureManager.h"
+#include "SrvManager.h"
 
 using namespace logs;
 using namespace MatrixMath;
@@ -442,6 +443,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	DirectXCommon* dxCommon = new DirectXCommon(); // DirectX共通初期化クラスのインスタンス
 	SpriteCommon* spriteCommon = new SpriteCommon(); // スプライト共通初期化クラスのインスタンス
 
+	SrvManager* srvManager = new SrvManager();
+	
 
 	// ウィンドウのタイトル
 	WindowProc windowProc;
@@ -456,6 +459,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
+
+	srvManager->Initialize(dxCommon);
+
 
 	dxCommon->SetResourceFactory(resourceFactory);
 
@@ -650,9 +656,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// SRVを作成するDescriptorHeapの場所を決める
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 1);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 1);
-	// SRVの生成
-	device->CreateShaderResourceView(textrueResource.Get(), &srvDesc, textureSrvHandleCPU);
-
+	// After
+	uint32_t index = srvManager->Allocate();
+	srvManager->CreateSRVforTexture2D(index, textrueResource.Get(), metadata.format, UINT(metadata.mipLevels));
 	//---------------------
 	// monsterBall用SRV2
 	//---------------------
@@ -667,9 +673,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// SRV2を作成するDescriptorHeapの場所を決める
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 2);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 2);
-
-	// SRV2の生成
-	device->CreateShaderResourceView(textrueResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
+	// After
+	uint32_t index2 = srvManager->Allocate();
+	srvManager->CreateSRVforTexture2D(index2, textrueResource2.Get(), metadata2.format, UINT(metadata2.mipLevels));
 
 	//---------------------
 	// fence用SRV3
@@ -686,9 +692,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 3);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 3);
 
-	// SRV3の生成
-	device->CreateShaderResourceView(textrueResource3.Get(), &srvDesc3, textureSrvHandleCPU3);
-
+	// After
+	uint32_t index3 = srvManager->Allocate();
+	srvManager->CreateSRVforTexture2D(index3, textrueResource3.Get(), metadata3.format, UINT(metadata3.mipLevels));
 
 	//---------------------
 	// Particle用SRV5
@@ -1301,14 +1307,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//-------------------------------
 		// Sprite
 		//-------------------------------
-	/*	Matrix4x4 worldMatrixSprite = MakeAffine(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
-		Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-		Matrix4x4 projectionMatrixSprite = Orthographic(0.0f, 0.0f, float(windowProc.GetClientWidth()), float(windowProc.GetClientWidth()), 0.0f, 100.0f);
-		Matrix4x4 viewProjection = Multiply(viewMatrixSprite, projectionMatrixSprite);
-		Matrix4x4 worldViewProjectionMatrixSprite = Multiply(viewProjection, worldMatrixSprite);
-		transformationMatirxDataSprite->World = worldMatrixSprite;
-		transformationMatirxDataSprite->WVP = worldViewProjectionMatrixSprite;*/
-
+	
 		for ( Sprite* sprite : sprites ) {
 			// もしアニメーションさせたいならここで値を変更
 			// Vector2 pos = sprite->GetPosition();
@@ -1392,6 +1391,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 		// 画面クリアなど描画前処理
 		dxCommon->PreDraw();
+
+		srvManager->PreDraw();
 
 		commandList = dxCommon->GetCommandList();
 
