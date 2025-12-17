@@ -53,7 +53,45 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 
 	return std::move(image);
 }
+ [[nodiscard]]
+TextureData TextureManager::LoadTextureAndCreateSRV(
+	const std::string& filePath,
+	ID3D12GraphicsCommandList* commandList
+){
+	// すでにロード済みならそれを返す
+	auto it = textureDatas.find(filePath);
+	if ( it != textureDatas.end() ) {
+		return it->second;
+	}
 
+	TextureData texData {};
+
+	// 1. 画像読み込み
+	DirectX::ScratchImage image = LoadTexture(filePath);
+	const DirectX::TexMetadata& metadata = image.GetMetadata();
+
+	// 2. GPUテクスチャ作成
+	texData.resource = CreateTextureResource(metadata);
+
+	// 3. GPUへデータ転送
+	UploadTextureData(texData.resource, image, commandList);
+
+	// 4. SRV用インデックスを確保
+	texData.srvIndex = srvManager_->Allocate();
+
+	// 5. SRV作成
+	srvManager_->CreateSRVforTexture2D(
+		texData.srvIndex,
+		texData.resource.Get(),
+		metadata.format,
+		static_cast< UINT >( metadata.mipLevels )
+	);
+
+	// 6. キャッシュに保存
+	textureDatas[filePath] = texData;
+
+	return texData;
+}
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata){
 	// 1. metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};
