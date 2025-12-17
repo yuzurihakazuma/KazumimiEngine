@@ -12,6 +12,7 @@
 #include "ResourceFactory.h"
 #include "TextureManager.h"
 #include <chrono>
+#include "SrvManager.h"
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -81,6 +82,9 @@ public:
 		}
 	}
 
+	SrvManager* GetSrvManager() const{ return srvManager_; }
+	void SetSrvManager(SrvManager* srvManager){ this->srvManager_ = srvManager; }
+
 
 
 private:
@@ -133,6 +137,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;   // RTV用のヒープ
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;   // SRV用のヒープ（ディスクリプタの数は128）
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;   // DSV用のヒープ（ディスクリプタの数は1）
+
+	SrvManager* srvManager_ = nullptr; // SRVマネージャー
 
 	uint32_t desriptorSizeSRV_; // SRVのディスクリプタサイズ
 	uint32_t desriptorSizeRTV_; // RTVのディスクリプタサイズ

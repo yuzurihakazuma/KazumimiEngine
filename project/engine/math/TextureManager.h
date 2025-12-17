@@ -36,7 +36,10 @@ public:
 	// </summary>
     void Initialize(ComPtr<ID3D12Device> device,DirectXCommon* dxCommon,SrvManager* srvManager);
 
-
+   static  TextureManager* GetInstance(){
+        static TextureManager instance;
+        return &instance;
+	}
 
 
     // -------------------- テクスチャ読み込み --------------------
