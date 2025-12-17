@@ -56,6 +56,9 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "TextureManager.h"
 #include "SrvManager.h"
 #include "PipelineManager.h"
+#include "Obj3dCommon.h"
+#include "Obj3d.h"
+
 
 using namespace logs;
 using namespace MatrixMath;
@@ -445,6 +448,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	DirectXCommon* dxCommon = new DirectXCommon(); // DirectX共通初期化クラスのインスタンス
 	SpriteCommon* spriteCommon = new SpriteCommon(); // スプライト共通初期化クラスのインスタンス
 
+	Obj3dCommon* obj3dCommon = new Obj3dCommon(); // 3Dオブジェクト共通初期化クラスのインスタンス
+
+	Obj3d* obj3d = new Obj3d(); // 3Dオブジェクトクラスのインスタンス
+
+
 
 	// ウィンドウのタイトル
 	WindowProc windowProc;
@@ -472,6 +480,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// スプライト共通初期化
 	spriteCommon->Initialize(dxCommon);
+	// 3Dオブジェクト共通初期化
+	obj3dCommon->Initialize(dxCommon);
+
 
 	D3DResourceLeakChecker leakCheck;
 
@@ -603,6 +614,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	spriteCommon->PreDraw(commandList);
 
+	obj3dCommon->PreDraw(commandList);
 	
 
 	// 1枚目：uvChecker
@@ -633,25 +645,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textureManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
 
 
-
-	//---------------------
-	// Particle用SRV5
-	//---------------------
-
-
-	//// metaDataを基にSRV3の設定
-	//D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc5 {};
-	//srvDesc5.Format = metadata5.format;
-	//srvDesc5.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	//srvDesc5.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	//srvDesc5.Texture2D.MipLevels = UINT(metadata5.mipLevels);
-
-	//// SRV3を作成するDescriptorHeapの場所を決める
-	//D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU5 = GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 5);
-	//D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU5 = GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 5);
-
-	//// SRV3の生成
-	//device->CreateShaderResourceView(textrueResource5.Get(), &srvDesc5, textureSrvHandleCPU5);
 
 
 	// DepthStenciLstateの設定
@@ -1178,12 +1171,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		input.Update(); // ← 追加：Inputの更新処理
 
 
-
-
-
-
-
-
 		// キーボード情報の取得開始
 
 		// スペースキーが押されたら音を鳴らす
@@ -1191,15 +1178,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 			SoundPlayWave(xAudio2.Get(), soundData1);
 
 		}
-
-
-
-
-
-
-
-
-
 
 		//-------------------------------
 		// model描画

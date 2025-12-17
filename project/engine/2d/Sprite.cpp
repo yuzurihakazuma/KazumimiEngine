@@ -1,5 +1,6 @@
 #include "Sprite.h"
 #include"SpriteCommon.h"
+#include "Obj3d.h"
 
 
 using namespace MatrixMath;
@@ -165,4 +166,8 @@ void Sprite::Draw(){
 
 
 
+}
+
+MaterialData Obj3d::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename){
+	return MaterialData();
 }

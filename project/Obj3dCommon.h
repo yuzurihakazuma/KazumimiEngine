@@ -6,5 +6,19 @@
 #include"ShaderCompiler.h"
 
 
-class Obj3dCommon{};
+class Obj3dCommon{
+
+	public:
+	/// <summary>
+	/// ‰Šú‰»
+	/// </summary>
+	void Initialize(DirectXCommon* dxCommon);
+	// ‹¤’Ê‚Ì•`‰æİ’è
+	void PreDraw(ID3D12GraphicsCommandList* commandList);
+	DirectXCommon* GetDxCommon() const{ return dxCommon_; }
+
+private:
+
+	DirectXCommon* dxCommon_ = nullptr; // Š—L‚µ‚È‚¢QÆ
+};
 
