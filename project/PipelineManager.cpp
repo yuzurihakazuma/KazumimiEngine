@@ -1,27 +1,34 @@
-#include "SpriteCommon.h"
 #include "PipelineManager.h"
-using namespace logs;
+#include "DirectXCommon.h"
+#include <cassert>
 
-void SpriteCommon::Initialize(DirectXCommon* dxCommon){
-	assert(dxCommon);
-
+void PipelineManager::Initialize(DirectXCommon* dxCommon){
+		assert(dxCommon);
 	this->dxCommon_ = dxCommon;
-
-	assert(this->dxCommon_->GetResourceFactory() != nullptr && "SpriteCommon: Received dxCommon has NO Factory!");
-
-	
+	// スプライト用ルートシグネチャの作成
+	CreateSpriteRootSignature();
+	// スプライト用グラフィックスパイプラインの作成
+	CreateSpriteGraphicsPipeline();
 }
 
-void SpriteCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
+void PipelineManager::SetPipeline(
+    ID3D12GraphicsCommandList* commandList,
+    PipelineType type
+){
+    assert(commandList);
 
-	PipelineManager::GetInstance()->SetPipeline(
-		commandList,
-		PipelineType::Sprite
-	);
+    switch ( type ) {
+    case PipelineType::Sprite:
+        commandList->SetGraphicsRootSignature(spriteRootSignature_.Get());
+        commandList->SetPipelineState(spritePipelineState_.Get());
+        commandList->IASetPrimitiveTopology(
+            D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+        );
+        break;
+    }
 }
 
-
-void SpriteCommon::CreateRootSignature(){
+void PipelineManager::CreateSpriteRootSignature(){
 
 	// RootSignature作成
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature {};
@@ -81,15 +88,15 @@ void SpriteCommon::CreateRootSignature(){
 		assert(false);
 
 	}
-	hr =dxCommon_->GetDevice()->CreateRootSignature(0,
+	hr = dxCommon_->GetDevice()->CreateRootSignature(0,
 		signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
-		IID_PPV_ARGS(&rootSignature_));
+		IID_PPV_ARGS(&spriteRootSignature_));
 	assert(SUCCEEDED(hr));
 
 
 }
 
-void SpriteCommon::CreateGraphicsPipeline(){
+void PipelineManager::CreateSpriteGraphicsPipeline(){
 
 	// Shaderをコンパイルする
 	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob =
@@ -180,7 +187,7 @@ void SpriteCommon::CreateGraphicsPipeline(){
 
 	// PSOを生成する
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc {};
-	graphicsPipelineStateDesc.pRootSignature = rootSignature_.Get(); // RootSignatrue
+	graphicsPipelineStateDesc.pRootSignature = spriteRootSignature_.Get(); // RootSignatrue
 	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;  // InputLayout
 	graphicsPipelineStateDesc.VS = { vertexShaderBlob->GetBufferPointer(),
 	vertexShaderBlob->GetBufferSize() }; // VertexShader
@@ -204,11 +211,11 @@ void SpriteCommon::CreateGraphicsPipeline(){
 
 
 	// 実際に生成
-	pipelineState_ = nullptr;
+	spritePipelineState_ = nullptr;
 	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&graphicsPipelineStateDesc,
-		IID_PPV_ARGS(&pipelineState_));
+		IID_PPV_ARGS(&spritePipelineState_));
 	assert(SUCCEEDED(hr));
 
 
-}
 
+}

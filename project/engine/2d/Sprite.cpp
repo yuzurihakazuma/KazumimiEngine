@@ -135,6 +135,10 @@ void Sprite::Draw(){
 
 	auto commandList = spriteCommon->GetDxCommon()->GetCommandList();
 
+	
+	SpriteCommon::GetInstance()->PreDraw(commandList); // 共通の描画設定
+
+
 	// トポロジの設定
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	// VBVを設定 : IBVを設定

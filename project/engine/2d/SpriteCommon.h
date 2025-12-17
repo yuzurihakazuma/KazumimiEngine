@@ -4,7 +4,6 @@
 #include"DirectXCommon.h"
 #include "LogManager.h"
 #include"ShaderCompiler.h"
-#include "DirectXCommon.h"
 
 using namespace logs;
 
@@ -15,6 +14,12 @@ public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
+	/// 
+	static SpriteCommon* GetInstance(){
+		static SpriteCommon instance;
+		return &instance;
+	}
+
 	void Initialize(DirectXCommon* dxCommon);
 	// 共通の描画設定
 	void PreDraw(ID3D12GraphicsCommandList* commandList);

@@ -55,6 +55,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include"Sprite.h"
 #include "TextureManager.h"
 #include "SrvManager.h"
+#include "PipelineManager.h"
 
 using namespace logs;
 using namespace MatrixMath;
@@ -179,6 +180,7 @@ std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの
 ResourceFactory* resourceFactory = new ResourceFactory(); // リソースファクトリーのインスタンス
 
 TextureManager* textureManager = new TextureManager(); // テクスチャマネージャーのインスタンス
+
 
 #pragma region リソースリークチェック
 
@@ -597,42 +599,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
 
+	PipelineManager::GetInstance()->Initialize(dxCommon);
+
 	spriteCommon->PreDraw(commandList);
 
 	
 
 	// 1枚目：uvChecker
-	TextureData textrueResource =
-		textureManager->LoadTextureAndCreateSRV(
-			"resources/uvChecker.png",
-			commandList
-		);
+	TextureData textrueResource =textureManager->LoadTextureAndCreateSRV("resources/uvChecker.png",commandList);
 
 	// 2枚目：monsterBall
-	TextureData textrueResource2 =
-		textureManager->LoadTextureAndCreateSRV(
-			"resources/monsterBall.png",
-			commandList
-		);
+	TextureData textrueResource2 =textureManager->LoadTextureAndCreateSRV("resources/monsterBall.png",commandList);
 
 	// モンスターボールを使うかどうか
 	bool useMonsterBall = false;
 
 	// 3枚目：fence
-	TextureData textrueResource3 =
-		textureManager->LoadTextureAndCreateSRV(
-			"resources/fence.png",
-			commandList
-		);
+	TextureData textrueResource3 =textureManager->LoadTextureAndCreateSRV("resources/fence.png",commandList);
 
 	bool useFence = false;
 
 	// 4枚目：circle
-	TextureData textrueResource5 =
-		textureManager->LoadTextureAndCreateSRV(
-			"resources/circle.png",
-			commandList
-		);
+	TextureData textrueResource5 =textureManager->LoadTextureAndCreateSRV("resources/circle.png",commandList);
 
 	bool useCircle = false;
 
@@ -1324,8 +1312,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 		// モデル描画前にしっかり PSO と RootSignature を再設定
-		commandList->SetGraphicsRootSignature(spriteCommon->GetRootSignature());
-		commandList->SetPipelineState(spriteCommon->GetPipelineState());
+		/*commandList->SetGraphicsRootSignature(spriteCommon->GetRootSignature());
+		commandList->SetPipelineState(spriteCommon->GetPipelineState());*/
 
 		//// VBV/IBV 再設定
 		//commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
