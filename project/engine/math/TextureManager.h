@@ -18,11 +18,11 @@ using namespace logs;
 
 class DirectXCommon;
 
+
+
 struct TextureData{
     
-    
-    
-    
+        
     ComPtr<ID3D12Resource> resource;
     uint32_t srvIndex;
 };
@@ -38,9 +38,6 @@ public:
 
 
 
-    D3D12_GPU_DESCRIPTOR_HANDLE LoadAndCreateSRV(const std::string& filePath, ID3D12GraphicsCommandList* commandList);
-
-
 
     // -------------------- テクスチャ読み込み --------------------
 
@@ -49,6 +46,13 @@ public:
        /// </summary>
     DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
+
+    //   -------------------- SRV作成までをまとめた関数 -------------------- 
+
+    TextureData LoadTextureAndCreateSRV(
+        const std::string& filePath,
+        ID3D12GraphicsCommandList* commandList
+    );
 
     // -------------------- GPU テクスチャリソース生成 --------------------
 
@@ -63,7 +67,7 @@ public:
     /// <summary>
     /// ScratchImage 内のピクセルデータを GPU テクスチャへアップロード
     /// </summary>
-    [[nodiscard]]
+   // [[nodiscard]]
     ComPtr<ID3D12Resource> UploadTextureData(
         const ComPtr<ID3D12Resource>& texture,
         const DirectX::ScratchImage& mipImages,

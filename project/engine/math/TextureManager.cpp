@@ -9,109 +9,7 @@ void TextureManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCo
 	this->srvManager_ = srvManager;
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::LoadAndCreateSRV(const std::string& filePath, ID3D12GraphicsCommandList* commandList){
-	DirectX::ScratchImage mipImages = LoadTexture(filePath);
-	// ミップマップ生成失敗時のガード
-	if ( mipImages.GetImageCount()==0 ){
-		return D3D12_GPU_DESCRIPTOR_HANDLE { 0 }; // 空ハンドルで戻る
-	}
 
-
-	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = CreateTextureResource(metadata);
-
-	// リソース生成失敗時は即座に安全に戻る
-	if ( !textureResource ) {
-		logManager.Log("LoadAndCreateSRV: CreateTextureResource returned nullptr. Skipping upload and SRV creation.\n");
-		return D3D12_GPU_DESCRIPTOR_HANDLE{ 0 }; // 空ハンドルで戻る
-	}
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediate = UploadTextureData(textureResource, mipImages, commandList);
-
-	// 4. SrvManagerを使って場所(Index)を確保する
-	uint32_t srvIndex = srvManager_->Allocate();
-
-	
-	// CreateTextureResourceで MipLevels=1 に固定しているので、ここでも 1 を指定
-	srvManager_->CreateSRVforTexture2D(srvIndex, textureResource.Get(), metadata.format, 1);
-
-	// 6. GPUハンドルを取得 (Spriteにセットするために必要)
-	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = srvManager_->GetGPUDescriptorHandle(srvIndex);
-
-
-	/*D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = dxCommon_->GetCPUDescriptorHandle(srvHeap_, descriptorSizeSRV_, currentIndex_);
-	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = dxCommon_->GetGPUDescriptorHandle(srvHeap_, descriptorSizeSRV_, currentIndex_);
-
-	device_->CreateShaderResourceView(textureResource.Get(), &srvDesc, handleCPU);*/
-
-	textureMap[filePath] = textureResource;
-	
-	return handleGPU;
-}
-
-//DirectX::ScratchImage TextrueManager::LoadTexture(const std::string& filePath){
-//
-//	// 1. 画像ファイルを読み込む
-//	DirectX::ScratchImage image {};
-//	std::wstring filePathw = logManager.ConvertString(filePath);
-//	HRESULT hr = DirectX::LoadFromWICFile(filePathw.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-//
-//	// 読み込み失敗時のガード
-//	if ( FAILED(hr) ) {
-//		logManager.Log("Failed to load texture: " + filePath + "\n");
-//		assert(false);
-//		return image;
-//	}
-//
-//	// 2. ミップマップ生成
-//	DirectX::ScratchImage mipImages {};
-//	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
-//
-//	// 失敗したら元の画像をそのまま使う
-//	if ( FAILED(hr) ) {
-//		
-//		return std::move(image);
-//	}
-//
-//	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-//
-//	DirectX::ScratchImage convertedImage {};
-//
-//	// R8G8B8A8_UNORM_SRGB 以外のフォーマットなら変換する
-//	if ( metadata.format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ) {
-//		hr = DirectX::Convert(
-//			mipImages.GetImages(), mipImages.GetImageCount(),
-//			mipImages.GetMetadata(),
-//			DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, // このフォーマットに強制統一
-//			DirectX::TEX_FILTER_SRGB,
-//			0,
-//			convertedImage
-//		);
-//
-//		if ( SUCCEEDED(hr) ) {
-//			return std::move(convertedImage); // 変換成功したらそっちを返す
-//		}
-//	}
-//
-//
-//
-//	if ( DirectX::IsCompressed(metadata.format) ) {
-//		// BC7などを R8G8B8A8_UNORM_SRGB に変換
-//		DirectX::ScratchImage decompressedImage {};
-//		hr = DirectX::Decompress(
-//			mipImages.GetImages(), mipImages.GetImageCount(),
-//			metadata, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, decompressedImage);
-//
-//		if ( SUCCEEDED(hr) ) {
-//			return std::move(decompressedImage);
-//		}
-//	}
-//	
-//
-//	return std::move(mipImages);
-//}
-
-// TextrueManager.cpp
 
 DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 
@@ -155,7 +53,45 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 
 	return std::move(image);
 }
+ [[nodiscard]]
+TextureData TextureManager::LoadTextureAndCreateSRV(
+	const std::string& filePath,
+	ID3D12GraphicsCommandList* commandList
+){
+	// すでにロード済みならそれを返す
+	auto it = textureDatas.find(filePath);
+	if ( it != textureDatas.end() ) {
+		return it->second;
+	}
 
+	TextureData texData {};
+
+	// 1. 画像読み込み
+	DirectX::ScratchImage image = LoadTexture(filePath);
+	const DirectX::TexMetadata& metadata = image.GetMetadata();
+
+	// 2. GPUテクスチャ作成
+	texData.resource = CreateTextureResource(metadata);
+
+	// 3. GPUへデータ転送
+	UploadTextureData(texData.resource, image, commandList);
+
+	// 4. SRV用インデックスを確保
+	texData.srvIndex = srvManager_->Allocate();
+
+	// 5. SRV作成
+	srvManager_->CreateSRVforTexture2D(
+		texData.srvIndex,
+		texData.resource.Get(),
+		metadata.format,
+		static_cast< UINT >( metadata.mipLevels )
+	);
+
+	// 6. キャッシュに保存
+	textureDatas[filePath] = texData;
+
+	return texData;
+}
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata){
 	// 1. metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};

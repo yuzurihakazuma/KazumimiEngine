@@ -54,6 +54,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include"SpriteCommon.h"
 #include"Sprite.h"
 #include "TextureManager.h"
+#include "SrvManager.h"
 
 using namespace logs;
 using namespace MatrixMath;
@@ -457,6 +458,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
 
+
+	SrvManager* srvManager = new SrvManager();
+
+	srvManager->Initialize(dxCommon);
+
+	textureManager->Initialize(dxCommon->GetDevice(), dxCommon, srvManager);
+
 	dxCommon->SetResourceFactory(resourceFactory);
 
 
@@ -591,103 +599,51 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	spriteCommon->PreDraw(commandList);
 
-	// Textrueを読んで転送する
-	DirectX::ScratchImage mipImages = textureManager->LoadTexture("resources/uvChecker.png");
-	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource = textureManager->CreateTextureResource(metadata);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = textureManager->UploadTextureData(textrueResource, mipImages, commandList);
+	
 
+	// 1枚目：uvChecker
+	TextureData textrueResource =
+		textureManager->LoadTextureAndCreateSRV(
+			"resources/uvChecker.png",
+			commandList
+		);
 
-	// 2枚目のTextureを読んで転送する
-	DirectX::ScratchImage mipImages2 = textureManager->LoadTexture("resources/monsterBall.png");
-	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource2 = textureManager->CreateTextureResource(metadata2);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2 = textureManager->UploadTextureData(textrueResource2, mipImages2, commandList);
-	// モンスターボールか否かをするために宣言
+	// 2枚目：monsterBall
+	TextureData textrueResource2 =
+		textureManager->LoadTextureAndCreateSRV(
+			"resources/monsterBall.png",
+			commandList
+		);
+
+	// モンスターボールを使うかどうか
 	bool useMonsterBall = false;
 
-	// 3枚目のTexTureを読んで転送する
-	DirectX::ScratchImage mipImages3 = textureManager->LoadTexture("resources/fence.png");
-	const DirectX::TexMetadata& metadata3 = mipImages3.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource3 = textureManager->CreateTextureResource(metadata3);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource3 = textureManager->UploadTextureData(textrueResource3, mipImages3, commandList);
+	// 3枚目：fence
+	TextureData textrueResource3 =
+		textureManager->LoadTextureAndCreateSRV(
+			"resources/fence.png",
+			commandList
+		);
 
 	bool useFence = false;
 
-	// 4枚目のTexTureを読んで転送する
-	DirectX::ScratchImage mipImages5 = textureManager->LoadTexture("resources/circle.png");
-	const DirectX::TexMetadata& metadata5 = mipImages5.GetMetadata();
-	Microsoft::WRL::ComPtr<ID3D12Resource> textrueResource5 = textureManager->CreateTextureResource(metadata5);
-	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource5 = textureManager->UploadTextureData(textrueResource5, mipImages5, commandList);
+	// 4枚目：circle
+	TextureData textrueResource5 =
+		textureManager->LoadTextureAndCreateSRV(
+			"resources/circle.png",
+			commandList
+		);
 
 	bool useCircle = false;
+
+
+	
 
 
 
 	// DepthStencilTextureをウィンドウのサイズで作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textureManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
 
-
-	//---------------------
-	// uvChecker用SRV
-	//---------------------
-
-	// 必要な変数（呼び出し元で用意しておくもの）
-	ID3D12DescriptorHeap* srvDescriptorHeap = dxCommon->GetSrvHeap();
-	// デバイスからSRVディスクリプタサイズを取得
-	UINT desriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	//ComPtr<ID3D12Resource> textureResource; // 生成済みテクスチャ
-
-
-	// metaDataを基にSRVの設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
-	srvDesc.Format = metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
-
-
-	// SRVを作成するDescriptorHeapの場所を決める
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 1);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 1);
-	// SRVの生成
-	device->CreateShaderResourceView(textrueResource.Get(), &srvDesc, textureSrvHandleCPU);
-
-	//---------------------
-	// monsterBall用SRV2
-	//---------------------
-
-	// metaDataを基にSRV2の設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2 {};
-	srvDesc2.Format = metadata2.format;
-	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
-
-	// SRV2を作成するDescriptorHeapの場所を決める
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 2);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 2);
-
-	// SRV2の生成
-	device->CreateShaderResourceView(textrueResource2.Get(), &srvDesc2, textureSrvHandleCPU2);
-
-	//---------------------
-	// fence用SRV3
-	//---------------------
-
-	// metaDataを基にSRV3の設定
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3 {};
-	srvDesc3.Format = metadata3.format;
-	srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // 2Dテクスチャ	
-	srvDesc3.Texture2D.MipLevels = UINT(metadata3.mipLevels);
-
-	// SRV3を作成するDescriptorHeapの場所を決める
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = dxCommon->GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 3);
-	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = dxCommon->GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 3);
-
-	// SRV3の生成
-	device->CreateShaderResourceView(textrueResource3.Get(), &srvDesc3, textureSrvHandleCPU3);
 
 
 	//---------------------
@@ -709,23 +665,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	//// SRV3の生成
 	//device->CreateShaderResourceView(textrueResource5.Get(), &srvDesc5, textureSrvHandleCPU5);
 
-	//---------------------
-	// instancingSrvDesc
-	//---------------------
-
-
-	//// metaDataを基にSRV4の設定
-	//D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc {};
-	//instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	//instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	//instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	//instancingSrvDesc.Buffer.FirstElement = 0;
-	//instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	//instancingSrvDesc.Buffer.NumElements = kNumMaxInstance;
-	//instancingSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
-	//D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 4);
-	//D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap, desriptorSizeSRV, 4);
-	//device->CreateShaderResourceView(instancingRessource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
 
 	// DepthStenciLstateの設定
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc {};
@@ -975,7 +914,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		newSprite->Initialize(spriteCommon);
 
 		// テクスチャを設定
-		newSprite->SetTextureHandle(textureSrvHandleGPU);
+		newSprite->SetTextureHandle(srvManager->GetGPUDescriptorHandle(textrueResource.srvIndex));
 
 		// 位置をずらす（例：横に200ずつズレる）
 		Vector2 pos = { 100.0f + ( i * 200.0f ), 360.0f };
@@ -993,7 +932,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	//Vector4 color = sprite->GetColor();
 	//Vector2 scale = sprite->GetScale();
 
-	sprite->SetTextureHandle(textureSrvHandleGPU);
+	sprite->SetTextureHandle(srvManager->GetGPUDescriptorHandle(textrueResource.srvIndex));
 
 
 
@@ -1215,15 +1154,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 単位行列を書き込んでおく
 	transformationMatrixData->WVP = MakeIdentity4x4();
 
-	// Sprite用のTransformationMatirx用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
-	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceSprite = resourceFactory->CreateBufferResource(sizeof(TransformationMatrix));
-
-	// データを書き込む
-	TransformationMatrix* transformationMatirxDataSprite = nullptr;
-	// 書き込むためのアドレスを取得
-	transformationMatrixResourceSprite->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatirxDataSprite ));
-	// 単位行列を書き込んでおく
-	transformationMatirxDataSprite->WVP = MakeIdentity4x4();
 
 #pragma endregion
 
@@ -1301,14 +1231,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//-------------------------------
 		// Sprite
 		//-------------------------------
-	/*	Matrix4x4 worldMatrixSprite = MakeAffine(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
-		Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-		Matrix4x4 projectionMatrixSprite = Orthographic(0.0f, 0.0f, float(windowProc.GetClientWidth()), float(windowProc.GetClientWidth()), 0.0f, 100.0f);
-		Matrix4x4 viewProjection = Multiply(viewMatrixSprite, projectionMatrixSprite);
-		Matrix4x4 worldViewProjectionMatrixSprite = Multiply(viewProjection, worldMatrixSprite);
-		transformationMatirxDataSprite->World = worldMatrixSprite;
-		transformationMatirxDataSprite->WVP = worldViewProjectionMatrixSprite;*/
-
+	
 		for ( Sprite* sprite : sprites ) {
 			// もしアニメーションさせたいならここで値を変更
 			// Vector2 pos = sprite->GetPosition();
@@ -1392,6 +1315,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 		// 画面クリアなど描画前処理
 		dxCommon->PreDraw();
+
+		srvManager->PreDraw();
 
 		commandList = dxCommon->GetCommandList();
 
