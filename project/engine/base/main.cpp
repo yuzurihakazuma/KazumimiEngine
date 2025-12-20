@@ -180,9 +180,6 @@ std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの
 
 
 
-ResourceFactory* resourceFactory = new ResourceFactory(); // リソースファクトリーのインスタンス
-
-TextureManager* textureManager = new TextureManager(); // テクスチャマネージャーのインスタンス
 
 
 #pragma region リソースリークチェック
@@ -445,18 +442,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 誰も補掟しなかった場合に(Unhandled),補掟する関数を登録
 	// main関数は始まってすぐに登録するといい
 	CrashDumper::Install();
-	// DirectX共通初期化クラスのインスタンス
-	DirectXCommon* dxCommon = new DirectXCommon();
 
-	// スプライト共通初期化クラスのインスタンス
-	SpriteCommon* spriteCommon = new SpriteCommon();
-
-	// 3Dオブジェクト共通初期化クラスのインスタンス
-	Obj3dCommon* obj3dCommon = new Obj3dCommon();
-
-	// 3Dオブジェクトクラスのインスタンス
-	Obj3d* obj3d = new Obj3d();
-
+	// --------------------
+    // ウィンドウ生成
+    // --------------------
+ 
 	// ウィンドウのタイトル
 	WindowProc windowProc;
 
@@ -468,8 +458,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// ウィンドウプロシージャの初期化
 	windowProc.Initialize(wc, windowProc.GetClientWidth(), windowProc.GetClientHeight());
 
+	// --------------------
+	// DirectX 共通
+	// --------------------
+
+	// DirectX共通初期化クラスのインスタンス
+	DirectXCommon* dxCommon = new DirectXCommon();
+
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
+	// DirectXデバイスの取得
+	ID3D12Device* device = dxCommon->GetDevice();
+	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
+	// コマンドリストの取得
+	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
+	assert(commandList != nullptr);
+
+	// --------------------
+	// SRV マネージャ
+	// --------------------
 
 	// SRVマネージャーのインスタンス
 	SrvManager* srvManager = new SrvManager();
@@ -479,13 +486,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// DirectXCommonにSRVマネージャーをセット
 	dxCommon->SetSrvManager(srvManager);
 
-	ID3D12Device* device = dxCommon->GetDevice();
+	// --------------------
+    // ResourceFactory
+    // --------------------
 
-	TextureManager::GetInstance()->Initialize(dxCommon->GetDevice(), dxCommon, srvManager);
+	ResourceFactory* resourceFactory = new ResourceFactory(); // リソースファクトリーのインスタンス
+
 	// リソースファクトリーの初期化
 	resourceFactory->SetDevice(dxCommon->GetDevice());
+	// DirectXCommonにリソースファクトリーをセット
 	dxCommon->SetResourceFactory(resourceFactory);
 
+	// --------------------
+	// TextureManager
+	// --------------------
+
+	// テクスチャマネージャーの初期化
 	TextureManager* textureManager = TextureManager::GetInstance();
 	textureManager->Initialize(
 		device,
@@ -495,19 +511,68 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
+
+	// --------------------
+    // PipelineManager
+    // --------------------
+
+	PipelineManager::GetInstance()->Initialize(dxCommon);
+
+	// --------------------
+    // Sprite / Obj3d Common
+    // --------------------
+
+	// スプライト共通初期化クラスのインスタンス
+	SpriteCommon* spriteCommon = new SpriteCommon();
+
 	// スプライト共通初期化
 	spriteCommon->Initialize(dxCommon);
+
+	// 3Dオブジェクト共通初期化クラスのインスタンス
+	Obj3dCommon* obj3dCommon = new Obj3dCommon();
+
 	// 3Dオブジェクト共通初期化
 	obj3dCommon->Initialize(dxCommon);
+	
+	// --------------------
+	// オブジェクト生成
+	// --------------------
+
+	// 3Dオブジェクトクラスのインスタンス
+	Obj3d* obj3d = new Obj3d();
+
+	Sprite* sprite = new Sprite();
+	
+
+	// --------------------
+    // ImGui
+    // --------------------
+	
+	// ImGui 管理クラス
+	ImGuiManager imgui;
+	imgui.Initialize(
+		windowProc.GetHwnd(),
+		dxCommon->GetDevice(),
+		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+		2,                              // Frame count
+		dxCommon->GetSrvHeap()       // SRV ヒープ
+	);
+
+	// --------------------
+	// 入力
+	// --------------------
+
+	// 入力クラスの初期化
+	input.Initialize(windowProc.GetHwnd());
+
+
+
+	//dxCommon->EndCommandRecording();
 
 
 	D3DResourceLeakChecker leakCheck;
 
 	
-	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
-	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
-	assert(commandList != nullptr);
-
 
 	// リソースチェック
 	Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
@@ -517,9 +582,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	// 入力クラスの初期化
-	input.Initialize(windowProc.GetHwnd());
-
+	
 
 
 
@@ -547,15 +610,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	// ImGui 管理クラス
-	ImGuiManager imgui;
-	imgui.Initialize(
-		windowProc.GetHwnd(),
-		dxCommon->GetDevice(),
-		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-		2,                              // Frame count
-		dxCommon->GetSrvHeap()       // SRV ヒープ
-	);
+	
 
 
 
@@ -620,11 +675,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
 
-	PipelineManager::GetInstance()->Initialize(dxCommon);
-
+	// スプライト共通の描画前処理
 	spriteCommon->PreDraw(commandList);
-
+	// 3Dオブジェクト共通の描画前処理
 	obj3dCommon->PreDraw(commandList);
+
+	// 3Dオブジェクト初期化
+	obj3d->Initialize(obj3dCommon);
+	// スプライト初期化
+	sprite->Initialize(spriteCommon);
 
 
 	// 1枚目：uvChecker
@@ -646,16 +705,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	bool useCircle = false;
 
-
-
-
-
-
 	// DepthStencilTextureをウィンドウのサイズで作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textureManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
-
-
-
 
 	// DepthStenciLstateの設定
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc {};
@@ -896,8 +947,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma endregion
 
 #pragma region Spriteの実装
-	Sprite* sprite = new Sprite();
-
+	
 	std::vector<Sprite*> sprites;
 	// 5枚生成するループ
 	for ( uint32_t i = 0; i < 5; ++i ) {
@@ -1046,8 +1096,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma region ModelDataを使った実装
 
 	
-	obj3d->Initialize(obj3dCommon);
-
 	//// モデルを読み込む
 	//ModelData modelData = LoadObjFile("resources", "plane.obj");
 	//// 1. すべての頂点の合計を求める

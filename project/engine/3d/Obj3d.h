@@ -94,7 +94,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource_;
 
 	
-
 	TransformationMatrix* transformationMatrixData_ = nullptr;
 	WindowProc* windowProc_ = nullptr;
 	ModelData modelData_;

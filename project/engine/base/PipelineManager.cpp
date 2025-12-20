@@ -9,6 +9,13 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateSpriteRootSignature();
 	// スプライト用グラフィックスパイプラインの作成
 	CreateSpriteGraphicsPipeline();
+
+	// 3Dオブジェクト用ルートシグネチャの作成
+	CreateObject3DRootSignature();
+	// 3Dオブジェクト用グラフィックスパイプラインの作成
+	CreateObject3DGraphicsPipeline();
+
+
 }
 
 void PipelineManager::SetPipeline(
@@ -25,6 +32,10 @@ void PipelineManager::SetPipeline(
             D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
         );
         break;
+	case PipelineType::Object3D:
+		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
+		commandList->SetPipelineState(object3DPipelineState_.Get());
+		break;
     }
 }
 // ルートシグネチャの生成 Sprite用
@@ -381,7 +392,7 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 
 	// PSOを生成する
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc {};
-	graphicsPipelineStateDesc.pRootSignature = spriteRootSignature_.Get(); // RootSignatrue
+	graphicsPipelineStateDesc.pRootSignature = object3DRootSignature_.Get(); // RootSignatrue
 	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;  // InputLayout
 	graphicsPipelineStateDesc.VS = { vertexShaderBlob->GetBufferPointer(),
 	vertexShaderBlob->GetBufferSize() }; // VertexShader
@@ -405,7 +416,7 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 
 
 	// 実際に生成
-	spritePipelineState_ = nullptr;
+	object3DPipelineState_ = nullptr;
 	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&graphicsPipelineStateDesc,
 		IID_PPV_ARGS(&object3DPipelineState_));
 	assert(SUCCEEDED(hr));

@@ -7,6 +7,11 @@ void TextureManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCo
 	this->device_ = device;
 	this->dxCommon_ = dxCommon;
 	this->srvManager_ = srvManager;
+
+	assert(device_ != nullptr && "TextureManager: device is null");
+	assert(dxCommon_ != nullptr && "TextureManager: dxCommon is null");
+	assert(srvManager_ != nullptr && "TextureManager: srvManager is null");
+
 }
 
 
@@ -54,10 +59,7 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 	return std::move(image);
 }
  [[nodiscard]]
-TextureData TextureManager::LoadTextureAndCreateSRV(
-	const std::string& filePath,
-	ID3D12GraphicsCommandList* commandList
-){
+TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,ID3D12GraphicsCommandList* commandList){
 	// すでにロード済みならそれを返す
 	auto it = textureDatas.find(filePath);
 	if ( it != textureDatas.end() ) {

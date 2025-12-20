@@ -54,11 +54,8 @@ void DirectXCommon::Initialize(WindowProc* windowProc){
 // 描画前処理
 void DirectXCommon::PreDraw(){
 
-	// コマンドアロケータ & コマンドリストをリセット
-	hr_ = commandAllocator_->Reset();
-	assert(SUCCEEDED(hr_));
-	hr_ = commandList_->Reset(commandAllocator_.Get(), nullptr);
-	assert(SUCCEEDED(hr_));
+	// コマンドリストの内容をクリア
+	ResetCommand();
 
 	// これから書き込むバックバッファのインデックスを取得
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
@@ -122,31 +119,35 @@ void DirectXCommon::PostDraw(){
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	commandList_->ResourceBarrier(1, &barrier);
 
-	//  コマンドリストを確定
-	hr_ = commandList_->Close();
-	assert(SUCCEEDED(hr_));
-	// コマンドリストをコマンドキューにセットして実行
-	ID3D12CommandList* cmdLists[] = { commandList_.Get() };
-	commandQueue_->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+	
+	// コマンドリストのクローズ
+	ExecuteCommand();
 
 	// 画面の表示
 	hr_ = swapChain_->Present(0, 0);
 	assert(SUCCEEDED(hr_));
 
-	// フェンスで GPU 完了待ち
-	const UINT64 fenceToWaitFor = ++fenceValue_;
-	hr_ = commandQueue_->Signal(fence_.Get(), fenceToWaitFor);
-	assert(SUCCEEDED(hr_));
-	// GPUが fence の値を fenceToWaitFor まで進めるまで待つ
-	if ( fence_->GetCompletedValue() < fenceToWaitFor ) {
-		hr_ = fence_->SetEventOnCompletion(fenceToWaitFor, fenceEvent_);
-		assert(SUCCEEDED(hr_));
-		WaitForSingleObject(fenceEvent_, INFINITE);
-	}
+	WaitForGPU();
+	
 	// FPS固定の更新
 	UpdateFixFPS();
 
 }
+
+// 初期化時のコマンド記録開始
+void DirectXCommon::BeginCommandRecording(){
+	// 共通パーツを呼ぶだけ！
+	ResetCommand();
+}
+
+// 初期化時のコマンド記録終了
+void DirectXCommon::EndCommandRecording(){
+	// 共通パーツを呼ぶだけ！
+	ExecuteCommand();
+	WaitForGPU();
+}
+
+
 /// DXGIファクトリーの生成
 void DirectXCommon::CreateFactory(){
 	// HRESULTはWindows系のエラーコードであり、
@@ -418,6 +419,7 @@ void DirectXCommon::CreateDXCCompiler(){
 	assert(SUCCEEDED(hr_));
 
 }
+
 // FPS固定の初期化
 void DirectXCommon::InitializeFixFPS(){
 
@@ -474,6 +476,42 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	assert(SUCCEEDED(hr_));
 	return descriptorHeap;
 }
+/// コマンドリセット
+void DirectXCommon::ResetCommand(){
+
+	// コマンドアロケータのリセット
+	hr_ = commandAllocator_->Reset();
+	assert(SUCCEEDED(hr_));
+	// コマンドリストのリセット
+	hr_ = commandList_->Reset(commandAllocator_.Get(), nullptr);
+	assert(SUCCEEDED(hr_));
+}
+/// コマンド実行
+void DirectXCommon::ExecuteCommand(){
+
+	//  コマンドリストを確定
+	hr_ = commandList_->Close();
+	assert(SUCCEEDED(hr_));
+	// コマンドリストをコマンドキューにセットして実行
+	ID3D12CommandList* cmdLists[] = { commandList_.Get() };
+	commandQueue_->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+
+}
+/// GPU完了待ち
+void DirectXCommon::WaitForGPU(){
+	// フェンスで GPU 完了待ち
+	const UINT64 fenceToWaitFor = ++fenceValue_;
+	hr_ = commandQueue_->Signal(fence_.Get(), fenceToWaitFor);
+	assert(SUCCEEDED(hr_));
+	// GPUが fence の値を fenceToWaitFor まで進めるまで待つ
+	if ( fence_->GetCompletedValue() < fenceToWaitFor ) {
+		hr_ = fence_->SetEventOnCompletion(fenceToWaitFor, fenceEvent_);
+		assert(SUCCEEDED(hr_));
+		WaitForSingleObject(fenceEvent_, INFINITE);
+	}
+}
+
+
 
 
 #pragma region GetCPU

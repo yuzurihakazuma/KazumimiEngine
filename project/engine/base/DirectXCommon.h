@@ -31,6 +31,10 @@ public:
 	// <summary>描画後処理
 	void PostDraw();
 
+	void BeginCommandRecording(); // 初期化ロード開始用
+	void EndCommandRecording();   // 初期化ロード終了用
+
+
 	/// <summary>ディスクリプタヒープ作成
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
@@ -86,6 +90,14 @@ public:
 	void SetSrvManager(SrvManager* srvManager){ this->srvManager_ = srvManager; }
 
 
+	uint32_t GetClientWidth() const{
+		return windowProc_->GetClientWidth();
+	}
+
+	uint32_t GetClientHeight() const{
+		return windowProc_->GetClientHeight();
+	}
+
 
 private:
 
@@ -116,6 +128,13 @@ private:
 	void InitializeScissorRect(); // シザー矩形の初期化
 
 	void CreateDXCCompiler(); // DXCコンパイラの生成
+
+	void ResetCommand(); // コマンドリストをリセットするだけの関数
+	
+	void ExecuteCommand(); // コマンドを閉じて実行するだけの関数
+	
+	void WaitForGPU(); // GPUの完了を待つだけの関数
+
 
 	// -------------------- DXGI・デバイス関連 --------------------
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー

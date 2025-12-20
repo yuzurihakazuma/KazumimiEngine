@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "PipelineType.h"
 #include "DirectXCommon.h"
+#include "ShaderCompiler.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -41,6 +42,7 @@ private:
 	
 	ComPtr<ID3D12RootSignature> object3DRootSignature_;
 	ComPtr<ID3D12PipelineState> object3DPipelineState_;
+
 
 };
 

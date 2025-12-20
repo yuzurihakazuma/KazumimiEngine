@@ -2,6 +2,7 @@
 #include "Matrix4x4.h"
 #include "TextureManager.h"
 #include "SrvManager.h"
+#include "Obj3dCommon.h"
 using namespace MatrixMath;
 
 
@@ -9,9 +10,14 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	this->obj3dCommon = obj3dCommon;
 
+	assert(obj3dCommon != nullptr);
+	assert(obj3dCommon->GetDxCommon() != nullptr);
+	assert(obj3dCommon->GetDxCommon()->GetSrvManager() != nullptr);
+
+
 	modelData_ = LoadObjFile("resources", "plane.obj");
 
-
+	assert(modelData_.vertices.size() > 0);
 
 	TextureManager::GetInstance()->LoadTexture(
 		modelData_.material.textrueFilePath
@@ -63,6 +69,8 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 	// 頂点リソースを作る
 	vertexResource_ = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(VertexData) * modelData_.vertices.size());
 
+	assert(vertexResource_ != nullptr);
+
 	// 頂点バッファビューを作成する
 	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
 	vertexBufferView_.SizeInBytes = UINT(sizeof(VertexData) * modelData_.vertices.size());
@@ -74,9 +82,15 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	// インデックスリソースも同様に
 	indexResource_ = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(uint32_t) * modelData_.indices.size());
+	
+	assert(indexResource_ != nullptr);
+
+	
 	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
 	indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
 	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+
 
 	indexResource_->Map(0, nullptr, reinterpret_cast< void** >( &indexData_ ));
 	std::copy(modelData_.indices.begin(), modelData_.indices.end(), indexData_);
@@ -86,6 +100,8 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	// WVB用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	wvpResource_ = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(TransformationMatrix));
+
+	assert(wvpResource_ != nullptr && "WVPResource is NULL!");
 
 	// データを書き込む
 
@@ -98,6 +114,9 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
 	materialResource_ = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Material));
+	
+	assert(materialResource_ != nullptr);
+	
 	// 書き込むためのアドレスを取得
 	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
 	// 今回は赤を書き込んでいる
@@ -109,6 +128,8 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	directionalResourceLight = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(DirectionalLight));
 
+	assert(directionalResourceLight != nullptr && "DirectionalLightResource is NULL!");
+
 	directionalResourceLight->Map(0, nullptr, reinterpret_cast< void** >( &directionalLightData_ ));
 
 	// デフォルト値はとりあえず以下のようにしておく
@@ -117,16 +138,25 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 	directionalLightData_->intensity = 1.0f;
 
 
-	windowProc_->GetClientWidth();
+	//windowProc_->GetClientWidth();
 
 }
 
 
 void  Obj3d::Update(){
 
+	
+	
+	
+	
 	transform.translate = { position_.x, position_.y, 0.0f };
 	transform.rotate = { 0.0f, 0.0f, rotation_.z };
 	transform.scale = { scale_.x, scale_.y, 1.0f };
+
+	auto dxCommon = obj3dCommon->GetDxCommon();
+	float aspect =
+		float(dxCommon->GetClientWidth()) /
+		float(dxCommon->GetClientHeight());
 
 
 	//plame
@@ -135,7 +165,7 @@ void  Obj3d::Update(){
 	Matrix4x4 cameraMatrix = MakeAffine(cameraTransfrom.scale, cameraTransfrom.rotate, cameraTransfrom.translate);
 	Matrix4x4 viewMatrix = Inverse(cameraMatrix); // ← 通常カメラの行列
 
-	Matrix4x4 projectionMatrix = PerspectiveFov(1.0f, float(windowProc_->GetClientWidth()) / float(windowProc_->GetClientHeight()), 0.1f, 100.0f);
+	Matrix4x4 projectionMatrix = PerspectiveFov(1.0f, aspect, 0.1f, 100.0f);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 	transformationMatrixData_->World = worldMatrix;
 	transformationMatrixData_->WVP = worldViewProjectionMatrix;
