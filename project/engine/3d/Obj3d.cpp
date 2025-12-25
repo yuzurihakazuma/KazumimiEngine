@@ -17,6 +17,12 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	modelData_ = LoadObjFile("resources", "plane.obj");
 
+
+	// ★追加：もしテクスチャのパスが空っぽなら、uvChecker.png を使うようにする
+	if ( modelData_.material.textrueFilePath.empty() ) {
+		modelData_.material.textrueFilePath = "resources/uvChecker.png";
+	}
+
 	assert(modelData_.vertices.size() > 0);
 
 	TextureManager::GetInstance()->LoadTexture(

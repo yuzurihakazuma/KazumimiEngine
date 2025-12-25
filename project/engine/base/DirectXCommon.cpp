@@ -8,7 +8,8 @@ using namespace logs;
 void DirectXCommon::Initialize(WindowProc* windowProc){
 	// NULLチェック
 	assert(windowProc);
-
+	
+	
 	this->windowProc_ = windowProc;
 
 	// FPSの初期化
@@ -19,8 +20,11 @@ void DirectXCommon::Initialize(WindowProc* windowProc){
 	SelectAdapter();
 	// D3D12デバイスの生成
 	CreateDevice();
+	assert(device_ != nullptr);
 	// コマンド関連の初期化
 	CreateCommand();
+	assert(commandList_ != nullptr);
+
 	// スワップチェーンの生成
 	CreateSwapChain();
 	// 深度バァファの生成

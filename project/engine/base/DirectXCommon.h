@@ -56,6 +56,9 @@ public:
 	// <summary>SRVヒープ
 	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
 
+
+
+
 	/// <summary>Deviceのゲッター
 	ID3D12Device* GetDevice() const{ return device_.Get(); }
 

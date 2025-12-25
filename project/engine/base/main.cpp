@@ -467,6 +467,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
+	
+	dxCommon->GetShaderCompiler().Initialize();
+	
 	// DirectXデバイスの取得
 	ID3D12Device* device = dxCommon->GetDevice();
 	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
@@ -485,6 +488,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// DirectXCommonにSRVマネージャーをセット
 	dxCommon->SetSrvManager(srvManager);
+
+	// ShaderCompilerの初期化
+	//dxCommon->GetShaderCompiler().Initialize();
+
 
 	// --------------------
     // ResourceFactory
@@ -509,9 +516,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		srvManager
 	);
 
-
-
-
+	textureManager->SetResourceFactory(resourceFactory);
+	
 	// --------------------
     // PipelineManager
     // --------------------
@@ -587,11 +593,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	// ShaderCompilerのインスタンス
-	ShaderCompiler shaderCompiler;
-	shaderCompiler.Initialize(); // いまは何もしない（将来の拡張用）
-
-
+	
 
 	//
 	//
@@ -672,18 +674,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma region CommandList
 
 
+
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
+	// 3Dオブジェクト初期化
+	obj3d->Initialize(obj3dCommon);
+	// スプライト初期化
+	sprite->Initialize(spriteCommon);
 
 	// スプライト共通の描画前処理
 	spriteCommon->PreDraw(commandList);
 	// 3Dオブジェクト共通の描画前処理
 	obj3dCommon->PreDraw(commandList);
 
-	// 3Dオブジェクト初期化
-	obj3d->Initialize(obj3dCommon);
-	// スプライト初期化
-	sprite->Initialize(spriteCommon);
+	
 
 
 	// 1枚目：uvChecker

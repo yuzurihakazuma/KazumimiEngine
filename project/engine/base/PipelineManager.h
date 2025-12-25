@@ -32,8 +32,7 @@ private:
 
 	void CreateObject3DRootSignature();
 	void CreateObject3DGraphicsPipeline();
-
-
+	
 	DirectXCommon* dxCommon_ = nullptr;
 
 	ComPtr<ID3D12RootSignature> spriteRootSignature_;

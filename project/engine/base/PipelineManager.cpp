@@ -3,8 +3,14 @@
 #include <cassert>
 
 void PipelineManager::Initialize(DirectXCommon* dxCommon){
-		assert(dxCommon);
+		
+	assert(dxCommon);
+	assert(dxCommon->GetDevice());
+	assert(dxCommon->GetSrvManager() != nullptr);
 	this->dxCommon_ = dxCommon;
+
+
+
 	// スプライト用ルートシグネチャの作成
 	CreateSpriteRootSignature();
 	// スプライト用グラフィックスパイプラインの作成
