@@ -4,31 +4,69 @@
 
 class WindowProc{
 public:
-	
-	// ウィンドウの初期化
-	void Initialize(WNDCLASS wc, const int32_t kClientWidth = 1280 , const int32_t kClientHeight=720);
-	// ウィンドウの更新
+	/// <summary>
+   /// ウィンドウの初期化
+   /// </summary>
+	void Initialize(WNDCLASS wc,
+		const int32_t kClientWidth = 1280,
+		const int32_t kClientHeight = 720);
+
+	/// <summary>
+	/// ウィンドウの更新処理
+	/// </summary>
 	void Update();
-	// ウィンドウの取得
+
+	/// <summary>
+	/// WindowsAPI の WndProc（メッセージ処理）
+	/// </summary>
 	static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
+	// -------------------- Getter 系 --------------------
+
+   /// <summary> ウィンドウハンドルの取得 </summary>
 	HWND GetHwnd() const{ return hwnd_; }
-	bool IsClosed() const{ return isClosed_; } // ← 追加
+
+	/// <summary> ウィンドウが閉じられたかどうか </summary>
+	bool GetIsClosed() const{ return isClosed_; }
+
+	/// <summary> クライアント領域の横幅 </summary>
+	int32_t GetClientWidth() const{ return kClientWidth_; }
+
+	/// <summary> クライアント領域の縦幅 </summary>
+	int32_t GetClientHeight() const{ return kClientHeight_; }
 
 private:
 	
-	WNDCLASS wc_ = {}; // ウィンドウクラス
-	
-	
-	static constexpr int kDefaultClientWidth = 1280; // デフォルトのクライアント領域の横幅
-	static constexpr int kDefaultClientHeight = 720; // デフォルトのクライアント領域の縦幅
+	// -------------------- ウィンドウ生成処理 --------------------
 
-	
-	int32_t kClientWidth_ = kDefaultClientWidth; // クライアント領域の横幅
-	int32_t kClientHeight_ = kDefaultClientHeight; // クライアント領域の縦幅
+	/// <summary> ウィンドウクラスの設定 </summary>
+	void SetupWindowClass(WNDCLASS& wc);
+
+	/// <summary> ウィンドウクラスの登録 </summary>
+	void RegisterWindowClass();
+
+	/// <summary> クライアント領域のサイズ調整 </summary>
+	void AdjustClientRect();
+
+	/// <summary> メインウィンドウの作成 </summary>
+	void CreateMainWindow();
+
+	/// <summary> メインウィンドウの表示 </summary>
+	void ShowMainWindow();
 
 
-	HWND hwnd_ = nullptr; // ウィンドウハンドル
-	static inline bool isClosed_ = false; // ← 追加（staticならWndProcからアクセス可能）
+	// -------------------- ウィンドウ情報 --------------------
+
+	WNDCLASS wc_ = {};     // ウィンドウクラス
+	RECT wrc_ = {};         // ウィンドウサイズ調整用 RECT
+
+	static constexpr int kDefaultClientWidth = 1280;   // デフォルト横幅
+	static constexpr int kDefaultClientHeight = 720;   // デフォルト縦幅
+
+	int32_t kClientWidth_ = kDefaultClientWidth;       // 現在のクライアント横幅
+	int32_t kClientHeight_ = kDefaultClientHeight;     // 現在のクライアント縦幅
+
+	HWND hwnd_ = nullptr;          // ウィンドウハンドル
+	static inline bool isClosed_ = false;  // ウィンドウが閉じられたかどうか
 };
 

@@ -10,11 +10,40 @@ extern logs::LogManager logManager;
 
 bool ShaderCompiler::Initialize(){
 
-	return true;
+	HRESULT hr;
+
+	// 1. DXCユーティリティ (dxcUtils_) の作成
+	// ↓ これが実行されると dxcUtils_ が NULL ではなくなります
+	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
+	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to create DxcUtils\n");
+		return false;
+	}
+
+	// 2. DXCコンパイラ (dxcCompiler_) の作成
+	// ↓ これが実行されると dxcCompiler_ が NULL ではなくなります
+	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
+	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to create DxcCompiler\n");
+		return false;
+	}
+
+	// 3. インクルードハンドラ (includeHandler_) の作成
+	// ↓ これが実行されると includeHandler_ が NULL ではなくなります
+	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
+	assert(SUCCEEDED(hr));
+	if ( FAILED(hr) ) {
+		logManager.Log("Failed to create IncludeHandler\n");
+		return false;
+	}
+
+	return true; // すべて成功
 
 }
 
-Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstring& filePath, const wchar_t* profile, const Microsoft::WRL::ComPtr<IDxcUtils>& dxcUtils, const Microsoft::WRL::ComPtr<IDxcCompiler3>& dxcCompiler, const Microsoft::WRL::ComPtr<IDxcIncludeHandler>& includeHandler){
+Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstring& filePath, const wchar_t* profile){
 	
 	// 1.hlslファイルを読み込む
 
@@ -22,7 +51,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 	logManager.Log(logManager.ConvertString(std::format(L"Begin CompileShader,path:{},profile:{}\n", filePath, profile)));
 	// hislファイルを読む
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
-	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
+	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &shaderSource);
 	// 読めなかったら止める
 	assert(SUCCEEDED(hr));
 	// 読み込んだファイルの内容を設定する
@@ -38,15 +67,15 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 		L"-T",profile,    // ShaderProfileの設定
 		L"-Zi",L"-Qembed_debug", // デバック用の情報を埋め込む
 		L"-Od",           // 最適化を外しとく
-		L"-Zpr"           // メモリレイアウトは行優先
+		L"-Zpr",           // メモリレイアウトは行優先
 	};
 	// 実際にshaderをコンバイルする
 	Microsoft::WRL::ComPtr<IDxcResult> shaderResult = nullptr;
-	hr = dxcCompiler->Compile(
+	hr = dxcCompiler_->Compile(
 		&shaderSourceBuffer, // 読み込んだファイル
 		arguments,           // コンバイルオプション
 		_countof(arguments), // コンバイルオプションの数
-		includeHandler.Get(),      // includeが含んだ諸々
+		includeHandler_.Get(),      // includeが含んだ諸々
 		IID_PPV_ARGS(&shaderResult) //コンバイル結果
 	);
 	// コンバイルエラーではなくdxcが起動できないなど致命的な状況
