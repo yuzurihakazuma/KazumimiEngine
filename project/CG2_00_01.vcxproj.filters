@@ -138,6 +138,12 @@
     <ClCompile Include="engine\base\PipelineManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Model.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelCommon.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -229,6 +235,12 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\base\PipelineManager.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelCommon.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
