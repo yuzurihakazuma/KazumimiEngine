@@ -1100,6 +1100,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma region ModelDataを使った実装
 
 	
+
 	//// モデルを読み込む
 	//ModelData modelData = LoadObjFile("resources", "plane.obj");
 	//// 1. すべての頂点の合計を求める
@@ -1258,6 +1259,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		//transformationMatrixData->World = worldMatrix;
 		//transformationMatrixData->WVP = worldViewProjectionMatrix;
+
+		obj3d->Update();
+
 
 		//-------------------------------
 		// Sprite
@@ -1418,10 +1422,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-		// 全てのスプライトを描画
-		for ( Sprite* sprite : sprites ) {
-			sprite->Draw();
-		}
+		//// 全てのスプライトを描画
+		//for ( Sprite* sprite : sprites ) {
+		//	sprite->Draw();
+		//}
 
 		obj3d->Draw();
 

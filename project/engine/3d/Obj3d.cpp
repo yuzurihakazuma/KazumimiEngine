@@ -143,9 +143,10 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 	directionalLightData_->direction = { 0.0f, -1.0f,0.0f };
 	directionalLightData_->intensity = 1.0f;
 
-
-	//windowProc_->GetClientWidth();
-
+	scale_ = { 1.0f, 1.0f, 1.0f };
+	rotation_ = { 0.0f, 0.0f, 0.0f };
+	position_ = { 0.0f, 0.0f, 0.0f };
+	
 }
 
 
