@@ -38,7 +38,7 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 		).srvIndex;
 
 
-	
+
 	textureHandle_ =
 		obj3dCommon->GetDxCommon()
 		->GetSrvManager()
@@ -88,10 +88,10 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	// インデックスリソースも同様に
 	indexResource_ = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(uint32_t) * modelData_.indices.size());
-	
+
 	assert(indexResource_ != nullptr);
 
-	
+
 	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
 	indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
 	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
@@ -120,9 +120,9 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
 	materialResource_ = obj3dCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Material));
-	
+
 	assert(materialResource_ != nullptr);
-	
+
 	// 書き込むためのアドレスを取得
 	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
 	// 今回は赤を書き込んでいる
@@ -146,16 +146,16 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon){
 	scale_ = { 1.0f, 1.0f, 1.0f };
 	rotation_ = { 0.0f, 0.0f, 0.0f };
 	position_ = { 0.0f, 0.0f, 0.0f };
-	
+
 }
 
 
 void  Obj3d::Update(){
 
-	
-	
-	
-	
+
+
+
+
 	transform.translate = { position_.x, position_.y, 0.0f };
 	transform.rotate = { 0.0f, 0.0f, rotation_.z };
 	transform.scale = { scale_.x, scale_.y, 1.0f };
