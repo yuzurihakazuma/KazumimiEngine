@@ -425,6 +425,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	ModelCommon* modelCommon = new ModelCommon();
 	// モデル共通初期化
 	modelCommon->Initialize(dxCommon);
+	// コマンドリストの記録開始
+	dxCommon->BeginCommandRecording();
+
 
 	// --------------------
 	// モデルデータの読み込み (アセットのロード)
@@ -433,6 +436,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 例1：平面モデル
 	Model* modelPlane = new Model();
 	modelPlane->Initialize(modelCommon, "resources", "plane.obj");
+
+	// --------------------
+	// テクスチャの読み込み
+	// --------------------
+
+	// 1枚目：uvChecker
+	TextureData textrueResource = textureManager->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
+	// 2枚目：monsterBall
+	TextureData textrueResource2 = textureManager->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
+	// 3枚目：fence
+	TextureData textrueResource3 = textureManager->LoadTextureAndCreateSRV("resources/fence.png", commandList);
+	// 4枚目：circle
+	TextureData textrueResource5 = textureManager->LoadTextureAndCreateSRV("resources/circle.png", commandList);
+	// コマンドリストの記録終了
+	dxCommon->EndCommandRecording();
+
+	// モンスターボールを使うかどうか
+	bool useMonsterBall = false;
+
+	bool useFence = false;
+
+	bool useCircle = false;
 
 
 	// --------------------
@@ -569,7 +594,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
 	// 3Dオブジェクト初期化
-	obj3d->Initialize(obj3dCommon);
+	obj3d->Initialize(obj3dCommon,modelPlane);
 	// スプライト初期化
 	sprite->Initialize(spriteCommon);
 
@@ -581,24 +606,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	
 
 
-	// 1枚目：uvChecker
-	TextureData textrueResource = textureManager->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
-
-	// 2枚目：monsterBall
-	TextureData textrueResource2 = textureManager->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
-
-	// モンスターボールを使うかどうか
-	bool useMonsterBall = false;
-
-	// 3枚目：fence
-	TextureData textrueResource3 = textureManager->LoadTextureAndCreateSRV("resources/fence.png", commandList);
-
-	bool useFence = false;
-
-	// 4枚目：circle
-	TextureData textrueResource5 = textureManager->LoadTextureAndCreateSRV("resources/circle.png", commandList);
-
-	bool useCircle = false;
 
 	// DepthStencilTextureをウィンドウのサイズで作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> deptStencilResource = textureManager->CreateDepthStencilTextureResource(windowProc.GetClientWidth(), windowProc.GetClientHeight());
@@ -766,6 +773,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
+	// --------------------
+	// オブジェクトの生成・配置
+	// --------------------
+	// 複数のObj3dを管理するリスト（配列）
+	std::vector<Obj3d*> object3ds;
+
+	// ★for文で10個作って並べる
+	for ( int i = 0; i < 10; ++i ) {
+		Obj3d* newObj = new Obj3d();
+		newObj->Initialize(obj3dCommon, modelPlane); // 同じモデルを使い回す
+
+		// 座標をずらす (例: 横一列に並べる)
+		// i が 0, 1, 2... と増えるのを利用して x座標をずらす
+		float x = -9.0f + ( i * 2.0f );
+		newObj->SetTranslation({ x, 0.0f, 0.0f });
+		newObj->SetScale({ 0.5f, 0.5f, 0.5f });
+
+		// リストに追加
+		object3ds.push_back(newObj);
+	}
+
+
+
+
 #pragma region indexを使った実装sphere
 
 	////indexSphere用の頂点indexを作る1つ辺りのindexのサイズは32bit
@@ -858,7 +889,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// model描画
 		//------------------------------- 
 
-		
+		// ★リストに入っている全てのオブジェクトを更新
+		for ( Obj3d* obj : object3ds ) {
+			obj->Update();
+		}
 
 		obj3d->Update();
 
@@ -1008,8 +1042,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//	sprite->Draw();
 		//}
 
-		obj3d->Draw();
-
+	// ★リストに入っている全てのオブジェクトを描画
+		for ( Obj3d* obj : object3ds ) {
+			obj->Draw();
+		}
 
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);
@@ -1049,7 +1085,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	delete modelCommon;
 	delete obj3dCommon;
 	delete spriteCommon;
-	delete textureManager; // SingletonならReleaseなどが必要かも
 	delete resourceFactory;
 	delete srvManager;
 	delete dxCommon;

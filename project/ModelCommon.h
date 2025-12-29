@@ -4,7 +4,7 @@
 class ModelCommon{
 public:
 	/// <summary>
-	/// ‰Šú‰»
+	/// åˆæœŸåŒ–
 	/// </summary>
 	void Initialize(DirectXCommon* dxCommon);
 
