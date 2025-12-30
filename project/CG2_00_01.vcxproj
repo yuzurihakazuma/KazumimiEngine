@@ -182,6 +182,9 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\3d\Obj3d.cpp" />
     <ClCompile Include="engine\3d\Obj3dCommon.cpp" />
     <ClCompile Include="engine\base\PipelineManager.cpp" />
+    <ClCompile Include="engine\3d\Model.cpp" />
+    <ClCompile Include="engine\3d\ModelCommon.cpp" />
+    <ClCompile Include="engine\3d\ModelManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -239,6 +242,9 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\3d\Obj3dCommon.h" />
     <ClInclude Include="engine\base\PipelineManager.h" />
     <ClInclude Include="engine\base\PipelineType.h" />
+    <ClInclude Include="engine\3d\Model.h" />
+    <ClInclude Include="engine\3d\ModelCommon.h" />
+    <ClInclude Include="engine\3d\ModelManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
