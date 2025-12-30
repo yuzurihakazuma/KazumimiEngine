@@ -70,7 +70,7 @@ void Obj3d::Update(){
 	Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 
 	// プロジェクション行列の計算
-	Matrix4x4 projectionMatrix = PerspectiveFov(0.45f, aspect, 0.1f, 100.0f);
+	Matrix4x4 projectionMatrix = PerspectiveFov(0.78f, aspect, 0.1f, 100.0f);
 
 	// WVP行列の合成 (World * View * Projection)
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));

@@ -60,6 +60,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "Obj3d.h"
 #include "ModelCommon.h" 
 #include "Model.h"
+#include "ModelManager.h"
 
 using namespace logs;
 using namespace MatrixMath;
@@ -358,7 +359,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// コマンドリストの取得
 	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
 	assert(commandList != nullptr);
-
+	
 	// --------------------
 	// SRV マネージャ
 	// --------------------
@@ -421,10 +422,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// 3Dオブジェクト共通初期化
 	obj3dCommon->Initialize(dxCommon);
-	// モデル共通初期化クラスのインスタンス
-	ModelCommon* modelCommon = new ModelCommon();
-	// モデル共通初期化
-	modelCommon->Initialize(dxCommon);
+
+
+	// モデルマネージャーの初期化
+	ModelManager::GetInstance()->Initialize(dxCommon);
+
 	// コマンドリストの記録開始
 	dxCommon->BeginCommandRecording();
 
@@ -434,8 +436,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 
 	// 例1：平面モデル
-	Model* modelPlane = new Model();
-	modelPlane->Initialize(modelCommon, "resources", "plane.obj");
+	ModelManager::GetInstance()->LoadModel("Ground", "resources", "plane.obj");
+
+	ModelManager::GetInstance()->LoadModel("Player", "resources", "axis.obj");
+
 
 	// --------------------
 	// テクスチャの読み込み
@@ -463,9 +467,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 	// オブジェクト生成
 	// --------------------
-
-	// 3Dオブジェクトクラスのインスタンス
-	Obj3d* obj3d = new Obj3d();
 
 	Sprite* sprite = new Sprite();
 	
@@ -593,8 +594,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// コマンドリストの記録開始
 	dxCommon->PreDraw();
-	// 3Dオブジェクト初期化
-	obj3d->Initialize(obj3dCommon,modelPlane);
 	// スプライト初期化
 	sprite->Initialize(spriteCommon);
 
@@ -779,23 +778,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 複数のObj3dを管理するリスト（配列）
 	std::vector<Obj3d*> object3ds;
 
-	// ★for文で10個作って並べる
-	for ( int i = 0; i < 10; ++i ) {
-		Obj3d* newObj = new Obj3d();
-		newObj->Initialize(obj3dCommon, modelPlane); // 同じモデルを使い回す
+	Obj3d* groundObj = new Obj3d();
+	// "Ground" で登録したモデルを取り出してセット
+	Model* modelGround = ModelManager::GetInstance()->FindModel("Ground");
+	groundObj->Initialize(obj3dCommon, modelGround);
+	groundObj->SetTranslation({ 0.0f, -2.0f, 0.0f }); // 足元に配置
 
-		// 座標をずらす (例: 横一列に並べる)
-		// i が 0, 1, 2... と増えるのを利用して x座標をずらす
-		float x = -9.0f + ( i * 2.0f );
-		newObj->SetTranslation({ x, 0.0f, 0.0f });
-		newObj->SetScale({ 0.5f, 0.5f, 0.5f });
+	// ★修正：スケールを全て 1.0f (通常サイズ) に変更
+	groundObj->SetScale({ 1.0f, 1.0f, 1.0f });
+	object3ds.push_back(groundObj);
 
-		// リストに追加
-		object3ds.push_back(newObj);
-	}
+	// "Player" で登録したモデルを取り出す
+	Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
 
+	Obj3d* playerObj = new Obj3d();
+	playerObj->Initialize(obj3dCommon, modelPlayer);
 
-
+	// 場所を指定 (例: 真ん中)
+	playerObj->SetTranslation({ 0.0f, 0.0f, 0.0f });
+	// こちらも明示的に 1.0f に設定（デフォルトでも1ですが念のため）
+	playerObj->SetScale({ 1.0f, 1.0f, 1.0f });
+	// リストに追加
+	object3ds.push_back(playerObj);
 
 #pragma region indexを使った実装sphere
 
@@ -893,8 +897,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Obj3d* obj : object3ds ) {
 			obj->Update();
 		}
-
-		obj3d->Update();
 
 
 		//-------------------------------
@@ -1042,7 +1044,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//	sprite->Draw();
 		//}
 
-	// ★リストに入っている全てのオブジェクトを描画
+	// オブジェクトを描画
 		for ( Obj3d* obj : object3ds ) {
 			obj->Draw();
 		}
@@ -1077,12 +1079,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	logManager.Finalize();
 
+	// ModelManager の終了処理を呼ぶ
+	ModelManager::GetInstance()->Finalize();
+
 	// ポインタの解放
 	//for ( auto obj : object3ds ) delete obj;
 	for ( auto sprite : sprites ) delete sprite;
-	delete modelPlane;
-
-	delete modelCommon;
+	
 	delete obj3dCommon;
 	delete spriteCommon;
 	delete resourceFactory;
