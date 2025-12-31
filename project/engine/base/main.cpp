@@ -61,6 +61,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "ModelCommon.h" 
 #include "Model.h"
 #include "ModelManager.h"
+#include "Camera.h"
 
 using namespace logs;
 using namespace MatrixMath;
@@ -775,6 +776,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 	// オブジェクトの生成・配置
 	// --------------------
+	
+	// カメラの生成
+	Camera* camera = new Camera(windowProc.GetClientWidth(),windowProc.GetClientHeight());
+	
+	camera->SetTranslation({ 0.0f, 0.0f, -10.0f }); // 少し後ろに下げる
+	// 回転はなし
+	camera->SetRotation({ 0.0f,0.0f,0.0f });
+	
+	
+	
 	// 複数のObj3dを管理するリスト（配列）
 	std::vector<Obj3d*> object3ds;
 
@@ -782,9 +793,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// "Ground" で登録したモデルを取り出してセット
 	Model* modelGround = ModelManager::GetInstance()->FindModel("Ground");
 	groundObj->Initialize(obj3dCommon, modelGround);
+	
+	
+	groundObj->SetCamera(camera); // カメラをセット
+
 	groundObj->SetTranslation({ 0.0f, -2.0f, 0.0f }); // 足元に配置
 
-	// ★修正：スケールを全て 1.0f (通常サイズ) に変更
+	// スケールを全て 1.0f (通常サイズ) に変更
 	groundObj->SetScale({ 1.0f, 1.0f, 1.0f });
 	object3ds.push_back(groundObj);
 
@@ -793,6 +808,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	Obj3d* playerObj = new Obj3d();
 	playerObj->Initialize(obj3dCommon, modelPlayer);
+
+	// ★追加：プレイヤーにも同じカメラをセットする！
+	playerObj->SetCamera(camera);
 
 	// 場所を指定 (例: 真ん中)
 	playerObj->SetTranslation({ 0.0f, 0.0f, 0.0f });
@@ -880,6 +898,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// メインループ内
 		input.Update(); // ← 追加：Inputの更新処理
 
+		// カメラの更新
+		camera->Update();
 
 		// キーボード情報の取得開始
 
@@ -1082,6 +1102,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// ModelManager の終了処理を呼ぶ
 	ModelManager::GetInstance()->Finalize();
 
+
+	delete camera;
 	// ポインタの解放
 	//for ( auto obj : object3ds ) delete obj;
 	for ( auto sprite : sprites ) delete sprite;
