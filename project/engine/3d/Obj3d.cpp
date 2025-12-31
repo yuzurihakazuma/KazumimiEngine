@@ -57,24 +57,22 @@ void Obj3d::Update(){
 
 	auto dxCommon = obj3dCommon_->GetDxCommon();
 
-	// アスペクト比の計算
-	float aspect =
-		float(dxCommon->GetClientWidth()) /
-		float(dxCommon->GetClientHeight());
-
 	// ワールド行列の計算 (SRT)
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	// ワールド × ビュー × プロジェクション行列
+	Matrix4x4 worldViewProjectionMatrix;
 
-	// カメラ行列の計算 (本来はCameraクラスで行うべきだが、今はここに残す)
-	Matrix4x4 cameraMatrix = MakeAffine(cameraTransfrom.scale, cameraTransfrom.rotate, cameraTransfrom.translate);
-	Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+	// カメラがあれば、カメラの行列を使う
+	if ( camera_ ) {
+		// カメラから「ビュー・プロジェクション行列」をもらう
+		const Matrix4x4& viewProjectionMatrix = camera_->GetViewProjectionMatrix();
 
-	// プロジェクション行列の計算
-	Matrix4x4 projectionMatrix = PerspectiveFov(0.78f, aspect, 0.1f, 100.0f);
-
-	// WVP行列の合成 (World * View * Projection)
-	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
-
+		// ワールド行列 × (ビュー × プロジェクション)
+		worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+	} else {
+		// カメラがないときは、とりあえずワールド行列だけ入れておく（描画は崩れるがエラー落ち防止）
+		worldViewProjectionMatrix = worldMatrix;
+	}
 	// 定数バッファへ転送
 	transformationMatrixData_->World = worldMatrix;
 	transformationMatrixData_->WVP = worldViewProjectionMatrix;

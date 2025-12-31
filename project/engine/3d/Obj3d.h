@@ -6,6 +6,7 @@
 #include <wrl.h>
 #include "Obj3dCommon.h"
 #include "Model.h" // Modelクラスを使うため必須
+#include "Camera.h"
 
 // モデル3Dクラス
 class Obj3d{
@@ -55,6 +56,8 @@ public:
 
 	// モデルを差し替えるための関数
 	void SetModel(Model* model){ model_ = model; }
+	void SetCamera(const Camera* camera){ this->camera_ = camera; }
+
 
 private:
 
@@ -69,7 +72,7 @@ private:
 
 	// 行列計算用（計算を楽にするために保持）
 	Transform transform { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
-	Transform cameraTransfrom { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,-10.0f} };
+//	Transform cameraTransfrom { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,-10.0f} };
 
 	// 外部参照
 	Obj3dCommon* obj3dCommon_ = nullptr; // 所有しない参照
@@ -82,5 +85,9 @@ private:
 	// 平行光源リソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalResourceLight_;
 	DirectionalLight* directionalLightData_ = nullptr;
+
+
+	const Camera* camera_ = nullptr; // 所有しない参照
+
 
 };
