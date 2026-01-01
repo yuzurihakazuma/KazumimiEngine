@@ -138,31 +138,6 @@ struct SoundData{
 	unsigned int bufferSize;
 
 };
-// ブレンドモード
-enum BlendMods{
-	// ブレンドなし
-	kBlendModeNone,
-	// 通常aブレンド:デフォルト Src * SrcA +Dest * (1-SrcA)
-	kBlendModeNoraml,
-	// 加算 Src *SrcA + Dest * 1
-	kBlendModeAdd,
-	// 減算 Dest* 1 - Src * SrcA
-	kBlendModSubtract,
-	// 乗算 Src * 0 + Dest * Src
-	kBlendModeMultily,
-	// スクリーン Src * (1 - Dest) + Dest * 1
-	kBlendModeScreen,
-	// 利用してはいけない
-	kCountOfBlendMode,
-
-};
-
-
-// Transform変数を作る
-Transform transform { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
-Transform cameraTransfrom { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} };
-Transform transformSprite { {1.0f,1.0f,1.0f,},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
-Transform uvTransformSprite { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
 LogManager logManager;// ログマネージャーのインスタンス
 Input input; // 入力クラスのインスタンス
@@ -437,7 +412,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 
 	// 例1：平面モデル
-	ModelManager::GetInstance()->LoadModel("Ground", "resources", "plane.obj");
+	ModelManager::GetInstance()->LoadModel("Ground", "resources", "fence.obj");
 
 	ModelManager::GetInstance()->LoadModel("Player", "resources", "axis.obj");
 
@@ -797,27 +772,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	
 	groundObj->SetCamera(camera); // カメラをセット
 
-	groundObj->SetTranslation({ 0.0f, -2.0f, 0.0f }); // 足元に配置
+	groundObj->SetTranslation({ 0.0f, 0.0f, 0.0f }); // 足元に配置
 
 	// スケールを全て 1.0f (通常サイズ) に変更
 	groundObj->SetScale({ 1.0f, 1.0f, 1.0f });
 	object3ds.push_back(groundObj);
 
-	// "Player" で登録したモデルを取り出す
-	Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
+	//// "Player" で登録したモデルを取り出す
+	//Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
 
-	Obj3d* playerObj = new Obj3d();
-	playerObj->Initialize(obj3dCommon, modelPlayer);
+	//Obj3d* playerObj = new Obj3d();
+	//playerObj->Initialize(obj3dCommon, modelPlayer);
 
-	// ★追加：プレイヤーにも同じカメラをセットする！
-	playerObj->SetCamera(camera);
+	//// ★追加：プレイヤーにも同じカメラをセットする！
+	//playerObj->SetCamera(camera);
 
-	// 場所を指定 (例: 真ん中)
-	playerObj->SetTranslation({ 0.0f, 0.0f, 0.0f });
-	// こちらも明示的に 1.0f に設定（デフォルトでも1ですが念のため）
-	playerObj->SetScale({ 1.0f, 1.0f, 1.0f });
-	// リストに追加
-	object3ds.push_back(playerObj);
+	//// 場所を指定 (例: 真ん中)
+	//playerObj->SetTranslation({ 0.0f, 0.0f, 0.0f });
+	//// こちらも明示的に 1.0f に設定（デフォルトでも1ですが念のため）
+	//playerObj->SetScale({ 1.0f, 1.0f, 1.0f });
+	//// リストに追加
+	//object3ds.push_back(playerObj);
 
 #pragma region indexを使った実装sphere
 
@@ -997,13 +972,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//materialDataSprite->uvTransfrom = uvTransformMatrix;
 
 
-
-
-
-
-
-
-
 		// 画面クリアなど描画前処理
 		dxCommon->PreDraw();
 
@@ -1011,18 +979,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 		obj3dCommon->PreDraw(commandList);
-
-
-
-
-		
-
-		//// 条件に応じて切り替え
-		//if ( useFence ) {
-		//	selectedTextureHandle = textureSrvHandleGPU3; // 3番目（Fence）
-		//} else if ( useMonsterBall ) {
-		//	selectedTextureHandle = textureSrvHandleGPU2; // 2番目（MonsterBall）
-		//}
 
 		//-------------------------------
 		//// Sphereの描画
