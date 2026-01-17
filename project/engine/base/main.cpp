@@ -62,20 +62,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "Model.h"
 #include "ModelManager.h"
 #include "Camera.h"
-
+#include "ParticleManager.h"
 using namespace logs;
 using namespace MatrixMath;
 
 
 
-//struct VertexData{
-//	Vector4 position;
-//	Vector2 texcoord;
-//	Vector3 normal;
-//};
-//
-//
-//
+
 //struct Material{
 //	Vector4 color;
 //	int32_t enableLighting;
@@ -88,12 +81,6 @@ using namespace MatrixMath;
 //	Matrix4x4 World;
 //};
 
-
-struct ParticleForGPU{
-	Matrix4x4 WVP;
-	Matrix4x4 World;
-	Vector4 color;
-};
 
 struct DirectionalLight{
 	Vector4 color; // ライトの色
@@ -138,45 +125,11 @@ struct SoundData{
 	unsigned int bufferSize;
 
 };
-// ブレンドモード
-enum BlendMods{
-	// ブレンドなし
-	kBlendModeNone,
-	// 通常aブレンド:デフォルト Src * SrcA +Dest * (1-SrcA)
-	kBlendModeNoraml,
-	// 加算 Src *SrcA + Dest * 1
-	kBlendModeAdd,
-	// 減算 Dest* 1 - Src * SrcA
-	kBlendModSubtract,
-	// 乗算 Src * 0 + Dest * Src
-	kBlendModeMultily,
-	// スクリーン Src * (1 - Dest) + Dest * 1
-	kBlendModeScreen,
-	// 利用してはいけない
-	kCountOfBlendMode,
-
-};
-
-
-// Transform変数を作る
-Transform transform { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
-Transform cameraTransfrom { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-10.0f} };
-Transform transformSprite { {1.0f,1.0f,1.0f,},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
-Transform uvTransformSprite { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
 LogManager logManager;// ログマネージャーのインスタンス
 Input input; // 入力クラスのインスタンス
 
 
-
-// パーティクル
-struct Particle{
-	Transform transform; // パーティクルの座標変換情報
-	Vector3 velocity; // パーティクルの速度
-	Vector4 color; // パーティクルの色
-	float lifeTime; // パーティクルの寿命
-	float currentTime; // パーティクルの現在の生存時間
-};
 
 std::random_device seedGenerator; // 乱数の種を生成するオブジェクト
 std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの乱数エンジン
@@ -295,27 +248,6 @@ void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData){
 
 #pragma endregion
 
-#pragma region Particle関数
-//// パーティクル生成関数
-//Particle MakeNewParticle(std::mt19937& randomEngine){
-//	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
-//	std::uniform_real_distribution<float> distTime(1.0f, 3.0f);
-//	Particle particle;
-//	particle.transform.scale = { 1.0f,1.0f,1.0f };
-//	particle.transform.rotate = { 0.0f,0.0f,0.0f };
-//	particle.transform.translate = { distribution(randomEngine), distribution(randomEngine), distribution(randomEngine) };
-//	particle.velocity = { distribution(randomEngine), distribution(randomEngine), distribution(randomEngine) };
-//	particle.color = { distribution(randomEngine) , distribution(randomEngine) , distribution(randomEngine),1.0f };
-//	particle.lifeTime = distTime(randomEngine);
-//	particle.currentTime = 0;
-//
-//	return particle;
-//
-//}
-
-#pragma endregion
-
-
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
@@ -427,6 +359,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// モデルマネージャーの初期化
 	ModelManager::GetInstance()->Initialize(dxCommon);
+	// パーティクルマネージャーの初期化
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
+
 
 	// コマンドリストの記録開始
 	dxCommon->BeginCommandRecording();
@@ -437,9 +372,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 
 	// 例1：平面モデル
-	ModelManager::GetInstance()->LoadModel("Ground", "resources", "plane.obj");
+	ModelManager::GetInstance()->LoadModel("Ground", "resources", "fence.obj");
 
 	ModelManager::GetInstance()->LoadModel("Player", "resources", "axis.obj");
+
+	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/circle.png");
 
 
 	// --------------------
@@ -797,27 +734,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	
 	groundObj->SetCamera(camera); // カメラをセット
 
-	groundObj->SetTranslation({ 0.0f, -2.0f, 0.0f }); // 足元に配置
+	groundObj->SetTranslation({ 0.0f, 0.0f, 0.0f }); // 足元に配置
 
 	// スケールを全て 1.0f (通常サイズ) に変更
 	groundObj->SetScale({ 1.0f, 1.0f, 1.0f });
 	object3ds.push_back(groundObj);
 
-	// "Player" で登録したモデルを取り出す
-	Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
+	//// "Player" で登録したモデルを取り出す
+	//Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
 
-	Obj3d* playerObj = new Obj3d();
-	playerObj->Initialize(obj3dCommon, modelPlayer);
+	//Obj3d* playerObj = new Obj3d();
+	//playerObj->Initialize(obj3dCommon, modelPlayer);
 
-	// ★追加：プレイヤーにも同じカメラをセットする！
-	playerObj->SetCamera(camera);
+	//// ★追加：プレイヤーにも同じカメラをセットする！
+	//playerObj->SetCamera(camera);
 
-	// 場所を指定 (例: 真ん中)
-	playerObj->SetTranslation({ 0.0f, 0.0f, 0.0f });
-	// こちらも明示的に 1.0f に設定（デフォルトでも1ですが念のため）
-	playerObj->SetScale({ 1.0f, 1.0f, 1.0f });
-	// リストに追加
-	object3ds.push_back(playerObj);
+	//// 場所を指定 (例: 真ん中)
+	//playerObj->SetTranslation({ 0.0f, 0.0f, 0.0f });
+	//// こちらも明示的に 1.0f に設定（デフォルトでも1ですが念のため）
+	//playerObj->SetScale({ 1.0f, 1.0f, 1.0f });
+	//// リストに追加
+	//object3ds.push_back(playerObj);
 
 #pragma region indexを使った実装sphere
 
@@ -908,6 +845,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 			SoundPlayWave(xAudio2.Get(), soundData1);
 
 		}
+		// Pキーが押されたらパーティクルを発生させる
+		if ( input.Triggerkey(DIK_P) ) {
+			// グループ名, 発生位置, 発生数
+			ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
+		}
+		// パーティクルの更新
+		ParticleManager::GetInstance()->Update(camera);
 
 		//-------------------------------
 		// model描画
@@ -997,13 +941,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//materialDataSprite->uvTransfrom = uvTransformMatrix;
 
 
-
-
-
-
-
-
-
 		// 画面クリアなど描画前処理
 		dxCommon->PreDraw();
 
@@ -1011,18 +948,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 		obj3dCommon->PreDraw(commandList);
-
-
-
-
-		
-
-		//// 条件に応じて切り替え
-		//if ( useFence ) {
-		//	selectedTextureHandle = textureSrvHandleGPU3; // 3番目（Fence）
-		//} else if ( useMonsterBall ) {
-		//	selectedTextureHandle = textureSrvHandleGPU2; // 2番目（MonsterBall）
-		//}
 
 		//-------------------------------
 		//// Sphereの描画
@@ -1068,6 +993,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Obj3d* obj : object3ds ) {
 			obj->Draw();
 		}
+		
+		// パーティクル用パイプラインに切り替え
+		PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle); 
+		// 2. 描画コマンド発行
+		ParticleManager::GetInstance()->Draw(commandList);
 
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);

@@ -1,5 +1,4 @@
 #include "Particle.hlsli"
-
 struct ParticleForGPU
 {
     float32_t4x4 WVP;
