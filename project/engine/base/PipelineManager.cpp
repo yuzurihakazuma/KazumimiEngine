@@ -2,7 +2,7 @@
 #include "DirectXCommon.h"
 #include <cassert>
 #include "BlendMode.h"
-#include <string> // stringも必要なので念のため追加
+#include <string> 
 
 #include <d3d12.h>
 #include <wrl.h>

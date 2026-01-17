@@ -62,20 +62,13 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "Model.h"
 #include "ModelManager.h"
 #include "Camera.h"
-
+#include "ParticleManager.h"
 using namespace logs;
 using namespace MatrixMath;
 
 
 
-//struct VertexData{
-//	Vector4 position;
-//	Vector2 texcoord;
-//	Vector3 normal;
-//};
-//
-//
-//
+
 //struct Material{
 //	Vector4 color;
 //	int32_t enableLighting;
@@ -88,12 +81,6 @@ using namespace MatrixMath;
 //	Matrix4x4 World;
 //};
 
-
-struct ParticleForGPU{
-	Matrix4x4 WVP;
-	Matrix4x4 World;
-	Vector4 color;
-};
 
 struct DirectionalLight{
 	Vector4 color; // ライトの色
@@ -143,15 +130,6 @@ LogManager logManager;// ログマネージャーのインスタンス
 Input input; // 入力クラスのインスタンス
 
 
-
-// パーティクル
-struct Particle{
-	Transform transform; // パーティクルの座標変換情報
-	Vector3 velocity; // パーティクルの速度
-	Vector4 color; // パーティクルの色
-	float lifeTime; // パーティクルの寿命
-	float currentTime; // パーティクルの現在の生存時間
-};
 
 std::random_device seedGenerator; // 乱数の種を生成するオブジェクト
 std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの乱数エンジン
@@ -270,27 +248,6 @@ void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData){
 
 #pragma endregion
 
-#pragma region Particle関数
-//// パーティクル生成関数
-//Particle MakeNewParticle(std::mt19937& randomEngine){
-//	std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
-//	std::uniform_real_distribution<float> distTime(1.0f, 3.0f);
-//	Particle particle;
-//	particle.transform.scale = { 1.0f,1.0f,1.0f };
-//	particle.transform.rotate = { 0.0f,0.0f,0.0f };
-//	particle.transform.translate = { distribution(randomEngine), distribution(randomEngine), distribution(randomEngine) };
-//	particle.velocity = { distribution(randomEngine), distribution(randomEngine), distribution(randomEngine) };
-//	particle.color = { distribution(randomEngine) , distribution(randomEngine) , distribution(randomEngine),1.0f };
-//	particle.lifeTime = distTime(randomEngine);
-//	particle.currentTime = 0;
-//
-//	return particle;
-//
-//}
-
-#pragma endregion
-
-
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
@@ -402,6 +359,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// モデルマネージャーの初期化
 	ModelManager::GetInstance()->Initialize(dxCommon);
+	// パーティクルマネージャーの初期化
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
+
 
 	// コマンドリストの記録開始
 	dxCommon->BeginCommandRecording();
@@ -415,6 +375,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	ModelManager::GetInstance()->LoadModel("Ground", "resources", "fence.obj");
 
 	ModelManager::GetInstance()->LoadModel("Player", "resources", "axis.obj");
+
+	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/circle.png");
 
 
 	// --------------------
@@ -883,6 +845,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 			SoundPlayWave(xAudio2.Get(), soundData1);
 
 		}
+		// Pキーが押されたらパーティクルを発生させる
+		if ( input.Triggerkey(DIK_P) ) {
+			// グループ名, 発生位置, 発生数
+			ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
+		}
+		// パーティクルの更新
+		ParticleManager::GetInstance()->Update(camera);
 
 		//-------------------------------
 		// model描画
@@ -1024,6 +993,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Obj3d* obj : object3ds ) {
 			obj->Draw();
 		}
+		
+		// パーティクル用パイプラインに切り替え
+		PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle); 
+		// 2. 描画コマンド発行
+		ParticleManager::GetInstance()->Draw(commandList);
 
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);
