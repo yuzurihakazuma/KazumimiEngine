@@ -88,18 +88,23 @@ public:
 		default: return 0;
 		}
 	}
-
+	// SRVマネージャーのゲッター・セッター
 	SrvManager* GetSrvManager() const{ return srvManager_; }
 	void SetSrvManager(SrvManager* srvManager){ this->srvManager_ = srvManager; }
 
-
+	/// <summary>クライアント領域の横幅取得
 	uint32_t GetClientWidth() const{
 		return windowProc_->GetClientWidth();
 	}
-
+	/// <summary>クライアント領域の縦幅取得
 	uint32_t GetClientHeight() const{
 		return windowProc_->GetClientHeight();
 	}
+
+	size_t GetBackBufferCount() const{
+		return kBackBufferCount;
+	}
+
 
 
 private:

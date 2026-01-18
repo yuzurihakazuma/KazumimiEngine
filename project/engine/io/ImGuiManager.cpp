@@ -1,27 +1,44 @@
 #include "ImGuiManager.h"
+#include "DirectXCommon.h"
+#include "WindowProc.h"
+#include "SrvManager.h"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
-void ImGuiManager::Initialize(HWND hwnd, ComPtr<ID3D12Device> device, DXGI_FORMAT rtvFormat, UINT numFramesInFlight, ComPtr<ID3D12DescriptorHeap> srvHeap){
+void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
 
-	hwnd_ = hwnd;
-	numFrames_ = numFramesInFlight;
-	device_ = device;
-	srvHeap_ = srvHeap;
+    // 1. コンテキストの生成とスタイル設定
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
 
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-	ImGui_ImplWin32_Init(hwnd_);
-	ImGui_ImplDX12_Init(
-		device_.Get(),
-		numFrames_,
-		rtvFormat,
-		srvHeap_.Get(),
-		srvHeap_->GetCPUDescriptorHandleForHeapStart(),
-		srvHeap_->GetGPUDescriptorHandleForHeapStart());
+    // 2. Win32用初期化
+    // WindowProcからハンドルを取得して渡す
+    ImGui_ImplWin32_Init(windowProc->GetHwnd());
 
+    // 3. DirectX12用初期化
+    // スライド通り: SrvManagerからSRVを確保してインデックスを得る
+    SrvManager* srvManager = dxCommon->GetSrvManager();
+    uint32_t srvIndex = srvManager->Allocate();
 
+#pragma region SRV記述子ヒープのハンドルを取得
+    // 確保したインデックスに対応するCPUハンドルとGPUハンドルを取得
+    D3D12_CPU_DESCRIPTOR_HANDLE srvCpuHandle = srvManager->GetCPUDescriptorHandle(srvIndex);
+    D3D12_GPU_DESCRIPTOR_HANDLE srvGpuHandle = srvManager->GetGPUDescriptorHandle(srvIndex);
 
+    // SRVヒープそのものも必要
+    ID3D12DescriptorHeap* srvHeap = srvManager->GetDescriptorHeap();
+#pragma endregion
+
+    // 初期化関数を呼び出す
+    ImGui_ImplDX12_Init(
+        dxCommon->GetDevice(),
+        static_cast< int >( dxCommon->GetBackBufferCount() ), // バックバッファ数(通常2)
+        DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,                  // RTVのフォーマット(DirectXCommonと合わせる)
+        srvHeap,                                          // SRVヒープ
+        srvCpuHandle,                                     // ImGuiが使うSRVのCPUハンドル
+        srvGpuHandle                                      // ImGuiが使うSRVのGPUハンドル
+    );
 }
 
 void ImGuiManager::Begin(){
@@ -29,13 +46,13 @@ void ImGuiManager::Begin(){
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 }
-void ImGuiManager::End(ComPtr<ID3D12GraphicsCommandList> commandList){
-	ImGui::Render(); // ImGui描画のデータ生成（内部コマンドバッファみたいなもの）
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+void ImGuiManager::End(ID3D12GraphicsCommandList* commandList){
+    ImGui::Render(); // ImGui描画データ生成
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 }
-
-void ImGuiManager::Render(ComPtr<ID3D12GraphicsCommandList> commandList){
-	End(commandList); // EndにまとめているならRenderは呼び出し元では不要
+void ImGuiManager::Render(ID3D12GraphicsCommandList* commandList){
+    // Endの中でRenderDrawDataを呼んでいるなら、ここはEndを呼ぶか、あるいは空でもよい
+    End(commandList);
 }
 void ImGuiManager::Shutdown(){
 	ImGui_ImplDX12_Shutdown();
