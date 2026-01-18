@@ -415,13 +415,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	
 	// ImGui 管理クラス
 	ImGuiManager imgui;
-	imgui.Initialize(
-		windowProc.GetHwnd(),
-		dxCommon->GetDevice(),
-		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-		2,                              // Frame count
-		dxCommon->GetSrvHeap()       // SRV ヒープ
-	);
+	imgui.Initialize(&windowProc, dxCommon);
 
 	// --------------------
 	// 入力
@@ -730,16 +724,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// "Ground" で登録したモデルを取り出してセット
 	Model* modelGround = ModelManager::GetInstance()->FindModel("Ground");
 	groundObj->Initialize(obj3dCommon, modelGround);
-	
-	
 	groundObj->SetCamera(camera); // カメラをセット
 
-	groundObj->SetTranslation({ 0.0f, 0.0f, 0.0f }); // 足元に配置
+	Vector3 groundPos = { 0.0f, 0.0f, 0.0f };
+	Vector3 groundRot = { 0.0f, 0.0f, 0.0f };
+	Vector3 groundScale = { 1.0f, 1.0f, 1.0f };
 
-	// スケールを全て 1.0f (通常サイズ) に変更
-	groundObj->SetScale({ 1.0f, 1.0f, 1.0f });
+	groundObj->SetTranslation(groundPos);
+	groundObj->SetScale(groundScale);
 	object3ds.push_back(groundObj);
+	
 
+
+	
+	
+	
 	//// "Player" で登録したモデルを取り出す
 	//Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
 
@@ -885,11 +884,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//-------------------------------
 		//ImGui
 		//-------------------------------
+#ifdef USE_IMGUI
+
+
+		
 		// ImGuiの開始処理
 		imgui.Begin();
 
 		// 開発用UIの処理。実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換える
 		ImGui::ShowDemoWindow();
+
+		ImGui::Begin("Fence Control"); // ウィンドウの開始
+
+		// 値を操作するスライダー類
+		ImGui::DragFloat3("Position", &groundPos.x, 0.1f); // 位置 (感度0.1)
+		ImGui::DragFloat3("Rotation", &groundRot.x, 0.01f); // 回転 (感度0.01)
+		ImGui::DragFloat3("Scale", &groundScale.x, 0.01f); // スケール (感度0.01)
+
+		ImGui::End(); // ウィンドウの終了
+
+		groundObj->SetTranslation(groundPos);
+		groundObj->SetRotation(groundRot); // ※SetRotationがObj3dにある前提
+		groundObj->SetScale(groundScale);
 
 
 		////ImGui::ColorEdit4("Color", &materialData->color.x);
@@ -931,6 +947,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		//ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 		//ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 
+#endif // USE_IMGUI
 
 
 		//directionalLightData->direction = Normalize(directionalLightData->direction);
@@ -999,8 +1016,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// 2. 描画コマンド発行
 		ParticleManager::GetInstance()->Draw(commandList);
 
+
+#ifdef USE_IMGUI
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);
+
+		
+#endif // USE_IMGUI
 
 		// DirectX 描画後処理（Present / フェンス）
 		dxCommon->PostDraw();
@@ -1009,8 +1031,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 			break;
 		}
 	}
+#ifdef USE_IMGUI
+
 	// imguiの終了処理
 	imgui.Shutdown();
+
+#endif // USE_IMGUI
+
 
 #pragma region オブジェクトを解放
 

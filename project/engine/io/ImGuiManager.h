@@ -5,7 +5,8 @@
 #include <wtypes.h>
 #include <d3d12.h>
 #include <wrl.h> // Microsoft::WRL::ComPtr
-#include "DirectXCommon.h"
+class DirectXCommon;
+class WindowProc;
 
 using Microsoft::WRL::ComPtr;
 
@@ -18,13 +19,7 @@ public:
     /// <summary>
     /// ImGui の初期化
     /// </summary>
-    void Initialize(
-        HWND hwnd,
-        ComPtr<ID3D12Device> device,
-        DXGI_FORMAT rtvFormat,
-        UINT numFramesInFlight,
-        ComPtr<ID3D12DescriptorHeap> srvHeap
-    );
+    void Initialize(WindowProc* windowProc, DirectXCommon* dxCommon);
 
     /// <summary>
     /// フレーム開始処理
@@ -34,13 +29,12 @@ public:
     /// <summary>
     /// フレーム終了処理
     /// </summary>
-    void End(ComPtr<ID3D12GraphicsCommandList> commandList);
+    void End(ID3D12GraphicsCommandList* commandList); 
 
     /// <summary>
     /// ImGui の描画コマンドを発行
     /// </summary>
-    void Render(ComPtr<ID3D12GraphicsCommandList> commandList);
-
+    void Render(ID3D12GraphicsCommandList* commandList);
     /// <summary>
     /// ImGui の破棄処理
     /// </summary>
