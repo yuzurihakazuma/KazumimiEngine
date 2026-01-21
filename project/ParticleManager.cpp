@@ -14,6 +14,19 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
     CreateModel();
 }
 
+
+void ParticleManager::Finalize(){
+    // 各グループのインスタンシングリソースを解放
+    for ( auto& [name, group] : particleGroups_ ) {
+        group.instancingData = nullptr;
+        group.instancingResource.Reset();
+    }
+    particleGroups_.clear();
+    // 共通リソースの解放
+	vertexResource_.Reset();
+
+}
+
 void ParticleManager::Update(Camera* camera){
     Matrix4x4 cameraMatrix = camera->GetWorldMatrix();
     Matrix4x4 viewProjection = camera->GetViewProjectionMatrix();

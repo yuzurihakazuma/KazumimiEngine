@@ -16,12 +16,16 @@ public:
 		return &instance;
 	}
 
+	void Finalize();
+
 	void Initialize(DirectXCommon* dxCommon);
 
 	void SetPipeline(
 		ID3D12GraphicsCommandList* commandList,
 		PipelineType type
 	);
+
+
 
 private:
 	PipelineManager() = default;

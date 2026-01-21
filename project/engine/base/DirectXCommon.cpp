@@ -5,6 +5,47 @@
 
 using namespace logs;
 
+void DirectXCommon::Finalize(){
+#ifdef _DEBUG
+	logManager_.Log("DirectXCommon::Finalize() start");
+#endif
+
+	//  GPU完了待ち
+	WaitForGPU();
+
+	//  参照順に解放（超重要）
+	for ( UINT i = 0; i < kBackBufferCount; ++i ) {
+		backBuffers_[i].Reset();
+	}
+
+	depthStencilResource_.Reset();
+	depthBuffer_.Reset();
+
+	rtvDescriptorHeap_.Reset();
+	dsvDescriptorHeap_.Reset();
+	srvDescriptorHeap_.Reset();
+
+	commandList_.Reset();
+	commandAllocator_.Reset();
+	commandQueue_.Reset();
+
+	fence_.Reset();
+
+	swapChain_.Reset();
+	device_.Reset();
+	useAdapter_.Reset();
+	dxgiFactory_.Reset();
+
+	if ( fenceEvent_ ) {
+		CloseHandle(fenceEvent_);
+		fenceEvent_ = nullptr;
+	}
+
+#ifdef _DEBUG
+	logManager_.Log("DirectXCommon::Finalize() end");
+#endif
+}
+
 void DirectXCommon::Initialize(WindowProc* windowProc){
 	// NULLチェック
 	assert(windowProc);
@@ -14,6 +55,9 @@ void DirectXCommon::Initialize(WindowProc* windowProc){
 
 	// FPSの初期化
 	InitializeFixFPS();
+	// デバッグレイヤーの初期化
+	InitializeDebugLayer();
+
 	// デバイスの生成
 	CreateFactory();
 	// GPUアダプタの選択
@@ -21,6 +65,9 @@ void DirectXCommon::Initialize(WindowProc* windowProc){
 	// D3D12デバイスの生成
 	CreateDevice();
 	assert(device_ != nullptr);
+	// 情報キューの初期化
+	InitializeInfoQueue();
+
 	// コマンド関連の初期化
 	CreateCommand();
 	assert(commandList_ != nullptr);
@@ -513,6 +560,54 @@ void DirectXCommon::WaitForGPU(){
 		assert(SUCCEEDED(hr_));
 		WaitForSingleObject(fenceEvent_, INFINITE);
 	}
+}
+// デバッグレイヤーの初期化
+void DirectXCommon::InitializeDebugLayer(){
+
+#ifdef _DEBUG
+
+	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
+	if ( SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))) ) {
+		// デバックレイヤーを有効化する
+		debugController->EnableDebugLayer();
+		// さらにGPU側でもチェックを行うようにする
+		debugController->SetEnableGPUBasedValidation(TRUE);
+	}
+#endif // _DEBUG
+
+
+}
+/// InfoQueueの初期化
+void DirectXCommon::InitializeInfoQueue(){
+#ifdef _DEBUG
+
+	Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
+	if ( SUCCEEDED(device_->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
+		// やばいエラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+		// エラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+		// 警告時に泊まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+		// 抑制するメッセージのＩＤ
+		D3D12_MESSAGE_ID denyIds[] = {
+			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
+			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE };
+		// 抑制するレベル
+		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+		D3D12_INFO_QUEUE_FILTER filter {};
+		filter.DenyList.NumIDs = _countof(denyIds);
+		filter.DenyList.pIDList = denyIds;
+		filter.DenyList.NumSeverities = _countof(severities);
+		filter.DenyList.pSeverityList = severities;
+		// 指定したメッセージの表示wp抑制する
+		infoQueue->PushStorageFilter(&filter);
+	}
+
+#endif // _DEBUG
+
+
 }
 
 

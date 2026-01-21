@@ -2,7 +2,7 @@
 
 
 
-
+// 初期化
 void TextureManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCommon,SrvManager* srvManager){
 	this->device_ = device;
 	this->dxCommon_ = dxCommon;
@@ -14,8 +14,15 @@ void TextureManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCo
 
 }
 
+// 終了処理
+void TextureManager::Finalize(){
+	// テクスチャデータ解放
+	textureDatas.clear();
+	// 中間リソース解放
+	intermediateResources_.clear();
+}
 
-
+// 画像ファイルを読み込み、ScratchImage 形式で返す
 DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 
 	// 1. 画像ファイルを読み込む

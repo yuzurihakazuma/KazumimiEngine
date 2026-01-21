@@ -14,7 +14,6 @@
 #include <numbers>
 #include<sstream>
 #include <wrl.h>
-#include <xaudio2.h>
 #define DIRECTINPUT_VERSION 0x0800 // DirectInputのバージョンを指定
 #include <dinput.h>
 // Debug用のあれやこれを使えるようにする
@@ -63,194 +62,30 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "ModelManager.h"
 #include "Camera.h"
 #include "ParticleManager.h"
+#include "AudioManager.h"
+#include "ResourceFactory.h"
+#include "ResourceLeakChecker.h"
 using namespace logs;
 using namespace MatrixMath;
 
 
-
-
-//struct Material{
-//	Vector4 color;
-//	int32_t enableLighting;
-//	float padding[3];
-//	Matrix4x4 uvTransfrom; // UV変換行列
-//};
-//
-//struct TransformationMatrix{
-//	Matrix4x4 WVP;
-//	Matrix4x4 World;
-//};
-
-
-struct DirectionalLight{
-	Vector4 color; // ライトの色
-	Vector3 direction; // ライトの向き
-	float intensity; // 輝度
-
-};
-//
-//struct MaterialData{
-//	std::string textrueFilePath; // テクスチャファイルのパス
-//
-//};
-//
-//struct ModelData{
-//	std::vector<VertexData> vertices; // 頂点データ
-//	std::vector<uint32_t> indices;
-//	MaterialData material;
-//};
-// チャンクヘッダ
-struct ChunkHeader{
-	char id[4]; // チャンクID
-	int32_t size; // チャンクのサイズ
-};
-// RIFFヘッダチャンク
-struct RiffHeader{
-	ChunkHeader chunk; // RIFF
-	char type[4]; // WAVE
-};
-// FMTチャンク
-struct ForamatChunk{
-	ChunkHeader chunk; // FMT
-	WAVEFORMATEX fmt;  // 波形フォーマット
-
-};
-// 音声データ
-struct SoundData{
-	// 波型フォーマット
-	WAVEFORMATEX wfex;
-	// バッファの先頭アドレス
-	BYTE* pBuffer;
-	// バッファのサイズ
-	unsigned int bufferSize;
-
-};
-
 LogManager logManager;// ログマネージャーのインスタンス
 Input input; // 入力クラスのインスタンス
-
-
 
 std::random_device seedGenerator; // 乱数の種を生成するオブジェクト
 std::mt19937 randomEngine(seedGenerator()); // メルセンヌ・ツイスタの乱数エンジン
 
-
-
-
-
-#pragma region リソースリークチェック
-
-struct D3DResourceLeakChecker{
-	~D3DResourceLeakChecker(){
-		Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
-		if ( SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug))) ) {
-			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-			debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
-			debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
-		}
-	}
-
-
-};
-
-#pragma endregion
-
-
-
-#pragma region 音声データ関数
-
-SoundData SoundLoadWave(const char* filename){
-	std::ifstream file(filename, std::ios::binary);
-	assert(file.is_open());
-
-	// RIFFヘッダー確認
-	RiffHeader riff;
-	file.read(( char* ) &riff, sizeof(riff));
-	assert(strncmp(riff.chunk.id, "RIFF", 4) == 0);
-	assert(strncmp(riff.type, "WAVE", 4) == 0);
-
-	WAVEFORMATEX wfex = {};
-	BYTE* pBuffer = nullptr;
-	uint32_t bufferSize = 0;
-
-	// チャンク走査
-	ChunkHeader chunk;
-	while ( file.read(( char* ) &chunk, sizeof(chunk)) ) {
-		if ( strncmp(chunk.id, "fmt ", 4) == 0 ) {
-			assert(chunk.size <= sizeof(WAVEFORMATEX));
-			file.read(( char* ) &wfex, chunk.size);
-		} else if ( strncmp(chunk.id, "data", 4) == 0 ) {
-			pBuffer = new BYTE[chunk.size];
-			file.read(( char* ) pBuffer, chunk.size);
-			bufferSize = chunk.size;
-		} else {
-			// JUNK、LISTなどはスキップ
-			file.seekg(chunk.size, std::ios_base::cur);
-		}
-
-		// 目的の両方を読み込んだら抜ける
-		if ( wfex.cbSize != 0 && pBuffer != nullptr ) {
-			break;
-		}
-	}
-
-	file.close();
-
-	SoundData soundData = {};
-	soundData.wfex = wfex;
-	soundData.pBuffer = pBuffer;
-	soundData.bufferSize = bufferSize;
-	return soundData;
-}
-
-void SoundUnload(SoundData* soundData){
-	if ( soundData->pBuffer ) {
-		delete[] soundData->pBuffer;
-		soundData->pBuffer = nullptr;
-	}
-	soundData->bufferSize = 0;
-	soundData->wfex = {};
-}
-// 音声再生関数
-void SoundPlayWave(IXAudio2* xAudio2, const SoundData& soundData){
-	// XAudio2 が無効（初期化失敗など）なら再生せずリターン
-	if ( !xAudio2 ) {
-		OutputDebugStringA("[エラー] SoundPlayWave: xAudio2 が null です。\n");
-		return;
-	}
-
-	HRESULT result;
-
-	// SourceVoice（個別の音声再生チャンネル）を生成
-	// soundData.wfex は再生する音声のフォーマット情報
-	IXAudio2SourceVoice* pSourceVoice = nullptr;
-	result = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
-	if ( FAILED(result) ) {
-		OutputDebugStringA("[エラー] CreateSourceVoice に失敗\n");
-		return;
-	}
-
-	// 再生用のバッファ構造体を用意
-	XAUDIO2_BUFFER buf = {};
-	buf.pAudioData = soundData.pBuffer;     // 音声データの先頭ポインタ
-	buf.AudioBytes = soundData.bufferSize;  // 音声データのサイズ（バイト単位）
-	buf.Flags = XAUDIO2_END_OF_STREAM;      // 再生終了を通知するフラグ
-
-	// SourceVoice にバッファを登録（実際の音声データを送る）
-	result = pSourceVoice->SubmitSourceBuffer(&buf);
-
-	// 音声再生開始
-	result = pSourceVoice->Start();
-}
-
-
-
-
-#pragma endregion
-
-
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
+
+	//ResourceLeakChecker leakChecker; // リソースリークチェッカーのインスタンス
+
+#ifdef _DEBUG
+	//ResourceLeakChecker leakChecker;
+
+#endif // _DEBUG
+
+
 
 	// COMの初期化
 	CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -260,9 +95,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	CrashDumper::Install();
 
 	// --------------------
-    // ウィンドウ生成
-    // --------------------
- 
+	// ウィンドウ生成
+	// --------------------
+
 	// ウィンドウのタイトル
 	WindowProc windowProc;
 
@@ -283,16 +118,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// DirectX共通初期化
 	dxCommon->Initialize(&windowProc);
-	
+
 	dxCommon->GetShaderCompiler().Initialize();
-	
+
 	// DirectXデバイスの取得
 	ID3D12Device* device = dxCommon->GetDevice();
 	assert(device != nullptr && "Failed to create D3D12 Device. Check Graphics Tools.");
 	// コマンドリストの取得
 	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
 	assert(commandList != nullptr);
-	
+
 	// --------------------
 	// SRV マネージャ
 	// --------------------
@@ -310,8 +145,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 	// --------------------
-    // ResourceFactory
-    // --------------------
+	// ResourceFactory
+	// --------------------
 
 	ResourceFactory* resourceFactory = new ResourceFactory(); // リソースファクトリーのインスタンス
 
@@ -333,16 +168,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	);
 
 	textureManager->SetResourceFactory(resourceFactory);
-	
+
 	// --------------------
-    // PipelineManager
-    // --------------------
+	// PipelineManager
+	// --------------------
 
 	PipelineManager::GetInstance()->Initialize(dxCommon);
 
 	// --------------------
-    // Sprite / Obj3d Common
-    // --------------------
+	// Sprite / Obj3d Common
+	// --------------------
 
 	// スプライト共通初期化クラスのインスタンス
 	SpriteCommon* spriteCommon = new SpriteCommon();
@@ -407,12 +242,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 
 	Sprite* sprite = new Sprite();
-	
+
 
 	// --------------------
-    // ImGui
-    // --------------------
-	
+	// ImGui
+	// --------------------
+
 	// ImGui 管理クラス
 	ImGuiManager imgui;
 	imgui.Initialize(&windowProc, dxCommon);
@@ -424,10 +259,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 入力クラスの初期化
 	input.Initialize(windowProc.GetHwnd());
 
-	
-	D3DResourceLeakChecker leakCheck;
 
-	
+	//ResourceLeakChecker leakCheck;
+
+
 
 	// リソースチェック
 	Microsoft::WRL::ComPtr<IDXGIDebug1> debug;
@@ -437,15 +272,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	
 
-
-
-
-	
-
-	//
-	//
 	//#ifdef _DEBUG
 	//
 	//	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
@@ -461,7 +288,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 
 
-	
+	//
 
 
 
@@ -494,32 +321,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	//#endif // _DEBUG
 
 
-#pragma region Particles
-
-	//// パーティクルの数を定義
-	//const uint32_t kNumMaxInstance = 10;
-	//// Instancing用のTransformationMatrixリソースを作る
-	//Microsoft::WRL::ComPtr<ID3D12Resource> instancingRessource = resourceFactory->CreateBufferResource(sizeof(ParticleForGPU) * kNumMaxInstance);
-	//// 書き込むためのアドレスを取得
-	//ParticleForGPU* instancingData = nullptr;
-	//instancingRessource->Map(0, nullptr, reinterpret_cast< void** >( &instancingData ));
-
-	//Particle particles[kNumMaxInstance];
-	//std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
-
-	//// 単位行列を書き込んでおく
-	//for ( uint32_t index = 0; index < kNumMaxInstance; ++index ){
-
-
-	//	particles[index] = MakeNewParticle(randomEngine);
-	//	instancingData[index].WVP = MakeIdentity4x4();
-	//	instancingData[index].World = MakeIdentity4x4();
-	//	instancingData[index].color = particles[index].color;
-
-	//}
-
-#pragma endregion
-
 #pragma region CommandList
 
 
@@ -534,7 +335,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// 3Dオブジェクト共通の描画前処理
 	obj3dCommon->PreDraw(commandList);
 
-	
+
 
 
 
@@ -603,7 +404,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #pragma endregion
 
 #pragma region Spriteの実装
-	
+
 	std::vector<Sprite*> sprites;
 	// 5枚生成するループ
 	for ( uint32_t i = 0; i < 5; ++i ) {
@@ -707,16 +508,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	// --------------------
 	// オブジェクトの生成・配置
 	// --------------------
-	
+
 	// カメラの生成
-	Camera* camera = new Camera(windowProc.GetClientWidth(),windowProc.GetClientHeight());
-	
+	Camera* camera = new Camera(windowProc.GetClientWidth(), windowProc.GetClientHeight());
+
 	camera->SetTranslation({ 0.0f, 0.0f, -10.0f }); // 少し後ろに下げる
 	// 回転はなし
 	camera->SetRotation({ 0.0f,0.0f,0.0f });
-	
-	
-	
+
+
+
 	// 複数のObj3dを管理するリスト（配列）
 	std::vector<Obj3d*> object3ds;
 
@@ -733,12 +534,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	groundObj->SetTranslation(groundPos);
 	groundObj->SetScale(groundScale);
 	object3ds.push_back(groundObj);
-	
 
 
-	
-	
-	
+
+
+
+
 	//// "Player" で登録したモデルを取り出す
 	//Model* modelPlayer = ModelManager::GetInstance()->FindModel("Player");
 
@@ -807,20 +608,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 #pragma region サウンド
 
-	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
-	IXAudio2MasteringVoice* masterVoice = nullptr;
-	// XAudioエンジンのinstanceを生成
-	HRESULT result = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	// マスターボイスをを生成
-	result = xAudio2->CreateMasteringVoice(&masterVoice);
+	// ---------------------------------------
+	// オーディオの初期化
+	// ---------------------------------------
 
-	// 音声読み込み
-	SoundData soundData1 = SoundLoadWave("resources/BGM.wav");
-	if ( FAILED(result) ) {
-		OutputDebugStringA("[エラー] XAudio2 の初期化に失敗\n");
-		xAudio2 = nullptr;
-		// ここで return またはフラグ立てしてもOK
-	}
+
+	AudioManager::GetInstance()->Initialize();
+
+	// 読み込みたいファイル名を定義（変数にしておくと便利です）
+	std::string soundFile = "resources/BGM.wav";
+
+	// 読み込み実行
+	AudioManager::GetInstance()->LoadWave(soundFile);
 
 #pragma endregion
 
@@ -839,11 +638,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 		// キーボード情報の取得開始
 
-		// スペースキーが押されたら音を鳴らす
 		if ( input.Triggerkey(DIK_SPACE) ){
-			SoundPlayWave(xAudio2.Get(), soundData1);
-
+			// クラス経由で再生（引数はファイル名）
+			AudioManager::GetInstance()->PlayWave(soundFile);
 		}
+
 		// Pキーが押されたらパーティクルを発生させる
 		if ( input.Triggerkey(DIK_P) ) {
 			// グループ名, 発生位置, 発生数
@@ -887,7 +686,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 #ifdef USE_IMGUI
 
 
-		
+
 		// ImGuiの開始処理
 		imgui.Begin();
 
@@ -908,44 +707,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		groundObj->SetScale(groundScale);
 
 
-		////ImGui::ColorEdit4("Color", &materialData->color.x);
-		//ImGui::SliderAngle("RotateX", &transformSprite.rotate.x, -500, 500);
-		//ImGui::SliderAngle("RotateY", &transformSprite.rotate.y, -500, 500);
-		//ImGui::SliderAngle("RotateZ", &transformSprite.rotate.z, -500, 500);
-		//ImGui::DragFloat3("transform", &transformSprite.translate.x, -180, 180);
-		//ImGui::DragFloat3("transformSprite", &transform.translate.x);
-		//ImGui::SliderAngle("RotateXSprite", &transform.rotate.x, -500, 500);
-		//ImGui::SliderAngle("RotateYSprite", &transform.rotate.y, -500, 500);
-		//ImGui::SliderAngle("RotateZSprite", &transform.rotate.z, -500, 500);
-
-		//if ( ImGui::Checkbox("useMonsterBall", &useMonsterBall) ) {
-		//	if ( useMonsterBall ) {
-		//		useFence = false;
-		//		useCircle = false;
-		//	}
-		//}
-
-		//if ( ImGui::Checkbox("fence", &useFence) ) {
-		//	if ( useFence ) {
-		//		useMonsterBall = false;
-		//		useCircle = false;
-		//	}
-		//}
-
-		//if ( ImGui::Checkbox("circle", &useCircle) ) {
-		//	if ( useCircle ) {
-		//		useMonsterBall = false;
-		//		useFence = false;
-		//	}
-		//}
-
-		//ImGui::ColorEdit4("LightColor", &directionalLightData->color.x);
-		//ImGui::SliderFloat("LightX", &directionalLightData->direction.x, -10.0f, 10.0f);
-		//ImGui::SliderFloat("LightY", &directionalLightData->direction.y, -10.0f, 10.0f);
-		//ImGui::SliderFloat("LightZ", &directionalLightData->direction.z, -10.0f, 10.0f);
-		//ImGui::DragFloat2("UVTransform", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-		//ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-		//ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
+		
 
 #endif // USE_IMGUI
 
@@ -1010,9 +772,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		for ( Obj3d* obj : object3ds ) {
 			obj->Draw();
 		}
-		
+
 		// パーティクル用パイプラインに切り替え
-		PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle); 
+		PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 		// 2. 描画コマンド発行
 		ParticleManager::GetInstance()->Draw(commandList);
 
@@ -1021,7 +783,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 		// ⑤ ImGui end → 描画コマンドを積む
 		imgui.End(commandList);
 
-		
+
 #endif // USE_IMGUI
 
 		// DirectX 描画後処理（Present / フェンス）
@@ -1031,22 +793,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 			break;
 		}
 	}
-#ifdef USE_IMGUI
 
 	// imguiの終了処理
 	imgui.Shutdown();
 
-#endif // USE_IMGUI
-
 
 #pragma region オブジェクトを解放
 
-	//CloseHandle(fenceEvent);
-	//XAudio2解放
-	xAudio2.Reset();
-	// 音声データ解放
-	SoundUnload(&soundData1);
 
+	// オーディオの終了処理
+	AudioManager::GetInstance()->Finalize();
+	ModelManager::GetInstance()->Finalize();
+	ParticleManager::GetInstance()->Finalize();
+	TextureManager::GetInstance()->Finalize();
+	PipelineManager::GetInstance()->Finalize();
 
 	CloseWindow(windowProc.GetHwnd());
 
@@ -1056,25 +816,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	logManager.Finalize();
 
-	// ModelManager の終了処理を呼ぶ
-	ModelManager::GetInstance()->Finalize();
-
-
+	
 	delete camera;
 	// ポインタの解放
-	//for ( auto obj : object3ds ) delete obj;
-	for ( auto sprite : sprites ) delete sprite;
-	
+	for ( auto obj : object3ds ){
+		delete obj;
+	}
+	for ( auto sprite : sprites ){
+		delete sprite;
+	}
+
+	textrueResource.resource.Reset();
+	textrueResource2.resource.Reset();
+	textrueResource3.resource.Reset();
+	textrueResource5.resource.Reset();
+	deptStencilResource.Reset();
+
+
+	delete sprite;
 	delete obj3dCommon;
 	delete spriteCommon;
 	delete resourceFactory;
 	delete srvManager;
-	delete dxCommon;
-
+	
 
 #pragma endregion
 
 
+	delete dxCommon;
 
 
 	// COMの終了処理

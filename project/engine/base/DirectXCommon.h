@@ -26,6 +26,8 @@ public:
 	/// <summary>初期化
 	void Initialize(WindowProc* windowProc);
 
+	void Finalize(); // 終了処理
+
 	// <summary>描画前処理
 	void PreDraw();
 	// <summary>描画後処理
@@ -105,7 +107,7 @@ public:
 		return kBackBufferCount;
 	}
 
-
+	void ReportLiveObjects(); // ライブオブジェクトのレポート
 
 private:
 
@@ -143,6 +145,11 @@ private:
 	
 	void WaitForGPU(); // GPUの完了を待つだけの関数
 
+	void InitializeDebugLayer();/// デバッグレイヤーの初期化 (デバイス生成前に呼ぶ)
+
+	void InitializeInfoQueue();/// デバッグ情報キューの初期化 (デバイス生成後に呼ぶ)
+
+	void ReleaseD3DObjects(); // D3D関連オブジェクトの解放
 
 	// -------------------- DXGI・デバイス関連 --------------------
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー
