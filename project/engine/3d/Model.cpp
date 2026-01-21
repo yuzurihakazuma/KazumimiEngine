@@ -125,6 +125,9 @@ void Model::Draw(){
 	// 4. マテリアル定数バッファの設定 (RootParameter 0番)
 	// ※元のObj3d.cppで 0番 に設定していたものです
 	commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+	// プリミティブトポロジの設定（三角形リスト）
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 
 	// 5. テクスチャの設定 (RootParameter 2番)
 	// ※元のObj3d.cppで 2番 に設定していたものです

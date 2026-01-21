@@ -10,6 +10,17 @@
 #include "PipelineType.h"
 #include "ShaderCompiler.h"
 
+void PipelineManager::Finalize(){
+
+	spriteRootSignature_.Reset();
+	spritePipelineState_.Reset();
+	object3DRootSignature_.Reset();
+	object3DPipelineState_.Reset();
+	particleRootSignature_.Reset();
+	particlePipelineState_.Reset();
+}
+
+
 void PipelineManager::Initialize(DirectXCommon* dxCommon){
 		
 	assert(dxCommon);

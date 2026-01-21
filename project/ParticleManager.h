@@ -35,7 +35,7 @@ struct ParticleForGPU{
     Vector4 color;
 };
 
-// ★スライド通り: パーティクルグループ構造体
+// パーティクルグループ構造体
 struct ParticleGroup{
     // マテリアルデータ
     std::string textureFilePath; // テクスチャパス
@@ -51,7 +51,7 @@ struct ParticleGroup{
     ParticleForGPU* instancingData = nullptr; // 書き込み用ポインタ
 };
 
-// ★スライド通り: マネージャクラス
+// マネージャクラス
 class ParticleManager{
 public: // 静的メンバ関数
     // シングルトンインスタンス取得
@@ -70,12 +70,15 @@ public: // メンバ関数
     // 描画
     void Draw(ID3D12GraphicsCommandList* commandList);
 
-    // ★スライド通り: パーティクルグループの生成
+    //  パーティクルグループの生成
     // name: グループ名 ("Smoke"など), textureFilePath: テクスチャのパス
     void CreateParticleGroup(const std::string& name, const std::string& textureFilePath);
 
     // パーティクルの発生 (グループ名を指定して発生させる)
     void Emit(const std::string& name, const Vector3& position, uint32_t count);
+
+    // 終了処理
+    void Finalize();
 
 private: // シングルトン用（コンストラクタ隠蔽）
     ParticleManager() = default;
@@ -92,7 +95,7 @@ private: // メンバ変数
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
 
-    // ★スライド通り: パーティクルグループのコンテナ
+    //  パーティクルグループのコンテナ
     // グループ名をキーにして複数のグループを管理する
     std::unordered_map<std::string, ParticleGroup> particleGroups_;
 
