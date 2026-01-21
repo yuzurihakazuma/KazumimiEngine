@@ -12,6 +12,36 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 
 	// モデルデータの作成
     CreateModel();
+
+    D3D12_HEAP_PROPERTIES uploadHeapProps {};
+    uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    D3D12_RESOURCE_DESC resourceDesc {};
+    resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resourceDesc.Width = ( sizeof(Vector4) + 0xFF ) & ~0xFF;
+    resourceDesc.Height = 1;
+    resourceDesc.DepthOrArraySize = 1;
+    resourceDesc.MipLevels = 1;
+    resourceDesc.SampleDesc.Count = 1;
+    resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+    HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+        &uploadHeapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&materialResource_)
+    );
+    assert(SUCCEEDED(hr));
+
+    // 白色(1,1,1,1)を書き込んでおく
+    Vector4* data = nullptr;
+    materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &data ));
+    *data = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+    materialResource_->Unmap(0, nullptr);
+
+
 }
 
 
@@ -24,6 +54,8 @@ void ParticleManager::Finalize(){
     particleGroups_.clear();
     // 共通リソースの解放
 	vertexResource_.Reset();
+
+    materialResource_.Reset();
 
 }
 
@@ -92,6 +124,8 @@ void ParticleManager::Update(Camera* camera){
 void ParticleManager::Draw(ID3D12GraphicsCommandList* commandList){
     // 頂点バッファをセット (全グループ共通)
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+
+    commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // グループごとに描画命令を発行
     for ( auto& [name, group] : particleGroups_ ) {

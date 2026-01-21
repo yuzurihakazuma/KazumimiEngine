@@ -5,9 +5,6 @@
 #include <format>
 #include "LogManager.h"
 
-extern logs::LogManager logManager;
-
-
 bool ShaderCompiler::Initialize(){
 
 	HRESULT hr;
@@ -17,7 +14,7 @@ bool ShaderCompiler::Initialize(){
 	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
 	assert(SUCCEEDED(hr));
 	if ( FAILED(hr) ) {
-		logManager.Log("Failed to create DxcUtils\n");
+		logManager_.Log("Failed to create DxcUtils\n");
 		return false;
 	}
 
@@ -26,7 +23,7 @@ bool ShaderCompiler::Initialize(){
 	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
 	assert(SUCCEEDED(hr));
 	if ( FAILED(hr) ) {
-		logManager.Log("Failed to create DxcCompiler\n");
+		logManager_.Log("Failed to create DxcCompiler\n");
 		return false;
 	}
 
@@ -35,7 +32,7 @@ bool ShaderCompiler::Initialize(){
 	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
 	assert(SUCCEEDED(hr));
 	if ( FAILED(hr) ) {
-		logManager.Log("Failed to create IncludeHandler\n");
+		logManager_.Log("Failed to create IncludeHandler\n");
 		return false;
 	}
 
@@ -48,7 +45,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 	// 1.hlslファイルを読み込む
 
 	// これからシェーダーをコンパイルする旨をログに出す
-	logManager.Log(logManager.ConvertString(std::format(L"Begin CompileShader,path:{},profile:{}\n", filePath, profile)));
+	logManager_.Log(logManager_.ConvertString(std::format(L"Begin CompileShader,path:{},profile:{}\n", filePath, profile)));
 	// hislファイルを読む
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
 	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &shaderSource);
@@ -87,7 +84,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
 	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
 	if ( shaderError != nullptr && shaderError->GetStringLength() != 0 ) {
-		logManager.Log(shaderError->GetStringPointer());
+		logManager_.Log(shaderError->GetStringPointer());
 		// 警告・エラーダメゼッタイ
 		assert(false);
 	}
@@ -99,7 +96,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 	assert(SUCCEEDED(hr));
 	// 成功したログを出す
-	logManager.Log(logManager.ConvertString(std::format(L"Compile Succeeded,path:{},profile:{}\n", filePath, profile)));
+	logManager_.Log(logManager_.ConvertString(std::format(L"Compile Succeeded,path:{},profile:{}\n", filePath, profile)));
 	// 実行用のパイナリを返却
 	return shaderBlob;
 

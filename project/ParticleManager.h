@@ -95,6 +95,8 @@ private: // メンバ変数
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
 
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
+
     //  パーティクルグループのコンテナ
     // グループ名をキーにして複数のグループを管理する
     std::unordered_map<std::string, ParticleGroup> particleGroups_;
