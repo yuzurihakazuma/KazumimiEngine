@@ -139,10 +139,10 @@ void Game::Draw(){
 	obj3dCommon_->PreDraw(commandList);
 
 	// 描画
-	sprite_->Draw();
+	/*sprite_->Draw();
 	for ( Obj3d* obj : object3ds_ ) {
 		obj->Draw();
-	}
+	}*/
 
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	
