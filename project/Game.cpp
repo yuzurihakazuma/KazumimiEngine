@@ -15,7 +15,7 @@ void Game::Initialize(){
 
 	// モデル・テクスチャロード
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
-	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/circle.png");
+	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 
 	auto commandList = dxCommon_->GetCommandList();
 	textureResource_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
