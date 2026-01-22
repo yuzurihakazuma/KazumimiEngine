@@ -4,7 +4,7 @@
 #include <wrl.h>
 #include<dxcapi.h>
 #include <string>
-
+#include "LogManager.h"
 #pragma comment(lib,"dxcompiler.lib")
 
 // シェーダーコンパイラー
@@ -35,6 +35,12 @@ private:
     Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;             // DXCユーティリティ
     Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;      // DXCコンパイラ本体
     Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_; // インクルードハンドラ
+
+    // -------------------- logManager_ --------------------
+
+
+    logs::LogManager logManager_;
+
 
 };
 

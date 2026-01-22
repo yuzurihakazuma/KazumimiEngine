@@ -107,7 +107,7 @@ public:
 		return kBackBufferCount;
 	}
 
-	void ReportLiveObjects(); // ライブオブジェクトのレポート
+	//void ReportLiveObjects(); // ライブオブジェクトのレポート
 
 private:
 
@@ -149,7 +149,7 @@ private:
 
 	void InitializeInfoQueue();/// デバッグ情報キューの初期化 (デバイス生成後に呼ぶ)
 
-	void ReleaseD3DObjects(); // D3D関連オブジェクトの解放
+	//void ReleaseD3DObjects(); // D3D関連オブジェクトの解放
 
 	// -------------------- DXGI・デバイス関連 --------------------
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー

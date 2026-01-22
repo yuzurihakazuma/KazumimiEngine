@@ -80,6 +80,10 @@ public: // メンバ関数
     // 終了処理
     void Finalize();
 
+    size_t GetParticleCount(const std::string& name) const;
+    uint32_t GetInstanceCount(const std::string& name) const;
+
+
 private: // シングルトン用（コンストラクタ隠蔽）
     ParticleManager() = default;
     ~ParticleManager() = default;
@@ -94,6 +98,8 @@ private: // シングルトン用（コンストラクタ隠蔽）
 private: // メンバ変数
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 
     //  パーティクルグループのコンテナ
     // グループ名をキーにして複数のグループを管理する
