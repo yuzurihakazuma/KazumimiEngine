@@ -7,7 +7,7 @@ struct ParticleForGPU
 };
 
 // VS用：インスタンシング行列（t0）
-StructuredBuffer<ParticleForGPU> gParticle : register(t0);
+StructuredBuffer<ParticleForGPU> gParticle : register(t1);
 
 // 頂点シェーダー入力
 struct VertexShaderInput

@@ -125,7 +125,7 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 // ルートシグネチャの生成 Particle用
 void PipelineManager::CreateParticleRootSignature(){
 
-	// ★パーティクルはインスタンシングするので true！
+	// パーティクルはInstancingを使うので true
 	CreateRootSignatureCommon(particleRootSignature_, true);
 
 
@@ -175,7 +175,7 @@ void PipelineManager::CreateRootSignatureCommon(Microsoft::WRL::ComPtr<ID3D12Roo
 		// パーティクル用 (Instancing / DescriptorTable)
 		// staticにしてメモリを保持
 		static D3D12_DESCRIPTOR_RANGE descriptorRangeInstancing[1] = {}; // インスタンシング用Range
-		descriptorRangeInstancing[0].BaseShaderRegister = 0; // 0から始める
+		descriptorRangeInstancing[0].BaseShaderRegister = 1; // 0から始める
 		descriptorRangeInstancing[0].NumDescriptors = 1; // 数は1つ
 		descriptorRangeInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVを使う
 		descriptorRangeInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND; // offsetを自動計算

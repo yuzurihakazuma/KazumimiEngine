@@ -80,6 +80,10 @@ public: // メンバ関数
     // 終了処理
     void Finalize();
 
+    size_t GetParticleCount(const std::string& name) const;
+    uint32_t GetInstanceCount(const std::string& name) const;
+
+
 private: // シングルトン用（コンストラクタ隠蔽）
     ParticleManager() = default;
     ~ParticleManager() = default;

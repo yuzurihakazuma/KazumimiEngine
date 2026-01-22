@@ -122,6 +122,9 @@ void ParticleManager::Update(Camera* camera){
 }
 
 void ParticleManager::Draw(ID3D12GraphicsCommandList* commandList){
+
+    srvManager_->PreDraw();
+
     // 頂点バッファをセット (全グループ共通)
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 
@@ -304,4 +307,20 @@ Particle ParticleManager::MakeNewParticle(std::mt19937& engine, const Vector3& p
     p.currentTime = 0.0f;
 
     return p;
+}
+
+size_t ParticleManager::GetParticleCount(const std::string& name) const{
+    auto it = particleGroups_.find(name);
+    if ( it == particleGroups_.end() ) {
+        return 0;
+    }
+    return it->second.particles.size();
+}
+
+uint32_t ParticleManager::GetInstanceCount(const std::string& name) const{
+    auto it = particleGroups_.find(name);
+    if ( it == particleGroups_.end() ) {
+        return 0;
+    }
+    return it->second.kNumInstance;
 }
