@@ -60,9 +60,17 @@ void Obj3d::Update(){
 		// カメラがないときは、とりあえずワールド行列だけ入れておく（描画は崩れるがエラー落ち防止）
 		worldViewProjectionMatrix = worldMatrix;
 	}
+	// ワールド行列の逆行列
+	Matrix4x4 worldInverse = Inverse(worldMatrix);
+
+	
+	// 逆行列の転置行列
+	Matrix4x4 worldInverseTranspose = Transpose(worldInverse);
+
 	// 定数バッファへ転送
 	transformationMatrixData_->World = worldMatrix;
 	transformationMatrixData_->WVP = worldViewProjectionMatrix;
+	transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
 }
 
 void Obj3d::Draw(){

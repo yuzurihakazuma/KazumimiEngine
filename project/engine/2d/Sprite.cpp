@@ -113,7 +113,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
 	// 単位行列を書き込んでおく
 	transformationMatirxData_->WVP = MakeIdentity4x4();
 	transformationMatirxData_->World = MakeIdentity4x4();
-
+	transformationMatirxData_->WorldInverseTranspose = MakeIdentity4x4();
 }
 
 void Sprite::Update(){

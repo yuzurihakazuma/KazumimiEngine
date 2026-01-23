@@ -153,7 +153,7 @@ Matrix4x4 MatrixMath::Inverse(const Matrix4x4& m) {
     return result;
 }
 // 転置行列
-Matrix4x4 MatrixMath::Transpoce(const Matrix4x4& m) {
+Matrix4x4 MatrixMath::Transpose(const Matrix4x4& m) {
     Matrix4x4 result = {};
 
     for (int row = 0; row < 4; ++row) {

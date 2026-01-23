@@ -76,6 +76,7 @@ private:
 	struct TransformationMatrix{
 		Matrix4x4 WVP;
 		Matrix4x4 World;
+		Matrix4x4 WorldInverseTranspose;
 	};
 
 	SpriteCommon* spriteCommon = nullptr; // 所有しない参照
