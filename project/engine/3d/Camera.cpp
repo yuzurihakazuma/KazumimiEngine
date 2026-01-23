@@ -22,12 +22,6 @@ Camera::Camera(int windowWidth, int windowHeight)
 
 }
 
-
-
-
-
-
-
 void Camera::Update(){
 
 	// 1. ワールド行列の更新 (カメラの場所・角度)

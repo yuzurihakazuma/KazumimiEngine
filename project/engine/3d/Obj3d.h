@@ -19,13 +19,6 @@ public:
 		Matrix4x4 World;
 	};
 
-	// ※ライト情報もシーン上の配置情報なのでここに残す（あるいはSceneクラスが持つ）
-	struct DirectionalLight{
-		Vector4 color;     // ライトの色
-		Vector3 direction; // ライトの向き
-		float intensity;   // 輝度
-	};
-
 	/// <summary>
 	/// 初期化
 	/// </summary>
@@ -81,11 +74,6 @@ private:
 	// 座標変換行列リソース (WVP / World)
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource_;
 	TransformationMatrix* transformationMatrixData_ = nullptr;
-
-	// 平行光源リソース
-	Microsoft::WRL::ComPtr<ID3D12Resource> directionalResourceLight_;
-	DirectionalLight* directionalLightData_ = nullptr;
-
 
 	const Camera* camera_ = nullptr; // 所有しない参照
 

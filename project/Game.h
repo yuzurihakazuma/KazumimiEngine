@@ -1,6 +1,6 @@
 #pragma once
 #include "Framework.h" 
-
+#include "Matrix4x4.h"
 #include "Camera.h"
 #include "Sprite.h"
 #include "Obj3d.h"
@@ -39,9 +39,9 @@ private:
 	// ゲーム用変数
 	Vector3 groundPos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 groundScale_ = { 1.0f, 1.0f, 1.0f };
-
+	// 球オブジェクト用変数
 	Vector3 spherePos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 sphereScale_ = { 1.0f, 1.0f, 1.0f };
-
+	// BGMファイルパス
 	std::string bgmFile_ = "resources/BGM.wav";
 };

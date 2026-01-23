@@ -1,5 +1,7 @@
 #include "Game.h"
+#include "Matrix4x4.h"
 
+using namespace MatrixMath;
 void Game::Initialize(){
 
 	Framework::Initialize();
@@ -59,7 +61,7 @@ void Game::Initialize(){
 	fence_->Initialize(obj3dCommon_, modelGround);
 	fence_->SetCamera(camera_);
 	// スケール調整
-	object3ds_.push_back(fence_);// 地面追加
+	//object3ds_.push_back(fence_);// 地面追加
 
 
 	sphere_->Initialize(obj3dCommon_, modelSphere);
@@ -101,11 +103,11 @@ void Game::Update(){
 		sphere_->SetTranslation(spherePos_);
 		sphere_->SetScale(sphereScale_);
 	}
-	// オブジェクト更新
-	if ( fence_ ) {
-		fence_->SetTranslation(groundPos_);
-		fence_->SetScale(groundScale_);
-	}
+	//// オブジェクト更新
+	//if ( fence_ ) {
+	//	fence_->SetTranslation(groundPos_);
+	//	fence_->SetScale(groundScale_);
+	//}
 	// オブジェクト更新
 	for ( Obj3d* obj : object3ds_ ) {
 		obj->Update();
@@ -120,6 +122,18 @@ void Game::Update(){
 	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
 	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
 
+
+
+	if ( ImGui::TreeNode("Directional Light") ) {
+		auto light = obj3dCommon_->GetLightData();
+
+		ImGui::DragFloat3("Direction", &light->direction.x, 0.01f);
+		ImGui::ColorEdit3("Color", &light->color.x);
+		ImGui::DragFloat("Intensity", &light->intensity, 0.01f, 0.0f, 10.0f);
+
+		light->direction = Normalize(light->direction);
+		ImGui::TreePop();
+	}
 	
 	if ( ImGui::TreeNode("Camera") ) {
 		// 1. 現在のカメラのTransformを取得（コピーを作成）
@@ -137,6 +151,9 @@ void Game::Update(){
 		ImGui::TreePop();
 	}
 	
+
+
+
 	ImGui::Text("=== Particle Debug ===");
 
 	size_t particleCount =
