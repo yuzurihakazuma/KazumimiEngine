@@ -114,7 +114,7 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		L"resources/shaders/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
-		D3D12_CULL_MODE_NONE,       // (※必要に応じてBACKに変更してください)
+		D3D12_CULL_MODE_BACK,       // (※必要に応じてBACKに変更してください)
 		false,                      // (※必要に応じてtrueに変更してください)
 		object3DPipelineState_
 	);

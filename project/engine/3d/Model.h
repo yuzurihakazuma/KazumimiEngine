@@ -45,6 +45,11 @@ public: // メンバ関数
 	/// 初期化
 	/// </summary>
 	void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename);
+	// <summary>
+	/// 球モデルの初期化
+	/// </summary>
+	void InitializeSphere(ModelCommon* modelCommon, int subdivision);
+
 
 	/// <summary>
 	/// 描画
@@ -61,6 +66,8 @@ private: // 内部関数
 
 	// モデルの頂点座標を中心（原点）に合わせる
 	void AdjustModelCenter();
+	// / バッファの作成
+	void CreateBuffers();
 
 private: // メンバ変数
 
