@@ -78,6 +78,12 @@ void Obj3d::Draw(){
 	commandList->SetGraphicsRootConstantBufferView(
 		3, obj3dCommon_->GetLightResource()->GetGPUVirtualAddress()
 	);
+
+	if ( camera_ ) {
+		commandList->SetGraphicsRootConstantBufferView(
+			4, camera_->GetCameraResource()->GetGPUVirtualAddress()
+		);
+	}
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {

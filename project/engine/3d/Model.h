@@ -31,12 +31,13 @@ public: // サブクラス定義
 		std::vector<uint32_t> indices;    // インデックスデータ
 		MaterialData material;            // マテリアルデータ
 	};
-
+	// 定数バッファ用データ構造体
 	struct Material{
-		Vector4 color;
-		int32_t enableLighting;
-		float padding[3];
-		Matrix4x4 uvTransform;
+		Vector4 color;// 材質の色
+		int32_t enableLighting;// ライティングの有効無効
+		float padding[3];// パディング
+		Matrix4x4 uvTransform;// UV変換行列
+		float shininess;// スペキュラの鋭さ
 	};
 
 public: // メンバ関数

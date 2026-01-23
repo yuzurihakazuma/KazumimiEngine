@@ -1,9 +1,11 @@
 #include "Camera.h"
 #include "WindowProc.h"
+#include "DirectXCommon.h"
 using namespace MatrixMath;
 
-Camera::Camera(int windowWidth, int windowHeight)
-	:transform({ 1.0f,1.0f,1.0f, }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,0.0f }) // 初期化
+Camera::Camera(int windowWidth, int windowHeight, DirectXCommon* dxcmmon)
+	: dxCommon_(dxcmmon)
+	,transform({ 1.0f,1.0f,1.0f, }, { 0.0f,0.0f,0.0f }, { 0.0f,0.0f,0.0f }) // 初期化
 	, fovY(0.78f) // 約45度
 	, nearClip(0.1f) // ニアクリップ距離
 	, farClip(100.0f) // ファークリップ距離
@@ -15,6 +17,14 @@ Camera::Camera(int windowWidth, int windowHeight)
 
 	// アスペクト比を計算
 	aspectRatio = float(windowWidth) / float(windowHeight);
+
+	cameraResource_ =
+		dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(CameraForGPU));
+
+	cameraResource_->Map(
+		0, nullptr, reinterpret_cast< void** >( &cameraData_ )
+	);
+
 
 	// 初期化時点でも一度計算しておく
 	Update();
@@ -35,5 +45,8 @@ void Camera::Update(){
 
 	// 4. 合成行列の更新
 	viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
+	// 5. GPU転送用データの更新
+	cameraData_->worldPosition = transform.translate;
+
 
 }

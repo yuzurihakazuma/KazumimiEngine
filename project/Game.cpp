@@ -43,7 +43,7 @@ void Game::Initialize(){
 	dxCommon_->EndCommandRecording();
 
 	// カメラ生成
-	camera_ = new Camera(windowProc_->GetClientWidth(), windowProc_->GetClientHeight());
+	camera_ = new Camera(windowProc_->GetClientWidth(), windowProc_->GetClientHeight(),dxCommon_);
 	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
 
 	// オブジェクト生成
