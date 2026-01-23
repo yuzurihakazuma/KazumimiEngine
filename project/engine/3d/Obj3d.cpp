@@ -28,19 +28,6 @@ void Obj3d::Initialize(Obj3dCommon* obj3dCommon, Model* model){
 	transformationMatrixData_->World = MakeIdentity4x4();
 
 	// ---------------------------------------------------------
-	// 平行光源用のリソースを作る (環境の情報なので Obj3d が持つ)
-	// ---------------------------------------------------------
-	directionalResourceLight_ = dxCommon->GetResourceFactory()->CreateBufferResource(sizeof(DirectionalLight));
-	assert(directionalResourceLight_ != nullptr);
-
-	directionalResourceLight_->Map(0, nullptr, reinterpret_cast< void** >( &directionalLightData_ ));
-
-	// ライトのデフォルト値
-	directionalLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	directionalLightData_->direction = { 0.0f, -1.0f, 0.0f };
-	directionalLightData_->intensity = 1.0f;
-
-	// ---------------------------------------------------------
 	// Transform変数の初期化
 	// ---------------------------------------------------------
 	scale_ = { 1.0f, 1.0f, 1.0f };
@@ -82,14 +69,21 @@ void Obj3d::Draw(){
 
 	// コマンドリスト取得
 	auto commandList = obj3dCommon_->GetDxCommon()->GetCommandList();
-
+	
 	// 1. 座標情報の転送 (WVP) -> RootParameter[1]
 	// ※PipelineManagerの設定（RootSignature）と番号を合わせてください
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
 
 	// 2. ライト情報の転送 -> RootParameter[3]
-	commandList->SetGraphicsRootConstantBufferView(3, directionalResourceLight_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(
+		3, obj3dCommon_->GetLightResource()->GetGPUVirtualAddress()
+	);
 
+	if ( camera_ ) {
+		commandList->SetGraphicsRootConstantBufferView(
+			4, camera_->GetCameraResource()->GetGPUVirtualAddress()
+		);
+	}
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {

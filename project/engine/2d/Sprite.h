@@ -70,6 +70,7 @@ private:
 		int32_t enableLighting;
 		float padding[3];
 		Matrix4x4 uvTransfrom; // UV変換行列
+		float shininess;
 	};
 
 	struct TransformationMatrix{

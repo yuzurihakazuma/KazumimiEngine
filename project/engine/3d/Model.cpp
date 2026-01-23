@@ -4,6 +4,7 @@
 #include "SrvManager.h"
 #include "Obj3dCommon.h"
 #include "ModelCommon.h"
+#include <numbers>
 using namespace MatrixMath;
 
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename){
@@ -11,103 +12,80 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 	// 1. ModelCommonのポインタを記録
 	this->modelCommon_ = modelCommon;
 
+
+
 	// 2. モデルデータをファイルから読み込む (引数のパスを使う)
 	modelData_ = LoadObjFile(directoryPath, filename);
 
-	// 1. すべての頂点の合計を求める
-	Vector3 center = { 0.0f, 0.0f, 0.0f };
-	for ( const auto& v : modelData_.vertices ) {
-		center.x += v.position.x;
-		center.y += v.position.y;
-		center.z += v.position.z;
-	}
 
-	// 2. 頂点数で割って中心座標を求める
-	float vertexCount = static_cast< float >( modelData_.vertices.size() );
-	if ( vertexCount > 0 ) {
-		center.x /= vertexCount;
-		center.y /= vertexCount;
-		center.z /= vertexCount;
-	}
+	// 3. モデルの頂点座標を中心（原点）に合わせる
+	AdjustModelCenter();
 
-	// 3. すべての頂点座標から中心座標を引く
-	for ( auto& v : modelData_.vertices ) {
-		v.position.x -= center.x;
-		v.position.y -= center.y;
-		v.position.z -= center.z;
-	}
-
-	// ★テクスチャがない場合のデフォルト処理
+	// 4. マテリアルデータの読み込み (.mtlファイル)
 	if ( modelData_.material.textureFilePath.empty() ) {
 		modelData_.material.textureFilePath = "resources/uvChecker.png";
 	}
 
-	// 3. テクスチャの読み込みとSRV作成
-	// コマンドリストが必要なので、ModelCommon経由で取得する
-	auto dxCommon = modelCommon_->GetDxCommon();
-	auto commandList = dxCommon->GetCommandList();
+	// 5. バッファの作成
+	CreateBuffers();
 
-	TextureManager::GetInstance()->LoadTexture(
-		modelData_.material.textureFilePath
-	);
+}
+// 球モデルの初期化
+void Model::InitializeSphere(ModelCommon* modelCommon, int subdivision){
 
-	modelData_.material.textureIndex =
-		TextureManager::GetInstance()->LoadTextureAndCreateSRV(
-			modelData_.material.textureFilePath,
-			commandList
-		).srvIndex;
-
-	// TextureHandleは描画時に使うので取得しておく
-	textureHandle_ = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(
-		modelData_.material.textureIndex
-	);
+	this->modelCommon_ = modelCommon;
+	modelData_ = {};
 
 
-	// 4. 頂点リソースを作る
-	// ResourceFactoryもModelCommon経由で取得
-	auto resourceFactory = dxCommon->GetResourceFactory();
+	// 2. 球体のデータを計算で生成
+	const float kLonEvery = std::numbers::pi_v<float> *2.0f / float(subdivision);
+	const float kLatEvery = std::numbers::pi_v<float> / float(subdivision);
+	// 頂点データ生成
+	for ( int latIndex = 0; latIndex < ( subdivision + 1 ); ++latIndex ) {
+		float lat = -std::numbers::pi_v<float> / 2.0f + kLatEvery * latIndex;
+		// 経度の方向に分割しながら線を描く
+		for ( int lonIndex = 0; lonIndex < ( subdivision + 1 ); ++lonIndex ) {
+			float lon = lonIndex * kLonEvery;
+			VertexData vertex;
 
-	vertexResource_ = resourceFactory->CreateBufferResource(sizeof(VertexData) * modelData_.vertices.size());
-	assert(vertexResource_ != nullptr);
+			// 座標
+			vertex.position.x = std::cos(lat) * std::cos(lon);
+			vertex.position.y = std::sin(lat);
+			vertex.position.z = std::cos(lat) * std::sin(lon);
+			vertex.position.w = 1.0f;
+			// UV
+			vertex.texcoord.x = float(lonIndex) / float(subdivision);
+			vertex.texcoord.y = 1.0f - float(latIndex) / float(subdivision);
+			// 法線
+			vertex.normal.x = vertex.position.x;
+			vertex.normal.y = vertex.position.y;
+			vertex.normal.z = vertex.position.z;
+			// 頂点データを追加
+			modelData_.vertices.push_back(vertex);
+		}
+	}
 
-	// 頂点バッファビューを作成する
-	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
-	vertexBufferView_.SizeInBytes = UINT(sizeof(VertexData) * modelData_.vertices.size());
-	vertexBufferView_.StrideInBytes = sizeof(VertexData);
+	// インデックスデータ生成
+	int vertexCountX = subdivision + 1;
+	for ( int latIndex = 0; latIndex < subdivision; ++latIndex ) {
+		for ( int lonIndex = 0; lonIndex < subdivision; ++lonIndex ) {
+			uint32_t topLeft = latIndex * vertexCountX + lonIndex;
+			uint32_t bottomLeft = ( latIndex + 1 ) * vertexCountX + lonIndex;
+			uint32_t topRight = latIndex * vertexCountX + ( lonIndex + 1 );
+			uint32_t bottomRight = ( latIndex + 1 ) * vertexCountX + ( lonIndex + 1 );
 
-	// 頂点リソースにデータを書き込む
-	vertexResource_->Map(0, nullptr, reinterpret_cast< void** >( &vertexData_ ));
-	std::copy(modelData_.vertices.begin(), modelData_.vertices.end(), vertexData_);
+			modelData_.indices.push_back(topLeft);
+			modelData_.indices.push_back(bottomLeft);
+			modelData_.indices.push_back(topRight);
+			modelData_.indices.push_back(topRight);
+			modelData_.indices.push_back(bottomLeft);
+			modelData_.indices.push_back(bottomRight);
+		}
+	}
+	// テクスチャファイルパスはデフォルトのチェッカーテクスチャにしておく
+	modelData_.material.textureFilePath = "resources/monsterBall.png";
 
-
-	// 5. インデックスリソースを作る
-	indexResource_ = resourceFactory->CreateBufferResource(sizeof(uint32_t) * modelData_.indices.size());
-	assert(indexResource_ != nullptr);
-
-	// インデックスバッファビューを作成する
-	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
-	indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
-	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
-
-	// インデックスリソースにデータを書き込む
-	indexResource_->Map(0, nullptr, reinterpret_cast< void** >( &indexData_ ));
-	std::copy(modelData_.indices.begin(), modelData_.indices.end(), indexData_);
-
-	// ※Unmapするかどうかは元の実装方針に合わせます（MapしっぱなしならそのままでOK）
-
-
-	// 6. マテリアル用のリソースを作る
-	materialResource_ = resourceFactory->CreateBufferResource(sizeof(Material));
-	assert(materialResource_ != nullptr);
-
-	// データを書き込むためのアドレスを取得
-	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
-
-	// デフォルト値を書き込んでおく（色は白にしておくのが一般的）
-	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-	materialData_->enableLighting = true;
-	materialData_->uvTransform = MakeIdentity4x4();
-
+	CreateBuffers(); // バッファの作成
 }
 
 
@@ -142,7 +120,7 @@ void Model::Draw(){
 
 }
 
-
+// .mtlファイルの読み込み
 Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename){
 
 	MaterialData materialData; // MaterialDataを構築
@@ -166,7 +144,7 @@ Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directory
 	return materialData; // 読み込んだMaterialDataを返す
 
 }
-
+// .objファイルの読み込み
 Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string& filename){
 
 	ModelData modelData; // 構造するModelData
@@ -243,4 +221,97 @@ Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std:
 		}
 	}
 	return modelData;
+}
+// モデルの頂点座標を中心（原点）に合わせる
+void Model::AdjustModelCenter(){
+
+	// 1. すべての頂点の合計を求める
+	Vector3 center = { 0.0f, 0.0f, 0.0f };
+	for ( const auto& v : modelData_.vertices ) {
+		center.x += v.position.x;
+		center.y += v.position.y;
+		center.z += v.position.z;
+	}
+
+	// 2. 頂点数で割って中心座標を求める
+	float vertexCount = static_cast< float >( modelData_.vertices.size() );
+	if ( vertexCount > 0 ) {
+		center.x /= vertexCount;
+		center.y /= vertexCount;
+		center.z /= vertexCount;
+	}
+
+	// 3. すべての頂点座標から中心座標を引く
+	for ( auto& v : modelData_.vertices ) {
+		v.position.x -= center.x;
+		v.position.y -= center.y;
+		v.position.z -= center.z;
+	}
+
+
+
+
+}
+// バッファの作成をまとめた関数
+void Model::CreateBuffers(){
+
+	auto dxCommon = modelCommon_->GetDxCommon();
+	auto commandList = dxCommon->GetCommandList();
+	auto resourceFactory = dxCommon->GetResourceFactory();
+
+		// SRV作成とインデックス取得
+	modelData_.material.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+		modelData_.material.textureFilePath,
+		commandList
+	).srvIndex;
+
+	// テクスチャハンドルを取得
+	textureHandle_ = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(
+		modelData_.material.textureIndex
+	);
+
+
+	// 2. 頂点リソースを作る
+	vertexResource_ = resourceFactory->CreateBufferResource(sizeof(VertexData) * modelData_.vertices.size());
+	assert(vertexResource_ != nullptr);
+
+	// VBV
+	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
+	vertexBufferView_.SizeInBytes = UINT(sizeof(VertexData) * modelData_.vertices.size());
+	vertexBufferView_.StrideInBytes = sizeof(VertexData);
+
+	// データ書き込み
+	VertexData* vertexMap = nullptr;
+	vertexResource_->Map(0, nullptr, reinterpret_cast< void** >( &vertexMap ));
+	std::copy(modelData_.vertices.begin(), modelData_.vertices.end(), vertexMap);
+	
+	// 3. インデックスリソースを作る
+	indexResource_ = resourceFactory->CreateBufferResource(sizeof(uint32_t) * modelData_.indices.size());
+	assert(indexResource_ != nullptr);
+
+	// IBV
+	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+	indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
+	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+	// データ書き込み
+	uint32_t* indexMap = nullptr;
+	indexResource_->Map(0, nullptr, reinterpret_cast< void** >( &indexMap ));
+	std::copy(modelData_.indices.begin(), modelData_.indices.end(), indexMap);
+	
+	// 4. マテリアル用のリソースを作る
+	materialResource_ = resourceFactory->CreateBufferResource(sizeof(Material));
+	assert(materialResource_ != nullptr);
+
+	// データ書き込み（ここは書き換え頻度が高いのでMapしっぱなしでもOKですが、今回はUnmapしない実装にします）
+	// クラスメンバに Material* materialData_ がある前提です
+	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
+
+	// デフォルト値
+	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialData_->enableLighting = true;
+	materialData_->uvTransform = MatrixMath::MakeIdentity4x4();
+	materialData_->shininess = 32.0f;
+
+
 }

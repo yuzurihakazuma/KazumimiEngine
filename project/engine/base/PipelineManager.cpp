@@ -114,7 +114,7 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		L"resources/shaders/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
-		D3D12_CULL_MODE_NONE,       // (※必要に応じてBACKに変更してください)
+		D3D12_CULL_MODE_BACK,       // (※必要に応じてBACKに変更してください)
 		false,                      // (※必要に応じてtrueに変更してください)
 		object3DPipelineState_
 	);
@@ -163,7 +163,7 @@ void PipelineManager::CreateRootSignatureCommon(Microsoft::WRL::ComPtr<ID3D12Roo
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;// offsetを自動計算
 
 	// RootParameter
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	D3D12_ROOT_PARAMETER rootParameters[5] = {};
 
 	// [0]: マテリアル (CBV)
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
@@ -201,6 +201,12 @@ void PipelineManager::CreateRootSignatureCommon(Microsoft::WRL::ComPtr<ID3D12Roo
 	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PixelShadaderで使う
 	rootParameters[3].Descriptor.ShaderRegister = 1; // レジスタ番号1を使う
+
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PixelShadaderで使う
+	rootParameters[4].Descriptor.ShaderRegister = 2; // レジスタ番号2を使う
+
+
 
 	descriptionRootSignature.pParameters = rootParameters; //ルートバラメータ配列へのポインタ
 	descriptionRootSignature.NumParameters = _countof(rootParameters); //配列の長さ

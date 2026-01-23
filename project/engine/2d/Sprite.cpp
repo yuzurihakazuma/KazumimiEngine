@@ -74,6 +74,8 @@ void Sprite::Initialize(SpriteCommon* spriteCommon){
 	materialData_->enableLighting = false;
 	// UVTransformはSpriteでは使うので設定しておく。今回は単位行列を設定しておく
 	materialData_->uvTransfrom = MakeIdentity4x4();
+	// Shininessは使わないが一応0.0fを設定しておく
+	materialData_->shininess = 0.0f;
 
 
 	indexResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(uint32_t) * 6);

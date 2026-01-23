@@ -1,5 +1,7 @@
 #include "Game.h"
+#include "Matrix4x4.h"
 
+using namespace MatrixMath;
 void Game::Initialize(){
 
 	Framework::Initialize();
@@ -15,6 +17,9 @@ void Game::Initialize(){
 
 	// モデル・テクスチャロード
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
+	// 球モデル作成
+	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
+	// パーティクルグループ作成
 	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 
 	auto commandList = dxCommon_->GetCommandList();
@@ -34,20 +39,37 @@ void Game::Initialize(){
 
 
 
-	
+	// コマンドリストの終了
 	dxCommon_->EndCommandRecording();
 
 	// カメラ生成
-	camera_ = new Camera(windowProc_->GetClientWidth(), windowProc_->GetClientHeight());
+	camera_ = new Camera(windowProc_->GetClientWidth(), windowProc_->GetClientHeight(),dxCommon_);
 	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
 
 	// オブジェクト生成
-	Obj3d* fence = new Obj3d();
+	 fence_ = new Obj3d();
+	 sphere_ = new Obj3d();
+
+	// モデル取得
 	Model* modelGround = ModelManager::GetInstance()->FindModel("fence");
+	Model* modelSphere = ModelManager::GetInstance()->FindModel("sphere");
+
+
+
+
 	// 親クラスにある obj3dCommon_ を使う
-	fence->Initialize(obj3dCommon_, modelGround);
-	fence->SetCamera(camera_);
-	object3ds_.push_back(fence);
+	fence_->Initialize(obj3dCommon_, modelGround);
+	fence_->SetCamera(camera_);
+	// スケール調整
+	//object3ds_.push_back(fence_);// 地面追加
+
+
+	sphere_->Initialize(obj3dCommon_, modelSphere);
+	sphere_->SetCamera(camera_);
+	sphere_->SetTranslation(spherePos_);
+	sphere_->SetScale(sphereScale_); // 小さくて見えない対策（任意）
+
+	object3ds_.push_back(sphere_);
 
 	// スプライト生成
 	sprite_ = new Sprite();
@@ -66,15 +88,27 @@ void Game::Update(){
 
 	// ゲーム固有の更新
 	camera_->Update();
-
+	// BGM再生
 	if ( input_->Triggerkey(DIK_SPACE) ) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
+	// パーティクル発生
 	if ( input_->Triggerkey(DIK_P) ) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
+	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_);
-
+	// オブジェクト更新
+	if ( sphere_ ) {
+		sphere_->SetTranslation(spherePos_);
+		sphere_->SetScale(sphereScale_);
+	}
+	//// オブジェクト更新
+	//if ( fence_ ) {
+	//	fence_->SetTranslation(groundPos_);
+	//	fence_->SetScale(groundScale_);
+	//}
+	// オブジェクト更新
 	for ( Obj3d* obj : object3ds_ ) {
 		obj->Update();
 	}
@@ -84,7 +118,22 @@ void Game::Update(){
 	imguiManager_->Begin();
 	ImGui::Begin("Debug");
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
-	
+	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);
+	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
+	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
+
+
+
+	if ( ImGui::TreeNode("Directional Light") ) {
+		auto light = obj3dCommon_->GetLightData();
+
+		ImGui::DragFloat3("Direction", &light->direction.x, 0.01f);
+		ImGui::ColorEdit3("Color", &light->color.x);
+		ImGui::DragFloat("Intensity", &light->intensity, 0.01f, 0.0f, 10.0f);
+
+		light->direction = Normalize(light->direction);
+		ImGui::TreePop();
+	}
 	
 	if ( ImGui::TreeNode("Camera") ) {
 		// 1. 現在のカメラのTransformを取得（コピーを作成）
@@ -102,6 +151,9 @@ void Game::Update(){
 		ImGui::TreePop();
 	}
 	
+
+
+
 	ImGui::Text("=== Particle Debug ===");
 
 	size_t particleCount =
@@ -139,7 +191,7 @@ void Game::Draw(){
 	obj3dCommon_->PreDraw(commandList);
 
 	// 描画
-	sprite_->Draw();
+	//sprite_->Draw();
 	for ( Obj3d* obj : object3ds_ ) {
 		obj->Draw();
 	}

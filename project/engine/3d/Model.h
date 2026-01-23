@@ -31,12 +31,13 @@ public: // サブクラス定義
 		std::vector<uint32_t> indices;    // インデックスデータ
 		MaterialData material;            // マテリアルデータ
 	};
-
+	// 定数バッファ用データ構造体
 	struct Material{
-		Vector4 color;
-		int32_t enableLighting;
-		float padding[3];
-		Matrix4x4 uvTransform;
+		Vector4 color;// 材質の色
+		int32_t enableLighting;// ライティングの有効無効
+		float padding[3];// パディング
+		Matrix4x4 uvTransform;// UV変換行列
+		float shininess;// スペキュラの鋭さ
 	};
 
 public: // メンバ関数
@@ -45,6 +46,11 @@ public: // メンバ関数
 	/// 初期化
 	/// </summary>
 	void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename);
+	// <summary>
+	/// 球モデルの初期化
+	/// </summary>
+	void InitializeSphere(ModelCommon* modelCommon, int subdivision);
+
 
 	/// <summary>
 	/// 描画
@@ -61,6 +67,8 @@ private: // 内部関数
 
 	// モデルの頂点座標を中心（原点）に合わせる
 	void AdjustModelCenter();
+	// / バッファの作成
+	void CreateBuffers();
 
 private: // メンバ変数
 
