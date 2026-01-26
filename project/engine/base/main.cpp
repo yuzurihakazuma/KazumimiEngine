@@ -1,7 +1,8 @@
 #include <Windows.h>
 #include "Game.h"
 #include "CrashDumper.h"
-
+#include <engine/scene/SceneManager.h>
+#include <engine/scene/TitleScene.h>
 // Windowsアプリでのエントリーポイント
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 

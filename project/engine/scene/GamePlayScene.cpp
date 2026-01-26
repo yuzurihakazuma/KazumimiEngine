@@ -8,6 +8,9 @@
 #include "ParticleManager.h"
 #include "TextureManager.h"
 #include "PipelineManager.h"
+#include "SceneManager.h"
+#include "TitleScene.h" 
+
 
 using namespace MatrixMath;
 // 初期化
@@ -87,7 +90,10 @@ void GamePlayScene::Update(){
 	if ( input->Triggerkey(DIK_SPACE) ) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
-
+	// タイトルシーンへ移動
+	if ( input->Triggerkey(DIK_T) ) {
+		SceneManager::GetInstance()->SetChangeScene(new TitleScene());
+	}
 	// パーティクル発生 (シングルトン)
 	if ( input->Triggerkey(DIK_P) ) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
@@ -110,6 +116,10 @@ void GamePlayScene::Update(){
 
 #ifdef USE_IMGUI
 	
+	ImGui::Text("Current Scene: GamePlay");
+	ImGui::Separator(); // 区切り線
+
+
 	ImGui::Begin("Debug");
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
 	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);

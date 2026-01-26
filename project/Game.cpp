@@ -1,14 +1,19 @@
 #include "Game.h"
-
+#include <engine/scene/GamePlayScene.h>
+#include <engine/scene/TitleScene.h>
+#include <engine//scene/SceneManager.h>
 void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類)
 	Framework::Initialize();
 
 	// シーン生成
-	scene_ = new GamePlayScene();
+	SceneManager* scene = SceneManager::GetInstance();
+	
+	// 最初のシーンをタイトルシーンに設定
+	scene->SetChangeScene(new TitleScene());
 
-	// シーン初期化
-	scene_->Initialize();
+
+
 }
 
 void Game::Update(){
@@ -21,20 +26,20 @@ void Game::Update(){
 #endif
 
 	// シーンの更新
-	scene_->Update();
+	SceneManager::GetInstance()->Update();
 
 }
 
 void Game::Draw(){
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-	
+
 	// 描画前処理
 	dxCommon->PreDraw();
 	// SRVマネージャーの描画前処理
 	srvManager_->PreDraw();
 
 	// シーンの描画
-	scene_->Draw();
+	SceneManager::GetInstance()->Draw();
 
 #ifdef USE_IMGUI
 	// ImGuiの描画コマンド発行
@@ -46,12 +51,6 @@ void Game::Draw(){
 }
 
 void Game::Finalize(){
-	// シーン終了
-	if ( scene_ ) {
-		scene_->Finalize();
-		delete scene_;
-	}
-
 	// 基盤終了
 	Framework::Finalize();
 }
