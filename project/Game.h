@@ -1,6 +1,7 @@
 #pragma once
 #include "Framework.h" 
-#include "GamePlayScene.h" 
+#include "scene/GamePlayScene.h"
+#include""
 // ゲームクラス
 class Game : public Framework{
 public:
