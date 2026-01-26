@@ -157,7 +157,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AudioManager.cpp" />
+    <ClCompile Include="engine\audio\AudioManager.cpp" />
     <ClCompile Include="engine\io\BlendMode.cpp" />
     <ClCompile Include="engine\3d\Camera.cpp" />
     <ClCompile Include="engine\math\ResourceFactory.cpp" />
@@ -199,6 +199,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\3d\ModelManager.cpp" />
     <ClCompile Include="Framework.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GamePlayScene.cpp" />
     <ClCompile Include="ParticleCommon.cpp" />
     <ClCompile Include="ParticleManager.cpp" />
   </ItemGroup>
@@ -231,7 +232,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AudioManager.h" />
+    <ClInclude Include="engine\audio\AudioManager.h" />
     <ClInclude Include="engine\io\BlendMode.h" />
     <ClInclude Include="engine\3d\Camera.h" />
     <ClInclude Include="engine\math\ResourceFactory.h" />
@@ -266,6 +267,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\3d\ModelManager.h" />
     <ClInclude Include="Framework.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GamePlayScene.h" />
     <ClInclude Include="ParticleCommon.h" />
     <ClInclude Include="ParticleManager.h" />
     <ClInclude Include="ResourceLeakChecker.h" />

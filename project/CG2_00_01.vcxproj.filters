@@ -159,13 +159,16 @@
     <ClCompile Include="ParticleManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="AudioManager.cpp">
+    <ClCompile Include="engine\audio\AudioManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Framework.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePlayScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -282,7 +285,7 @@
     <ClInclude Include="ParticleManager.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="AudioManager.h">
+    <ClInclude Include="engine\audio\AudioManager.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="ResourceLeakChecker.h">
@@ -292,6 +295,9 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Framework.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="GamePlayScene.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

@@ -4,6 +4,9 @@
 
 class WindowProc{
 public:
+
+	static WindowProc* GetInstance();
+
 	/// <summary>
    /// ウィンドウの初期化
    /// </summary>
@@ -36,7 +39,14 @@ public:
 	int32_t GetClientHeight() const{ return kClientHeight_; }
 
 private:
-	
+
+	// コンストラクタを private にして外部からの生成を禁止
+	WindowProc() = default;
+	~WindowProc() = default;
+	WindowProc(const WindowProc&) = delete;
+	WindowProc& operator=(const WindowProc&) = delete;
+
+private:
 	// -------------------- ウィンドウ生成処理 --------------------
 
 	/// <summary> ウィンドウクラスの設定 </summary>

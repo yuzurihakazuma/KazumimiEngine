@@ -29,6 +29,13 @@ public:
 
 
 private:
+	// コンストラクタを private にして外部からの生成を禁止
+	SpriteCommon() = default;
+	~SpriteCommon() = default;
+	SpriteCommon(const SpriteCommon&) = delete;
+	SpriteCommon& operator=(const SpriteCommon&) = delete;
+
+private:
 
 	DirectXCommon* dxCommon_ = nullptr; // 所有しない参照
 	

@@ -23,6 +23,12 @@ using namespace logs;
 
 class DirectXCommon{
 public:
+	// シングルトンインスタンス取得
+	static DirectXCommon* GetInstance(){
+		static DirectXCommon instance;
+		return &instance;
+	}
+
 	/// <summary>初期化
 	void Initialize(WindowProc* windowProc);
 
@@ -140,9 +146,9 @@ private:
 	void CreateDXCCompiler(); // DXCコンパイラの生成
 
 	void ResetCommand(); // コマンドリストをリセットするだけの関数
-	
+
 	void ExecuteCommand(); // コマンドを閉じて実行するだけの関数
-	
+
 	void WaitForGPU(); // GPUの完了を待つだけの関数
 
 	void InitializeDebugLayer();/// デバッグレイヤーの初期化 (デバイス生成前に呼ぶ)
@@ -150,6 +156,8 @@ private:
 	void InitializeInfoQueue();/// デバッグ情報キューの初期化 (デバイス生成後に呼ぶ)
 
 	//void ReleaseD3DObjects(); // D3D関連オブジェクトの解放
+
+private:
 
 	// -------------------- DXGI・デバイス関連 --------------------
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_;    // DXGIファクトリー
@@ -211,5 +219,11 @@ private:
 	ShaderCompiler shaderCompiler_;
 	ResourceFactory* resourceFactory_ = nullptr;
 
+
+private:
+	DirectXCommon() = default;
+	~DirectXCommon() = default;
+	DirectXCommon(const DirectXCommon&) = delete;
+	DirectXCommon& operator=(const DirectXCommon&) = delete;
 };
 

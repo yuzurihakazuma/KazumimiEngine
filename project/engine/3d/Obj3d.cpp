@@ -5,11 +5,12 @@
 
 using namespace MatrixMath;
 
-void Obj3d::Initialize(Obj3dCommon* obj3dCommon, Model* model){
+void Obj3d::Initialize(Model* model){
 
-	// 引数のチェックと保存
-	assert(obj3dCommon != nullptr);
-	this->obj3dCommon_ = obj3dCommon;
+	// 引数の保存
+	this->model_ = model;
+	// Obj3dCommonの取得
+	this->obj3dCommon_ = Obj3dCommon::GetInstance();
 	this->model_ = model;
 
 	auto dxCommon = obj3dCommon_->GetDxCommon();

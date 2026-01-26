@@ -23,7 +23,7 @@ public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize(Obj3dCommon* obj3dCommon, Model* model);
+	void Initialize(Model* model);
 
 	/// <summary>
 	/// 更新

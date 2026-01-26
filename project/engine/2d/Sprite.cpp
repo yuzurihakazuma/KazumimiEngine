@@ -5,9 +5,9 @@
 
 using namespace MatrixMath;
 
-void Sprite::Initialize(SpriteCommon* spriteCommon){
-
-	this->spriteCommon = spriteCommon;
+void Sprite::Initialize(){
+	// SpriteCommonの取得
+	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
 
     // 頂点リソースを作成（例: 4頂点）
     vertexResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(VertexData) * 4);

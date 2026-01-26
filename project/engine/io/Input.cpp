@@ -2,6 +2,13 @@
 #include <cassert>
 
 using namespace logs;
+// シングルトンインスタンス取得
+Input* Input::GetInstance(){
+	// 静的ローカル変数としてインスタンスを生成
+	static Input instance;
+	return &instance;
+}
+
 
 void Input::Initialize(HWND hwnd){
 
