@@ -1,12 +1,16 @@
 #include <Windows.h>
 #include "Game.h"
 #include "CrashDumper.h"
-
+#include <engine/scene/SceneManager.h>
+#include <engine/scene/TitleScene.h>
 // Windowsアプリでのエントリーポイント
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 
 	// COM初期化
 	CoInitializeEx(0, COINIT_MULTITHREADED);
+
+	SceneManager* sceneManager = SceneManager::GetInstance();
+	sceneManager->ChangeScene(new TitleScene());
 
 	// クラッシュダンパー登録
 	CrashDumper::Install();

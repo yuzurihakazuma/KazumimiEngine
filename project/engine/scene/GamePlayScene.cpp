@@ -8,6 +8,9 @@
 #include "ParticleManager.h"
 #include "TextureManager.h"
 #include "PipelineManager.h"
+#include "SceneManager.h"
+#include "TitleScene.h" 
+
 
 using namespace MatrixMath;
 // 初期化
@@ -87,7 +90,9 @@ void GamePlayScene::Update(){
 	if ( input->Triggerkey(DIK_SPACE) ) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
-
+	if ( input->Triggerkey(DIK_T) ) {
+		SceneManager::GetInstance()->ChangeScene(new TitleScene());
+	}
 	// パーティクル発生 (シングルトン)
 	if ( input->Triggerkey(DIK_P) ) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);

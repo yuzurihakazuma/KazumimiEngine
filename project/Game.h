@@ -1,7 +1,7 @@
 #pragma once
 #include "Framework.h" 
-#include "scene/GamePlayScene.h"
-#include""
+#include <engine/scene/GamePlayScene.h>
+#include <engine/scene/TitleScene.h>
 // ゲームクラス
 class Game : public Framework{
 public:
@@ -13,5 +13,7 @@ public:
 
 private:
 	// シーンの実体
-	GamePlayScene* scene_ = nullptr;
+	TitleScene* scene_ = nullptr;
+
+
 };

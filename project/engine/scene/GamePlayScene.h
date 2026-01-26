@@ -1,5 +1,6 @@
 #pragma once
 #include "DirectXCommon.h"
+#include "IScene.h"
 #include "Input.h"
 #include "SpriteCommon.h"
 #include "Obj3dCommon.h"
@@ -14,16 +15,16 @@
 
 
 	// ゲームプレイシーン
-class GamePlayScene{
+class GamePlayScene : public IScene {
 public:
 	// 初期化
-	void Initialize();
+	void Initialize() override;
 	// 終了
-	void Finalize();
+	void Finalize() override;
 	// 更新
-	void Update();
+	void Update() override;
 	// 描画
-	void Draw();
+	void Draw() override;
 
 private: // メンバ変数
 
