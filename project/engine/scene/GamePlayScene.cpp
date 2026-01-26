@@ -90,8 +90,9 @@ void GamePlayScene::Update(){
 	if ( input->Triggerkey(DIK_SPACE) ) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
+	// タイトルシーンへ移動
 	if ( input->Triggerkey(DIK_T) ) {
-		SceneManager::GetInstance()->ChangeScene(new TitleScene());
+		SceneManager::GetInstance()->SetChangeScene(new TitleScene());
 	}
 	// パーティクル発生 (シングルトン)
 	if ( input->Triggerkey(DIK_P) ) {
@@ -115,6 +116,10 @@ void GamePlayScene::Update(){
 
 #ifdef USE_IMGUI
 	
+	ImGui::Text("Current Scene: GamePlay");
+	ImGui::Separator(); // 区切り線
+
+
 	ImGui::Begin("Debug");
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
 	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);

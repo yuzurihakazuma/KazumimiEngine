@@ -87,7 +87,7 @@ void TitleScene::Update(){
 	Input* input = Input::GetInstance();
 
 	if ( input->Triggerkey(DIK_SPACE) ) {
-		SceneManager::GetInstance()->ChangeScene(new GamePlayScene());
+		SceneManager::GetInstance()->SetChangeScene(new GamePlayScene());
 	}
 
 	// パーティクル発生 (シングルトン)
@@ -111,6 +111,9 @@ void TitleScene::Update(){
 
 
 #ifdef USE_IMGUI
+
+	ImGui::Text("Current Scene: TitleScene");
+	ImGui::Separator(); // 区切り線
 
 	ImGui::Begin("Debug");
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);

@@ -1,7 +1,5 @@
 #pragma once
 #include "Framework.h" 
-#include <engine/scene/GamePlayScene.h>
-#include <engine/scene/TitleScene.h>
 // ゲームクラス
 class Game : public Framework{
 public:
@@ -12,8 +10,5 @@ public:
 	void Draw() override;
 
 private:
-	// シーンの実体
-	TitleScene* scene_ = nullptr;
-
-
+	
 };
