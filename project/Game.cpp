@@ -1,220 +1,57 @@
 #include "Game.h"
-#include "Matrix4x4.h"
 
-using namespace MatrixMath;
 void Game::Initialize(){
-
+	// 基盤システムの初期化 (Window, DirectX, Input, Common類)
 	Framework::Initialize();
 
-	// ---------------------------------------------
-	// ここから先は「このゲーム固有」の初期化
-	// ---------------------------------------------
+	// シーン生成
+	scene_ = new GamePlayScene();
 
-	dxCommon_->BeginCommandRecording();
-
-	// BGMロード
-	AudioManager::GetInstance()->LoadWave(bgmFile_);
-
-	// モデル・テクスチャロード
-	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
-	// 球モデル作成
-	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
-	// パーティクルグループ作成
-	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
-
-	auto commandList = dxCommon_->GetCommandList();
-	textureResource_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
-
-	// 2枚目：monsterBall
-
-	textureResource2_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
-
-	// 3枚目：fence
-
-	textureResource3_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
-
-	// 4枚目：circle
-
-	textureResource5_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
-
-
-
-	// コマンドリストの終了
-	dxCommon_->EndCommandRecording();
-
-	// カメラ生成
-	camera_ = new Camera(windowProc_->GetClientWidth(), windowProc_->GetClientHeight(),dxCommon_);
-	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
-
-	// オブジェクト生成
-	 fence_ = new Obj3d();
-	 sphere_ = new Obj3d();
-
-	// モデル取得
-	Model* modelGround = ModelManager::GetInstance()->FindModel("fence");
-	Model* modelSphere = ModelManager::GetInstance()->FindModel("sphere");
-
-
-
-
-	// 親クラスにある obj3dCommon_ を使う
-	fence_->Initialize(obj3dCommon_, modelGround);
-	fence_->SetCamera(camera_);
-	// スケール調整
-	//object3ds_.push_back(fence_);// 地面追加
-
-
-	sphere_->Initialize(obj3dCommon_, modelSphere);
-	sphere_->SetCamera(camera_);
-	sphere_->SetTranslation(spherePos_);
-	sphere_->SetScale(sphereScale_); // 小さくて見えない対策（任意）
-
-	object3ds_.push_back(sphere_);
-
-	// スプライト生成
-	sprite_ = new Sprite();
-	sprite_->Initialize(spriteCommon_);
-	sprite_->SetTextureHandle(srvManager_->GetGPUDescriptorHandle(textureResource_.srvIndex));
-
-	// DepthStencil
-	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
-		windowProc_->GetClientWidth(), windowProc_->GetClientHeight()
-	);
+	// シーン初期化
+	scene_->Initialize();
 }
 
 void Game::Update(){
-	
+	// 基盤更新
 	Framework::Update();
 
-	// ゲーム固有の更新
-	camera_->Update();
-	// BGM再生
-	if ( input_->Triggerkey(DIK_SPACE) ) {
-		AudioManager::GetInstance()->PlayWave(bgmFile_);
-	}
-	// パーティクル発生
-	if ( input_->Triggerkey(DIK_P) ) {
-		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
-	}
-	// パーティクル更新
-	ParticleManager::GetInstance()->Update(camera_);
-	// オブジェクト更新
-	if ( sphere_ ) {
-		sphere_->SetTranslation(spherePos_);
-		sphere_->SetScale(sphereScale_);
-	}
-	//// オブジェクト更新
-	//if ( fence_ ) {
-	//	fence_->SetTranslation(groundPos_);
-	//	fence_->SetScale(groundScale_);
-	//}
-	// オブジェクト更新
-	for ( Obj3d* obj : object3ds_ ) {
-		obj->Update();
-	}
-	sprite_->Update();
-
 #ifdef USE_IMGUI
+	// ImGuiのフレーム開始処理
 	imguiManager_->Begin();
-	ImGui::Begin("Debug");
-	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
-	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);
-	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
-	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
-
-
-
-	if ( ImGui::TreeNode("Directional Light") ) {
-		auto light = obj3dCommon_->GetLightData();
-
-		ImGui::DragFloat3("Direction", &light->direction.x, 0.01f);
-		ImGui::ColorEdit3("Color", &light->color.x);
-		ImGui::DragFloat("Intensity", &light->intensity, 0.01f, 0.0f, 10.0f);
-
-		light->direction = Normalize(light->direction);
-		ImGui::TreePop();
-	}
-	
-	if ( ImGui::TreeNode("Camera") ) {
-		// 1. 現在のカメラのTransformを取得（コピーを作成）
-		Vector3 camPos = camera_->GetTransform().translate;
-		Vector3 camRot = camera_->GetTransform().rotate;
-
-		// 2. ImGuiで数値を操作 (DragFloat3は floatの配列[3] を期待するので、Vector3のアドレスを渡せばOK)
-		ImGui::DragFloat3("Position", &camPos.x, 0.1f); // 0.1f刻みで移動
-		ImGui::DragFloat3("Rotation", &camRot.x, 0.01f); // 0.01f刻みで回転
-
-		// 3. 変更した値をカメラにセットし直す
-		camera_->SetTranslation(camPos);
-		camera_->SetRotation(camRot);
-
-		ImGui::TreePop();
-	}
-	
-
-
-
-	ImGui::Text("=== Particle Debug ===");
-
-	size_t particleCount =
-		ParticleManager::GetInstance()->GetParticleCount("Circle");
-	uint32_t instanceCount =
-		ParticleManager::GetInstance()->GetInstanceCount("Circle");
-
-	ImGui::Text("Particles (CPU) : %zu", particleCount);
-	ImGui::Text("Instances (GPU) : %u", instanceCount);
-
-	if ( ImGui::Button("Emit 10") ) {
-		ParticleManager::GetInstance()->Emit(
-			"Circle", { 0.0f, 5.0f, 0.0f }, 10);
-	}
-
-	ImGui::Separator();
-	ImGui::Text("Press P key to Emit");
-	
-	
-	ImGui::End();
-	if ( !object3ds_.empty() ){
-		object3ds_[0]->SetTranslation(groundPos_);
-	}
 #endif
+
+	// シーンの更新
+	scene_->Update();
+
 }
 
 void Game::Draw(){
-
-	dxCommon_->PreDraw();
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+	
+	// 描画前処理
+	dxCommon->PreDraw();
+	// SRVマネージャーの描画前処理
 	srvManager_->PreDraw();
 
-	auto commandList = dxCommon_->GetCommandList();
-
-	spriteCommon_->PreDraw(commandList);
-	obj3dCommon_->PreDraw(commandList);
-
-	// 描画
-	//sprite_->Draw();
-	for ( Obj3d* obj : object3ds_ ) {
-		obj->Draw();
-	}
-
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	
-	ParticleManager::GetInstance()->Draw(commandList);
+	// シーンの描画
+	scene_->Draw();
 
 #ifdef USE_IMGUI
-	imguiManager_->End(commandList);
+	// ImGuiの描画コマンド発行
+	imguiManager_->End(dxCommon->GetCommandList());
 #endif
 
-	dxCommon_->PostDraw();
+	// 描画後処理
+	dxCommon->PostDraw();
 }
 
 void Game::Finalize(){
-	// ゲーム固有の解放
-	delete camera_;
-	delete sprite_;
-	for ( auto obj : object3ds_ ) delete obj;
+	// シーン終了
+	if ( scene_ ) {
+		scene_->Finalize();
+		delete scene_;
+	}
 
-	textureResource_.resource.Reset();
-	depthStencilResource_.Reset();
-
+	// 基盤終了
 	Framework::Finalize();
 }

@@ -46,14 +46,8 @@ protected: // 継承先のGameクラスでも使えるようにする
 	// -------------------------------------------------
 	// 基盤システム
 	// -------------------------------------------------
-	WindowProc* windowProc_ = nullptr;
-	DirectXCommon* dxCommon_ = nullptr;
-	Input* input_ = nullptr;
 	SrvManager* srvManager_ = nullptr;
 	ResourceFactory* resourceFactory_ = nullptr;
 	ImGuiManager* imguiManager_ = nullptr;
 
-	// 描画共通クラス
-	SpriteCommon* spriteCommon_ = nullptr;
-	Obj3dCommon* obj3dCommon_ = nullptr;
 };

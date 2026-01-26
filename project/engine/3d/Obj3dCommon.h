@@ -8,6 +8,14 @@
 
 class Obj3dCommon{
 public:
+	
+	static Obj3dCommon* GetInstance(){
+		static Obj3dCommon instance;
+		return &instance;
+	}
+	
+	
+	
 	// ライト構造体
 	struct DirectionalLight{
 		Vector4 color;     // ライトの色
@@ -29,7 +37,13 @@ public:
 	DirectXCommon* GetDxCommon() const{ return dxCommon_; }
 
 private:
+	// ★追加: コンストラクタを private にして外部からの生成を禁止
+	Obj3dCommon() = default;
+	~Obj3dCommon() = default;
+	Obj3dCommon(const Obj3dCommon&) = delete;
+	Obj3dCommon& operator=(const Obj3dCommon&) = delete;
 
+private:
 	DirectXCommon* dxCommon_ = nullptr; // 所有しない参照
 
 	// 平行光源リソース

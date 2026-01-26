@@ -5,54 +5,51 @@ void Framework::Initialize(){
 	// 基盤システムの初期化
 	// ---------------------------------------------
 	// WindowProc
-	windowProc_ = new WindowProc();
+	WindowProc* windowProc = WindowProc::GetInstance();
 	WNDCLASS wc = {};
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.hbrBackground = reinterpret_cast< HBRUSH >( COLOR_WINDOW + 1 );
-	wc.lpfnWndProc = windowProc_->WndProc;
-	windowProc_->Initialize(wc, 1280, 720); // サイズは固定か変数化
+	wc.lpfnWndProc = windowProc->WndProc;
+	windowProc->Initialize(wc, 1280, 720); // サイズは固定か変数化
 
-	// DirectXCommon
-	dxCommon_ = new DirectXCommon();
-	dxCommon_->Initialize(windowProc_);
+	
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+	DirectXCommon::GetInstance()->Initialize(windowProc);
 
 	// Input
-	input_ = new Input();
-	input_->Initialize(windowProc_->GetHwnd());
+	Input::GetInstance()->Initialize(windowProc->GetHwnd());
 
 	// SrvManager
 	srvManager_ = new SrvManager();
-	srvManager_->Initialize(dxCommon_);
-	dxCommon_->SetSrvManager(srvManager_);
+	srvManager_->Initialize(dxCommon);
+	dxCommon->SetSrvManager(srvManager_);
 
 	// ResourceFactory
 	resourceFactory_ = new ResourceFactory();
-	resourceFactory_->SetDevice(dxCommon_->GetDevice());
-	dxCommon_->SetResourceFactory(resourceFactory_);
+	resourceFactory_->SetDevice(dxCommon->GetDevice());
+	dxCommon->SetResourceFactory(resourceFactory_);
 
 	// TextureManager
-	TextureManager::GetInstance()->Initialize(dxCommon_->GetDevice(), dxCommon_, srvManager_);
+	TextureManager::GetInstance()->Initialize(dxCommon->GetDevice(), dxCommon, srvManager_);
 	TextureManager::GetInstance()->SetResourceFactory(resourceFactory_);
 
 	// PipelineManager
-	PipelineManager::GetInstance()->Initialize(dxCommon_);
+	PipelineManager::GetInstance()->Initialize(dxCommon);
 
 	// ImGuiManager
 	imguiManager_ = new ImGuiManager();
-	imguiManager_->Initialize(windowProc_, dxCommon_);
+	imguiManager_->Initialize(windowProc, dxCommon);
 
 	// Audio
 	AudioManager::GetInstance()->Initialize();
 
-	// 描画共通クラス
-	spriteCommon_ = new SpriteCommon();
-	spriteCommon_->Initialize(dxCommon_);
 
-	obj3dCommon_ = new Obj3dCommon();
-	obj3dCommon_->Initialize(dxCommon_);
+	SpriteCommon::GetInstance()->Initialize(dxCommon);
 
-	ModelManager::GetInstance()->Initialize(dxCommon_);
-	ParticleManager::GetInstance()->Initialize(dxCommon_, srvManager_);
+	Obj3dCommon::GetInstance()->Initialize(dxCommon);
+
+	ModelManager::GetInstance()->Initialize(dxCommon);
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager_);
 
 }
 
@@ -68,23 +65,18 @@ void Framework::Finalize(){
 	imguiManager_->Shutdown();
 	delete imguiManager_;
 
-	// 基盤システム解放
-	delete obj3dCommon_;
-	delete spriteCommon_;
 	delete resourceFactory_;
 	delete srvManager_;
-	delete input_;
-	delete dxCommon_;
-	delete windowProc_;
 }
 
 void Framework::Update(){
 	// 基盤更新
-	windowProc_->Update();
-	input_->Update();
+	WindowProc::GetInstance()->Update();
+	// 入力更新
+	Input::GetInstance()->Update();
 
 	// ウィンドウが閉じられたら終了フラグを立てる
-	if ( windowProc_->GetIsClosed() ) {
+	if ( WindowProc::GetInstance()->GetIsClosed() ) {
 		endRequest_ = true;
 	}
 }
