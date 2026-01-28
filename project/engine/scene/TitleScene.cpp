@@ -8,10 +8,7 @@
 #include "ParticleManager.h"
 #include "TextureManager.h"
 #include "PipelineManager.h"
-
 #include "SceneManager.h"
-#include "GamePlayScene.h"
-
 using namespace MatrixMath;
 // 初期化
 void TitleScene::Initialize(){
@@ -87,7 +84,7 @@ void TitleScene::Update(){
 	Input* input = Input::GetInstance();
 
 	if ( input->Triggerkey(DIK_SPACE) ) {
-		SceneManager::GetInstance()->SetChangeScene(new GamePlayScene());
+		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
 	}
 
 	// パーティクル発生 (シングルトン)

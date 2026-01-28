@@ -13,12 +13,14 @@ void Framework::Initialize(){
 	windowProc->Initialize(wc, 1280, 720); // サイズは固定か変数化
 
 	
+	// DirectXCommon
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	DirectXCommon::GetInstance()->Initialize(windowProc);
 
 	// Input
 	Input::GetInstance()->Initialize(windowProc->GetHwnd());
 
+	// こんにちは
 	// SrvManager
 	srvManager_ = new SrvManager();
 	srvManager_->Initialize(dxCommon);

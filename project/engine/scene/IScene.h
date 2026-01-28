@@ -1,5 +1,7 @@
 #pragma once
 
+class SceneManager; // 前方宣言
+
 // シーンのインターフェース
 class IScene{
 public:
@@ -16,4 +18,5 @@ public:
 	virtual void Update() = 0;
 	// 描画
 	virtual void Draw() = 0;
+
 };

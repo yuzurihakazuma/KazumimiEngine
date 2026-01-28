@@ -9,7 +9,6 @@
 #include "TextureManager.h"
 #include "PipelineManager.h"
 #include "SceneManager.h"
-#include "TitleScene.h" 
 
 
 using namespace MatrixMath;
@@ -92,7 +91,7 @@ void GamePlayScene::Update(){
 	}
 	// タイトルシーンへ移動
 	if ( input->Triggerkey(DIK_T) ) {
-		SceneManager::GetInstance()->SetChangeScene(new TitleScene());
+		SceneManager::GetInstance()->ChangeScene("TITLE");
 	}
 	// パーティクル発生 (シングルトン)
 	if ( input->Triggerkey(DIK_P) ) {

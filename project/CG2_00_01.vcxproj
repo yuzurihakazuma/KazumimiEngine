@@ -172,6 +172,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       </RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="engine\base\main.cpp" />
+    <ClCompile Include="engine\scene\SceneFactory.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp" />
     <ClCompile Include="externals\imgui\imgui_demo.cpp" />
     <ClCompile Include="externals\imgui\imgui_draw.cpp" />
@@ -234,6 +235,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="engine\scene\AbstractSceneFactory.h" />
     <ClInclude Include="engine\audio\AudioManager.h" />
     <ClInclude Include="engine\io\BlendMode.h" />
     <ClInclude Include="engine\3d\Camera.h" />
@@ -242,6 +244,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\base\DirectXCommon.h" />
     <ClInclude Include="engine\base\CrashDumper.h" />
     <ClInclude Include="engine\3d\DebugCamera.h" />
+    <ClInclude Include="engine\scene\SceneFactory.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />

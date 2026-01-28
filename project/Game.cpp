@@ -1,17 +1,19 @@
 #include "Game.h"
 #include <engine/scene/GamePlayScene.h>
-#include <engine/scene/TitleScene.h>
 #include <engine//scene/SceneManager.h>
+#include <engine/scene/SceneFactory.h>
 void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類)
 	Framework::Initialize();
 
-	// シーン生成
-	SceneManager* scene = SceneManager::GetInstance();
-	
-	// 最初のシーンをタイトルシーンに設定
-	scene->SetChangeScene(new TitleScene());
+	// 1. ファクトリーの生成
+	sceneFactory_ = new SceneFactory();
 
+	// 2. マネージャーにファクトリーを教える
+	SceneManager::GetInstance()->SetSceneFactory(sceneFactory_);
+
+	// 3. 最初のシーンを文字列でリクエストする
+	SceneManager::GetInstance()->ChangeScene("TITLE");
 
 
 }
@@ -51,6 +53,8 @@ void Game::Draw(){
 }
 
 void Game::Finalize(){
+	// シーンマネージャーの終了
+	delete sceneFactory_;
 	// 基盤終了
 	Framework::Finalize();
 }
