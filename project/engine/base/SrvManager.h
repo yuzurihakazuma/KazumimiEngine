@@ -9,7 +9,7 @@ class DirectXCommon;
 
 class SrvManager{
 public:
-
+	static SrvManager* GetInstance();
 
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon);
@@ -49,7 +49,12 @@ private:
 
 	// 使用中のインデックス
 	uint32_t useIndex_ = 0;
-
+private:
+	// コンストラクタを private にして外部からの new を禁止
+	SrvManager() = default;
+	~SrvManager() = default;
+	SrvManager(const SrvManager&) = delete;
+	SrvManager& operator=(const SrvManager&) = delete;
 
 };
 

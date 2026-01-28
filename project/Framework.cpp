@@ -22,25 +22,23 @@ void Framework::Initialize(){
 
 	// こんにちは
 	// SrvManager
-	srvManager_ = new SrvManager();
-	srvManager_->Initialize(dxCommon);
-	dxCommon->SetSrvManager(srvManager_);
+	SrvManager* srvManager = SrvManager::GetInstance();
+	srvManager->Initialize(dxCommon);
+	dxCommon->SetSrvManager(srvManager);
 
 	// ResourceFactory
-	resourceFactory_ = new ResourceFactory();
-	resourceFactory_->SetDevice(dxCommon->GetDevice());
-	dxCommon->SetResourceFactory(resourceFactory_);
+	ResourceFactory::GetInstance()->SetDevice(dxCommon->GetDevice());
+	dxCommon->SetResourceFactory(ResourceFactory::GetInstance());
 
 	// TextureManager
-	TextureManager::GetInstance()->Initialize(dxCommon->GetDevice(), dxCommon, srvManager_);
-	TextureManager::GetInstance()->SetResourceFactory(resourceFactory_);
-
+	TextureManager::GetInstance()->Initialize(dxCommon->GetDevice(), dxCommon, srvManager);
+	TextureManager::GetInstance()->SetResourceFactory(ResourceFactory::GetInstance());
 	// PipelineManager
 	PipelineManager::GetInstance()->Initialize(dxCommon);
 
 	// ImGuiManager
-	imguiManager_ = new ImGuiManager();
-	imguiManager_->Initialize(windowProc, dxCommon);
+	ImGuiManager* imguiManager= ImGuiManager::GetInstance();
+	imguiManager->Initialize(windowProc, dxCommon);
 
 	// Audio
 	AudioManager::GetInstance()->Initialize();
@@ -51,7 +49,7 @@ void Framework::Initialize(){
 	Obj3dCommon::GetInstance()->Initialize(dxCommon);
 
 	ModelManager::GetInstance()->Initialize(dxCommon);
-	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager_);
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
 
 }
 
@@ -64,11 +62,7 @@ void Framework::Finalize(){
 	PipelineManager::GetInstance()->Finalize();
 
 	// ImGui終了
-	imguiManager_->Shutdown();
-	delete imguiManager_;
-
-	delete resourceFactory_;
-	delete srvManager_;
+	ImGuiManager::GetInstance()->Shutdown();
 }
 
 void Framework::Update(){

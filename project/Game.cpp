@@ -24,7 +24,7 @@ void Game::Update(){
 
 #ifdef USE_IMGUI
 	// ImGuiのフレーム開始処理
-	imguiManager_->Begin();
+	ImGuiManager::GetInstance()->Begin();
 #endif
 
 	// シーンの更新
@@ -38,14 +38,14 @@ void Game::Draw(){
 	// 描画前処理
 	dxCommon->PreDraw();
 	// SRVマネージャーの描画前処理
-	srvManager_->PreDraw();
+	SrvManager::GetInstance()->PreDraw();
 
 	// シーンの描画
 	SceneManager::GetInstance()->Draw();
 
 #ifdef USE_IMGUI
 	// ImGuiの描画コマンド発行
-	imguiManager_->End(dxCommon->GetCommandList());
+	ImGuiManager::GetInstance()->End(dxCommon->GetCommandList());
 #endif
 
 	// 描画後処理

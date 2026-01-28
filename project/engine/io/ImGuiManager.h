@@ -14,6 +14,9 @@ using Microsoft::WRL::ComPtr;
 class ImGuiManager{
 public:
 
+    // シングルトンインスタンスの取得
+    static ImGuiManager* GetInstance();
+
     // -------------------- 初期化・終了処理 --------------------
 
     /// <summary>
@@ -47,7 +50,12 @@ public:
     /// Win32 メッセージの ImGui 用処理
     /// </summary>
     bool WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-
+private:
+    // コンストラクタを隠蔽
+    ImGuiManager() = default;
+    ~ImGuiManager() = default;
+    ImGuiManager(const ImGuiManager&) = delete;
+    ImGuiManager& operator=(const ImGuiManager&) = delete;
 
 private:
 

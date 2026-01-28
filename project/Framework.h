@@ -46,9 +46,6 @@ protected: // 継承先のGameクラスでも使えるようにする
 	// -------------------------------------------------
 	// 基盤システム
 	// -------------------------------------------------
-	SrvManager* srvManager_ = nullptr;
-	ResourceFactory* resourceFactory_ = nullptr;
-	ImGuiManager* imguiManager_ = nullptr;
 	AbstractSceneFactory* sceneFactory_ = nullptr;
 
 
