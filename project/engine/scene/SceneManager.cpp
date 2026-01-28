@@ -1,5 +1,6 @@
 #include "SceneManager.h"
 #include "IScene.h"
+#include <cassert>
 // シングルトンクラスの実装
 SceneManager* SceneManager::GetInstance(){
 	static SceneManager instance;
@@ -41,4 +42,11 @@ void SceneManager::Draw(){
 		// 現在のシーンを描画
 		currentScene_->Draw();
 	}
+}
+void SceneManager::ChangeScene(const std::string& sceneName) {
+	// 1. 安全のためにファクトリーがセットされているかチェック
+	assert(sceneFactory_);
+
+	// 2. ファクトリーを使って新しいシーンを生成し、予約する（nextScene_ に代入）
+	nextScene_ = sceneFactory_->CreateScene(sceneName);
 }

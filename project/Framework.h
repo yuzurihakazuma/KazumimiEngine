@@ -14,7 +14,7 @@
 #include "ParticleManager.h"
 #include "TextureManager.h"
 #include "PipelineManager.h"
-
+#include <engine/scene/AbstractSceneFactory.h>
 // フレームワーククラス
 class Framework{
 public:
@@ -49,5 +49,7 @@ protected: // 継承先のGameクラスでも使えるようにする
 	SrvManager* srvManager_ = nullptr;
 	ResourceFactory* resourceFactory_ = nullptr;
 	ImGuiManager* imguiManager_ = nullptr;
+	AbstractSceneFactory* sceneFactory_ = nullptr;
+
 
 };
