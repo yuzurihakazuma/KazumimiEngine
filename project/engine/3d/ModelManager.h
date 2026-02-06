@@ -3,10 +3,10 @@
 #include <map>
 #include <string>
 #include <memory>
-#include "Model.h"
-#include "ModelCommon.h"
-#include "DirectXCommon.h"
-
+// 前方宣言
+class Model;
+class ModelCommon;
+class DirectXCommon;
 
 // モデルマネージャークラス
 class ModelManager{
@@ -35,20 +35,15 @@ public:
 	void LoadModel(const std::string& modelName, const std::string& directoryPath, const std::string& filename);
 	// モデルの検索
 	Model* FindModel(const std::string& filePath);
-	// モデルの取得
-	std::map<std::string,std::unique_ptr<Model>> models_;
-
+	
 
 private:
 
-	ModelCommon* modelCommon_ = nullptr;
-
-
 	// コンストラクタ
-	ModelManager() = default;
+	ModelManager();
 
 	// デストラクタ
-	~ModelManager() = default;
+	~ModelManager();
 	// コピーコンストラクタ（禁止）
 	ModelManager(const ModelManager&) = delete;
 	// コピー代入演算子（禁止）
@@ -57,8 +52,13 @@ private:
 	static ModelManager* instance_;
 
 
+private:
 
+	// ModelCommonのポインタ
+	std::unique_ptr<ModelCommon> modelCommon_ = nullptr;
 
+	// モデルの取得
+	std::map<std::string, std::unique_ptr<Model>> models_;
 
 };
 

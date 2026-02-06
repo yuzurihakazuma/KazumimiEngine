@@ -43,10 +43,5 @@ protected: // 継承先のGameクラスでも使えるようにする
 
 	bool endRequest_ = false;
 
-	// -------------------------------------------------
-	// 基盤システム
-	// -------------------------------------------------
-	AbstractSceneFactory* sceneFactory_ = nullptr;
-
 
 };

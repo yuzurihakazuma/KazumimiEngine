@@ -1,7 +1,11 @@
 #include "SpriteCommon.h"
+#include <cassert>
+#include <d3d12.h>          
+#include "DirectXCommon.h"  
 #include "PipelineManager.h"
-using namespace logs;
 
+
+// 初期化
 void SpriteCommon::Initialize(DirectXCommon* dxCommon){
 	assert(dxCommon);
 
@@ -12,6 +16,7 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon){
 	
 }
 
+// 共通の描画設定
 void SpriteCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
 
 	PipelineManager::GetInstance()->SetPipeline(

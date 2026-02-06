@@ -1,6 +1,8 @@
 #include "Camera.h"
 #include "WindowProc.h"
 #include "DirectXCommon.h"
+#include <d3d12.h>
+
 using namespace MatrixMath;
 
 Camera::Camera(int windowWidth, int windowHeight, DirectXCommon* dxcmmon)

@@ -2,9 +2,10 @@
 #include "Matrix4x4.h"
 #include "struct.h"
 #include <wrl/client.h>
-#include <d3d12.h>
 
+// 前方宣言
 class DirectXCommon;
+struct ID3D12Resource;
 
 // カメラクラス
 class Camera{

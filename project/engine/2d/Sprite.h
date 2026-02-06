@@ -1,10 +1,13 @@
 #pragma once
+// 独自クラス
 #include "struct.h"
 #include "Matrix4x4.h"
-#include"WindowProc.h"       
-#include <d3d12.h>               
-#include <cstdint>  
-#include <wrl.h>                    
+
+// 標準ライブラリ
+#include <cstdint>
+#include <d3d12.h>   
+#include <wrl.h>
+
 // 前方宣言
 class SpriteCommon;
 
@@ -79,7 +82,7 @@ private:
 		Matrix4x4 WorldInverseTranspose;
 	};
 
-	SpriteCommon* spriteCommon = nullptr; // 所有しない参照
+	SpriteCommon* spriteCommon_ = nullptr; // 所有しない参照
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_;

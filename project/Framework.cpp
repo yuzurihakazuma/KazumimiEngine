@@ -20,7 +20,6 @@ void Framework::Initialize(){
 	// Input
 	Input::GetInstance()->Initialize(windowProc->GetHwnd());
 
-	// こんにちは
 	// SrvManager
 	SrvManager* srvManager = SrvManager::GetInstance();
 	srvManager->Initialize(dxCommon);

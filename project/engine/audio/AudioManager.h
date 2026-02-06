@@ -1,10 +1,13 @@
 #pragma once
-#include <d3d12.h>
+
+
 #include <xaudio2.h>
-#include <wrl.h>
+#include <wrl/client.h>
 #include <string>
 #include <map>
 #include <cstdint>
+#include <vector>
+#include <memory>
 
 #pragma comment(lib,"xaudio2.lib")
 
@@ -12,12 +15,23 @@
 struct SoundData{
 	// 波型フォーマット
 	WAVEFORMATEX wfex;
-	// バッファの先頭アドレス
-	BYTE* pBuffer;
-	// バッファのサイズ
-	unsigned int bufferSize;
+	// 音声バッファ
+    std::vector<BYTE> buffer;
 
 };
+
+// IXAudio2SourceVoiceのデリータ
+struct SourceVoiceDeleter{
+	// デストラクタ
+    void operator()(IXAudio2SourceVoice* v) const noexcept{
+        if ( v ) {
+            v->DestroyVoice();
+        }
+    }
+};
+// IXAudio2SourceVoiceのスマートポインタ
+using SourceVoicePtr = std::unique_ptr<IXAudio2SourceVoice, SourceVoiceDeleter>;
+
 
 class AudioManager{
 public: // シングルトンパターン
@@ -38,9 +52,9 @@ public: // メンバ関数
     // 音声再生
     // volume: 音量 (0.0f ~ 1.0f)
     void PlayWave(const std::string& filename, bool loop = false, float volume = 1.0f);
-
-    // 音声データの解放
-    void Unload(SoundData* soundData);
+    
+	// 音声更新
+    void UpdateVoices();
 
 private: // 内部構造体（WAV読み込み用）
     // チャンクヘッダ
@@ -68,6 +82,8 @@ private:
     AudioManager(const AudioManager&) = delete;
     AudioManager& operator=(const AudioManager&) = delete;
 
+private:
+
     // XAudio2の本体
     Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
     // マスターボイス（スピーカー出力）
@@ -76,4 +92,8 @@ private:
     // 読み込んだ音声データの管理コンテナ
     // キー: ファイル名, 値: 音声データ
     std::map<std::string, SoundData> soundDatas_;
+
+	// 再生中の音声ボイスの管理コンテナ
+    std::vector<SourceVoicePtr> playingVoices_;
+
 };

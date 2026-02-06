@@ -1,6 +1,14 @@
 #include "Obj3dCommon.h"
+
+// 標準ライブラリ
+#include <cassert>
+
+// エンジン独自ライブラリ
 #include "PipelineManager.h"
 #include "Matrix4x4.h"
+#include "DirectXCommon.h"
+
+
 using namespace MatrixMath;
 
 // 初期化
