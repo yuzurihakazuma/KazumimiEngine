@@ -1,15 +1,24 @@
 #include "ModelManager.h"
+// 基盤システムのヘッダー
+#include "Model.h"
+#include "ModelCommon.h"
+#include "DirectXCommon.h"
 
 
-// 静的メンバ変数の実体定義
 ModelManager* ModelManager::instance_ = nullptr;
 
-void ModelManager::Initialize(DirectXCommon* dxCommon){
-	modelCommon_ = new ModelCommon();
+ModelManager::ModelManager(){}
+
+ModelManager::~ModelManager(){}
+
+// 初期化
+void ModelManager::Initialize(DirectXCommon* dxCommon){ 
+	modelCommon_ = std::make_unique<ModelCommon>();
 	modelCommon_->Initialize(dxCommon);
 
 }
 
+// 球モデルの作成
 void ModelManager::CreateSphereModel(const std::string& modelName, int subdivision){
 
 	// 重複読み込み防止：すでに同じ名前で登録されていたら何もしない
@@ -21,8 +30,7 @@ void ModelManager::CreateSphereModel(const std::string& modelName, int subdivisi
 	std::unique_ptr<Model> newModel = std::make_unique<Model>();
 
 	// 2. モデル初期化 (ModelManagerが持っているModelCommonを渡す)
-	newModel->InitializeSphere(modelCommon_,subdivision);
-
+	newModel->InitializeSphere(modelCommon_.get(), subdivision);
 	// 3. マップに登録 (moveで所有権をマップに移す)
 	models_.insert(std::make_pair(modelName, std::move(newModel)));
 
@@ -40,7 +48,7 @@ void ModelManager::LoadModel(const std::string& modelName, const std::string& di
 	std::unique_ptr<Model> newModel = std::make_unique<Model>();
 
 	// 2. モデル初期化 (ModelManagerが持っているModelCommonを渡す)
-	newModel->Initialize(modelCommon_, directoryPath, filename);
+	newModel->Initialize(modelCommon_.get(), directoryPath, filename);
 
 	// 3. マップに登録 (moveで所有権をマップに移す)
 	models_.insert(std::make_pair(modelName, std::move(newModel)));

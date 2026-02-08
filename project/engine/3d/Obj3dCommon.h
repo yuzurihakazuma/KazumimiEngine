@@ -1,11 +1,13 @@
 #pragma once
 #include <wrl.h>
 #include <d3d12.h>
-#include"DirectXCommon.h"
-#include "LogManager.h"
-#include"ShaderCompiler.h"
 #include "struct.h"
 
+// 前方宣言
+class DirectXCommon;
+
+
+// 3Dオブジェクト共通クラス
 class Obj3dCommon{
 public:
 	

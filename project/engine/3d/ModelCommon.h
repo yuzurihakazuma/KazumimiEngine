@@ -1,6 +1,8 @@
 #pragma once
-#include "DirectXCommon.h"
+// 前方宣言
+class DirectXCommon;
 
+// モデル共通クラス
 class ModelCommon{
 public:
 	/// <summary>
@@ -8,11 +10,12 @@ public:
 	/// </summary>
 	void Initialize(DirectXCommon* dxCommon);
 
-	DirectXCommon* GetDxCommon() const{ return dxCommon_; }
+	DirectXCommon* GetDxCommon() const;
 
 private:
-	DirectXCommon* dxCommon_;
+	
+	
+	DirectXCommon* dxCommon_ = nullptr;
 
-  
 };
 

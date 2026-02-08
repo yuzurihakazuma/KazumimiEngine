@@ -12,6 +12,8 @@ using Microsoft::WRL::ComPtr;
 class ResourceFactory{
 public:
 
+    static ResourceFactory* GetInstance();
+
     // -------------------- リソース生成 --------------------
 
     /// <summary>
@@ -32,7 +34,12 @@ public:
 
     // -------------------- その他拡張予定 --------------------
 
-
+private:
+    // コンストラクタを private に
+    ResourceFactory() = default;
+    ~ResourceFactory() = default;
+    ResourceFactory(const ResourceFactory&) = delete;
+    ResourceFactory& operator=(const ResourceFactory&) = delete;
 private:
 
     // -------------------- 内部リソース --------------------

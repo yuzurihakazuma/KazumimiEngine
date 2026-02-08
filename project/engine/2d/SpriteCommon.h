@@ -1,13 +1,8 @@
 #pragma once
-#include <wrl.h>
-#include <d3d12.h>
-#include"DirectXCommon.h"
-#include "LogManager.h"
-#include"ShaderCompiler.h"
+// 前方宣言
 
-using namespace logs;
-
-
+class DirectXCommon;
+struct ID3D12GraphicsCommandList;
 
 class SpriteCommon{
 public:

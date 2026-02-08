@@ -1,6 +1,8 @@
 #include "SceneManager.h"
 #include "IScene.h"
 #include <cassert>
+#include <engine/scene/AbstractSceneFactory.h>
+
 // シングルトンクラスの実装
 SceneManager* SceneManager::GetInstance(){
 	static SceneManager instance;
@@ -8,9 +10,11 @@ SceneManager* SceneManager::GetInstance(){
 }
 // デストラクタ
 SceneManager::~SceneManager(){
+	// 現在のシーンを終了
 	if ( currentScene_ ) {
+		// 現在のシーンを終了
 		currentScene_->Finalize();
-		delete currentScene_;
+		// シーン情報をクリア
 		currentScene_ = nullptr;
 	}
 }
@@ -21,11 +25,9 @@ void SceneManager::Update(){
 		// 現在のシーンを終了
 		if ( currentScene_ ) {
 			currentScene_->Finalize();
-			// メモリ解放
-			delete currentScene_;
 		}
 		// シーンを切り替え
-		currentScene_ = nextScene_;
+		currentScene_ = std::move(nextScene_);
 		// 次のシーン情報をクリア
 		nextScene_ = nullptr;
 		// 新しいシーンを初期化
@@ -43,10 +45,8 @@ void SceneManager::Draw(){
 		currentScene_->Draw();
 	}
 }
-void SceneManager::ChangeScene(const std::string& sceneName) {
-	// 1. 安全のためにファクトリーがセットされているかチェック
-	assert(sceneFactory_);
 
-	// 2. ファクトリーを使って新しいシーンを生成し、予約する（nextScene_ に代入）
-	nextScene_ = sceneFactory_->CreateScene(sceneName);
+// シーン変更（シーン名で指定）
+void SceneManager::ChangeScene(std::unique_ptr<IScene> nextScene){
+	nextScene_ = std::move(nextScene);
 }

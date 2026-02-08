@@ -1,8 +1,9 @@
 #pragma once
-#include <string>
-#include <engine/scene/AbstractSceneFactory.h>
+#include <memory>
+
 // 前方宣言
 class IScene;
+class AbstractSceneFactory;
 // シーンマネージャークラス
 class SceneManager{
 public:
@@ -16,7 +17,7 @@ public:
 	void SetSceneFactory(AbstractSceneFactory* sceneFactory) { sceneFactory_ = sceneFactory; }
 	
 	// シーン変更（シーン名で指定）
-	void ChangeScene(const std::string& sceneName);
+	void ChangeScene(std::unique_ptr<IScene> nextScene);
 
 private:
 	// コンストラクタを private にして外部からの生成を禁止
@@ -25,8 +26,8 @@ private:
 	SceneManager(const SceneManager&) = delete;
 	SceneManager& operator=(const SceneManager&) = delete;
 
-	IScene* currentScene_ = nullptr;
-	IScene* nextScene_ = nullptr;
+	std::unique_ptr<IScene> currentScene_ = nullptr;
+	std::unique_ptr<IScene> nextScene_ = nullptr;
 
 	AbstractSceneFactory* sceneFactory_ = nullptr; 
 };

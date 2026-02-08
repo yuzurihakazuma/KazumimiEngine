@@ -2,11 +2,14 @@
 #include "struct.h"
 #include "Matrix4x4.h"
 #include <d3d12.h>
-#include <cstdint>
 #include <wrl.h>
-#include "Obj3dCommon.h"
-#include "Model.h" // Modelクラスを使うため必須
-#include "Camera.h"
+
+// 前方宣言
+class Obj3dCommon;
+class Model;
+class Camera;
+class DirectXCommon;
+
 
 // モデル3Dクラス
 class Obj3d{

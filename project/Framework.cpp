@@ -1,16 +1,27 @@
 #include "Framework.h"
+#include "WindowProc.h"
+#include "DirectXCommon.h"
+#include "Input.h"
+#include "AudioManager.h" 
+#include "SrvManager.h"
+#include "ResourceFactory.h"
+#include "ImGuiManager.h"
+#include "SpriteCommon.h"
+#include "Obj3dCommon.h"
+#include "ModelManager.h"
+#include "ParticleManager.h"
+#include "TextureManager.h"
+#include "PipelineManager.h"
+#include <engine/scene/AbstractSceneFactory.h>
 
 void Framework::Initialize(){
 	// ---------------------------------------------
 	// 基盤システムの初期化
 	// ---------------------------------------------
+	
 	// WindowProc
 	WindowProc* windowProc = WindowProc::GetInstance();
-	WNDCLASS wc = {};
-	wc.style = CS_HREDRAW | CS_VREDRAW;
-	wc.hbrBackground = reinterpret_cast< HBRUSH >( COLOR_WINDOW + 1 );
-	wc.lpfnWndProc = windowProc->WndProc;
-	windowProc->Initialize(wc, 1280, 720); // サイズは固定か変数化
+	windowProc->Initialize();
 
 	
 	// DirectXCommon
@@ -20,38 +31,39 @@ void Framework::Initialize(){
 	// Input
 	Input::GetInstance()->Initialize(windowProc->GetHwnd());
 
-	// こんにちは
 	// SrvManager
-	srvManager_ = new SrvManager();
-	srvManager_->Initialize(dxCommon);
-	dxCommon->SetSrvManager(srvManager_);
+	SrvManager* srvManager = SrvManager::GetInstance();
+	srvManager->Initialize(dxCommon);
+	dxCommon->SetSrvManager(srvManager);
 
 	// ResourceFactory
-	resourceFactory_ = new ResourceFactory();
-	resourceFactory_->SetDevice(dxCommon->GetDevice());
-	dxCommon->SetResourceFactory(resourceFactory_);
+	ResourceFactory::GetInstance()->SetDevice(dxCommon->GetDevice());
+	dxCommon->SetResourceFactory(ResourceFactory::GetInstance());
 
 	// TextureManager
-	TextureManager::GetInstance()->Initialize(dxCommon->GetDevice(), dxCommon, srvManager_);
-	TextureManager::GetInstance()->SetResourceFactory(resourceFactory_);
-
+	TextureManager::GetInstance()->Initialize(dxCommon->GetDevice(), dxCommon, srvManager);
+	TextureManager::GetInstance()->SetResourceFactory(ResourceFactory::GetInstance());
 	// PipelineManager
 	PipelineManager::GetInstance()->Initialize(dxCommon);
 
 	// ImGuiManager
-	imguiManager_ = new ImGuiManager();
-	imguiManager_->Initialize(windowProc, dxCommon);
+	ImGuiManager* imguiManager= ImGuiManager::GetInstance();
+	imguiManager->Initialize(windowProc, dxCommon);
 
 	// Audio
 	AudioManager::GetInstance()->Initialize();
 
-
+	// スプライト共通初期化
 	SpriteCommon::GetInstance()->Initialize(dxCommon);
 
+	// 3Dオブジェクト共通初期化
 	Obj3dCommon::GetInstance()->Initialize(dxCommon);
 
+	// モデルマネージャー初期化
 	ModelManager::GetInstance()->Initialize(dxCommon);
-	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager_);
+
+	// パーティクルマネージャー初期化
+	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
 
 }
 
@@ -64,11 +76,7 @@ void Framework::Finalize(){
 	PipelineManager::GetInstance()->Finalize();
 
 	// ImGui終了
-	imguiManager_->Shutdown();
-	delete imguiManager_;
-
-	delete resourceFactory_;
-	delete srvManager_;
+	ImGuiManager::GetInstance()->Shutdown();
 }
 
 void Framework::Update(){

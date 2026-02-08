@@ -87,8 +87,6 @@ private: // メンバ変数
 	D3D12_INDEX_BUFFER_VIEW indexBufferView_ {};
 
 	// データを書き込むためのポインタ (Map用)
-	VertexData* vertexData_ = nullptr;
-	uint32_t* indexData_ = nullptr;
 	Material* materialData_ = nullptr;
 
 	// テクスチャハンドル

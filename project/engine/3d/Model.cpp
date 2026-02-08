@@ -4,7 +4,16 @@
 #include "SrvManager.h"
 #include "Obj3dCommon.h"
 #include "ModelCommon.h"
+
+
+
+#include <cassert>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cmath>
 #include <numbers>
+
 using namespace MatrixMath;
 
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename){
