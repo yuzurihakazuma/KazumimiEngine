@@ -1,16 +1,27 @@
 #include "Framework.h"
+#include "WindowProc.h"
+#include "DirectXCommon.h"
+#include "Input.h"
+#include "AudioManager.h" 
+#include "SrvManager.h"
+#include "ResourceFactory.h"
+#include "ImGuiManager.h"
+#include "SpriteCommon.h"
+#include "Obj3dCommon.h"
+#include "ModelManager.h"
+#include "ParticleManager.h"
+#include "TextureManager.h"
+#include "PipelineManager.h"
+#include <engine/scene/AbstractSceneFactory.h>
 
 void Framework::Initialize(){
 	// ---------------------------------------------
 	// 基盤システムの初期化
 	// ---------------------------------------------
+	
 	// WindowProc
 	WindowProc* windowProc = WindowProc::GetInstance();
-	WNDCLASS wc = {};
-	wc.style = CS_HREDRAW | CS_VREDRAW;
-	wc.hbrBackground = reinterpret_cast< HBRUSH >( COLOR_WINDOW + 1 );
-	wc.lpfnWndProc = windowProc->WndProc;
-	windowProc->Initialize(wc, 1280, 720); // サイズは固定か変数化
+	windowProc->Initialize();
 
 	
 	// DirectXCommon
@@ -42,12 +53,16 @@ void Framework::Initialize(){
 	// Audio
 	AudioManager::GetInstance()->Initialize();
 
-
+	// スプライト共通初期化
 	SpriteCommon::GetInstance()->Initialize(dxCommon);
 
+	// 3Dオブジェクト共通初期化
 	Obj3dCommon::GetInstance()->Initialize(dxCommon);
 
+	// モデルマネージャー初期化
 	ModelManager::GetInstance()->Initialize(dxCommon);
+
+	// パーティクルマネージャー初期化
 	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
 
 }
