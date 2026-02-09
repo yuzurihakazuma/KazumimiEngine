@@ -1,5 +1,10 @@
 #include "ResourceFactory.h"
 
+ResourceFactory* ResourceFactory::GetInstance() {
+    static ResourceFactory instance;
+    return &instance;
+}
+
 
 ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uint64_t sizeInBytes){
    

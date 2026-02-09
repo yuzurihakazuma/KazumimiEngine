@@ -4,7 +4,10 @@
 #include <d3d12.h>
 #include <wrl.h>
 
-
+SrvManager* SrvManager::GetInstance() {
+	static SrvManager instance;
+	return &instance;
+}
 
 
 void SrvManager::Initialize(DirectXCommon* dxCommon){

@@ -2,6 +2,16 @@
 #include "Matrix4x4.h"
 #include "ImGuiManager.h"
 
+// 基盤システムのヘッダー
+#include "DirectXCommon.h"
+#include "Input.h"
+#include "SpriteCommon.h"
+#include "Obj3dCommon.h"
+#include "WindowProc.h"
+#include "Camera.h"
+#include "Sprite.h"
+#include "Obj3d.h"
+
 // シングルトンクラスのヘッダー
 #include "AudioManager.h"
 #include "ModelManager.h"
@@ -9,7 +19,14 @@
 #include "TextureManager.h"
 #include "PipelineManager.h"
 #include "SceneManager.h"
+#include "GamePlayScene.h"
 using namespace MatrixMath;
+
+TitleScene::TitleScene(){}
+
+TitleScene::~TitleScene(){}
+
+
 // 初期化
 void TitleScene::Initialize(){
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
@@ -42,12 +59,13 @@ void TitleScene::Initialize(){
 
 
 	// カメラ生成
-	camera_ = new Camera(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
+	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
 
 	// オブジェクト生成
-	fence_ = new Obj3d();
-	sphere_ = new Obj3d();
+	fence_ = std::make_unique<Obj3d>();
+	sphere_ = std::make_unique<Obj3d>();
+
 
 	// モデル取得 (シングルトンから)
 	Model* modelGround = ModelManager::GetInstance()->FindModel("fence");
@@ -55,18 +73,16 @@ void TitleScene::Initialize(){
 
 	// オブジェクト初期化
 	fence_->Initialize(modelGround);
-	fence_->SetCamera(camera_);
+	fence_->SetCamera(camera_.get());
 
 	// 床の位置とスケール設定
 	sphere_->Initialize(modelSphere);
-	sphere_->SetCamera(camera_);
+	sphere_->SetCamera(camera_.get());
 	sphere_->SetTranslation(spherePos_);
 	sphere_->SetScale(sphereScale_);
-	// 小さくて見えない対策（任意）
-	object3ds_.push_back(sphere_);
-
+	
 	// スプライト生成
-	sprite_ = new Sprite();
+	sprite_ = std::make_unique<Sprite>();
 	sprite_->Initialize();
 	// ハンドル取得には TextureResource 内の srvIndex を使う
 	sprite_->SetTextureHandle(dxCommon->GetSrvManager()->GetGPUDescriptorHandle(textureResource_.srvIndex));
@@ -84,7 +100,7 @@ void TitleScene::Update(){
 	Input* input = Input::GetInstance();
 
 	if ( input->Triggerkey(DIK_SPACE) ) {
-		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+		SceneManager::GetInstance()->ChangeScene(std::make_unique<GamePlayScene>());
 	}
 
 	// パーティクル発生 (シングルトン)
@@ -92,15 +108,16 @@ void TitleScene::Update(){
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
 	// パーティクル更新
-	ParticleManager::GetInstance()->Update(camera_);
+	ParticleManager::GetInstance()->Update(camera_.get());
 
 	// オブジェクト更新
 	if ( sphere_ ) {
 		sphere_->SetTranslation(spherePos_);
 		sphere_->SetScale(sphereScale_);
+		sphere_->Update();
 	}
 	// 全オブジェクト更新
-	for ( Obj3d* obj : object3ds_ ) {
+	for ( auto& obj : object3ds_ ) {
 		obj->Update();
 	}
 	// スプライト更新
@@ -108,7 +125,6 @@ void TitleScene::Update(){
 
 
 #ifdef USE_IMGUI
-
 	ImGui::Text("Current Scene: TitleScene");
 	ImGui::Separator(); // 区切り線
 
@@ -151,6 +167,7 @@ void TitleScene::Update(){
 	if ( !object3ds_.empty() ) {
 		object3ds_[0]->SetTranslation(groundPos_);
 	}
+
 #endif
 }
 
@@ -162,8 +179,16 @@ void TitleScene::Draw(){
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
+	if ( fence_ ){
+		fence_->Draw();
+	}
+	if ( sphere_ ){
+	sphere_->Draw();
+	}
+	
+
 	// 3Dオブジェクト描画
-	for ( Obj3d* obj : object3ds_ ) {
+	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
 	}
 
@@ -176,11 +201,6 @@ void TitleScene::Draw(){
 }
 
 void TitleScene::Finalize(){
-	// ゲーム固有の解放
-	delete camera_;
-	delete sprite_;
-	delete fence_;
-	delete sphere_;
 	// vectorはクリアされるが中身のポインタ削除
 	// (object3ds_に入っているポインタと重複しないよう管理が必要ですが、一旦シンプルに)
 	object3ds_.clear();

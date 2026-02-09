@@ -6,6 +6,12 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
+ImGuiManager* ImGuiManager::GetInstance() {
+    static ImGuiManager instance;
+    return &instance;
+}
+
+
 void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
 
     // 1. コンテキストの生成とスタイル設定

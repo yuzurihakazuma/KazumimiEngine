@@ -10,9 +10,7 @@ public:
 	/// <summary>
    /// ウィンドウの初期化
    /// </summary>
-	void Initialize(WNDCLASS wc,
-		const int32_t kClientWidth = 1280,
-		const int32_t kClientHeight = 720);
+	void Initialize();
 
 	/// <summary>
 	/// ウィンドウの更新処理

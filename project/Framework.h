@@ -1,20 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <memory>
-#include "WindowProc.h"
-#include "DirectXCommon.h"
-#include "Input.h"
-#include "AudioManager.h" 
-#include "SrvManager.h"
-#include "ResourceFactory.h"
-#include "ImGuiManager.h"
-#include "SpriteCommon.h"
-#include "Obj3dCommon.h"
-#include "ModelManager.h"
-#include "ParticleManager.h"
-#include "TextureManager.h"
-#include "PipelineManager.h"
-#include <engine/scene/AbstractSceneFactory.h>
+
 // フレームワーククラス
 class Framework{
 public:
@@ -42,14 +29,6 @@ public:
 protected: // 継承先のGameクラスでも使えるようにする
 
 	bool endRequest_ = false;
-
-	// -------------------------------------------------
-	// 基盤システム
-	// -------------------------------------------------
-	SrvManager* srvManager_ = nullptr;
-	ResourceFactory* resourceFactory_ = nullptr;
-	ImGuiManager* imguiManager_ = nullptr;
-	AbstractSceneFactory* sceneFactory_ = nullptr;
 
 
 };

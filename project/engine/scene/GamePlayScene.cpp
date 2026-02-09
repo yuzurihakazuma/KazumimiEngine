@@ -9,7 +9,13 @@
 #include "TextureManager.h"
 #include "PipelineManager.h"
 #include "SceneManager.h"
-
+#include "TitleScene.h"
+#include "Camera.h"
+#include "Sprite.h"
+#include "Obj3d.h"
+#include "Input.h"
+#include "SpriteCommon.h"
+#include "Obj3dCommon.h"
 
 using namespace MatrixMath;
 // 初期化
@@ -44,12 +50,12 @@ void GamePlayScene::Initialize(){
 
 
 	// カメラ生成
-	camera_ = new Camera(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
+	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
 
 	// オブジェクト生成
-	fence_ = new Obj3d();
-	sphere_ = new Obj3d();
+	fence_ = std::make_unique<Obj3d>();
+	sphere_ = std::make_unique<Obj3d>();
 
 	// モデル取得 (シングルトンから)
 	Model* modelGround = ModelManager::GetInstance()->FindModel("fence");
@@ -57,18 +63,16 @@ void GamePlayScene::Initialize(){
 
 	// オブジェクト初期化
 	fence_->Initialize(modelGround); 
-	fence_->SetCamera(camera_);
+	fence_->SetCamera(camera_.get());
 	
 	// 床の位置とスケール設定
 	sphere_->Initialize(modelSphere);
-	sphere_->SetCamera(camera_);
+	sphere_->SetCamera(camera_.get());
 	sphere_->SetTranslation(spherePos_);
 	sphere_->SetScale(sphereScale_);
-	// 小さくて見えない対策（任意）
-	object3ds_.push_back(sphere_);
 
 	// スプライト生成
-	sprite_ = new Sprite();
+	sprite_ = std::make_unique<Sprite>();
 	sprite_->Initialize();
 	// ハンドル取得には TextureResource 内の srvIndex を使う
 	sprite_->SetTextureHandle(dxCommon->GetSrvManager()->GetGPUDescriptorHandle(textureResource_.srvIndex));
@@ -91,14 +95,14 @@ void GamePlayScene::Update(){
 	}
 	// タイトルシーンへ移動
 	if ( input->Triggerkey(DIK_T) ) {
-		SceneManager::GetInstance()->ChangeScene("TITLE");
+		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 	// パーティクル発生 (シングルトン)
 	if ( input->Triggerkey(DIK_P) ) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
 	// パーティクル更新
-	ParticleManager::GetInstance()->Update(camera_);
+	ParticleManager::GetInstance()->Update(camera_.get());
 
 	// オブジェクト更新
 	if ( sphere_ ) {
@@ -106,14 +110,14 @@ void GamePlayScene::Update(){
 		sphere_->SetScale(sphereScale_);
 	}
 	// 全オブジェクト更新
-	for ( Obj3d* obj : object3ds_ ) {
+	for ( auto& obj : object3ds_ ) {
 		obj->Update();
 	}
 	// スプライト更新
 	sprite_->Update();
 
-
 #ifdef USE_IMGUI
+
 	
 	ImGui::Text("Current Scene: GamePlay");
 	ImGui::Separator(); // 区切り線
@@ -159,6 +163,8 @@ void GamePlayScene::Update(){
 		object3ds_[0]->SetTranslation(groundPos_);
 	}
 #endif
+
+
 }
 
 void GamePlayScene::Draw(){
@@ -170,7 +176,7 @@ void GamePlayScene::Draw(){
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
 	// 3Dオブジェクト描画
-	for ( Obj3d* obj : object3ds_ ) {
+	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
 	}
 
@@ -182,14 +188,13 @@ void GamePlayScene::Draw(){
 	// sprite_->Draw(); 
 }
 
+GamePlayScene::GamePlayScene(){}
+
+GamePlayScene::~GamePlayScene(){}
+
 void GamePlayScene::Finalize(){
-	// ゲーム固有の解放
-	delete camera_;
-	delete sprite_;
-	delete fence_;
-	delete sphere_;
-	// vectorはクリアされるが中身のポインタ削除
-	// (object3ds_に入っているポインタと重複しないよう管理が必要ですが、一旦シンプルに)
+	
+
 	object3ds_.clear();
 
 	textureResource_.resource.Reset();

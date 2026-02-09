@@ -1,18 +1,15 @@
 #pragma once
-#include "DirectXCommon.h"
 #include "IScene.h"
-#include "Input.h"
-#include "SpriteCommon.h"
-#include "Obj3dCommon.h"
-#include "WindowProc.h" 
-
-// ゲーム内で使うクラス
-#include "Camera.h"
-#include "Sprite.h"
-#include "Obj3d.h"
-#include "ParticleManager.h" 
-
-
+#include <vector>
+#include <memory>// ゲーム内で使うクラス
+#include "Matrix4x4.h"
+#include "TextureManager.h"
+// 前方宣言
+class Camera;
+class Sprite;
+class Obj3d;
+class DirectXCommon;
+class Input;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -26,19 +23,23 @@ public:
 	// 描画
 	void Draw() override;
 
+	GamePlayScene();
+
+	~GamePlayScene();
+
 private: // メンバ変数
 
 	// カメラ
-	Camera* camera_ = nullptr;
+	std::unique_ptr<Camera> camera_ = nullptr;
 
 	// 3Dオブジェクト
-	std::vector<Obj3d*> object3ds_;
-	Obj3d* fence_ = nullptr;
-	Obj3d* sphere_ = nullptr;
+	std::vector<std::unique_ptr<Obj3d>> object3ds_;
+	std::unique_ptr<Obj3d>fence_ = nullptr;
+	std::unique_ptr<Obj3d> sphere_ = nullptr;
 
 	// スプライト
-	std::vector<Sprite*> sprites_;
-	Sprite* sprite_ = nullptr;
+	std::vector<std::unique_ptr<Sprite>> sprites_;
+	std::unique_ptr<Sprite> sprite_ = nullptr;
 
 	// テクスチャデータ
 	TextureData textureResource_;

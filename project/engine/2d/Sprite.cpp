@@ -1,16 +1,30 @@
 #include "Sprite.h"
-#include"SpriteCommon.h"
-#include "Obj3d.h"
+
+
+// 標準ライブラリ
+#include <cassert>
+#include <windows.h>      // OutputDebugStringA を使うなら必要
+#include <algorithm>      // std::swap
+#include <utility>
+
+// エンジン内部ヘッダー
+#include "SpriteCommon.h"
+#include "DirectXCommon.h"  // spriteCommon_->GetDxCommon() の中身を使うので必要
+#include "Matrix4x4.h"
 
 
 using namespace MatrixMath;
 
 void Sprite::Initialize(){
-	// SpriteCommonの取得
-	SpriteCommon* spriteCommon = SpriteCommon::GetInstance();
+	spriteCommon_ = SpriteCommon::GetInstance();
+	assert(spriteCommon_);
+
+	auto* dxCommon = spriteCommon_->GetDxCommon();
+	assert(dxCommon);
+	assert(dxCommon->GetResourceFactory());
 
     // 頂点リソースを作成（例: 4頂点）
-    vertexResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(VertexData) * 4);
+    vertexResource_ = spriteCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(VertexData) * 4);
     if (!vertexResource_) {
         OutputDebugStringA("Sprite::Initialize: CreateBufferResource(vertex) failed\n");
         return; // またはエラーフラグをセットして処理中断
@@ -64,7 +78,7 @@ void Sprite::Initialize(){
 	vertexData_[3].texcoord = { 1.0f, 1.0f };                // UVは(1,1)
 	vertexData_[3].normal = { 0.0f, 0.0f, -1.0f };
 	// Sprite用のマテリアルリソースを作る
-	materialResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Material));
+	materialResource_ = spriteCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Material));
 
 	// Mapしてデータを書き込む。色は白設定しておく
 	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
@@ -78,7 +92,7 @@ void Sprite::Initialize(){
 	materialData_->shininess = 0.0f;
 
 
-	indexResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(uint32_t) * 6);
+	indexResource_ = spriteCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(uint32_t) * 6);
 
 	// リソースの先頭のアドレスから使う
 	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
@@ -106,7 +120,7 @@ void Sprite::Initialize(){
 
 
 
-	transformationMatrixResource_ = spriteCommon->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(TransformationMatrix));
+	transformationMatrixResource_ = spriteCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(TransformationMatrix));
 
 	// 書き込むためのアドレスを取得
 	transformationMatrixResource_->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatirxData_ ));
@@ -136,8 +150,12 @@ void Sprite::Update(){
 
 void Sprite::Draw(){
 
-	auto commandList = spriteCommon->GetDxCommon()->GetCommandList();
+	assert(spriteCommon_);
+	auto* dxCommon = spriteCommon_->GetDxCommon();
+	assert(dxCommon);
 
+	auto* commandList = dxCommon->GetCommandList();
+	assert(commandList);
 	
 	SpriteCommon::GetInstance()->PreDraw(commandList); // 共通の描画設定
 

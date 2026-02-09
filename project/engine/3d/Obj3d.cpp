@@ -1,7 +1,14 @@
 #include "Obj3d.h"
-#include "Matrix4x4.h"
+
+// 標準ライブラリ
+#include <cassert>
+
+// エンジン独自ライブラリ
 #include "Obj3dCommon.h"
 #include "Model.h"
+#include "Camera.h"
+#include "Matrix4x4.h"
+#include "DirectXCommon.h"
 
 using namespace MatrixMath;
 
@@ -77,8 +84,10 @@ void Obj3d::Update(){
 void Obj3d::Draw(){
 
 	// コマンドリスト取得
-	auto commandList = obj3dCommon_->GetDxCommon()->GetCommandList();
-	
+	ID3D12GraphicsCommandList* commandList =
+		obj3dCommon_->GetDxCommon()->GetCommandList();
+	assert(commandList != nullptr);
+
 	// 1. 座標情報の転送 (WVP) -> RootParameter[1]
 	// ※PipelineManagerの設定（RootSignature）と番号を合わせてください
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
