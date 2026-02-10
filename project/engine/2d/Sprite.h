@@ -51,7 +51,7 @@ public:
 
 	// スプライトのアンカーポイントを設定・取得する関数を追加
 	const Vector2 GetAnchorPoint() const{ return anchorPoint_; }
-	void SetAnchorPoint(const Vector2& anchorPoint){ anchorPoint_ = anchorPoint; }
+	void SetAnchorPoint(const Vector2& anchorPoint){ anchorPoint_ = anchorPoint; isDirty_ = true;}
 
 	// スプライトの左右クリップ設定・取得する関数を追加
 	bool GetIsFlipX() const{ return isFlipX_; }
@@ -59,6 +59,15 @@ public:
 	// スプライトの上下クリップ設定・取得する関数を追加
 	bool GetIsFlipY() const{ return isFlipY_; }
 	void SetIsFlipY(bool isFlipY){ isFlipY_ = isFlipY; }
+
+private:
+	
+	
+	void CreateVertexBuffer();// バッファ作成関数群
+	void CreateIndexBuffer(); // indexバッファ作成
+	void CreateMaterialBuffer(); // マテリアルバッファ作成
+	void CreateTransformationMatrixBuffer(); // 変換行列バッファ作成
+	void UpdateVertexData(); // 頂点データの計算・転送
 
 private:
 	
@@ -131,6 +140,8 @@ private:
 	Vector2 texuvLeftTop_ = { 0.0f,0.0f };
 	// テクスチャ右下座標
 	Vector2 texuvRightBottom_ = { 100.0f,100.0f };
+
+	bool isDirty_ = true; // 頂点データ更新フラグ
 
 };
 

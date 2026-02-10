@@ -173,8 +173,9 @@ void GamePlayScene::Draw(){
 	
 	// スプライト・3D描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
-	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
+	// 3D描画の前準備
+	Obj3dCommon::GetInstance()->PreDraw(commandList);
 	// 3Dオブジェクト描画
 	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
@@ -183,9 +184,10 @@ void GamePlayScene::Draw(){
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
-
-	// スプライト描画などがあればここに追加
-	// sprite_->Draw(); 
+	
+	
+	// 床描画
+	sprite_->Draw();
 }
 
 GamePlayScene::GamePlayScene(){}
