@@ -24,8 +24,6 @@ void GamePlayScene::Initialize(){
 	WindowProc* windowProc = WindowProc::GetInstance();
 
 	
-	// コマンドリストの記録開始 (リソース作成に必要)
-	dxCommon->BeginCommandRecording();
 	
 	// コマンドリスト取得
 	auto commandList = dxCommon->GetCommandList();
@@ -45,10 +43,7 @@ void GamePlayScene::Initialize(){
 	textureResource3_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textureResource5_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 
-	// コマンドリストの終了
-	dxCommon->EndCommandRecording();
-
-
+	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });

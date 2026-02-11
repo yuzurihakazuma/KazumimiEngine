@@ -30,20 +30,19 @@ void SceneManager::Update(){
 		currentScene_ = std::move(nextScene_);
 		// 次のシーン情報をクリア
 		nextScene_ = nullptr;
-		// 新しいシーンを初期化
+		DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+
+		dxCommon->BeginCommandRecording();
+
 		currentScene_->Initialize();
+		dxCommon->EndCommandRecording();
 	}
 	// 現在のシーンを更新
 	if ( currentScene_ ) {
 		currentScene_->Update();
 	}
 
-	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-
-	dxCommon->BeginCommandRecording(); 
-
-	currentScene_->Initialize();       
-	dxCommon->EndCommandRecording();
+	
 
 }
 // シーンマネージャーの描画
