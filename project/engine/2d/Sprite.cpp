@@ -118,7 +118,7 @@ void Sprite::CreateVertexBuffer(){
 		OutputDebugStringA("Sprite::Initialize: vertexResource_->Map failed or returned null\n");
 		return;
 	}
-
+	vertexData_ = reinterpret_cast<VertexData*>(mappedPtr);
 }
 // indexバッファ作成
 void Sprite::CreateIndexBuffer(){

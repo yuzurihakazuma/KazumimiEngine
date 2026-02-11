@@ -176,6 +176,14 @@ void GamePlayScene::Draw(){
 
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
+
+	if (fence_) {
+		fence_->Draw();
+	}
+	if (sphere_) {
+		sphere_->Draw();
+	}
+
 	// 3Dオブジェクト描画
 	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
