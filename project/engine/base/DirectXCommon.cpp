@@ -1,4 +1,6 @@
 #include "DirectXCommon.h"
+#include "SrvManager.h"
+
 #include <cassert>
 #include <thread>
 
@@ -107,6 +109,9 @@ void DirectXCommon::PreDraw(){
 
 	// コマンドリストの内容をクリア
 	ResetCommand();
+
+	// SrvManagerの描画前処理を呼ぶ
+	SrvManager::GetInstance()->PreDraw();
 
 	// これから書き込むバックバッファのインデックスを取得
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();

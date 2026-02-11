@@ -2,7 +2,7 @@
 #include "IScene.h"
 #include <cassert>
 #include <engine/scene/AbstractSceneFactory.h>
-
+#include "DirectXCommon.h"
 // シングルトンクラスの実装
 SceneManager* SceneManager::GetInstance(){
 	static SceneManager instance;
@@ -37,6 +37,14 @@ void SceneManager::Update(){
 	if ( currentScene_ ) {
 		currentScene_->Update();
 	}
+
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+
+	dxCommon->BeginCommandRecording(); 
+
+	currentScene_->Initialize();       
+	dxCommon->EndCommandRecording();
+
 }
 // シーンマネージャーの描画
 void SceneManager::Draw(){
