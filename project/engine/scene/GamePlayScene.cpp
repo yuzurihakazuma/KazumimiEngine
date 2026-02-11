@@ -108,6 +108,7 @@ void GamePlayScene::Update(){
 	if ( sphere_ ) {
 		sphere_->SetTranslation(spherePos_);
 		sphere_->SetScale(sphereScale_);
+		sphere_->Update();
 	}
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
