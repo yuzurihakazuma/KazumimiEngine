@@ -35,8 +35,9 @@ public: // サブクラス定義
 	struct Material{
 		Vector4 color;// 材質の色
 		int32_t enableLighting;// ライティングの有効無効
+		float padding[3];       // 4 bytes * 3 = 12 bytes (行列を16バイト境界に合わせるための詰め物)
+		Matrix4x4 uvTransform;
 		float shininess;       
-		float padding[2];
 	};
 
 public: // メンバ関数
