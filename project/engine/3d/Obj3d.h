@@ -3,6 +3,9 @@
 #include "Matrix4x4.h"
 #include <d3d12.h>
 #include <wrl.h>
+#include <memory>
+#include <string>
+
 
 // 前方宣言
 class Obj3dCommon;
@@ -22,6 +25,11 @@ public:
 		Matrix4x4 World;
 		Matrix4x4 WorldInverseTranspose;
 	};
+
+	/// <summary>
+	/// 静的生成・初期化短縮関数
+	///  <summary>
+	static std::unique_ptr<Obj3d> Create(const std::string& modelName, const Vector3& translate = { 0,0,0 }, const Vector3& rotate = { 0,0,0 }, const Vector3& scale = { 1,1,1 });
 
 	/// <summary>
 	/// 初期化

@@ -9,8 +9,36 @@
 #include "Camera.h"
 #include "Matrix4x4.h"
 #include "DirectXCommon.h"
+#include "ModelManager.h"
+
 
 using namespace MatrixMath;
+
+std::unique_ptr<Obj3d> Obj3d::Create(const std::string& modelName, const Vector3& translate, const Vector3& rotate, const Vector3& scale) {
+
+	// 1. モデルを検索
+	Model* model = ModelManager::GetInstance()->FindModel(modelName);
+
+	// モデルが見つからなかった場合は nullptr を返す
+	if (!model) {
+		return nullptr;
+	}
+
+	// 2. make_unique で生成（new の代わり）
+	std::unique_ptr<Obj3d> obj3d = std::make_unique<Obj3d>();
+
+	// 3. 初期化
+	obj3d->Initialize(model);
+
+	// 4. 各種パラメータをセット
+	obj3d->SetTranslation(translate);
+	obj3d->SetRotation(rotate);
+	obj3d->SetScale(scale);
+
+	// 5. そのまま返す（moveされるので所有権が移ります）
+	return obj3d;
+}
+
 
 void Obj3d::Initialize(Model* model){
 

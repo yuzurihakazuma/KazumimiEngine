@@ -59,7 +59,12 @@ void GamePlayScene::Initialize(){
 
 	// オブジェクト初期化
 	fence_->Initialize(modelGround); 
-	fence_->SetCamera(camera_.get());
+	fence_ = Obj3d::Create("fence", groundPos_);
+
+	// カメラのセットは忘れずに（カメラも自動化するならCreateの引数に追加も可能です）
+	if (fence_) {
+		fence_->SetCamera(camera_.get());
+	}
 	
 	// 床の位置とスケール設定
 	sphere_->Initialize(modelSphere);
@@ -107,6 +112,11 @@ void GamePlayScene::Update(){
 		sphere_->SetScale(sphereScale_);
 		sphere_->Update();
 	}
+	if (fence_) {
+		
+		fence_->Update();
+	}
+
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
 		obj->Update();
