@@ -11,10 +11,55 @@
 #include "SpriteCommon.h"
 #include "DirectXCommon.h"  // spriteCommon_->GetDxCommon() の中身を使うので必要
 #include "Matrix4x4.h"
-
+#include "SrvManager.h"
 #include "Obj3dCommon.h"
-
+#include "TextureManager.h"
 using namespace MatrixMath;
+
+
+Sprite* Sprite::Create(const std::string& textureName, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+	// コマンドリストが必要なら取得（TextureManagerの仕様による）
+	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
+
+	// テクスチャをロードしてデータを受け取る
+	TextureData data = TextureManager::GetInstance()->LoadTextureAndCreateSRV(textureName, commandList);
+
+	// データの中にあるsrvIndex（番号）を使う
+	return Create(data.srvIndex, position, color, anchorpoint);
+}
+// 静的生成関数
+Sprite* Sprite::Create(uint32_t textureIndex, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+	// 1. インスタンス生成
+	Sprite* sprite = new Sprite();
+	if (sprite == nullptr) {
+		return nullptr;
+	}
+
+	// 2. 初期化
+	sprite->Initialize();
+
+	// 3. 各種設定を一括で行う
+	sprite->SetTexture(textureIndex); // テクスチャセット
+	sprite->SetPosition(position);    // 座標セット
+	sprite->SetColor(color);          // 色セット
+	sprite->SetAnchorPoint(anchorpoint); // アンカーセット
+
+	return sprite;
+}
+
+void Sprite::SetTexture(uint32_t textureIndex) {
+	textureHandle_ = SrvManager::GetInstance()->GetGPUDescriptorHandle(textureIndex);
+}
+
+void Sprite::SetAnchorPoint(const Vector2& anchorPoint) {
+	anchorPoint_ = anchorPoint;
+	isDirty_ = true;     // フラグを立てる
+	UpdateVertexData();  // 頂点更新
+}
+
+void Sprite::SetColor(const Vector4& color) {
+	materialData_->color = color;
+}
 
 void Sprite::Initialize(){
 	spriteCommon_ = SpriteCommon::GetInstance();
@@ -41,7 +86,7 @@ void Sprite::Update(){
 
 	transform.translate = { position_.x, position_.y, 0.0f };
 	transform.rotate = { 0.0f, 0.0f, rotation_ };
-	transform.scale = { scale_.x, scale_.y, 1.0f };
+	transform.scale = { size_.x, size_.y, 1.0f };
 
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();

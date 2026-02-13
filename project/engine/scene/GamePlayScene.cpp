@@ -66,12 +66,12 @@ void GamePlayScene::Initialize(){
 	sphere_->SetTranslation(spherePos_);
 	sphere_->SetScale(sphereScale_);
 
-	// スプライト生成
-	sprite_ = std::make_unique<Sprite>();
-	sprite_->Initialize();
-	// ハンドル取得には TextureResource 内の srvIndex を使う
-	sprite_->SetTextureHandle(dxCommon->GetSrvManager()->GetGPUDescriptorHandle(textureResource_.srvIndex));
+	// ファイル名を指定するだけで、読み込み・生成・配置まで一発です！
+	// 引数: (ファイルパス, 座標)
+	sprite_.reset(Sprite::Create("resources/uvChecker.png", { 100.0f, 100.0f }));
 
+	// 必要ならサイズや色もあとから変えられます
+	// sprite_->SetSize({200.0f, 200.0f});
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
@@ -167,9 +167,6 @@ void GamePlayScene::Draw(){
 
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 	
-	// スプライト・3D描画の前準備
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
@@ -189,6 +186,7 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 	
+	SpriteCommon::GetInstance()->PreDraw(commandList);
 	
 	// 床描画
 	sprite_->Draw();

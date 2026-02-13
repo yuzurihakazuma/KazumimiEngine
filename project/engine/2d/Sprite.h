@@ -7,12 +7,28 @@
 #include <cstdint>
 #include <d3d12.h>   
 #include <wrl.h>
-
+#include <string>
 // 前方宣言
 class SpriteCommon;
 
 class Sprite{
 public:
+
+
+	static Sprite* Create(const std::string& textureName, Vector2 position, Vector4 color = { 1, 1, 1, 1 }, Vector2 anchorpoint = { 0.5f, 0.5f });
+
+	/// <summary>
+	/// スプライト生成・初期化短縮関数
+	/// </summary>
+	/// <param name="textureIndex">テクスチャ番号</param>
+	/// <param name="position">座標</param>
+	/// <param name="color">色（省略可：デフォルトは白）</param>
+	/// <param name="anchorpoint">アンカーポイント（省略可：デフォルトは中心 0.5, 0.5）</param>
+	/// <returns>生成されたスプライトのポインタ</returns>
+	static Sprite* Create(uint32_t textureIndex, Vector2 position, Vector4 color = { 1, 1, 1, 1 }, Vector2 anchorpoint = { 0.5f, 0.5f });
+
+
+
 	/// <summary>
 	/// 初期化
 	/// </summary>
@@ -28,10 +44,7 @@ public:
 
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() { return vertexBufferView_; }
 
-	// テクスチャをセットする関数を追加
-	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle){
-		textureHandle_ = textureHandle;
-	}
+	
 	// スプライトの位置を設定・取得する関数を追加
 	const Vector2 GetPosition() const{ return position_; }
 	void SetPosition(const Vector2& position){ position_ = position; }
@@ -40,18 +53,15 @@ public:
 	float GetRotation() const{ return rotation_; }
 	void SetRotation(float rotation){ rotation_ = rotation; }
 
-	// スプライトの拡大率を設定・取得する関数を追加
-	const Vector2 GetScale() const{ return scale_; }
-	void SetScale(const Vector2& scale){ scale_ = scale; }
 
 
 	// スプライトの色を設定・取得する関数を追加
 	const Vector4& GetColor() const{ return materialData_->color; }
-	void SetColor(const Vector4& color){ materialData_->color = color; }
+	void SetColor(const Vector4& color);
 
 	// スプライトのアンカーポイントを設定・取得する関数を追加
 	const Vector2 GetAnchorPoint() const{ return anchorPoint_; }
-	void SetAnchorPoint(const Vector2& anchorPoint){ anchorPoint_ = anchorPoint; isDirty_ = true;}
+	void SetAnchorPoint(const Vector2& anchorPoint);
 
 	// スプライトの左右クリップ設定・取得する関数を追加
 	bool GetIsFlipX() const{ return isFlipX_; }
@@ -59,6 +69,18 @@ public:
 	// スプライトの上下クリップ設定・取得する関数を追加
 	bool GetIsFlipY() const{ return isFlipY_; }
 	void SetIsFlipY(bool isFlipY){ isFlipY_ = isFlipY; }
+
+
+	//（画像の大きさ）をセットする
+	const Vector2& GetSize() const { return size_; }
+	void SetSize(const Vector2& size) { size_ = size; }
+
+
+	void SetTexture(uint32_t textureIndex);
+
+	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
+		textureHandle_ = textureHandle;
+	}
 
 private:
 	
@@ -128,7 +150,7 @@ private:
 
 	float rotation_ = 0.0f; // スプライトの回転角度
 
-	Vector2 scale_ = { 640.0f,360.0f }; // スプライトの拡大率
+	Vector2 size_ = { 640.0f,360.0f }; // スプライトの拡大率
 
 	Vector2 anchorPoint_ = { 0.0f,0.0f }; // スプライトの拡大率
 
