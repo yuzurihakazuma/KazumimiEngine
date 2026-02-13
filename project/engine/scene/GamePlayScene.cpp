@@ -1,6 +1,7 @@
 #include "GamePlayScene.h"
 #include "Matrix4x4.h"
 #include "ImGuiManager.h"
+#include "Color.h"
 
 // シングルトンクラスのヘッダー
 #include "AudioManager.h"
@@ -69,6 +70,7 @@ void GamePlayScene::Initialize(){
 	// ファイル名を指定するだけで、読み込み・生成・配置まで一発です！
 	// 引数: (ファイルパス, 座標)
 	sprite_.reset(Sprite::Create("resources/uvChecker.png", { 100.0f, 100.0f }));
+
 
 	// 必要ならサイズや色もあとから変えられます
 	// sprite_->SetSize({200.0f, 200.0f});

@@ -8,6 +8,9 @@
 #include <d3d12.h>   
 #include <wrl.h>
 #include <string>
+
+#include"Color.h"
+
 // 前方宣言
 class SpriteCommon;
 
@@ -15,7 +18,7 @@ class Sprite{
 public:
 
 
-	static Sprite* Create(const std::string& textureName, Vector2 position, Vector4 color = { 1, 1, 1, 1 }, Vector2 anchorpoint = { 0.5f, 0.5f });
+	static Sprite* Create(const std::string& textureName, Vector2 position, Vector4 color = Colors::WHITE, Vector2 anchorpoint = { 0.5f, 0.5f });
 
 	/// <summary>
 	/// スプライト生成・初期化短縮関数
@@ -25,7 +28,7 @@ public:
 	/// <param name="color">色（省略可：デフォルトは白）</param>
 	/// <param name="anchorpoint">アンカーポイント（省略可：デフォルトは中心 0.5, 0.5）</param>
 	/// <returns>生成されたスプライトのポインタ</returns>
-	static Sprite* Create(uint32_t textureIndex, Vector2 position, Vector4 color = { 1, 1, 1, 1 }, Vector2 anchorpoint = { 0.5f, 0.5f });
+	static Sprite* Create(uint32_t textureIndex, Vector2 position, Vector4 color = Colors::WHITE, Vector2 anchorpoint = { 0.5f, 0.5f });
 
 
 
@@ -81,6 +84,7 @@ public:
 	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE textureHandle) {
 		textureHandle_ = textureHandle;
 	}
+
 
 private:
 	
