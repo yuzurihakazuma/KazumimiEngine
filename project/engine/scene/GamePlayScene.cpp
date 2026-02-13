@@ -24,8 +24,6 @@ void GamePlayScene::Initialize(){
 	WindowProc* windowProc = WindowProc::GetInstance();
 
 	
-	// コマンドリストの記録開始 (リソース作成に必要)
-	dxCommon->BeginCommandRecording();
 	
 	// コマンドリスト取得
 	auto commandList = dxCommon->GetCommandList();
@@ -45,10 +43,7 @@ void GamePlayScene::Initialize(){
 	textureResource3_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textureResource5_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 
-	// コマンドリストの終了
-	dxCommon->EndCommandRecording();
-
-
+	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
@@ -71,12 +66,12 @@ void GamePlayScene::Initialize(){
 	sphere_->SetTranslation(spherePos_);
 	sphere_->SetScale(sphereScale_);
 
-	// スプライト生成
-	sprite_ = std::make_unique<Sprite>();
-	sprite_->Initialize();
-	// ハンドル取得には TextureResource 内の srvIndex を使う
-	sprite_->SetTextureHandle(dxCommon->GetSrvManager()->GetGPUDescriptorHandle(textureResource_.srvIndex));
+	// ファイル名を指定するだけで、読み込み・生成・配置まで一発です！
+	// 引数: (ファイルパス, 座標)
+	sprite_.reset(Sprite::Create("resources/uvChecker.png", { 100.0f, 100.0f }));
 
+	// 必要ならサイズや色もあとから変えられます
+	// sprite_->SetSize({200.0f, 200.0f});
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
@@ -108,6 +103,7 @@ void GamePlayScene::Update(){
 	if ( sphere_ ) {
 		sphere_->SetTranslation(spherePos_);
 		sphere_->SetScale(sphereScale_);
+		sphere_->Update();
 	}
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
@@ -171,9 +167,15 @@ void GamePlayScene::Draw(){
 
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 	
-	// スプライト・3D描画の前準備
-	SpriteCommon::GetInstance()->PreDraw(commandList);
+	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
+
+	if (fence_) {
+		fence_->Draw();
+	}
+	if (sphere_) {
+		sphere_->Draw();
+	}
 
 	// 3Dオブジェクト描画
 	for ( auto& obj : object3ds_ ) {
@@ -183,9 +185,11 @@ void GamePlayScene::Draw(){
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
-
-	// スプライト描画などがあればここに追加
-	// sprite_->Draw(); 
+	
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+	
+	// 床描画
+	sprite_->Draw();
 }
 
 GamePlayScene::GamePlayScene(){}

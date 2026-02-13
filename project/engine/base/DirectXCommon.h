@@ -12,7 +12,6 @@
 #include "ResourceFactory.h"
 #include "TextureManager.h"
 #include <chrono>
-#include "SrvManager.h"
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")

@@ -63,13 +63,12 @@ private:
 	// -------------------------------------------------
 
 	// トランスフォーム（場所・回転・大きさ）
-	Vector3 scale_;
-	Vector3 rotation_;
-	Vector3 translate_;
+	Vector3 scale_ = { 1.0f, 1.0f, 1.0f };       
+	Vector3 rotation_ = { 0.0f, 0.0f, 0.0f };    // 回転なし
+	Vector3 translate_ = { 0.0f, 0.0f, 0.0f };   // 原点
 
 	// 行列計算用（計算を楽にするために保持）
 	Transform transform { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
-//	Transform cameraTransfrom { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,-10.0f} };
 
 	// 外部参照
 	Obj3dCommon* obj3dCommon_ = nullptr; // 所有しない参照

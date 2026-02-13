@@ -86,8 +86,8 @@ void PipelineManager::CreateSpriteRootSignature(){
 void PipelineManager::CreateSpriteGraphicsPipeline(){
 
 	CreateGraphicsPipelineCommon(
-		L"resources/shaders/Object3d.VS.hlsl",
-		L"resources/shaders/Object3d.PS.hlsl",
+		L"resources/shaders/Sprite2d.VS.hlsl",
+		L"resources/shaders/Sprite2d.PS.hlsl",
 		spriteRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
 		D3D12_CULL_MODE_NONE,       // カリングなし

@@ -84,7 +84,14 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
 	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
 	if ( shaderError != nullptr && shaderError->GetStringLength() != 0 ) {
-		logManager_.Log(shaderError->GetStringPointer());
+		logManager_.Log(static_cast<const char*>(shaderError->GetStringPointer()));
+		// メッセージボックスも出す
+		MessageBoxA(
+			nullptr,
+			static_cast<const char*>(shaderError->GetStringPointer()),
+			"シェーダーエラー発見！",
+			MB_OK | MB_ICONERROR
+		);
 		// 警告・エラーダメゼッタイ
 		assert(false);
 	}
