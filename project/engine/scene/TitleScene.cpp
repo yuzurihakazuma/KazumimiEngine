@@ -111,6 +111,11 @@ void TitleScene::Update(){
 		sphere_->SetScale(sphereScale_);
 		sphere_->Update();
 	}
+	if (fence_) {
+
+		fence_->Update();
+	}
+
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
 		obj->Update();
