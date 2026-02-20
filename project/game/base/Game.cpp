@@ -1,8 +1,15 @@
 #include "Game.h"
-#include <engine/scene/GamePlayScene.h>
-#include <engine//scene/SceneManager.h>
-#include <engine/scene/SceneFactory.h>
-#include <engine/scene/TitleScene.h>
+// ---  ゲーム固有のファイル ---
+#include "SceneFactory.h"      
+#include "GamePlayScene.h"     
+#include "TitleScene.h"
+
+// ---  エンジン側のファイル ---
+#include "engine/scene/SceneManager.h"   
+#include "engine/base/DirectXCommon.h"   
+#include "engine/graphics/SrvManager.h"
+#include "engine/utils/ImGuiManager.h"
+
 void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類)
 	Framework::Initialize();
