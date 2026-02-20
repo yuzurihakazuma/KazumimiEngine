@@ -83,7 +83,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -111,7 +111,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
@@ -141,7 +141,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -159,7 +159,20 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="engine\3d\model\Model.cpp" />
+    <ClCompile Include="engine\3d\model\ModelCommon.cpp" />
+    <ClCompile Include="engine\3d\model\ModelManager.cpp" />
+    <ClCompile Include="engine\3d\obj\Obj3d.cpp" />
+    <ClCompile Include="engine\3d\obj\Obj3dCommon.cpp" />
     <ClCompile Include="engine\audio\AudioManager.cpp" />
+    <ClCompile Include="engine\base\Framework.cpp" />
+    <ClCompile Include="engine\base\Input.cpp" />
+    <ClCompile Include="engine\camera\Camera.cpp" />
+    <ClCompile Include="engine\camera\DebugCamera.cpp" />
+    <ClCompile Include="engine\graphics\PipelineManager.cpp" />
+    <ClCompile Include="engine\graphics\ResourceFactory.cpp" />
+    <ClCompile Include="engine\graphics\ShaderCompiler.cpp" />
+    <ClCompile Include="engine\graphics\SrvManager.cpp" />
     <ClCompile Include="engine\io\BlendMode.cpp" />
     <ClCompile Include="engine\3d\Camera.cpp" />
     <ClCompile Include="engine\math\ResourceFactory.cpp" />
@@ -174,7 +187,12 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       </RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="engine\base\main.cpp" />
+    <ClCompile Include="engine\particle\ParticleCommon.cpp" />
+    <ClCompile Include="engine\particle\ParticleManager.cpp" />
     <ClCompile Include="engine\scene\SceneFactory.cpp" />
+    <ClCompile Include="engine\utils\CrashDumper.cpp" />
+    <ClCompile Include="engine\utils\ImGuiManager.cpp" />
+    <ClCompile Include="engine\utils\LogManager.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp" />
     <ClCompile Include="externals\imgui\imgui_demo.cpp" />
     <ClCompile Include="externals\imgui\imgui_draw.cpp" />
@@ -200,13 +218,14 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\3d\Model.cpp" />
     <ClCompile Include="engine\3d\ModelCommon.cpp" />
     <ClCompile Include="engine\3d\ModelManager.cpp" />
-    <ClCompile Include="Framework.cpp" />
-    <ClCompile Include="Game.cpp" />
     <ClCompile Include="engine\scene\GamePlayScene.cpp" />
-    <ClCompile Include="ParticleCommon.cpp" />
-    <ClCompile Include="ParticleManager.cpp" />
     <ClCompile Include="engine\scene\TitleScene.cpp" />
     <ClCompile Include="engine\scene\SceneManager.cpp" />
+    <ClCompile Include="game\base\Game.cpp" />
+    <ClCompile Include="game\base\main.cpp" />
+    <ClCompile Include="game\scene\GamePlayScene.cpp" />
+    <ClCompile Include="game\scene\SceneFactory.cpp" />
+    <ClCompile Include="game\scene\TitleScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -237,7 +256,23 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Color.h" />
+    <ClInclude Include="engine\3d\model\Model.h" />
+    <ClInclude Include="engine\3d\model\ModelCommon.h" />
+    <ClInclude Include="engine\3d\model\ModelManager.h" />
+    <ClInclude Include="engine\3d\obj\Obj3d.h" />
+    <ClInclude Include="engine\3d\obj\Obj3dCommon.h" />
+    <ClInclude Include="engine\base\Framework.h" />
+    <ClInclude Include="engine\base\Input.h" />
+    <ClInclude Include="engine\camera\Camera.h" />
+    <ClInclude Include="engine\camera\DebugCamera.h" />
+    <ClInclude Include="engine\graphics\PipelineManager.h" />
+    <ClInclude Include="engine\graphics\PipelineType.h" />
+    <ClInclude Include="engine\graphics\ResourceFactory.h" />
+    <ClInclude Include="engine\graphics\ShaderCompiler.h" />
+    <ClInclude Include="engine\graphics\SrvManager.h" />
+    <ClInclude Include="engine\math\struct.h" />
+    <ClInclude Include="engine\particle\ParticleCommon.h" />
+    <ClInclude Include="engine\particle\ParticleManager.h" />
     <ClInclude Include="engine\scene\AbstractSceneFactory.h" />
     <ClInclude Include="engine\audio\AudioManager.h" />
     <ClInclude Include="engine\io\BlendMode.h" />
@@ -248,6 +283,10 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\base\CrashDumper.h" />
     <ClInclude Include="engine\3d\DebugCamera.h" />
     <ClInclude Include="engine\scene\SceneFactory.h" />
+    <ClInclude Include="engine\utils\Color.h" />
+    <ClInclude Include="engine\utils\CrashDumper.h" />
+    <ClInclude Include="engine\utils\ImGuiManager.h" />
+    <ClInclude Include="engine\utils\LogManager.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -273,15 +312,15 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\3d\Model.h" />
     <ClInclude Include="engine\3d\ModelCommon.h" />
     <ClInclude Include="engine\3d\ModelManager.h" />
-    <ClInclude Include="Framework.h" />
-    <ClInclude Include="Game.h" />
     <ClInclude Include="engine\scene\GamePlayScene.h" />
     <ClInclude Include="engine\scene\IScene.h" />
-    <ClInclude Include="ParticleCommon.h" />
-    <ClInclude Include="ParticleManager.h" />
-    <ClInclude Include="ResourceLeakChecker.h" />
+    <ClInclude Include="engine\utils\ResourceLeakChecker.h" />
     <ClInclude Include="engine\scene\TitleScene.h" />
     <ClInclude Include="engine\scene\SceneManager.h" />
+    <ClInclude Include="game\base\Game.h" />
+    <ClInclude Include="game\scene\GamePlayScene.h" />
+    <ClInclude Include="game\scene\SceneFactory.h" />
+    <ClInclude Include="game\scene\TitleScene.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

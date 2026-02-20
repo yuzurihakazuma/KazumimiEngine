@@ -12,7 +12,6 @@
 #include "DirectXCommon.h"  // spriteCommon_->GetDxCommon() の中身を使うので必要
 #include "Matrix4x4.h"
 #include "SrvManager.h"
-#include "Obj3dCommon.h"
 #include "TextureManager.h"
 using namespace MatrixMath;
 
