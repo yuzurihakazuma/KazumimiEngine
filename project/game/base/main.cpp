@@ -4,6 +4,7 @@
 #include <engine/scene/SceneManager.h>
 
 #include "TitleScene.h"
+
 // Windowsアプリでのエントリーポイント
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 

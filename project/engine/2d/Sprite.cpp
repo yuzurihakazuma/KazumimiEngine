@@ -7,16 +7,17 @@
 #include <algorithm>      // std::swap
 #include <utility>
 
-// エンジン内部ヘッダー
-#include "SpriteCommon.h"
-#include "DirectXCommon.h"  // spriteCommon_->GetDxCommon() の中身を使うので必要
-#include "Matrix4x4.h"
-#include "SrvManager.h"
-#include "TextureManager.h"
+// --- エンジン内部ヘッダー ---
+#include "Engine/2D/SpriteCommon.h"
+#include "Engine/Base/DirectXCommon.h"
+#include "Engine/Math/Matrix4x4.h"
+#include "Engine/Graphics/SrvManager.h"
+#include "Engine/Graphics/TextureManager.h"
+
 using namespace MatrixMath;
 
 
-Sprite* Sprite::Create(const std::string& textureName, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 position, Vector4 color, Vector2 anchorpoint) {
 	// コマンドリストが必要なら取得（TextureManagerの仕様による）
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
@@ -27,9 +28,9 @@ Sprite* Sprite::Create(const std::string& textureName, Vector2 position, Vector4
 	return Create(data.srvIndex, position, color, anchorpoint);
 }
 // 静的生成関数
-Sprite* Sprite::Create(uint32_t textureIndex, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, Vector4 color, Vector2 anchorpoint) {
 	// 1. インスタンス生成
-	Sprite* sprite = new Sprite();
+	std::unique_ptr<Sprite> sprite = std::make_unique<Sprite>();
 	if (sprite == nullptr) {
 		return nullptr;
 	}
