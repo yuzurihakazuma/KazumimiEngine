@@ -1,11 +1,11 @@
 #pragma once
 #define NOMINMAX
 #define DIRECTINPUT_VERSION 0x0800
+// --- 標準ライブラリ・外部ライブラリ ---
 #include <dinput.h>
 #include <Windows.h>
 #include <wrl.h>
 #include <cstdint>
-#include"LogManager.h"
 
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")

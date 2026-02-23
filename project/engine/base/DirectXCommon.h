@@ -1,23 +1,21 @@
 #pragma once
+// --- 標準ライブラリ・外部ライブラリ ---
 #include <windows.h>
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxcapi.h>
-#include<cassert>
-#include "ShaderCompiler.h"
-#include "LogManager.h"
-#include "WindowProc.h"
-#include "externals/DirectXTex/DirectXTex.h"
-#include "ResourceFactory.h"
-#include "TextureManager.h"
 #include <chrono>
 
+// --- エンジン側のファイル ---
+#include "engine/utils/LogManager.h"
+#include "engine/graphics/ShaderCompiler.h"
+
+// ライブラリのリンク
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib, "winmm.lib")
-using namespace logs;
 
 
 class DirectXCommon{

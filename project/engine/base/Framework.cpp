@@ -1,18 +1,19 @@
 #include "Framework.h"
-#include "WindowProc.h"
-#include "DirectXCommon.h"
-#include "Input.h"
-#include "AudioManager.h" 
-#include "SrvManager.h"
-#include "ResourceFactory.h"
-#include "ImGuiManager.h"
-#include "SpriteCommon.h"
-#include "Obj3dCommon.h"
-#include "ModelManager.h"
-#include "ParticleManager.h"
-#include "TextureManager.h"
-#include "PipelineManager.h"
-#include <engine/scene/AbstractSceneFactory.h>
+// --- エンジン側のファイル ---
+#include "engine/base/WindowProc.h"
+#include "engine/base/DirectXCommon.h"
+#include "engine/base/Input.h"
+#include "engine/audio/AudioManager.h" 
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/ResourceFactory.h"
+#include "engine/utils/ImGuiManager.h"
+#include "engine/2d/SpriteCommon.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/3d/model/ModelManager.h"
+#include "engine/particle/ParticleManager.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/graphics/PipelineManager.h"
+#include "engine/scene/AbstractSceneFactory.h"
 
 void Framework::Initialize(){
 	// ---------------------------------------------

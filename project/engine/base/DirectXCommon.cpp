@@ -1,9 +1,13 @@
 #include "DirectXCommon.h"
-#include "SrvManager.h"
 
+// --- 標準ライブラリ ---
 #include <cassert>
 #include <thread>
 
+// --- エンジン側のファイル ---
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/ResourceFactory.h"
+#include "engine/base/WindowProc.h"
 
 using namespace logs;
 
