@@ -1,18 +1,19 @@
 #include "Model.h"
-#include "Matrix4x4.h"
-#include "TextureManager.h"
-#include "SrvManager.h"
-#include "Obj3dCommon.h"
-#include "ModelCommon.h"
-
-
-
+// --- 標準ライブラリ ---
 #include <cassert>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+
+// --- エンジン側のファイル ---
+#include "ModelCommon.h" 
+#include "engine/math/Matrix4x4.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/3d/obj/Obj3dCommon.h" 
+#include "engine/base/DirectXCommon.h"
 
 using namespace MatrixMath;
 

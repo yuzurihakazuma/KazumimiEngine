@@ -1,4 +1,5 @@
 #pragma once
+// --- 標準ライブラリ ---
 #include <cstddef>
 #include <map>
 #include <string>
@@ -18,19 +19,10 @@ public:
 
 
 	// シングルストーンのインスタンスを取得
-	static ModelManager* GetInstance(){
-		if ( instance_ == nullptr ) {
-			instance_ = new ModelManager();
-		}
-		return instance_;
-	}
+	static ModelManager* GetInstance();
+
 	// インスタンスの破棄
-	void Finalize(){
-		if ( instance_ != nullptr ) {
-			delete instance_;
-			instance_ = nullptr;
-		}
-	}
+	void Finalize() {}
 	// モデルのロード
 	void LoadModel(const std::string& modelName, const std::string& directoryPath, const std::string& filename);
 	// モデルの検索

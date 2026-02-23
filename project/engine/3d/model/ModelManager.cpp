@@ -11,6 +11,18 @@ ModelManager::ModelManager(){}
 
 ModelManager::~ModelManager(){}
 
+
+ModelManager* ModelManager::GetInstance() {
+	// 関数内で static 変数を宣言すると、プログラム終了まで生き残り、
+	static ModelManager instance;
+	return &instance;
+}
+
+void ModelManager::Finalize() {
+	models_.clear();
+	modelCommon_.reset();
+}
+
 // 初期化
 void ModelManager::Initialize(DirectXCommon* dxCommon){ 
 	modelCommon_ = std::make_unique<ModelCommon>();
