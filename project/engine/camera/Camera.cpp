@@ -1,7 +1,11 @@
 #include "Camera.h"
-#include "WindowProc.h"
-#include "DirectXCommon.h"
+// --- 標準ライブラリ ---
 #include <d3d12.h>
+
+// --- エンジン側のファイル ---
+#include "engine/base/WindowProc.h"
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/ResourceFactory.h"
 
 using namespace MatrixMath;
 

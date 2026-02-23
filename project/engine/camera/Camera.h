@@ -1,7 +1,10 @@
 #pragma once
-#include "Matrix4x4.h"
-#include "struct.h"
+// --- 標準・外部ライブラリ ---
 #include <wrl/client.h>
+
+// --- エンジン側のファイル ---
+#include "engine/math/Matrix4x4.h"
+#include "engine/math/struct.h"
 
 // 前方宣言
 class DirectXCommon;
