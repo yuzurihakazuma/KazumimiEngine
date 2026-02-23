@@ -1,7 +1,10 @@
 #pragma once
+// --- 標準ライブラリ ---
 #include <wrl.h>
 #include <d3d12.h>
-#include "struct.h"
+
+// --- エンジン側のファイル ---
+#include "engine/math/struct.h"
 
 // 前方宣言
 class DirectXCommon;
@@ -39,7 +42,7 @@ public:
 	DirectXCommon* GetDxCommon() const{ return dxCommon_; }
 
 private:
-	// ★追加: コンストラクタを private にして外部からの生成を禁止
+	// コンストラクタを private にして外部からの生成を禁止
 	Obj3dCommon() = default;
 	~Obj3dCommon() = default;
 	Obj3dCommon(const Obj3dCommon&) = delete;

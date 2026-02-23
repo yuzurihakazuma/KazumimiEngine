@@ -1,15 +1,15 @@
 #include "Obj3d.h"
 
-// 標準ライブラリ
+// --- 標準ライブラリ ---
 #include <cassert>
 
-// エンジン独自ライブラリ
-#include "Obj3dCommon.h"
-#include "Model.h"
-#include "Camera.h"
-#include "Matrix4x4.h"
-#include "DirectXCommon.h"
-#include "ModelManager.h"
+// --- エンジン側のファイル ---
+#include "Obj3dCommon.h" 
+#include "engine/3d/model/Model.h"
+#include "engine/3d/model/ModelManager.h"
+#include "engine/camera/Camera.h"
+#include "engine/math/Matrix4x4.h"
+#include "engine/base/DirectXCommon.h"
 
 
 using namespace MatrixMath;

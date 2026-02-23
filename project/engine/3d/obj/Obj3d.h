@@ -1,11 +1,13 @@
 #pragma once
-#include "struct.h"
-#include "Matrix4x4.h"
+// --- 標準ライブラリ ---
 #include <d3d12.h>
 #include <wrl.h>
 #include <memory>
 #include <string>
 
+// --- エンジン側のファイル ---
+#include "engine/math/struct.h"
+#include "engine/math/Matrix4x4.h"
 
 // 前方宣言
 class Obj3dCommon;
@@ -46,7 +48,7 @@ public:
 	/// </summary>
 	void Draw();
 
-
+public:
 	// -------------------------------------------------
 	// Getter / Setter
 	// -------------------------------------------------
