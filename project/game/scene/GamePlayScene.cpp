@@ -1,22 +1,25 @@
 #include "GamePlayScene.h"
-#include "Matrix4x4.h"
-#include "ImGuiManager.h"
-#include "Color.h"
-
-// シングルトンクラスのヘッダー
-#include "AudioManager.h"
-#include "ModelManager.h"
-#include "ParticleManager.h"
-#include "TextureManager.h"
-#include "PipelineManager.h"
-#include "SceneManager.h"
+// --- ゲーム固有のファイル ---
 #include "TitleScene.h"
-#include "Camera.h"
-#include "Sprite.h"
-#include "Obj3d.h"
-#include "Input.h"
-#include "SpriteCommon.h"
-#include "Obj3dCommon.h"
+
+// --- エンジン側のファイル ---
+#include "Engine/Math/Matrix4x4.h"
+#include "Engine/Utils/ImGuiManager.h"
+#include "Engine/Utils/Color.h"
+#include "Engine/Audio/AudioManager.h"
+#include "Engine/3D/Model/ModelManager.h"
+#include "Engine/Particle/ParticleManager.h"
+#include "Engine/Graphics/TextureManager.h"
+#include "Engine/Graphics/PipelineManager.h"
+#include "Engine/Scene/SceneManager.h"
+#include "Engine/Camera/Camera.h"
+#include "Engine/2D/Sprite.h"
+#include "Engine/3D/Obj/Obj3d.h"
+#include "Engine/Base/Input.h"
+#include "Engine/2D/SpriteCommon.h"
+#include "Engine/3D/Obj/Obj3dCommon.h"
+#include "Engine/Base/DirectXCommon.h"
+#include "Engine/Base/WindowProc.h"
 
 using namespace MatrixMath;
 // 初期化

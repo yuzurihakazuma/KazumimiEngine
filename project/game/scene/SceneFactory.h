@@ -1,6 +1,8 @@
 #pragma once
 
-#include<engine/scene/AbstractSceneFactory.h>
+#include "Engine/Scene/AbstractSceneFactory.h"
+#include <string>
+
 // シーン生成のための具象クラス
 class SceneFactory : public AbstractSceneFactory {
 public:

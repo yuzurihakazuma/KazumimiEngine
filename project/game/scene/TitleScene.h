@@ -1,15 +1,20 @@
 #pragma once
-#include "IScene.h"
+// --- エンジン側のファイル ---
+#include "Engine/Scene/IScene.h"
+#include "Engine/Math/Matrix4x4.h"
+#include "Engine/graphics/TextureManager.h"
+
+// --- 標準ライブラリ ---
 #include <vector>
-#include <memory>// ゲーム内で使うクラス
-#include "Matrix4x4.h"
-#include "TextureManager.h"
+#include <memory>
+
 // 前方宣言
 class Camera;
 class Sprite;
 class Obj3d;
 class DirectXCommon;
 class Input;
+
 
 
 

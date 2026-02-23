@@ -1,6 +1,6 @@
 #include "SceneFactory.h"
-#include <engine/scene/TitleScene.h>
-#include <engine/scene/GamePlayScene.h>
+#include "TitleScene.h"
+#include "GamePlayScene.h"
 // シーン生成
 IScene* SceneFactory::CreateScene(const std::string& sceneName) {
 	// 生成するシーンのポインタ
