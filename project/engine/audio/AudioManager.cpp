@@ -1,8 +1,8 @@
 #include "AudioManager.h"
+// --- 標準ライブラリ ---
 #include <fstream>
 #include <cassert>
 #include <cstring>
-
 
 AudioManager* AudioManager::GetInstance(){
     static AudioManager instance;

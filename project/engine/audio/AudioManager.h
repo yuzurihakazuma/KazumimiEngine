@@ -1,14 +1,16 @@
 #pragma once
 
 
-#include <xaudio2.h>
-#include <wrl/client.h>
+// --- 標準ライブラリ ---
 #include <string>
 #include <map>
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <wrl/client.h>
 
+// --- 外部ライブラリ ---
+#include <xaudio2.h>
 #pragma comment(lib,"xaudio2.lib")
 
 // 音声データ
