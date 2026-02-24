@@ -7,8 +7,10 @@
 #include "engine/graphics/PipelineManager.h"
 #include "engine/math/Matrix4x4.h"
 #include "engine/base/DirectXCommon.h"
+#include "engine/math/VectorMath.h"
+#include "engine/graphics/ResourceFactory.h"
 
-
+using namespace VectorMath;
 using namespace MatrixMath;
 
 // 初期化

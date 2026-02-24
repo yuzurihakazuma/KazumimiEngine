@@ -20,7 +20,9 @@
 #include "Engine/3D/Obj/Obj3dCommon.h"
 #include "Engine/Base/DirectXCommon.h"
 #include "Engine/Base/WindowProc.h"
+#include "engine/math/VectorMath.h"
 
+using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
 void GamePlayScene::Initialize(){
@@ -77,8 +79,7 @@ void GamePlayScene::Initialize(){
 
 	// ファイル名を指定するだけで、読み込み・生成・配置まで一発です！
 	// 引数: (ファイルパス, 座標)
-	sprite_.reset(Sprite::Create("resources/uvChecker.png", { 100.0f, 100.0f }));
-
+	sprite_ = Sprite::Create(textureResource_.srvIndex, { 0, 0 });
 
 	// 必要ならサイズや色もあとから変えられます
 	// sprite_->SetSize({200.0f, 200.0f});

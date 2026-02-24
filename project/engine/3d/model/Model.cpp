@@ -14,6 +14,7 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/3d/obj/Obj3dCommon.h" 
 #include "engine/base/DirectXCommon.h"
+#include "engine/graphics/ResourceFactory.h"
 
 using namespace MatrixMath;
 

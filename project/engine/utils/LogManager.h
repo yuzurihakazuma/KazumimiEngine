@@ -1,13 +1,7 @@
 #pragma once
+// --- 標準ライブラリ ---
 #include <string>
-#include <format>
-#include <filesystem>
-#include <chrono>
 #include <fstream>
-#include <d3d12.h>
-#include <wrl.h>
-#include <Windows.h>
-
 namespace logs{
 	class LogManager{
 	public:

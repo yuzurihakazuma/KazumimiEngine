@@ -6,6 +6,7 @@
 #include <dxgi1_6.h>
 #include <dxcapi.h>
 #include <chrono>
+#include <cstdint>
 
 // --- エンジン側のファイル ---
 #include "engine/utils/LogManager.h"
@@ -102,13 +103,10 @@ public:
 	void SetSrvManager(SrvManager* srvManager){ this->srvManager_ = srvManager; }
 
 	/// <summary>クライアント領域の横幅取得
-	uint32_t GetClientWidth() const{
-		return windowProc_->GetClientWidth();
-	}
+	uint32_t GetClientWidth() const;
+
 	/// <summary>クライアント領域の縦幅取得
-	uint32_t GetClientHeight() const{
-		return windowProc_->GetClientHeight();
-	}
+	uint32_t GetClientHeight() const;
 
 	size_t GetBackBufferCount() const{
 		return kBackBufferCount;

@@ -1,6 +1,12 @@
 #include "LogManager.h"
 
 
+// --- 標準・外部ライブラリ ---
+#include <Windows.h>
+#include <format>
+#include <filesystem>
+#include <chrono>
+
 	void logs::LogManager::Initialize(){
 
 		// ログのディレクトリを用意

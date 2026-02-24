@@ -22,7 +22,7 @@ public:
 	static ModelManager* GetInstance();
 
 	// インスタンスの破棄
-	void Finalize() {}
+	void Finalize();
 	// モデルのロード
 	void LoadModel(const std::string& modelName, const std::string& directoryPath, const std::string& filename);
 	// モデルの検索

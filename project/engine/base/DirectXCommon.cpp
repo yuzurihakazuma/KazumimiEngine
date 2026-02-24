@@ -619,6 +619,13 @@ void DirectXCommon::InitializeInfoQueue(){
 
 }
 
+uint32_t DirectXCommon::GetClientWidth() const {
+	return windowProc_->GetClientWidth();
+}
+
+uint32_t DirectXCommon::GetClientHeight() const {
+	return windowProc_->GetClientHeight();
+}
 
 
 

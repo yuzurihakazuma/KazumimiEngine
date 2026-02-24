@@ -8,17 +8,21 @@
 #include "Engine/Base/DirectXCommon.h"
 #include "Engine/Base/Input.h"
 #include "Engine/2D/SpriteCommon.h"
-#include "Engine/3D/Obj3dCommon.h"
+#include "Engine/3D/obj/Obj3dCommon.h"
 #include "Engine/Base/WindowProc.h"
-#include "Engine/3D/Camera.h"
+#include "Engine/Camera/Camera.h"
 #include "Engine/2D/Sprite.h"
-#include "Engine/3D/Obj3d.h"
+#include "Engine/3D/obj/Obj3d.h"
 #include "Engine/Audio/AudioManager.h"
-#include "Engine/3D/ModelManager.h"
+#include "Engine/3D/model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
 #include "Engine/Graphics/TextureManager.h"
 #include "Engine/Graphics/PipelineManager.h"
 #include "Engine/Scene/SceneManager.h"
+#include "engine/math/VectorMath.h"
+#include "engine/graphics/SrvManager.h"
+
+using namespace VectorMath;
 using namespace MatrixMath;
 
 TitleScene::TitleScene(){}

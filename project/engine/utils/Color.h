@@ -1,5 +1,6 @@
 #pragma once
-#include "struct.h" 
+#include "engine/math/struct.h"
+
 // 色定義
 namespace Colors {
     // 赤・緑・青・アルファ(透明度)
@@ -11,5 +12,5 @@ namespace Colors {
     static const Vector4 YELLOW = { 1.0f, 1.0f, 0.0f, 1.0f }; // 黄
     static const Vector4 CYAN = { 0.0f, 1.0f, 1.0f, 1.0f }; // 水色
     static const Vector4 MAGENTA = { 1.0f, 0.0f, 1.0f, 1.0f }; // 紫
-    static const Vector4 GRAW = { 0.5f, 0.5f, 0.5f, 1.0f }; // 灰色
+    static const Vector4 GRAY = { 0.5f, 0.5f, 0.5f, 1.0f }; // 灰色
 }

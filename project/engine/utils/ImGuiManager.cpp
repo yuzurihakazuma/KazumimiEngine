@@ -1,7 +1,12 @@
 #include "ImGuiManager.h"
-#include "DirectXCommon.h"
-#include "WindowProc.h"
-#include "SrvManager.h"
+// --- 外部ライブラリ ---
+#include "externals/imgui/imgui_impl_dx12.h"
+#include "externals/imgui/imgui_impl_win32.h"
+
+// --- エンジン側のファイル ---
+#include "engine/base/DirectXCommon.h"
+#include "engine/base/WindowProc.h"
+#include "engine/graphics/SrvManager.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

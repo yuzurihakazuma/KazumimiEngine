@@ -1,14 +1,12 @@
 #pragma once
-#include "externals/imgui/imgui_impl_dx12.h"
-#include "externals/imgui/imgui_impl_win32.h"
-#include<cstdint>
-#include <wtypes.h>
+// --- 標準・外部ライブラリ ---
+#include "externals/imgui/imgui.h"
 #include <d3d12.h>
-#include <wrl.h> // Microsoft::WRL::ComPtr
+#include <wtypes.h>
+
+// 前方宣言
 class DirectXCommon;
 class WindowProc;
-
-using Microsoft::WRL::ComPtr;
 
 
 class ImGuiManager{
@@ -56,15 +54,5 @@ private:
     ~ImGuiManager() = default;
     ImGuiManager(const ImGuiManager&) = delete;
     ImGuiManager& operator=(const ImGuiManager&) = delete;
-
-private:
-
-    // -------------------- メンバー変数 --------------------
-
-    HWND hwnd_ = nullptr;                      // Win32ウィンドウハンドル
-    UINT numFrames_ = 0;                       // フレームインフライト数（マルチバッファ）
-    ComPtr<ID3D12Device> device_ = nullptr;    // D3D12デバイス
-    ComPtr<ID3D12DescriptorHeap> srvHeap_ = nullptr; // ImGui用SRVヒープ
-
 };
 

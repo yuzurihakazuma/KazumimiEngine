@@ -10,7 +10,7 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 #include "engine/base/DirectXCommon.h"
-
+#include "engine/graphics/ResourceFactory.h"
 
 using namespace MatrixMath;
 

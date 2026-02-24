@@ -3,8 +3,8 @@
 
 // 標準ライブラリ
 #include <cassert>
-#include <windows.h>      // OutputDebugStringA を使うなら必要
-#include <algorithm>      // std::swap
+#include <windows.h>      
+#include <algorithm> 
 #include <utility>
 
 // --- エンジン内部ヘッダー ---
@@ -13,7 +13,7 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/Graphics/SrvManager.h"
 #include "Engine/Graphics/TextureManager.h"
-
+#include "engine/graphics/ResourceFactory.h"
 using namespace MatrixMath;
 
 
