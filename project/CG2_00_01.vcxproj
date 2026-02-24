@@ -173,7 +173,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\graphics\ResourceFactory.cpp" />
     <ClCompile Include="engine\graphics\ShaderCompiler.cpp" />
     <ClCompile Include="engine\graphics\SrvManager.cpp" />
-    <ClCompile Include="engine\io\BlendMode.cpp" />
+    <ClCompile Include="engine\graphics\TextureManager.cpp" />
+    <ClCompile Include="engine\graphics\BlendMode.cpp" />
     <ClCompile Include="engine\3d\Camera.cpp" />
     <ClCompile Include="engine\math\ResourceFactory.cpp" />
     <ClCompile Include="engine\math\TextureManager.cpp" />
@@ -270,12 +271,13 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\graphics\ResourceFactory.h" />
     <ClInclude Include="engine\graphics\ShaderCompiler.h" />
     <ClInclude Include="engine\graphics\SrvManager.h" />
+    <ClInclude Include="engine\graphics\TextureManager.h" />
     <ClInclude Include="engine\math\struct.h" />
     <ClInclude Include="engine\particle\ParticleCommon.h" />
     <ClInclude Include="engine\particle\ParticleManager.h" />
     <ClInclude Include="engine\scene\AbstractSceneFactory.h" />
     <ClInclude Include="engine\audio\AudioManager.h" />
-    <ClInclude Include="engine\io\BlendMode.h" />
+    <ClInclude Include="engine\graphics\BlendMode.h" />
     <ClInclude Include="engine\3d\Camera.h" />
     <ClInclude Include="engine\math\ResourceFactory.h" />
     <ClInclude Include="engine\math\TextureManager.h" />

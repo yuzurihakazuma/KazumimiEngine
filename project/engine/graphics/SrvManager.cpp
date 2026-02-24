@@ -1,8 +1,9 @@
 #include "SrvManager.h"
-#include "DirectXCommon.h"
-#include <assert.h>
-#include <d3d12.h>
-#include <wrl.h>
+// -- - 標準ライブラリ-- -
+#include <cassert>
+
+// --- エンジン側のファイル ---
+#include "engine/base/DirectXCommon.h"
 
 SrvManager* SrvManager::GetInstance() {
 	static SrvManager instance;

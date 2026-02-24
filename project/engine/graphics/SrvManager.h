@@ -1,12 +1,15 @@
 #pragma once
-#include <cstdint>     // uint32_t
-#include <d3d12.h>     // D3D12_*
+// --- 標準・外部ライブラリ ---
+#include <cstdint>
+#include <d3d12.h>
 #include <dxgiformat.h>
-#include <wrl.h>       // ComPtr
-using Microsoft::WRL::ComPtr;
+#include <wrl.h>
 
+
+// 前方宣言
 class DirectXCommon;
 
+// SRVマネージャー
 class SrvManager{
 public:
 	static SrvManager* GetInstance();
@@ -45,7 +48,7 @@ private:
 	// 現在のSRV数
 	uint32_t descriptorSize_;
 	// ディスクリプタヒープ
-	ComPtr<ID3D12DescriptorHeap> descriptorHeaps_;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps_;
 
 	// 使用中のインデックス
 	uint32_t useIndex_ = 0;

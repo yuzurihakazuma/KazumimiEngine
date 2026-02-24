@@ -1,10 +1,9 @@
 #define NOMINMAX
 #include "ShaderCompiler.h"
+// --- 標準ライブラリ ---
 #include <cassert>
 #include <strsafe.h>
 #include <format>
-#include "LogManager.h"
-
 bool ShaderCompiler::Initialize(){
 
 	HRESULT hr;

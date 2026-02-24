@@ -1,5 +1,17 @@
 #include "TextureManager.h"
+// --- 標準ライブラリ ---
+#include <cassert>
+#include <format>
 
+// --- エンジン側のファイル ---
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/ResourceFactory.h"
+#include "engine/utils/ImGuiManager.h"
+
+// ヘッダーで using を消した分、cpp 側で宣言しておく（元のコードを書き換えないため）
+using Microsoft::WRL::ComPtr;
+using namespace logs;
 
 
 // 初期化

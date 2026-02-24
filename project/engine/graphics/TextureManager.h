@@ -1,29 +1,30 @@
 #pragma once
-#include <wrl.h>
-#include "externals/DirectXTex/d3dx12.h"
-#include "externals/DirectXTex/DirectXTex.h"
-#include "LogManager.h"
-#include <ImGuiManager.h>
-#include "SrvManager.h" 
-#include "ResourceFactory.h"
+// --- 標準・外部ライブラリ ---
 #include <d3d12.h>
-#include"DirectXCommon.h"
-#include <unordered_map>
+#include <wrl.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-using Microsoft::WRL::ComPtr;
+#include "externals/DirectXTex/d3dx12.h"
+#include "externals/DirectXTex/DirectXTex.h"
 
-using namespace logs;
+// --- エンジン側のファイル ---
 
+#include "engine/utils/LogManager.h"
+
+
+
+// 前方宣言 
 class DirectXCommon;
-
+class SrvManager;
+class ResourceFactory;
 
 
 struct TextureData{
     
         
-    ComPtr<ID3D12Resource> resource;
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource;
     uint32_t srvIndex;
 };
 
@@ -34,7 +35,7 @@ public:
 	/// <summary>
 	/// 初期化
 	// </summary>
-    void Initialize(ComPtr<ID3D12Device> device,DirectXCommon* dxCommon,SrvManager* srvManager);
+    void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device,DirectXCommon* dxCommon,SrvManager* srvManager);
 
    static  TextureManager* GetInstance(){
         static TextureManager instance;
@@ -64,7 +65,7 @@ public:
     /// <summary>
     /// TexMetadata をもとに、GPU テクスチャリソース(Resource)を生成
     /// </summary>
-    ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
 
 
     // -------------------- テクスチャデータ転送 --------------------
@@ -73,8 +74,8 @@ public:
     /// ScratchImage 内のピクセルデータを GPU テクスチャへアップロード
     /// </summary>
    // [[nodiscard]]
-    ComPtr<ID3D12Resource> UploadTextureData(
-        const ComPtr<ID3D12Resource>& texture,
+    Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(
+        const  Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
         const DirectX::ScratchImage& mipImages,
         ID3D12GraphicsCommandList* commandList
     );
@@ -85,7 +86,7 @@ public:
     /// <summary>
     /// 深度ステンシル用の GPU テクスチャリソースを生成
     /// </summary>
-    ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
 
 
     // -------------------- デバイス・依存コンポーネント設定 --------------------
@@ -93,7 +94,7 @@ public:
     /// <summary>
     /// DirectX12 Device を設定する
     /// </summary>
-    void SetDevice(ComPtr<ID3D12Device> device){
+    void SetDevice(Microsoft::WRL::ComPtr<ID3D12Device> device){
         device_ = device;
     }
 
@@ -113,8 +114,8 @@ private:
 
     // -------------------- 内部リソース --------------------
 
-    ComPtr<ID3D12Device> device_ = nullptr;   // DX12 デバイス
-    LogManager logManager;                    // ログ出力用
+    Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;   // DX12 デバイス
+    logs::LogManager logManager;                    // ログ出力用
     ResourceFactory* resourceBuffer_ = nullptr; // バッファ生成の補助クラス
 
     DirectXCommon* dxCommon_ = nullptr;
@@ -125,11 +126,11 @@ private:
 
 
 
-    std::unordered_map<std::string, ComPtr<ID3D12Resource>> textureMap;
+    std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureMap;
 
     std::unordered_map<std::string, TextureData> textureDatas;
 
-    std::vector<ComPtr<ID3D12Resource>> intermediateResources_;
+    std::vector< Microsoft::WRL::ComPtr<ID3D12Resource>> intermediateResources_;
 
 };
 

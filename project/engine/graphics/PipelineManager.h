@@ -1,12 +1,12 @@
 #pragma once
+// --- 標準・外部ライブラリ ---
 #include <d3d12.h>
 #include <wrl.h>
-#include <unordered_map>
-#include "PipelineType.h"
-#include "DirectXCommon.h"
-#include "ShaderCompiler.h"
-#include "BlendMode.h"
-using Microsoft::WRL::ComPtr;
+#include <string>
+
+// --- エンジン側のファイル ---
+#include "engine/graphics/PipelineType.h"
+#include "engine/graphics/BlendMode.h"
 
 // パイプラインマネージャー
 class PipelineManager{
@@ -42,17 +42,17 @@ private:
 
 	DirectXCommon* dxCommon_ = nullptr;
 
-	ComPtr<ID3D12RootSignature> spriteRootSignature_;
-	ComPtr<ID3D12PipelineState> spritePipelineState_;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> spriteRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> spritePipelineState_;
 
 
 	 
-	ComPtr<ID3D12RootSignature> object3DRootSignature_;
-	ComPtr<ID3D12PipelineState> object3DPipelineState_;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineState_;
 
 	// パーティクル用変数
-	ComPtr<ID3D12RootSignature> particleRootSignature_;
-	ComPtr<ID3D12PipelineState> particlePipelineState_;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> particlePipelineState_;
 
 
 

@@ -1,5 +1,8 @@
 #include "ResourceFactory.h"
 
+// --- •W€ƒ‰ƒCƒuƒ‰ƒŠ ---
+#include <cassert>
+
 ResourceFactory* ResourceFactory::GetInstance() {
     static ResourceFactory instance;
     return &instance;

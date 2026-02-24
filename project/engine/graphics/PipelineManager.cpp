@@ -1,14 +1,10 @@
 #include "PipelineManager.h"
-#include "DirectXCommon.h"
+// --- 標準ライブラリ ---
 #include <cassert>
-#include "BlendMode.h"
-#include <string> 
 
-#include <d3d12.h>
-#include <wrl.h>
-#include <unordered_map>
-#include "PipelineType.h"
-#include "ShaderCompiler.h"
+// --- エンジン側のファイル ---
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/ShaderCompiler.h"
 
 void PipelineManager::Finalize(){
 

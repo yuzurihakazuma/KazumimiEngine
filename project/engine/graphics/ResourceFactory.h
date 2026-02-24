@@ -1,8 +1,8 @@
 #pragma once
+// --- 標準・外部ライブラリ ---
 #include <wrl.h>
-#include "externals/DirectXTex/d3dx12.h"
-#include "externals/DirectXTex/DirectXTex.h"
-#include <dxgi1_6.h>
+#include <d3d12.h>
+#include <cstdint>
 
 
 

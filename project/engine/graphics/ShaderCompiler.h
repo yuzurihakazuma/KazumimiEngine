@@ -1,10 +1,15 @@
 #pragma once
 #define NOMINMAX
+// --- 標準・外部ライブラリ ---
 #include <Windows.h>
 #include <wrl.h>
-#include<dxcapi.h>
+#include <dxcapi.h>
 #include <string>
-#include "LogManager.h"
+
+// --- エンジン側のファイル ---
+#include "engine/utils/LogManager.h"
+
+// ライブラリリンク
 #pragma comment(lib,"dxcompiler.lib")
 
 // シェーダーコンパイラー
