@@ -59,12 +59,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> particlePipelineState_;
 
-
-
-	// 引数: 作成したルートシグネチャを格納する変数への参照
-	// useInstancing: trueならパーティクル用、falseなら通常用として作ります
-	void CreateRootSignatureCommon(Microsoft::WRL::ComPtr<ID3D12RootSignature>& rootSignature, bool useInstancing);
-
 	// 汎用グラフィックスパイプライン生成
 	// 引数で「違い」を受け取ることで、あらゆるパイプラインに対応します
 	void CreateGraphicsPipelineCommon(
