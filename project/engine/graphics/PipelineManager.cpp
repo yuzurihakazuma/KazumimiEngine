@@ -5,7 +5,8 @@
 // --- エンジン側のファイル ---
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ShaderCompiler.h"
-
+#include "engine/graphics/RootSignatureBuilder.h"
+// 終了処理
 void PipelineManager::Finalize(){
 
 	spriteRootSignature_.Reset();
@@ -77,10 +78,17 @@ void PipelineManager::SetPipeline(
 }
 // ルートシグネチャの生成 Sprite用
 void PipelineManager::CreateSpriteRootSignature(){
-	//  共通関数を使って作成
-	CreateRootSignatureCommon(spriteRootSignature_, false);
 
+	RootSignatureBuilder builder;
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
+	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: ライト2 (b2)
+	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
 
+	// 構築して spriteRootSignature_ に入れる！
+	builder.Build(dxCommon_->GetDevice(), spriteRootSignature_);
 	
 
 }
@@ -103,41 +111,58 @@ void PipelineManager::CreateSpriteGraphicsPipeline(){
 // ルートシグネチャの生成 Object3D用
 void PipelineManager::CreateObject3DRootSignature(){
 
-	// 3Dモデルも通常通りなので false
-	CreateRootSignatureCommon(object3DRootSignature_, false);
+	RootSignatureBuilder builder;
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
+	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: ライト2 (b2)
+	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
 
+	// 構築して object3DRootSignature_ に入れる！
+	builder.Build(dxCommon_->GetDevice(), object3DRootSignature_);
 
 }
 // グラフィックスパイプラインの生成 Object3D用
 void PipelineManager::CreateObject3DGraphicsPipeline(){
-
+	// カリングあり用
 	CreateGraphicsPipelineCommon(
 		L"resources/shaders/Object3d.VS.hlsl",
 		L"resources/shaders/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
-		D3D12_CULL_MODE_BACK,       // (※必要に応じてBACKに変更してください)
-		true,                      // (※必要に応じてtrueに変更してください)
+		D3D12_CULL_MODE_BACK,      
+		true,                      
 		object3DPipelineState_
 	);
-
+	// カリングなし用
 	CreateGraphicsPipelineCommon(
 		L"resources/shaders/Object3d.VS.hlsl",
 		L"resources/shaders/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,
-		D3D12_CULL_MODE_NONE,  // ★カリング無し（両面描画）
+		D3D12_CULL_MODE_NONE,  
 		true,
-		object3DPipelineStateNone_ // ★新しく作った変数に保存
+		object3DPipelineStateNone_ 
 	);
 
 }
 // ルートシグネチャの生成 Particle用
 void PipelineManager::CreateParticleRootSignature(){
 
-	// パーティクルはInstancingを使うので true
-	CreateRootSignatureCommon(particleRootSignature_, true);
+	RootSignatureBuilder builder;
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                 // [0]: マテリアル (b0)
 
+	// パーティクルはインスタンシングで描画するため、座標用のCBVは用意せず、SRVでテクスチャバッファを渡す
+	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_VERTEX);
+
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL);  // [2]: テクスチャ (t0)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                 // [3]: ライト1 (b1)
+	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                 // [4]: ライト2 (b2)
+	builder.AddDefaultSampler(0);                                     // サンプラー (s0)
+
+	// 構築して particleRootSignature_ に入れる！
+	builder.Build(dxCommon_->GetDevice(), particleRootSignature_);
 
 }
 // グラフィックスパイプラインの生成 Particle用
