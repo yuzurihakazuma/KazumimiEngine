@@ -1,9 +1,12 @@
 #pragma once
+// --- 標準ライブラリ ---
 #include <memory>
+#include <string>
 
 // 前方宣言
 class IScene;
 class AbstractSceneFactory;
+
 // シーンマネージャークラス
 class SceneManager{
 public:
@@ -16,6 +19,8 @@ public:
 	// シーン変更予約
 	void SetSceneFactory(AbstractSceneFactory* sceneFactory) { sceneFactory_ = sceneFactory; }
 	
+	void ChangeScene(const std::string& sceneName);
+
 	// シーン変更（シーン名で指定）
 	void ChangeScene(std::unique_ptr<IScene> nextScene);
 

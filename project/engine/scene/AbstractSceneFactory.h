@@ -1,5 +1,8 @@
 #pragma once
-#include<string>
+// --- 標準ライブラリ ---
+#include <string>
+#include <memory>
+
 // 前方宣言
 class IScene;
 
@@ -10,6 +13,6 @@ public:
 	virtual ~AbstractSceneFactory() = default;
 
 	// シーン生成
-	virtual IScene* CreateScene(const std::string& sceneName) = 0;
+	virtual std::unique_ptr<IScene> CreateScene(const std::string& sceneName) = 0;
 
 };

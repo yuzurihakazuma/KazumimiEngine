@@ -1,8 +1,12 @@
 #include "SceneManager.h"
-#include "IScene.h"
+// --- 標準ライブラリ ---
 #include <cassert>
-#include <engine/scene/AbstractSceneFactory.h>
-#include "DirectXCommon.h"
+
+// --- エンジン側のファイル ---
+#include "engine/scene/IScene.h"
+#include "engine/scene/AbstractSceneFactory.h"
+#include "engine/base/DirectXCommon.h"
+
 // シングルトンクラスの実装
 SceneManager* SceneManager::GetInstance(){
 	static SceneManager instance;
@@ -51,6 +55,14 @@ void SceneManager::Draw(){
 		// 現在のシーンを描画
 		currentScene_->Draw();
 	}
+}
+
+// 文字列を使ってファクトリーにシーンを作ってもらう
+void SceneManager::ChangeScene(const std::string& sceneName) {
+	assert(sceneFactory_ && "SceneManager: SceneFactory is not set!");
+
+	// ファクトリーが unique_ptr を作ってくれるので、そのまま受け取る
+	nextScene_ = sceneFactory_->CreateScene(sceneName);
 }
 
 // シーン変更（シーン名で指定）

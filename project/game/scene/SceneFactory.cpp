@@ -2,17 +2,15 @@
 #include "TitleScene.h"
 #include "GamePlayScene.h"
 // シーン生成
-IScene* SceneFactory::CreateScene(const std::string& sceneName) {
-	// 生成するシーンのポインタ
-    IScene* newScene = nullptr;
+std::unique_ptr<IScene> SceneFactory::CreateScene(const std::string& sceneName) {
 
     // 文字列に応じて生成するインスタンスを切り替える
     if (sceneName == "TITLE") {
-        newScene = new TitleScene(); // TitleSceneクラスのインスタンスを生成
+        return std::make_unique<TitleScene>(); // TitleSceneクラスのインスタンスを生成
     }
     else if (sceneName == "GAMEPLAY") {
-        newScene = new GamePlayScene(); // GamePlaySceneクラスのインスタンスを生成
+        return std::make_unique<GamePlayScene>(); // GamePlaySceneクラスのインスタンスを生成
     }
 
-    return newScene;
+    return nullptr;
 }
