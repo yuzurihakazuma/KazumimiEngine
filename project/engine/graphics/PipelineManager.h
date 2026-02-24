@@ -38,29 +38,26 @@ private:
 	// OBJ用の初期化
 	void CreateObject3DRootSignature();
 	void CreateObject3DGraphicsPipeline();
-	
+	// パーティクル用の初期化
 	void CreateParticleRootSignature();
 	void CreateParticleGraphicsPipeline();
 
 	DirectXCommon* dxCommon_ = nullptr;
 
+	// スプライト用変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> spriteRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> spritePipelineState_;
 
 
-	 
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DRootSignature_;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineState_;
+	// 3Dオブジェクト用変数
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DRootSignature_; // ルートシグネチャ
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineState_; // カリングあり用
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineStateNone_; // カリングなし用
+
 
 	// パーティクル用変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> particlePipelineState_;
-
-
-
-	// 引数: 作成したルートシグネチャを格納する変数への参照
-	// useInstancing: trueならパーティクル用、falseなら通常用として作ります
-	void CreateRootSignatureCommon(Microsoft::WRL::ComPtr<ID3D12RootSignature>& rootSignature, bool useInstancing);
 
 	// 汎用グラフィックスパイプライン生成
 	// 引数で「違い」を受け取ることで、あらゆるパイプラインに対応します

@@ -130,6 +130,11 @@ void Obj3d::Draw(){
 			4, camera_->GetCameraResource()->GetGPUVirtualAddress()
 		);
 	}
+	// 点光源の転送 -> RootParameter[5]
+	commandList->SetGraphicsRootConstantBufferView(5, Obj3dCommon::GetInstance()->GetPointLightResource()->GetGPUVirtualAddress());
+	// スポットライトの転送 -> RootParameter[6]
+	commandList->SetGraphicsRootConstantBufferView(6, Obj3dCommon::GetInstance()->GetSpotLightResource()->GetGPUVirtualAddress());
+
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {
