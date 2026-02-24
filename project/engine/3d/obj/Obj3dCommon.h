@@ -28,11 +28,23 @@ public:
 		float intensity;   // 輝度
 	};
 
+	struct PointLight {
+		Vector4 color;
+		Vector3 position;
+		float intensity;
+		float radius;      // ライトが届く最大距離
+		float decay;       // 減衰率
+		float padding[2];
+	};
+
+public:
 	// ライトデータの取得
 	DirectionalLight* GetLightData(){ return directionalLightData_; }
 	// ライトリソースの取得
 	ID3D12Resource* GetLightResource() const{ return directionalLightResource_.Get(); }
-
+	// 点光源リソースの取得
+	PointLight* GetPointLightData() { return pointLightData_; }
+	ID3D12Resource* GetPointLightResource() const { return pointLightResource_.Get(); }
 	/// <summary>
 	/// 初期化
 	/// </summary>
@@ -56,6 +68,9 @@ private:
 	DirectionalLight* directionalLightData_ = nullptr;
 	// ライト用リソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
+	// 点光源リソース
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
+	PointLight* pointLightData_ = nullptr;
 
 };
 

@@ -28,10 +28,21 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 	directionalLightResource_->Map(
 		0, nullptr, reinterpret_cast< void** >( &directionalLightData_ )
 	);
-
+	// ライトの初期化
 	directionalLightData_->color = { 1,1,1,1 };
 	directionalLightData_->direction = Normalize({ 0,-1,0 });
 	directionalLightData_->intensity = 1.0f;
+
+	// 点光源のバッファ作成
+	pointLightResource_ = dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(PointLight));
+	pointLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData_));
+
+	// 初期値（スライド資料の通り、位置を(0,2,0)にしておく）
+	pointLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	pointLightData_->position = { 0.0f, 2.0f, 0.0f };
+	pointLightData_->intensity = 1.0f;
+	pointLightData_->radius = 10.0f;
+	pointLightData_->decay = 1.0f;
 }
 
 // 共通の描画設定

@@ -28,7 +28,19 @@ struct DirectionalLight
     float intensity;
 };
 
+struct PointLight
+{
+    float4 color;
+    float3 position;
+    float intensity;
+    float radius;
+    float decay;
+};
+
+
+
 struct Camera
 {
     float3 worldPosition;
 };
+

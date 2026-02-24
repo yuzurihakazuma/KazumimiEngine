@@ -166,7 +166,15 @@ void GamePlayScene::Update(){
 		light->direction = Normalize(light->direction);
 		ImGui::TreePop();
 	}
-
+	if (ImGui::TreeNode("Point Light")) {
+		auto pLight = Obj3dCommon::GetInstance()->GetPointLightData();
+		ImGui::DragFloat3("Position", &pLight->position.x, 0.01f);
+		ImGui::ColorEdit3("Color", &pLight->color.x);
+		ImGui::DragFloat("Intensity", &pLight->intensity, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Radius", &pLight->radius, 0.1f, 0.1f, 100.0f); 
+		ImGui::DragFloat("Decay", &pLight->decay, 0.1f, 0.1f, 10.0f); 
+		ImGui::TreePop();
+	}
 	if ( ImGui::TreeNode("Camera") ) {
 		Vector3 camPos = camera_->GetTransform().translate;
 		Vector3 camRot = camera_->GetTransform().rotate;

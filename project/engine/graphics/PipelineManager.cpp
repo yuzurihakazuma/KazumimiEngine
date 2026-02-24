@@ -116,7 +116,8 @@ void PipelineManager::CreateObject3DRootSignature(){
 	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
 	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
 	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
-	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: ライト2 (b2)
+	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
+	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
 	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
 
 	// 構築して object3DRootSignature_ に入れる！
