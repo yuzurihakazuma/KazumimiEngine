@@ -1,5 +1,9 @@
 #pragma once
-#include "DirectXCommon.h"
+// --- 標準・外部ライブラリ ---
+#include <d3d12.h>
+
+// 前方宣言
+class DirectXCommon;
 
 class ParticleCommon{
 public:

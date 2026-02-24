@@ -1,9 +1,25 @@
 #include "ParticleManager.h"
-#include "TextureManager.h"
-#include "PipelineManager.h" // パイプライン設定のため必要なら
+#include "ParticleManager.h"
+
+// --- 標準ライブラリ ---
 #include <cassert>
 #include <random>
 #include <numbers>
+
+// --- エンジン側のファイル ---
+#include "engine/graphics/TextureManager.h"
+#include "engine/graphics/PipelineManager.h" 
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/camera/Camera.h"
+
+// --- 数学関数（新しく分けたもの） ---
+#include "engine/math/Matrix4x4.h"
+#include "engine/math/VectorMath.h"
+
+// 名前空間の使用を宣言
+using namespace MatrixMath;
+using namespace VectorMath;
 
 void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager){
 	assert(dxCommon);

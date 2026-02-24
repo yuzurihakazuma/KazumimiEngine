@@ -1,6 +1,11 @@
 #include "ParticleCommon.h"
-#include "PipelineManager.h"
+// --- 標準ライブラリ ---
 #include <cassert>
+
+// --- エンジン側のファイル ---
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/PipelineManager.h"
+
 
 void ParticleCommon::Initialize(DirectXCommon* dxCommon){
 	assert(dxCommon);

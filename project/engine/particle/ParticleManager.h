@@ -1,16 +1,21 @@
 #pragma once
+// --- 標準・外部ライブラリ ---
 #include <d3d12.h>
 #include <vector>
 #include <list>
 #include <string>
 #include <unordered_map>
 #include <wrl.h>
-#include "struct.h"
-#include "Matrix4x4.h"
-#include "DirectXCommon.h"
-#include "SrvManager.h"
-#include "Camera.h"
 #include <random>
+
+// --- エンジン側のファイル ---
+#include "engine/math/struct.h"
+
+// 前方宣言
+class DirectXCommon;
+class SrvManager;
+class Camera;
+
 
 // パーティクル1粒のデータ
 struct Particle{
