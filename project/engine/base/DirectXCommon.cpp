@@ -1,9 +1,13 @@
 #include "DirectXCommon.h"
-#include "SrvManager.h"
 
+// --- 標準ライブラリ ---
 #include <cassert>
 #include <thread>
 
+// --- エンジン側のファイル ---
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/ResourceFactory.h"
+#include "engine/base/WindowProc.h"
 
 using namespace logs;
 
@@ -615,6 +619,13 @@ void DirectXCommon::InitializeInfoQueue(){
 
 }
 
+uint32_t DirectXCommon::GetClientWidth() const {
+	return windowProc_->GetClientWidth();
+}
+
+uint32_t DirectXCommon::GetClientHeight() const {
+	return windowProc_->GetClientHeight();
+}
 
 
 

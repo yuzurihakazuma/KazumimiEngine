@@ -1,6 +1,6 @@
 #pragma once
-// 前方宣言
 
+// 前方宣言
 class DirectXCommon;
 struct ID3D12GraphicsCommandList;
 

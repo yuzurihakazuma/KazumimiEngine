@@ -1,0 +1,32 @@
+#include <Windows.h>
+#include "Game.h"
+#include "CrashDumper.h"
+#include <engine/scene/SceneManager.h>
+
+#include "TitleScene.h"
+
+// Windowsアプリでのエントリーポイント
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
+
+	// COM初期化
+	CoInitializeEx(0, COINIT_MULTITHREADED);
+
+	// クラッシュダンパー登録
+	CrashDumper::Install();
+
+	// ゲームクラスの生成
+	Game* game = new Game();
+
+	// 実行フロー
+	game->Initialize(); // 初期化
+	game->Run();        // メインループ
+	game->Finalize();   // 終了処理（
+
+	// ゲームクラスの解放
+	delete game;
+
+	// COM終了
+	CoUninitialize();
+
+	return 0;
+}

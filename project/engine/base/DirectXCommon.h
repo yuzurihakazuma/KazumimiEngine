@@ -1,24 +1,27 @@
 #pragma once
+// --- 標準ライブラリ・外部ライブラリ ---
 #include <windows.h>
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxcapi.h>
-#include<cassert>
-#include "ShaderCompiler.h"
-#include "LogManager.h"
-#include "WindowProc.h"
-#include "externals/DirectXTex/DirectXTex.h"
-#include "ResourceFactory.h"
-#include "TextureManager.h"
 #include <chrono>
+#include <cstdint>
 
+// --- エンジン側のファイル ---
+#include "engine/utils/LogManager.h"
+#include "engine/graphics/ShaderCompiler.h"
+
+// ライブラリのリンク
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib, "winmm.lib")
-using namespace logs;
 
+// --- 前方宣言 ---
+class WindowProc;
+class ResourceFactory;
+class SrvManager;
 
 class DirectXCommon{
 public:
@@ -78,7 +81,7 @@ public:
 	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
 
 	// ログマネージャーのゲッター
-	LogManager& GetLogManager(){ return logManager_; }
+	logs::LogManager& GetLogManager(){ return logManager_; }
 
 	// シェーダーコンパイラのゲッター
 	ShaderCompiler& GetShaderCompiler(){ return shaderCompiler_; }
@@ -100,13 +103,10 @@ public:
 	void SetSrvManager(SrvManager* srvManager){ this->srvManager_ = srvManager; }
 
 	/// <summary>クライアント領域の横幅取得
-	uint32_t GetClientWidth() const{
-		return windowProc_->GetClientWidth();
-	}
+	uint32_t GetClientWidth() const;
+
 	/// <summary>クライアント領域の縦幅取得
-	uint32_t GetClientHeight() const{
-		return windowProc_->GetClientHeight();
-	}
+	uint32_t GetClientHeight() const;
 
 	size_t GetBackBufferCount() const{
 		return kBackBufferCount;
@@ -213,7 +213,7 @@ private:
 
 	// -------------------- その他 --------------------
 	HRESULT hr_;                      // HRESULT保存用
-	LogManager logManager_;          // ログマネージャー
+	logs::LogManager logManager_;          // ログマネージャー
 	WindowProc* windowProc_ = nullptr; // ウィンドウプロシージャ
 	ShaderCompiler shaderCompiler_;
 	ResourceFactory* resourceFactory_ = nullptr;

@@ -1,7 +1,7 @@
 #pragma once
+// --- 標準ライブラリ ---
 #include <wtypes.h>
-#include<cstdint>
-
+#include <cstdint>
 class WindowProc{
 public:
 

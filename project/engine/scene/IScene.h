@@ -1,7 +1,5 @@
 #pragma once
 
-class SceneManager; // 前方宣言
-
 // シーンのインターフェース
 class IScene{
 public:
