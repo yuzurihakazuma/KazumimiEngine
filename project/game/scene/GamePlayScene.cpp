@@ -175,6 +175,19 @@ void GamePlayScene::Update(){
 		ImGui::DragFloat("Decay", &pLight->decay, 0.1f, 0.1f, 10.0f); 
 		ImGui::TreePop();
 	}
+	if (ImGui::TreeNode("Spot Light")) {
+		auto sLight = Obj3dCommon::GetInstance()->GetSpotLightData();
+		ImGui::DragFloat3("Position", &sLight->position.x, 0.01f);
+		ImGui::DragFloat3("Direction", &sLight->direction.x, 0.01f);
+		sLight->direction = Normalize(sLight->direction); // 常に正規化
+		ImGui::ColorEdit3("Color", &sLight->color.x);
+		ImGui::DragFloat("Intensity", &sLight->intensity, 0.01f, 0.0f, 10.0f);
+		ImGui::DragFloat("Distance", &sLight->distance, 0.1f, 0.1f, 100.0f);
+		ImGui::DragFloat("Decay", &sLight->decay, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("cosAngle", &sLight->cosAngle, 0.01f, -1.0f, 1.0f);
+		ImGui::DragFloat("FalloffStart", &sLight->cosFalloffStart, 0.01f, -1.0f, 1.0f);
+		ImGui::TreePop();
+	}
 	if ( ImGui::TreeNode("Camera") ) {
 		Vector3 camPos = camera_->GetTransform().translate;
 		Vector3 camRot = camera_->GetTransform().rotate;

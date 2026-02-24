@@ -27,7 +27,7 @@ public:
 		Vector3 direction; // ライトの向き
 		float intensity;   // 輝度
 	};
-
+	// 点光源の構造体
 	struct PointLight {
 		Vector4 color;
 		Vector3 position;
@@ -35,6 +35,19 @@ public:
 		float radius;      // ライトが届く最大距離
 		float decay;       // 減衰率
 		float padding[2];
+	};
+
+	// スポットライトの構造体
+	struct SpotLight {
+		Vector4 color;           // ライトの色
+		Vector3 position;        // ライトの位置
+		float intensity;         // 輝度
+		Vector3 direction;       // ライトの方向
+		float distance;          // ライトの届く最大距離
+		float decay;             // 減衰率
+		float cosAngle;          // スポットライトの余弦
+		float cosFalloffStart;   // フォールオフ開始の余弦
+		float padding;           // 16バイトアライメント用
 	};
 
 public:
@@ -45,6 +58,9 @@ public:
 	// 点光源リソースの取得
 	PointLight* GetPointLightData() { return pointLightData_; }
 	ID3D12Resource* GetPointLightResource() const { return pointLightResource_.Get(); }
+	// スポットライトデータの取得
+	SpotLight* GetSpotLightData() { return spotLightData_; }
+	ID3D12Resource* GetSpotLightResource() const { return spotLightResource_.Get(); }
 	/// <summary>
 	/// 初期化
 	/// </summary>
@@ -71,6 +87,8 @@ private:
 	// 点光源リソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightResource_;
 	PointLight* pointLightData_ = nullptr;
-
+	// スポットライトリソース
+	Microsoft::WRL::ComPtr<ID3D12Resource> spotLightResource_;
+	SpotLight* spotLightData_ = nullptr;
 };
 

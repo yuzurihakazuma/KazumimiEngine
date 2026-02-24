@@ -118,8 +118,8 @@ void PipelineManager::CreateObject3DRootSignature(){
 	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
 	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
 	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
+	builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
 	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
-
 	// 構築して object3DRootSignature_ に入れる！
 	builder.Build(dxCommon_->GetDevice(), object3DRootSignature_);
 

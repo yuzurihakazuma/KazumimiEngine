@@ -6,7 +6,7 @@ SamplerState gSampler : register(s0);
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 ConstantBuffer<Camera> gCamera : register(b2);
 ConstantBuffer<PointLight> gPointLight : register(b3);
-
+ConstantBuffer<SpotLight> gSpotLight : register(b4); 
 
 struct PixelShaderOutput
 {
@@ -30,6 +30,9 @@ PixelShaderOutput main(VertexShaderOutput input)
     float3 specularDirectional = float3(0, 0, 0);
     float3 diffusePoint = float3(0, 0, 0);
     float3 specularPoint = float3(0, 0, 0);
+    float3 diffuseSpot = float3(0, 0, 0); 
+    float3 specularSpot = float3(0, 0, 0);
+    
     
     if (gMaterial.enableLighting != 0)
     {
@@ -63,8 +66,31 @@ PixelShaderOutput main(VertexShaderOutput input)
         // 距離が radius に近づくほど 0 になるような係数(factor)を作る
         specularPoint = gPointLight.color.rgb * gPointLight.intensity * specularPow_Point * float3(1.0f, 1.0f, 1.0f) * factor;
         
+        float3 spotLightDirectionOnSurface = normalize(input.worldPosition - gSpotLight.position);
+        float cosAngle = dot(spotLightDirectionOnSurface, gSpotLight.direction);
+        
+        // フォールオフ(角度による減衰)の計算
+        float falloffFactor = saturate((cosAngle - gSpotLight.cosAngle) / (gSpotLight.cosFalloffStart - gSpotLight.cosAngle));
+        
+        // 距離による減衰の計算
+        float spotDistance = length(gSpotLight.position - input.worldPosition);
+        float attenuationFactor = pow(saturate(-spotDistance / gSpotLight.distance + 1.0f), gSpotLight.decay);
+        
+        // 光の当たり方（Diffuse / Specular）の計算
+        float NdotL_Spot = dot(normalize(input.normal), -spotLightDirectionOnSurface);
+        float cos_Spot = pow(NdotL_Spot * 0.5f + 0.5f, 2.0f);
+        
+        diffuseSpot = gMaterial.color.rgb * textureColor.rgb * gSpotLight.color.rgb * cos_Spot * gSpotLight.intensity * attenuationFactor * falloffFactor;
+        
+        float3 halfVector_Spot = normalize(-spotLightDirectionOnSurface + toEye);
+        float NDotH_Spot = dot(normalize(input.normal), halfVector_Spot);
+        float specularPow_Spot = pow(saturate(NDotH_Spot), gMaterial.shininess);
+        
+        specularSpot = gSpotLight.color.rgb * gSpotLight.intensity * specularPow_Spot * float3(1.0f, 1.0f, 1.0f) * attenuationFactor * falloffFactor;
+        
+        
         // --- 光の計算結果を合成 
-        output.color.rgb = diffuseDirectional + specularDirectional + diffusePoint + specularPoint;
+        output.color.rgb = diffuseDirectional + specularDirectional + diffusePoint + specularPoint + diffuseSpot + specularSpot;
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else

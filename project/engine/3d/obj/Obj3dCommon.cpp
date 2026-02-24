@@ -9,6 +9,7 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/math/VectorMath.h"
 #include "engine/graphics/ResourceFactory.h"
+#include <numbers>
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -43,6 +44,19 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 	pointLightData_->intensity = 1.0f;
 	pointLightData_->radius = 10.0f;
 	pointLightData_->decay = 1.0f;
+
+	// スポットライトのバッファ作成
+	spotLightResource_ = dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(SpotLight));
+	spotLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&spotLightData_));
+
+	spotLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	spotLightData_->position = { 2.0f, 1.25f, 0.0f };
+	spotLightData_->distance = 7.0f;
+	spotLightData_->direction = Normalize({ -1.0f, -1.0f, 0.0f });
+	spotLightData_->intensity = 4.0f;
+	spotLightData_->decay = 2.0f;
+	spotLightData_->cosAngle = std::cos(std::numbers::pi_v<float> / 3.0f); // 約0.5 (60度)
+	spotLightData_->cosFalloffStart = 1.0f; // 1.0なら最初から減衰が始まる
 }
 
 // 共通の描画設定
