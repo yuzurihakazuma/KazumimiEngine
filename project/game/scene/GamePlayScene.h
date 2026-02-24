@@ -7,6 +7,9 @@
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
+#include <unordered_map>
+#include <string>
+
 
 // 前方宣言
 class Camera;
@@ -40,16 +43,14 @@ private: // メンバ変数
 	std::vector<std::unique_ptr<Obj3d>> object3ds_;
 	std::unique_ptr<Obj3d>fence_ = nullptr;
 	std::unique_ptr<Obj3d> sphere_ = nullptr;
+	std::unique_ptr<Obj3d> ground_ = nullptr;
 
 	// スプライト
 	std::vector<std::unique_ptr<Sprite>> sprites_;
 	std::unique_ptr<Sprite> sprite_ = nullptr;
 
 	// テクスチャデータ
-	TextureData textureResource_;
-	TextureData textureResource2_;
-	TextureData textureResource3_;
-	TextureData textureResource5_;
+	std::unordered_map<std::string, TextureData> textures_;
 
 	// デプスステンシル
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
@@ -59,5 +60,8 @@ private: // メンバ変数
 	Vector3 groundScale_ = { 1.0f, 1.0f, 1.0f };
 	Vector3 spherePos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 sphereScale_ = { 1.0f, 1.0f, 1.0f };
+	Vector3 fencePos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 fenceScale_ = { 1.0f, 1.0f, 1.0f };
+
 	std::string bgmFile_ = "resources/BGM.wav";
 };

@@ -12,6 +12,7 @@ void PipelineManager::Finalize(){
 	spritePipelineState_.Reset();
 	object3DRootSignature_.Reset();
 	object3DPipelineState_.Reset();
+	object3DPipelineStateNone_.Reset();
 	particleRootSignature_.Reset();
 	particlePipelineState_.Reset();
 }
@@ -62,11 +63,16 @@ void PipelineManager::SetPipeline(
 		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
 		commandList->SetPipelineState(object3DPipelineState_.Get());
 		break;
+	case PipelineType::Object3D_CullNone:
+		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
+		commandList->SetPipelineState(object3DPipelineStateNone_.Get());
+		break;
 	case PipelineType::Particle:
 		commandList->SetGraphicsRootSignature(particleRootSignature_.Get());
 		commandList->SetPipelineState(particlePipelineState_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		break;
+	
     }
 }
 // ルートシグネチャの生成 Sprite用
@@ -111,11 +117,19 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
 		D3D12_CULL_MODE_BACK,       // (※必要に応じてBACKに変更してください)
-		false,                      // (※必要に応じてtrueに変更してください)
+		true,                      // (※必要に応じてtrueに変更してください)
 		object3DPipelineState_
 	);
 
-
+	CreateGraphicsPipelineCommon(
+		L"resources/shaders/Object3d.VS.hlsl",
+		L"resources/shaders/Object3d.PS.hlsl",
+		object3DRootSignature_.Get(),
+		BlendMode::kNormal,
+		D3D12_CULL_MODE_NONE,  // ★カリング無し（両面描画）
+		true,
+		object3DPipelineStateNone_ // ★新しく作った変数に保存
+	);
 
 }
 // ルートシグネチャの生成 Particle用

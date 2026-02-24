@@ -38,51 +38,62 @@ void GamePlayScene::Initialize(){
 	AudioManager::GetInstance()->LoadWave(bgmFile_);
 	// モデル読み込み (シングルトン)
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
+	
+	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
+
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 	// パーティクルグループ作成 (シングルトン)
 	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 
 	// テクスチャ読み込み
-	textureResource_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
-	textureResource2_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
-	textureResource3_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
-	textureResource5_ = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
+	textures_["uvChecker"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
+	textures_["monsterBall"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
+	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
+	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 
 	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
-	camera_->SetTranslation({ 0.0f, 0.0f, -10.0f });
+	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
 	// オブジェクト生成
 	fence_ = std::make_unique<Obj3d>();
 	sphere_ = std::make_unique<Obj3d>();
+	ground_ = std::make_unique<Obj3d>();
 
 	// モデル取得 (シングルトンから)
-	Model* modelGround = ModelManager::GetInstance()->FindModel("fence");
+	Model* modelFence = ModelManager::GetInstance()->FindModel("fence");
 	Model* modelSphere = ModelManager::GetInstance()->FindModel("sphere");
+	Model* modelGround = ModelManager::GetInstance()->FindModel("grass");
 
-	// オブジェクト初期化
-	fence_->Initialize(modelGround); 
-	fence_ = Obj3d::Create("fence", groundPos_);
 
-	// カメラのセットは忘れずに（カメラも自動化するならCreateの引数に追加も可能です）
+	// オブジェクト生成＆初期化
+	fence_ = Obj3d::Create("fence");
 	if (fence_) {
 		fence_->SetCamera(camera_.get());
+		fence_->SetTranslation(fencePos_);
 	}
-	
-	// 床の位置とスケール設定
-	sphere_->Initialize(modelSphere);
-	sphere_->SetCamera(camera_.get());
-	sphere_->SetTranslation(spherePos_);
-	sphere_->SetScale(sphereScale_);
 
-	// ファイル名を指定するだけで、読み込み・生成・配置まで一発です！
+	sphere_ = Obj3d::Create("sphere");
+	if (sphere_) {
+		sphere_->SetCamera(camera_.get());
+		sphere_->SetTranslation(spherePos_);
+		sphere_->SetScale(sphereScale_);
+	}
+
+	ground_ = Obj3d::Create("grass"); 
+	if (ground_) {
+		ground_->SetCamera(camera_.get());
+		ground_->SetTranslation(groundPos_);
+		ground_->SetScale(groundScale_);
+	}
+
+
+	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
-	sprite_ = Sprite::Create(textureResource_.srvIndex, { 0, 0 });
+	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, { 0, 0 });
 
-	// 必要ならサイズや色もあとから変えられます
-	// sprite_->SetSize({200.0f, 200.0f});
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
@@ -111,14 +122,20 @@ void GamePlayScene::Update(){
 	ParticleManager::GetInstance()->Update(camera_.get());
 
 	// オブジェクト更新
-	if ( sphere_ ) {
+	if (sphere_) {
 		sphere_->SetTranslation(spherePos_);
 		sphere_->SetScale(sphereScale_);
 		sphere_->Update();
 	}
 	if (fence_) {
-		
+		fence_->SetTranslation(fencePos_); 
 		fence_->Update();
+	}
+	// 地面の更新
+	if (ground_) {
+		ground_->SetTranslation(groundPos_);
+		ground_->SetScale(groundScale_);
+		ground_->Update();
 	}
 
 	// 全オブジェクト更新
@@ -172,7 +189,7 @@ void GamePlayScene::Update(){
 	ImGui::End();
 
 	if ( !object3ds_.empty() ) {
-		object3ds_[0]->SetTranslation(groundPos_);
+		object3ds_[0]->SetTranslation(fencePos_);
 	}
 #endif
 
@@ -192,7 +209,10 @@ void GamePlayScene::Draw(){
 	if (sphere_) {
 		sphere_->Draw();
 	}
-
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+	if (ground_) {
+		ground_->Draw();
+	}
 	// 3Dオブジェクト描画
 	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
@@ -211,12 +231,12 @@ void GamePlayScene::Draw(){
 GamePlayScene::GamePlayScene(){}
 
 GamePlayScene::~GamePlayScene(){}
-
+// 終了
 void GamePlayScene::Finalize(){
 	
 
 	object3ds_.clear();
 
-	textureResource_.resource.Reset();
+	textures_.clear();
 	depthStencilResource_.Reset();
 }
