@@ -8,6 +8,8 @@
 #include "engine/graphics/PipelineType.h"
 #include "engine/graphics/BlendMode.h"
 
+class DirectXCommon;
+
 // パイプラインマネージャー
 class PipelineManager{
 public:

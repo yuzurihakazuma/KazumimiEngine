@@ -1,6 +1,6 @@
 #include "ResourceFactory.h"
 
-// --- •W€ƒ‰ƒCƒuƒ‰ƒŠ ---
+// --- æ¨™æº–ãƒ©ã‚¤ãƒ–ãƒ©ãƒª ---
 #include <cassert>
 
 ResourceFactory* ResourceFactory::GetInstance() {

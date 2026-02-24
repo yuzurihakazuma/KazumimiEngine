@@ -17,6 +17,10 @@
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib, "winmm.lib")
 
+// --- 前方宣言 ---
+class WindowProc;
+class ResourceFactory;
+class SrvManager;
 
 class DirectXCommon{
 public:
@@ -76,7 +80,7 @@ public:
 	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
 
 	// ログマネージャーのゲッター
-	LogManager& GetLogManager(){ return logManager_; }
+	logs::LogManager& GetLogManager(){ return logManager_; }
 
 	// シェーダーコンパイラのゲッター
 	ShaderCompiler& GetShaderCompiler(){ return shaderCompiler_; }
@@ -211,7 +215,7 @@ private:
 
 	// -------------------- その他 --------------------
 	HRESULT hr_;                      // HRESULT保存用
-	LogManager logManager_;          // ログマネージャー
+	logs::LogManager logManager_;          // ログマネージャー
 	WindowProc* windowProc_ = nullptr; // ウィンドウプロシージャ
 	ShaderCompiler shaderCompiler_;
 	ResourceFactory* resourceFactory_ = nullptr;
