@@ -14,6 +14,9 @@
 using namespace VectorMath;
 using namespace MatrixMath;
 
+
+
+
 // 初期化
 void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 	// NULLチェック
@@ -66,4 +69,12 @@ void Obj3dCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
 		commandList,
 		PipelineType::Object3D 
 	);
+}
+
+
+void Obj3dCommon::Finalize() {
+	directionalLightResource_.Reset();
+
+	 pointLightResource_.Reset();
+	 spotLightResource_.Reset();
 }

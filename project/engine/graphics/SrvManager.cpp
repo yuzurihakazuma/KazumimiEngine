@@ -105,3 +105,6 @@ void SrvManager::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, uint32_
 }
 
 
+void SrvManager::Finalize() {
+	descriptorHeaps_.Reset(); // ヒープを解放
+}

@@ -32,6 +32,9 @@ void TextureManager::Finalize(){
 	textureDatas.clear();
 	// 中間リソース解放
 	intermediateResources_.clear();
+
+	device_.Reset();
+
 }
 
 // 画像ファイルを読み込み、ScratchImage 形式で返す

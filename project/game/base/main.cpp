@@ -2,11 +2,13 @@
 #include "Game.h"
 #include "CrashDumper.h"
 #include <engine/scene/SceneManager.h>
-
+#include "ResourceLeakChecker.h"
 #include "TitleScene.h"
 
 // Windowsアプリでのエントリーポイント
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
+
+	ResourceLeakChecker leakCheck;
 
 	// COM初期化
 	CoInitializeEx(0, COINIT_MULTITHREADED);

@@ -16,6 +16,8 @@ public:
 
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon);
+	// 終了処理
+	void Finalize();
 
 	// SRV用ディスクリプタヒープからディスクリプタを1つ割り当てる
 	uint32_t Allocate();

@@ -65,6 +65,10 @@ public:
 	/// 初期化
 	/// </summary>
 	void Initialize(DirectXCommon* dxCommon);
+	
+	// 終了処理
+	void Finalize();
+
 	// 共通の描画設定
 	void PreDraw(ID3D12GraphicsCommandList* commandList);
 	DirectXCommon* GetDxCommon() const{ return dxCommon_; }
