@@ -12,6 +12,7 @@
 
 
 // 前方宣言
+class DebugCamera;
 class Camera;
 class Sprite;
 class Obj3d;
@@ -38,6 +39,13 @@ private: // メンバ変数
 
 	// カメラ
 	std::unique_ptr<Camera> camera_ = nullptr;
+	// デバッグカメラ
+	std::unique_ptr<DebugCamera> debugCamera_ = nullptr;
+	bool isDebugCameraActive_ = false;
+
+	// デバッグカメラの前回の座標・回転（切り替えたときにカメラが飛ばないようにするため）
+	Vector3 preDebugCameraPos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 preDebugCameraRot_ = { 0.0f, 0.0f, 0.0f };
 
 	// 3Dオブジェクト
 	std::vector<std::unique_ptr<Obj3d>> object3ds_;

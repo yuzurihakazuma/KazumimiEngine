@@ -13,6 +13,7 @@
 #include "Engine/Graphics/PipelineManager.h"
 #include "Engine/Scene/SceneManager.h"
 #include "Engine/Camera/Camera.h"
+#include "Engine/Camera/DebugCamera.h"
 #include "Engine/2D/Sprite.h"
 #include "Engine/3D/Obj/Obj3d.h"
 #include "Engine/Base/Input.h"
@@ -56,6 +57,11 @@ void GamePlayScene::Initialize(){
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
+	
+	// デバッグカメラ生成
+	debugCamera_ = std::make_unique<DebugCamera>();
+	debugCamera_->Initialize();
+
 
 	// オブジェクト生成
 	fence_ = std::make_unique<Obj3d>();
@@ -101,9 +107,14 @@ void GamePlayScene::Initialize(){
 }
 
 void GamePlayScene::Update(){
+	
+	// デバッグカメラ更新
+	if (isDebugCameraActive_ && debugCamera_) {
+		debugCamera_->Update(camera_.get()); 
+	}
 	// カメラ更新
 	camera_->Update();
-	
+
 	Input* input = Input::GetInstance();
 
 	// BGM再生 (シングルトン)
@@ -153,10 +164,24 @@ void GamePlayScene::Update(){
 
 
 	ImGui::Begin("Debug");
+	// デバッグカメラの切り替え前の座標・回転を保存
+	bool isPreDebugCameraActive = isDebugCameraActive_;
+
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
 	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);
 	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
 	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
+	ImGui::Checkbox("Debug Camera Active", &isDebugCameraActive_);
+
+	if (isDebugCameraActive_ && !isPreDebugCameraActive) {
+		preDebugCameraPos_ = camera_->GetTransform().translate;
+		preDebugCameraRot_ = camera_->GetTransform().rotate;
+	}
+	// デバッグカメラが非アクティブになったとき、切り替え前の座標・回転を復元
+	if (!isDebugCameraActive_ && isPreDebugCameraActive) {
+		camera_->SetTranslation(preDebugCameraPos_);
+		camera_->SetRotation(preDebugCameraRot_);
+	}
 
 	if ( ImGui::TreeNode("Directional Light") ) {
 		auto light = Obj3dCommon::GetInstance()->GetLightData();
@@ -208,6 +233,14 @@ void GamePlayScene::Update(){
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 5.0f, 0.0f }, 10);
 	}
 	ImGui::End();
+
+	// デバッグカメラ更新 (デバッグカメラがアクティブなときのみ、カメラの座標・回転を更新)
+	if (isDebugCameraActive_ && debugCamera_) {
+		debugCamera_->Update(camera_.get());
+	}
+	// カメラ更新
+	camera_->Update();
+
 
 	if ( !object3ds_.empty() ) {
 		object3ds_[0]->SetTranslation(fencePos_);
