@@ -14,6 +14,7 @@
 #include "engine/graphics/TextureManager.h"
 #include "engine/graphics/PipelineManager.h"
 #include "engine/scene/AbstractSceneFactory.h"
+#include "engine/scene/SceneManager.h"
 
 void Framework::Initialize(){
 	// ---------------------------------------------
@@ -69,15 +70,31 @@ void Framework::Initialize(){
 }
 
 void Framework::Finalize(){
-	// 各マネージャー終了
-	AudioManager::GetInstance()->Finalize();
-	ModelManager::GetInstance()->Finalize();
-	ParticleManager::GetInstance()->Finalize();
-	TextureManager::GetInstance()->Finalize();
-	PipelineManager::GetInstance()->Finalize();
 
-	// ImGui終了
+	// ---------------------------------------------
+	// 終了処理は初期化の逆順で行う
+	// ---------------------------------------------
+	SceneManager::GetInstance()->Finalize();
+
+	// 2. ゲーム固有のマネージャー類を終了
+	ParticleManager::GetInstance()->Finalize();
+	ModelManager::GetInstance()->Finalize();
+	Obj3dCommon::GetInstance()->Finalize();
+	AudioManager::GetInstance()->Finalize();
+
+	// 3. ImGuiは描画系のマネージャーより先に終了させるのが安全
 	ImGuiManager::GetInstance()->Shutdown();
+
+	// 4. 描画・基盤系のマネージャーを終了
+	PipelineManager::GetInstance()->Finalize();
+	TextureManager::GetInstance()->Finalize();
+	SrvManager::GetInstance()->Finalize();
+	Input::GetInstance()->Finalize();
+	ResourceFactory::GetInstance()->Finalize();
+
+
+	// 5. 最後に DirectXCommon と WindowProc を終了
+	DirectXCommon::GetInstance()->Finalize();
 }
 
 void Framework::Update(){

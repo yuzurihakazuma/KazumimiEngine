@@ -69,3 +69,12 @@ void SceneManager::ChangeScene(const std::string& sceneName) {
 void SceneManager::ChangeScene(std::unique_ptr<IScene> nextScene){
 	nextScene_ = std::move(nextScene);
 }
+
+
+void SceneManager::Finalize() {
+	// 現在のシーンを破棄する
+	if (currentScene_) {	
+		currentScene_->Finalize();
+		currentScene_.reset();    
+	}
+}

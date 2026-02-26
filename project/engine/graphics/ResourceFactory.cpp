@@ -45,3 +45,9 @@ ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uint64_t sizeInByte
     assert(SUCCEEDED(hr));
     return resource;
 }
+
+
+void ResourceFactory::Finalize() {
+ 
+    device_.Reset();
+}

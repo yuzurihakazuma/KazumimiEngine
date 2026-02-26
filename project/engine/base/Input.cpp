@@ -7,6 +7,19 @@ Input* Input::GetInstance() {
 	return &instance;
 }
 
+
+void Input::Finalize() {
+	// 取得状態を解放
+	if (keyboard) {
+		keyboard->Unacquire();
+		keyboard.Reset();
+	}
+	if (mouse) {
+		mouse->Unacquire();
+		mouse.Reset();
+	}
+}
+
 void Input::Initialize(HWND hwnd) {
 	// DirectInputの初期化
 	Microsoft::WRL::ComPtr<IDirectInput8> directInput;

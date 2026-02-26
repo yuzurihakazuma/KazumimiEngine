@@ -24,6 +24,8 @@ public:
 	// シーン変更（シーン名で指定）
 	void ChangeScene(std::unique_ptr<IScene> nextScene);
 
+	void Finalize();
+
 private:
 	// コンストラクタを private にして外部からの生成を禁止
 	SceneManager() = default;
