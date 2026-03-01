@@ -100,6 +100,10 @@ void GamePlayScene::Initialize(){
 	// 引数: (ファイルパス, 座標)
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, { 0, 0 });
 
+	// スプライトの切り抜き範囲を設定 (テクスチャの左上から128x128ピクセルを使用)
+	sprite_->SetTextureRect(0.0f, 0.0f, 128.0f, 128.0f, 256.0f, 256.0f);
+
+
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()

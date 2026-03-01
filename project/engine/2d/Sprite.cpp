@@ -244,24 +244,42 @@ void Sprite::UpdateVertexData(){
 		std::swap(top, bottom);
 	}
 
+	float texLeft = texBase_.x;
+	float texRight = texBase_.x + texSize_.x;
+	float texTop = texBase_.y;
+	float texBottom = texBase_.y + texSize_.y;
+
+
 	// 0: 左上 (Top-Left)
 	vertexData_[0].position = { left, top, 0.0f, 1.0f }; // Yは上(top)
-	vertexData_[0].texcoord = { 0.0f, 0.0f };            // UVは(0,0)
+	vertexData_[0].texcoord = { texLeft, texTop };            // UVは(0,0)
 	vertexData_[0].normal = { 0.0f, 0.0f, -1.0f };
 
 	// 1: 左下 (Bottom-Left)
 	vertexData_[1].position = { left, bottom, 0.0f, 1.0f }; // Yは下(bottom)
-	vertexData_[1].texcoord = { 0.0f, 1.0f };               // UVは(0,1)
+	vertexData_[1].texcoord = { texLeft, texBottom };               // UVは(0,1)
 	vertexData_[1].normal = { 0.0f, 0.0f, -1.0f };
 
 	// 2: 右上 (Top-Right)
 	vertexData_[2].position = { right, top, 0.0f, 1.0f };   // Yは上(top)
-	vertexData_[2].texcoord = { 1.0f, 0.0f };               // UVは(1,0)
+	vertexData_[2].texcoord = { texRight, texTop };               // UVは(1,0)
 	vertexData_[2].normal = { 0.0f, 0.0f, -1.0f };
 
 	// 3: 右下 (Bottom-Right)
 	vertexData_[3].position = { right, bottom, 0.0f, 1.0f }; // Yは下(bottom)
-	vertexData_[3].texcoord = { 1.0f, 1.0f };                // UVは(1,1)
+	vertexData_[3].texcoord = { texRight, texBottom };                // UVは(1,1)
 	vertexData_[3].normal = { 0.0f, 0.0f, -1.0f };
 
+}
+
+
+// 切り抜きを指定する関数
+void Sprite::SetTextureRect(float startX, float startY, float width, float height, float textureWidth, float textureHeight) {
+	// ピクセル座標から UV座標(0.0 ～ 1.0) の割合に変換して保存
+	texBase_.x = startX / textureWidth;
+	texBase_.y = startY / textureHeight;
+	texSize_.x = width / textureWidth;
+	texSize_.y = height / textureHeight;
+
+	UpdateVertexData();
 }
