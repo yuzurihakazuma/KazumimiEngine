@@ -22,6 +22,8 @@
 #include "Engine/Base/DirectXCommon.h"
 #include "Engine/Base/WindowProc.h"
 #include "engine/math/VectorMath.h"
+#include "engine/collision/Collision.h"
+
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -144,6 +146,7 @@ void GamePlayScene::Update(){
 	}
 	if (fence_) {
 		fence_->SetTranslation(fencePos_); 
+		fence_->SetScale(fenceScale_);
 		fence_->Update();
 	}
 	// 地面の更新
@@ -173,9 +176,47 @@ void GamePlayScene::Update(){
 
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
 	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);
+	ImGui::DragFloat3("FencePos", &fencePos_.x, 0.1f);
+	ImGui::DragFloat3("FenceScale", &fenceScale_.x, 0.1f);
+
 	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
 	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
 	ImGui::Checkbox("Debug Camera Active", &isDebugCameraActive_);
+
+	ImGui::Text("=== Collision Test ===");
+
+	// 1. スフィアの当たり判定データを作成
+	Sphere sphereCollider;
+	sphereCollider.center = spherePos_;
+	sphereCollider.radius = sphereScale_.x; // スケールのXを半径とする
+
+	// 2. フェンスの当たり判定データを作成 (AABB)
+	AABB fenceCollider;
+	// 中心座標からサイズの半分を引いたものがMin(左下奥)、足したものがMax(右上手前)
+	fenceCollider.min = {
+		fencePos_.x - (fenceScale_.x / 2.0f),
+		fencePos_.y - (fenceScale_.y / 2.0f),
+		fencePos_.z - (fenceScale_.z / 2.0f)
+	};
+	fenceCollider.max = {
+		fencePos_.x + (fenceScale_.x / 2.0f),
+		fencePos_.y + (fenceScale_.y / 2.0f),
+		fencePos_.z + (fenceScale_.z / 2.0f)
+	};
+
+	// 3. 判定チェック！
+	bool isHit = Collision::IsCollision(sphereCollider, fenceCollider);
+
+	// 4. 結果を色付きで表示
+	if (isHit) {
+		// 当たっていたら赤色で Hit!! と表示
+		ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "HIT!!");
+	}
+	else {
+		// 当たっていなければ緑色で Safe と表示
+		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Safe");
+	}
+
 
 	if (isDebugCameraActive_ && !isPreDebugCameraActive) {
 		preDebugCameraPos_ = camera_->GetTransform().translate;
@@ -261,13 +302,17 @@ void GamePlayScene::Draw(){
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
-	if (fence_) {
-		fence_->Draw();
-	}
+	
 	if (sphere_) {
 		sphere_->Draw();
 	}
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+	
+	if (fence_) {
+		fence_->Draw();
+	}
+
+
 	if (ground_) {
 		ground_->Draw();
 	}
