@@ -83,7 +83,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -111,7 +111,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
@@ -141,7 +141,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -159,6 +159,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="engine\collision\Collision.cpp" />
     <ClCompile Include="engine\3d\model\Model.cpp" />
     <ClCompile Include="engine\3d\model\ModelCommon.cpp" />
     <ClCompile Include="engine\3d\model\ModelManager.cpp" />
@@ -230,6 +231,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="engine\collision\Collision.h" />
     <ClInclude Include="engine\3d\model\Model.h" />
     <ClInclude Include="engine\3d\model\ModelCommon.h" />
     <ClInclude Include="engine\3d\model\ModelManager.h" />
@@ -239,6 +241,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\base\Input.h" />
     <ClInclude Include="engine\camera\Camera.h" />
     <ClInclude Include="engine\camera\DebugCamera.h" />
+    <ClInclude Include="engine\collision\Collider.h" />
     <ClInclude Include="engine\graphics\PipelineManager.h" />
     <ClInclude Include="engine\graphics\PipelineType.h" />
     <ClInclude Include="engine\graphics\ResourceFactory.h" />
