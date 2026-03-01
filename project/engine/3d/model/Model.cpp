@@ -7,6 +7,12 @@
 #include <cmath>
 #include <numbers>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+
+
 // --- エンジン側のファイル ---
 #include "ModelCommon.h" 
 #include "engine/math/Matrix4x4.h"
@@ -26,8 +32,7 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 
 
 	// 2. モデルデータをファイルから読み込む (引数のパスを使う)
-	modelData_ = LoadObjFile(directoryPath, filename);
-
+	modelData_ = LoadModelFile(directoryPath, filename);
 
 	// 3. モデルの頂点座標を中心（原点）に合わせる
 	AdjustModelCenter();
@@ -131,108 +136,73 @@ void Model::Draw(){
 
 }
 
-// .mtlファイルの読み込み
-Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename){
 
-	MaterialData materialData; // MaterialDataを構築
-	std::string line; // ファイルから読んだ1行を格納するもの
-	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
-	assert(file.is_open()); // 開けなかったら止める
-	while ( std::getline(file, line) ){
-		std::string identifier; // 行の先頭の識別子を格納する
-		std::istringstream s(line); // 先頭の認別子を読む
-		s >> identifier; // 先頭の識別子を読み込む
+// モデルファイルの読み込み (拡張子に応じて適切なローダーを呼び出す)
+Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const std::string& filename) {
+	ModelData modelData;
+	Assimp::Importer importer;
+	std::string filePath = directoryPath + "/" + filename;
 
-		// identifierに応じた処理
-		if ( identifier == "map_Kd" ){
-			std::string textureFilename; // テクスチャファイル名を格納する変数
-			s >> textureFilename; // テクスチャファイル名を読み込む
-			// 連結してファイルパスにする
-			materialData.textureFilePath = directoryPath + "/" + textureFilename;
-		}
+	// 1. ファイルを読み込む (三角形化、UV反転、面順反転のオプション付き)
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_Triangulate);
+	assert(scene != nullptr && scene->HasMeshes()); // 読み込めない、またはメッシュがない場合はエラー
 
-	}
-	return materialData; // 読み込んだMaterialDataを返す
+	// 2. メッシュの解析
+	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
+		aiMesh* mesh = scene->mMeshes[meshIndex];
+		assert(mesh->HasNormals()); // 法線がないモデルは今回は非対応
+		assert(mesh->HasTextureCoords(0)); // UVがないモデルは今回は非対応
 
-}
-// .objファイルの読み込み
-Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string& filename){
+		// 3. Face(面)の解析
+		for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; ++faceIndex) {
+			aiFace& face = mesh->mFaces[faceIndex];
+			assert(face.mNumIndices == 3); // オプションで三角形化しているので必ず3になるはず
 
-	ModelData modelData; // 構造するModelData
-	std::vector<Vector4> positions; // 位置
-	std::vector<Vector3> normals; // 法線
-	std::vector<Vector2> texcoords; // テクスチャ座標
-	std::string line; // ファイルから読んだ1行を格納するもの
+			// 4. Vertex(頂点)の解析
+			for (uint32_t element = 0; element < face.mNumIndices; ++element) {
+				uint32_t vertexIndex = face.mIndices[element];
 
-	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
+				// Assimpからデータを取り出す
+				aiVector3D& position = mesh->mVertices[vertexIndex];
+				aiVector3D& normal = mesh->mNormals[vertexIndex];
+				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
 
-	assert(file.is_open()); // 開けなかったら止める
+				VertexData vertex;
+				// 座標、法線、UVを自分たちの構造体に詰め替える
+				vertex.position = { position.x, position.y, position.z, 1.0f };
+				vertex.normal = { normal.x, normal.y, normal.z };
+				vertex.texcoord = { texcoord.x, texcoord.y };
 
-	while ( std::getline(file, line) ) {
+				// DirectX(左手系)に合わせるためにX軸を反転
+				vertex.position.x *= -1.0f;
+				vertex.normal.x *= -1.0f;
 
-		std::string identifier; // 行の先頭の識別子を格納する
-		std::istringstream s(line); // 先頭の認別子を読む
-		s >> identifier; // 先頭の識別子を読み込む
-		if ( identifier == "v" ) {
-			Vector4 position; // 位置を格納する変数
-			s >> position.x >> position.y >> position.z; // 位置を読み込む
-			// DirectX座標系に合わせて反転
-			//position.x *= -1.0f;
-			position.x *= 1.0f;
-			position.w = 1.0f;
-			positions.push_back(position); // 位置を格納する
-		} else if ( identifier == "vt" ) {
-			Vector2 texcoord; // テクスチャ座標を格納する変数
-			s >> texcoord.x >> texcoord.y; // テクスチャ座標を読み込む
-			texcoord.y = 1.0f - texcoord.y; // Y座標を反転する（OpenGLとDirectXの違い）
-			texcoords.push_back(texcoord); // テクスチャ座標を格納する
-
-		} else if ( identifier == "vn" ) {
-			Vector3 normal; // 法線を格納する変数
-			s >> normal.x >> normal.y >> normal.z; // 法線を読み込む
-			normal.x *= 1.0f;
-			//normal.x *= -1.0f;
-			normals.push_back(normal); // 法線を格納する
-		} else if ( identifier == "f" ) {
-			VertexData triangle[3]; // 三角形の頂点データを格納する配列
-			for ( int32_t faceVertex = 0; faceVertex < 3; ++faceVertex ) {
-				std::string vertexDefinition;
-				s >> vertexDefinition;
-
-				std::istringstream v(vertexDefinition);
-				uint32_t elementIndices[3] = {};
-				for ( int32_t element = 0; element < 3; ++element ) {
-					std::string index;
-					std::getline(v, index, '/');
-					elementIndices[element] = std::stoi(index);
-				}
-				triangle[faceVertex] = {
-					positions[elementIndices[0] - 1], // 位置は1オリジンなので-1する
-					texcoords[elementIndices[1] - 1], // テクスチャ座標も1オリジンなので-1する
-					normals[elementIndices[2] - 1] // 法線も1オリジンなので-1する
-				};
-
-
-
-
+				// 頂点データとインデックスデータを追加
+				modelData.vertices.push_back(vertex);
+				modelData.indices.push_back(static_cast<uint32_t>(modelData.vertices.size() - 1));
 			}
-
-			modelData.vertices.push_back(triangle[2]);
-			modelData.vertices.push_back(triangle[1]);
-			modelData.vertices.push_back(triangle[0]);
-			modelData.indices.push_back(static_cast< uint32_t >( modelData.vertices.size() - 3 ));
-			modelData.indices.push_back(static_cast< uint32_t >( modelData.vertices.size() - 2 ));
-			modelData.indices.push_back(static_cast< uint32_t >( modelData.vertices.size() - 1 ));
-		} else if ( identifier == "mtllib" ) {
-			// マテリアルの指定
-			std::string materialFilename; // マテリアル名を格納する変数
-			s >> materialFilename; // マテリアル名を読み込む
-			// マテリアルデータを読み込む
-			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFilename);
 		}
 	}
+
+	// 5. Material(マテリアル)の解析
+	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
+		aiMaterial* material = scene->mMaterials[materialIndex];
+
+		// テクスチャ（ディフューズマップ）があるか確認
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
+			aiString textureFilePath;
+			material->GetTexture(aiTextureType_DIFFUSE, 0, &textureFilePath);
+
+			// パスを結合して自分たちの構造体に保存
+			modelData.material.textureFilePath = directoryPath + "/" + textureFilePath.C_Str();
+			break; // 複数のマテリアルがあっても、一旦最初のものだけ使う
+		}
+	}
+
 	return modelData;
 }
+
+
 // モデルの頂点座標を中心（原点）に合わせる
 void Model::AdjustModelCenter(){
 

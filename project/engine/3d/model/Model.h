@@ -65,11 +65,10 @@ public: // メンバ関数
 
 private: // 内部関数
 
-	// .mtlファイルの読み込み
-	static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
+	
+	// モデルファイルの読み込み (拡張子に応じて適切なローダーを呼び出す)
+	static ModelData LoadModelFile(const std::string& directoryPath, const std::string& filename);
 
-	// .objファイルの読み込み
-	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 
 	// モデルの頂点座標を中心（原点）に合わせる
 	void AdjustModelCenter();
