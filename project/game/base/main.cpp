@@ -17,15 +17,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){
 	CrashDumper::Install();
 
 	// ゲームクラスの生成
-	Game* game = new Game();
+	std::unique_ptr<Game> game= std::make_unique<Game>();
 
 	// 実行フロー
 	game->Initialize(); // 初期化
 	game->Run();        // メインループ
 	game->Finalize();   // 終了処理（
-
-	// ゲームクラスの解放
-	delete game;
 
 	// COM終了
 	CoUninitialize();
