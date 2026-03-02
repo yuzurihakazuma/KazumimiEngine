@@ -23,7 +23,8 @@
 #include "Engine/Base/WindowProc.h"
 #include "engine/math/VectorMath.h"
 #include "engine/collision/Collision.h"
-
+#include "engine/graphics/RenderTexture.h"
+#include "engine/graphics/SrvManager.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -110,6 +111,16 @@ void GamePlayScene::Initialize(){
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
+
+	// 描画先切り替え用のRenderTexture生成
+	renderTexture_ = std::make_unique<RenderTexture>();
+	renderTexture_->Initialize(
+		dxCommon,
+		SrvManager::GetInstance(),
+		windowProc->GetClientWidth(),
+		windowProc->GetClientHeight()
+	);
+
 }
 
 void GamePlayScene::Update(){
@@ -297,8 +308,14 @@ void GamePlayScene::Update(){
 
 void GamePlayScene::Draw(){
 
+
+	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 	
+	//	レンダーテクスチャ描画
+	renderTexture_->PostDrawScene(commandList, dxCommon);
+
+
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
@@ -312,7 +329,6 @@ void GamePlayScene::Draw(){
 		fence_->Draw();
 	}
 
-
 	if (ground_) {
 		ground_->Draw();
 	}
@@ -325,10 +341,21 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 	
+	
+	// 1. パイプラインを今作った PostEffect に切り替える
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::PostEffect);
+
+	// 2. RenderTextureに描き込まれた画像（SRV）をシェーダーに渡す！
+	// （※ RootSignatureBuilder で 0 番目に SRV を設定したので、第一引数は 0）
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTexture_->GetSrvIndex());
+
+	
+	
+	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	
 	// 床描画
-	sprite_->Draw();
+	//sprite_->Draw();
 }
 
 GamePlayScene::GamePlayScene(){}

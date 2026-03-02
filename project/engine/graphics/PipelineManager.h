@@ -41,6 +41,9 @@ private:
 	// パーティクル用の初期化
 	void CreateParticleRootSignature();
 	void CreateParticleGraphicsPipeline();
+	// ポストエフェクト用の初期化
+	void CreatePostEffectRootSignature();
+	void CreatePostEffectPipeline();
 
 	DirectXCommon* dxCommon_ = nullptr;
 
@@ -58,6 +61,11 @@ private:
 	// パーティクル用変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> particlePipelineState_;
+
+	// ポストエフェクト用変数
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> postEffectRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineState_;
+
 
 	// 汎用グラフィックスパイプライン生成
 	// 引数で「違い」を受け取ることで、あらゆるパイプラインに対応します

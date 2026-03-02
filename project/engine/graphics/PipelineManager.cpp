@@ -6,6 +6,9 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ShaderCompiler.h"
 #include "engine/graphics/RootSignatureBuilder.h"
+#include "engine/graphics/GraphicsPipelineBuilder.h"
+
+
 // 終了処理
 void PipelineManager::Finalize(){
 
@@ -42,7 +45,10 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateParticleRootSignature();
 	// パーティクル用グラフィックスパイプラインの作成
 	CreateParticleGraphicsPipeline();
-
+	// ポストエフェクト用グラフィックスパイプラインの作成
+	CreatePostEffectRootSignature();
+	// 
+	CreatePostEffectPipeline();
 
 }
 
@@ -73,7 +79,11 @@ void PipelineManager::SetPipeline(
 		commandList->SetPipelineState(particlePipelineState_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		break;
-	
+	case PipelineType::PostEffect:
+		commandList->SetGraphicsRootSignature(postEffectRootSignature_.Get());
+		commandList->SetPipelineState(postEffectPipelineState_.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		break;
     }
 }
 // ルートシグネチャの生成 Sprite用
@@ -181,6 +191,39 @@ void PipelineManager::CreateParticleGraphicsPipeline(){
 	);
 
 
+
+}
+
+// ルートシグネチャの生成 PostEffect用
+void PipelineManager::CreatePostEffectRootSignature(){
+
+	RootSignatureBuilder builder;
+
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL);  // [0]: テクスチャ (t0)
+	builder.AddDefaultSampler(0);                                     // サンプラー (s0)
+
+	// 構築して postEffectRootSignature_ に入れる！
+	builder.Build(dxCommon_->GetDevice(), postEffectRootSignature_);
+
+}
+
+// グラフィックスパイプラインの生成 PostEffect用
+void PipelineManager::CreatePostEffectPipeline(){
+
+	// 1. シェーダーのコンパイル
+	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/CopyImage.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/CopyImage.PS.hlsl", L"ps_6_0");
+
+	// 2. GraphicsPipelineBuilderに設定
+	GraphicsPipelineBuilder builder;
+	builder.SetRootSignature(postEffectRootSignature_.Get()) // ルートシグネチャ
+		.SetShaders(vsBlob.Get(), psBlob.Get()) // シェーダー
+		.SetInputLayoutEmpty()           // ポストエフェクトは頂点を使わないのでInputLayoutは空
+		.SetCullMode(D3D12_CULL_MODE_NONE) // カリングなし
+		.SetDepthStencil(false);         // 深度テストなし
+
+	// 3. 生成
+	builder.Build(dxCommon_->GetDevice(), postEffectPipelineState_);
 
 }
 

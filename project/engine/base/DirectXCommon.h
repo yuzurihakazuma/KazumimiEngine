@@ -65,8 +65,14 @@ public:
 
 	// <summary>SRVヒープ
 	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
+	// <summary>RTVヒープ
+	D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(uint32_t index) const{
+		// RTVヒープの先頭ハンドルを取得
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 
-
+		handle.ptr += desriptorSizeRTV_ * index;
+		return handle;
+	}
 
 
 	/// <summary>Deviceのゲッター
@@ -111,6 +117,20 @@ public:
 	size_t GetBackBufferCount() const{
 		return kBackBufferCount;
 	}
+
+	// 現在のバックバッファ(Swapchain)のRTVハンドルを取得する
+	D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtvHandle() const{
+		UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += static_cast< SIZE_T >( backBufferIndex ) * rtvDescSize_;
+		return handle;
+	}
+
+	// DSV(深度バッファ)のハンドルを取得する
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const{
+		return dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+	}
+
 
 	//void ReportLiveObjects(); // ライブオブジェクトのレポート
 
