@@ -19,6 +19,7 @@ class Obj3d;
 class DirectXCommon;
 class Input;
 class RenderTexture; 
+class PostEffect;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -75,7 +76,7 @@ private: // メンバ変数
 	std::string bgmFile_ = "resources/BGM.wav";
 
 	// 描画先を切り替えるためのRenderTexture
-	std::unique_ptr<RenderTexture> renderTexture_ = nullptr;
+	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
 
 };

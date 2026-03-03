@@ -47,7 +47,7 @@ void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, 
 void RenderTexture::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon){
 	
 	// 描画先をこのテクスチャに切り替える
-	D3D12_RESOURCE_BARRIER barrier {};
+	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = resource_.Get();

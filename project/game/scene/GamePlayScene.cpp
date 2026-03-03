@@ -25,6 +25,8 @@
 #include "engine/collision/Collision.h"
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
+#include "engine/postEffect/PostEffect.h"
+
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -112,9 +114,8 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-	// 描画先切り替え用のRenderTexture生成
-	renderTexture_ = std::make_unique<RenderTexture>();
-	renderTexture_->Initialize(
+	postEffect_ = std::make_unique<PostEffect>();
+	postEffect_->Initialize(
 		dxCommon,
 		SrvManager::GetInstance(),
 		windowProc->GetClientWidth(),
@@ -312,9 +313,8 @@ void GamePlayScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 	
-	//	レンダーテクスチャ描画
-	renderTexture_->PreDrawScene(commandList, dxCommon);
-
+	
+	postEffect_->PreDrawScene(commandList, dxCommon);
 
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
@@ -341,20 +341,11 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 	
-	
-	renderTexture_->PostDrawScene(commandList, dxCommon);
+	postEffect_->PostDrawScene(commandList, dxCommon);
 
 
-	// 1. パイプラインを今作った PostEffect に切り替える
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::PostEffect);
-
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// 2. RenderTextureに描き込まれた画像（SRV）をシェーダーに渡す！
-	// （※ RootSignatureBuilder で 0 番目に SRV を設定したので、第一引数は 0）
-	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTexture_->GetSrvIndex());
-
-	commandList->DrawInstanced(3, 1, 0, 0);
+	// ポストエフェクトの描画
+	postEffect_->Draw(commandList);
 	
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
