@@ -75,7 +75,7 @@ private: // メンバ変数
 	Vector3 fencePos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 fenceScale_ = { 1.0f, 1.0f, 1.0f };
 
-	std::string bgmFile_ = "resources/BGM.wav";
+	std::string bgmFile_ = "resources/BGMDon.mp3";
 
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;

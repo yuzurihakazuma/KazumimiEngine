@@ -11,6 +11,10 @@ AudioManager* AudioManager::GetInstance(){
 
 void AudioManager::Initialize(){
     HRESULT result;
+    // COMとMedia Foundationの初期化
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    MFStartup(MF_VERSION);
+
     // XAudio2エンジンのインスタンス生成
     result = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
     assert(SUCCEEDED(result));
@@ -36,6 +40,8 @@ void AudioManager::Finalize(){
 	// 読み込んだ音声データの解放
     soundDatas_.clear();
 
+    MFShutdown();
+    CoUninitialize();
 }
 
 void AudioManager::UpdateVoices(){
@@ -56,14 +62,19 @@ void AudioManager::UpdateVoices(){
 }
 
 
-void AudioManager::LoadWave(const std::string& filename){
-    // 既に読み込み済みなら何もしない
-    if ( soundDatas_.contains(filename) ) {
+void AudioManager::LoadWave(const std::string& filename) {
+    // 既に読み込み済みならスルー
+    if (soundDatas_.find(filename) != soundDatas_.end()) {
         return;
     }
 
-    // ファイルから読み込んでマップに保存
-    soundDatas_[filename] = LoadWaveInternal(filename);
+    // ".mp3" が含まれているかで分岐
+    if (filename.find(".mp3") != std::string::npos) {
+        soundDatas_[filename] = LoadMP3Internal(filename);
+    }
+    else {
+        soundDatas_[filename] = LoadWaveInternal(filename);
+    }
 }
 void AudioManager::PlayWave(const std::string& filename, bool loop, float volume){
     // 未読み込みならエラー（またはロードする）
@@ -107,6 +118,83 @@ void AudioManager::PlayWave(const std::string& filename, bool loop, float volume
 	// 再生中ボイスリストに追加
     playingVoices_.push_back(std::move(voice));
 }
+
+SoundData AudioManager::LoadMP3Internal(const std::string& filename) {
+    HRESULT hr;
+    SoundData soundData = {};
+
+    // 1. std::string を std::wstring に変換 (Media Foundationはワイド文字必須なため)
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &filename[0], (int)filename.size(), NULL, 0);
+    std::wstring wFilename(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, &filename[0], (int)filename.size(), &wFilename[0], size_needed);
+
+    // 2. ソースリーダーの作成（ファイルを開く）
+    IMFSourceReader* pReader = nullptr;
+    hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &pReader);
+    assert(SUCCEEDED(hr));
+
+    // 3. オーディオストリームを選択し、強制的に「PCM（無圧縮WAV）」に変換する設定
+    IMFMediaType* pPartialType = nullptr;
+    hr = MFCreateMediaType(&pPartialType);
+    assert(SUCCEEDED(hr));
+    hr = pPartialType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+    hr = pPartialType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
+    hr = pReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, pPartialType);
+    assert(SUCCEEDED(hr));
+    pPartialType->Release();
+
+    // 4. 変換後のメディアタイプ（WAVEFORMATEX）を取得
+    IMFMediaType* pUncompressedAudioType = nullptr;
+    hr = pReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, &pUncompressedAudioType);
+    assert(SUCCEEDED(hr));
+
+    WAVEFORMATEX* pWavFormat = nullptr;
+    UINT32 cbFormat = 0;
+    hr = MFCreateWaveFormatExFromMFMediaType(pUncompressedAudioType, &pWavFormat, &cbFormat);
+    assert(SUCCEEDED(hr));
+
+    // フォーマットをコピーして確保
+    memcpy(&soundData.wfex, pWavFormat, sizeof(WAVEFORMATEX));
+    CoTaskMemFree(pWavFormat);
+    pUncompressedAudioType->Release();
+
+    // 5. データを最後まで読み込んでバッファに詰める
+    IMFSample* pSample = nullptr;
+    DWORD dwFlags = 0;
+    while (true) {
+        hr = pReader->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &dwFlags, nullptr, &pSample);
+        assert(SUCCEEDED(hr));
+
+        if (dwFlags & MF_SOURCE_READERF_ENDOFSTREAM) {
+            break; // 終端に達した
+        }
+
+        if (pSample) {
+            IMFMediaBuffer* pBuffer = nullptr;
+            hr = pSample->ConvertToContiguousBuffer(&pBuffer);
+            assert(SUCCEEDED(hr));
+
+            BYTE* pAudioData = nullptr;
+            DWORD cbCurrentLength = 0;
+            hr = pBuffer->Lock(&pAudioData, nullptr, &cbCurrentLength);
+            assert(SUCCEEDED(hr));
+
+            // ベクターの末尾に解凍されたデータを追加
+            size_t currentSize = soundData.buffer.size();
+            soundData.buffer.resize(currentSize + cbCurrentLength);
+            memcpy(soundData.buffer.data() + currentSize, pAudioData, cbCurrentLength);
+
+            pBuffer->Unlock();
+            pBuffer->Release();
+            pSample->Release();
+        }
+    }
+
+    pReader->Release();
+
+    return soundData; // 解凍済みのピカピカなデータを返す！
+}
+
 
 // 内部用：WAVファイル読み込みの実装（main.cppにあったものを移植）
 SoundData AudioManager::LoadWaveInternal(const std::string& filename){

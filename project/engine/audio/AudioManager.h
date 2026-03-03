@@ -11,6 +11,12 @@
 
 // --- 外部ライブラリ ---
 #include <xaudio2.h>
+#include <mfapi.h>
+#include <mfidl.h>
+#include <mfreadwrite.h>
+#pragma comment(lib, "mfreadwrite.lib")
+#pragma comment(lib, "mfplat.lib")
+#pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib,"xaudio2.lib")
 
 // 音声データ
@@ -50,6 +56,9 @@ public: // メンバ関数
     // WAVファイルの読み込み
     // filename: ファイルパス ("resources/bgm.wav" など)
     void LoadWave(const std::string& filename);
+
+    SoundData LoadMP3Internal(const std::string& filename);
+
 
     // 音声再生
     // volume: 音量 (0.0f ~ 1.0f)
