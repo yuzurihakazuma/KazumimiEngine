@@ -103,7 +103,7 @@ void GamePlayScene::Initialize(){
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
-	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, { 0, 0 });
+	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 
 	// スプライトの切り抜き範囲を設定 (テクスチャの左上から128x128ピクセルを使用)
 	sprite_->SetTextureRect(0.0f, 0.0f, 128.0f, 128.0f, 256.0f, 256.0f);
@@ -291,6 +291,23 @@ void GamePlayScene::Update(){
 	}
 	ImGui::End();
 
+
+	// 要件2: ウィンドウサイズを(500, 100)に固定
+	ImGui::SetNextWindowSize(ImVec2(500, 100));
+
+	// 要件1: 専用のImGuiウィンドウを作成
+	ImGui::Begin("Sprite Setup");
+
+	// 要件4: 小数第1位まで表示するため、最後の引数に "%.1f" を指定する！
+	ImGui::DragFloat2("Position", &spritePos_.x, 1.0f, -2000.0f, 2000.0f, "%.1f");
+	ImGui::End();
+
+
+	if (sprite_) {
+		sprite_->SetPosition(spritePos_);
+		sprite_->Update();
+	}
+
 	// デバッグカメラ更新 (デバッグカメラがアクティブなときのみ、カメラの座標・回転を更新)
 	if (isDebugCameraActive_ && debugCamera_) {
 		debugCamera_->Update(camera_.get());
@@ -350,8 +367,9 @@ void GamePlayScene::Draw(){
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	
-	// 床描画
-	sprite_->Draw();
+	if (sprite_) {
+		sprite_->Draw();
+	}
 }
 
 GamePlayScene::GamePlayScene(){}

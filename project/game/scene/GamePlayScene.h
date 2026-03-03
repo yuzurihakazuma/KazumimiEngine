@@ -59,6 +59,8 @@ private: // メンバ変数
 	std::vector<std::unique_ptr<Sprite>> sprites_;
 	std::unique_ptr<Sprite> sprite_ = nullptr;
 
+	Vector2 spritePos_ = { 100.0f, 100.0f };
+
 	// テクスチャデータ
 	std::unordered_map<std::string, TextureData> textures_;
 
