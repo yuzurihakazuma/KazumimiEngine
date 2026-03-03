@@ -13,6 +13,9 @@ GraphicsPipelineBuilder::GraphicsPipelineBuilder(){
 	psoDesc_.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	psoDesc_.RasterizerState.DepthClipEnable = true;
 
+	// （色を画面に書き込む設定
+	psoDesc_.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
 	// デフォルト深度ステンシル（深度テストあり、書き込みあり）
 	psoDesc_.DepthStencilState.DepthEnable = true;
 	psoDesc_.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;

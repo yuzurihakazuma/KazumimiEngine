@@ -313,7 +313,7 @@ void GamePlayScene::Draw(){
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 	
 	//	レンダーテクスチャ描画
-	renderTexture_->PostDrawScene(commandList, dxCommon);
+	renderTexture_->PreDrawScene(commandList, dxCommon);
 
 
 	// 3D描画の前準備
@@ -342,14 +342,19 @@ void GamePlayScene::Draw(){
 	ParticleManager::GetInstance()->Draw(commandList);
 	
 	
+	renderTexture_->PostDrawScene(commandList, dxCommon);
+
+
 	// 1. パイプラインを今作った PostEffect に切り替える
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::PostEffect);
+
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// 2. RenderTextureに描き込まれた画像（SRV）をシェーダーに渡す！
 	// （※ RootSignatureBuilder で 0 番目に SRV を設定したので、第一引数は 0）
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTexture_->GetSrvIndex());
 
-	
+	commandList->DrawInstanced(3, 1, 0, 0);
 	
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);

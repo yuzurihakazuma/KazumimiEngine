@@ -19,6 +19,8 @@ void PipelineManager::Finalize(){
 	object3DPipelineStateNone_.Reset();
 	particleRootSignature_.Reset();
 	particlePipelineState_.Reset();
+	postEffectPipelineState_.Reset();
+	postEffectRootSignature_.Reset();
 }
 
 
@@ -220,8 +222,8 @@ void PipelineManager::CreatePostEffectPipeline(){
 		.SetShaders(vsBlob.Get(), psBlob.Get()) // シェーダー
 		.SetInputLayoutEmpty()           // ポストエフェクトは頂点を使わないのでInputLayoutは空
 		.SetCullMode(D3D12_CULL_MODE_NONE) // カリングなし
-		.SetDepthStencil(false);         // 深度テストなし
-
+		.SetDepthStencil(false)          // 深度テストなし
+	    .SetBlendMode(BlendMode::kNormal);
 	// 3. 生成
 	builder.Build(dxCommon_->GetDevice(), postEffectPipelineState_);
 

@@ -41,7 +41,7 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_; // 書き込み用（RTV）
 	uint32_t srvIndex_;                     // 読み込み用（SRV）
 
-	Vector4 clearColor_ = { 0.1f, 0.25f, 0.5f, 1.0f }; // 背景のクリアカラー
+	Vector4 clearColor_ = { 1.0f, 0.0f, 0.0f, 1.0f };
 
 };
 
