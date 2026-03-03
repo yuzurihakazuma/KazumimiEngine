@@ -4,7 +4,8 @@
 #include <d3d12.h>
 #include <cstdint>
 
-
+// --- エンジン側のファイル ---
+#include "engine/math/struct.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -19,7 +20,12 @@ public:
     /// <summary>
     /// 指定されたバイトサイズのバッファリソース（Upload Heap）を生成する
     /// </summary>
-    ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+
+	/// <summary>
+	/// 指定された幅・高さ・フォーマットのテクスチャリソース（Default Heap）を生成する
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateRenderTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, const Vector4& clearColor);
+
 
 
     // -------------------- デバイス設定 --------------------

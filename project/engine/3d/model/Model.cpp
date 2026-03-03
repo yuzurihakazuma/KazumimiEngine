@@ -128,6 +128,8 @@ void Model::Draw(){
 	if ( textureHandle_.ptr != 0 ) {
 		commandList->SetGraphicsRootDescriptorTable(2, textureHandle_);
 	}
+	
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// 6. 描画コマンドの発行
 	// インデックスを使って描画

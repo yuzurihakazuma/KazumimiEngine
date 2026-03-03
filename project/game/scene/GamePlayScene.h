@@ -18,6 +18,8 @@ class Sprite;
 class Obj3d;
 class DirectXCommon;
 class Input;
+class RenderTexture; 
+class PostEffect;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -72,4 +74,9 @@ private: // メンバ変数
 	Vector3 fenceScale_ = { 1.0f, 1.0f, 1.0f };
 
 	std::string bgmFile_ = "resources/BGM.wav";
+
+	// 描画先を切り替えるためのRenderTexture
+	std::unique_ptr<PostEffect> postEffect_ = nullptr;
+
+
 };
