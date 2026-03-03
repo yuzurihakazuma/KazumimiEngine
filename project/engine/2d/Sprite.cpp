@@ -86,7 +86,8 @@ void Sprite::Update(){
 
 	transform.translate = { position_.x, position_.y, 0.0f };
 	transform.rotate = { 0.0f, 0.0f, rotation_ };
-	transform.scale = { size_.x, size_.y, 1.0f };
+	transform.scale = { 1.0f, 1.0f, 1.0f };
+
 
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
@@ -230,11 +231,10 @@ void Sprite::CreateTransformationMatrixBuffer(){
 // 頂点データの計算・転送
 void Sprite::UpdateVertexData(){
 
-	float left = 0.0f - anchorPoint_.x;
-	float right = 1.0f - anchorPoint_.x;
-	float top = 0.0f - anchorPoint_.y;
-	float bottom = 1.0f - anchorPoint_.y;
-
+	float left = (0.0f - anchorPoint_.x) * size_.x;
+	float right = (1.0f - anchorPoint_.x) * size_.x;
+	float top = (0.0f - anchorPoint_.y) * size_.y;
+	float bottom = (1.0f - anchorPoint_.y) * size_.y;
 	// 左右反転
 	if ( isFlipX_ ) {
 		std::swap(left, right);

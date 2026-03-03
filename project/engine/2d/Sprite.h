@@ -14,7 +14,7 @@
 // 前方宣言
 class SpriteCommon;
 
-class Sprite{
+class Sprite {
 public:
 
 
@@ -47,36 +47,46 @@ public:
 
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() { return vertexBufferView_; }
 
-	
+
 	// スプライトの位置を設定・取得する関数を追加
-	const Vector2 GetPosition() const{ return position_; }
-	void SetPosition(const Vector2& position){ position_ = position; }
+	const Vector2 GetPosition() const { return position_; }
+	void SetPosition(const Vector2& position) { position_ = position; }
 
 	// スプライトの回転角度を設定・取得する関数を追加
-	float GetRotation() const{ return rotation_; }
-	void SetRotation(float rotation){ rotation_ = rotation; }
+	float GetRotation() const { return rotation_; }
+	void SetRotation(float rotation) { rotation_ = rotation; }
 
 
 
 	// スプライトの色を設定・取得する関数を追加
-	const Vector4& GetColor() const{ return materialData_->color; }
+	const Vector4& GetColor() const { return materialData_->color; }
 	void SetColor(const Vector4& color);
 
 	// スプライトのアンカーポイントを設定・取得する関数を追加
-	const Vector2 GetAnchorPoint() const{ return anchorPoint_; }
+	const Vector2 GetAnchorPoint() const { return anchorPoint_; }
 	void SetAnchorPoint(const Vector2& anchorPoint);
 
 	// スプライトの左右クリップ設定・取得する関数を追加
-	bool GetIsFlipX() const{ return isFlipX_; }
-	void SetIsFlipX(bool isFlipX){ isFlipX_ = isFlipX; }
+	bool GetIsFlipX() const { return isFlipX_; }
+	void SetIsFlipX(bool isFlipX) {
+		isFlipX_ = isFlipX;
+		UpdateVertexData();
+	}
 	// スプライトの上下クリップ設定・取得する関数を追加
-	bool GetIsFlipY() const{ return isFlipY_; }
-	void SetIsFlipY(bool isFlipY){ isFlipY_ = isFlipY; }
+	bool GetIsFlipY() const { return isFlipY_; }
+	void SetIsFlipY(bool isFlipY) {
+		isFlipY_ = isFlipY;
+		UpdateVertexData();
+	}
 
 
 	//（画像の大きさ）をセットする
 	const Vector2& GetSize() const { return size_; }
-	void SetSize(const Vector2& size) { size_ = size; }
+	void SetSize(const Vector2& size) {
+		size_ = size;
+		UpdateVertexData();
+
+	}
 
 
 	void SetTexture(uint32_t textureIndex);
@@ -89,8 +99,8 @@ public:
 	void SetTextureRect(float startX, float startY, float width, float height, float textureWidth, float textureHeight);
 
 private:
-	
-	
+
+
 	void CreateVertexBuffer();// バッファ作成関数群
 	void CreateIndexBuffer(); // indexバッファ作成
 	void CreateMaterialBuffer(); // マテリアルバッファ作成
@@ -98,14 +108,14 @@ private:
 	void UpdateVertexData(); // 頂点データの計算・転送
 
 private:
-	
-	struct VertexData{
+
+	struct VertexData {
 		Vector4 position;
 		Vector2 texcoord;
 		Vector3 normal;
 	};
 
-	struct Material{
+	struct Material {
 		Vector4 color;
 		int32_t enableLighting;
 		float padding[3];
@@ -113,7 +123,7 @@ private:
 		float shininess;
 	};
 
-	struct TransformationMatrix{
+	struct TransformationMatrix {
 		Matrix4x4 WVP;
 		Matrix4x4 World;
 		Matrix4x4 WorldInverseTranspose;
@@ -135,7 +145,7 @@ private:
 	// データを書き込む
 	TransformationMatrix* transformationMatirxData_ = nullptr;
 
-	Transform transform { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
+	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
 	float width_ = 1280.0f; // 仮置き
 	float height_ = 720.0f; //
@@ -143,15 +153,15 @@ private:
 	// indexSprite用の頂点indexを作る1つ辺りのindexのサイズは32bit
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
 
-	D3D12_INDEX_BUFFER_VIEW indexBufferView_ {}; // IBV
+	D3D12_INDEX_BUFFER_VIEW indexBufferView_{}; // IBV
 
 	// indexリソースにデータを書き込む
 	uint32_t* indexData_ = nullptr;
 
 	// このスプライトが使うテクスチャのハンドル
-	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle_ {};
-	
-	
+	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle_{};
+
+
 	Vector2 position_ = { 0.0f,0.0f }; // スプライトの位置
 
 	float rotation_ = 0.0f; // スプライトの回転角度

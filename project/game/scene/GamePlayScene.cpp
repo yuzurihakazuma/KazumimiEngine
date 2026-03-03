@@ -351,7 +351,7 @@ void GamePlayScene::Draw(){
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	
 	// 床描画
-	//sprite_->Draw();
+	sprite_->Draw();
 }
 
 GamePlayScene::GamePlayScene(){}
