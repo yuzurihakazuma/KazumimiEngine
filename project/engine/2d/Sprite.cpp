@@ -49,6 +49,17 @@ std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, 
 
 void Sprite::SetTexture(uint32_t textureIndex) {
 	textureHandle_ = SrvManager::GetInstance()->GetGPUDescriptorHandle(textureIndex);
+	
+	//	テクスチャの幅と高さを取得して、スプライトのサイズに反映させる
+	const TextureData& texData = TextureManager::GetInstance()->GetTextureDataBySrvIndex(textureIndex);
+
+	// 幅か高さが0じゃない時だけ上書きする（安全対策）
+	if ( texData.width > 0.0f && texData.height > 0.0f ) {
+		size_ = { texData.width, texData.height };
+	}
+	// サイズが変わったので、頂点の形を再計算させる！
+	UpdateVertexData();
+
 }
 
 void Sprite::SetAnchorPoint(const Vector2& anchorPoint) {
