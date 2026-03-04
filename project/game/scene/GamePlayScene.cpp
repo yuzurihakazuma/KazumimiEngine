@@ -299,7 +299,7 @@ void GamePlayScene::Update(){
 	ImGui::Begin("Sprite Setup");
 
 	// 要件4: 小数第1位まで表示するため、最後の引数に "%.1f" を指定する！
-	ImGui::DragFloat2("Position", &spritePos_.x, 1.0f, -2000.0f, 2000.0f, "%.1f");
+	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f,"% 06.1f");
 	ImGui::End();
 
 

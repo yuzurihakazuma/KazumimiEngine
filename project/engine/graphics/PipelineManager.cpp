@@ -108,8 +108,8 @@ void PipelineManager::CreateSpriteRootSignature(){
 void PipelineManager::CreateSpriteGraphicsPipeline(){
 
 	CreateGraphicsPipelineCommon(
-		L"resources/shaders/Sprite2d.VS.hlsl",
-		L"resources/shaders/Sprite2d.PS.hlsl",
+		L"resources/shaders/Sprite/Sprite2d.VS.hlsl",
+		L"resources/shaders/Sprite/Sprite2d.PS.hlsl",
 		spriteRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
 		D3D12_CULL_MODE_NONE,       // カリングなし
@@ -140,8 +140,8 @@ void PipelineManager::CreateObject3DRootSignature(){
 void PipelineManager::CreateObject3DGraphicsPipeline(){
 	// カリングあり用
 	CreateGraphicsPipelineCommon(
-		L"resources/shaders/Object3d.VS.hlsl",
-		L"resources/shaders/Object3d.PS.hlsl",
+		L"resources/shaders/Object3d/Object3d.VS.hlsl",
+		L"resources/shaders/Object3d/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
 		D3D12_CULL_MODE_BACK,      
@@ -150,8 +150,8 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 	);
 	// カリングなし用
 	CreateGraphicsPipelineCommon(
-		L"resources/shaders/Object3d.VS.hlsl",
-		L"resources/shaders/Object3d.PS.hlsl",
+		L"resources/shaders/Object3d/Object3d.VS.hlsl",
+		L"resources/shaders/Object3d/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,
 		D3D12_CULL_MODE_NONE,  
@@ -183,8 +183,8 @@ void PipelineManager::CreateParticleGraphicsPipeline(){
 
 
 	CreateGraphicsPipelineCommon(
-		L"resources/shaders/Particle.VS.hlsl",
-		L"resources/shaders/Particle.PS.hlsl",
+		L"resources/shaders/Particle/Particle.VS.hlsl",
+		L"resources/shaders/Particle/Particle.PS.hlsl",
 		particleRootSignature_.Get(),
 		BlendMode::kAdd,            // 加算ブレンド
 		D3D12_CULL_MODE_NONE,       // カリングなし
@@ -213,8 +213,8 @@ void PipelineManager::CreatePostEffectRootSignature(){
 void PipelineManager::CreatePostEffectPipeline(){
 
 	// 1. シェーダーのコンパイル
-	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/CopyImage.VS.hlsl", L"vs_6_0");
-	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/CopyImage.PS.hlsl", L"ps_6_0");
+	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Sepia.PS.hlsl", L"ps_6_0");
 
 	// 2. GraphicsPipelineBuilderに設定
 	GraphicsPipelineBuilder builder;
