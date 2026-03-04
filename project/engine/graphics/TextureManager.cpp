@@ -103,6 +103,10 @@ TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,
 	// 4. SRV用インデックスを確保
 	texData.srvIndex = srvManager_->Allocate();
 
+	// 4. テクスチャサイズを保存
+	texData.width = static_cast< float >( metadata.width );
+	texData.height = static_cast< float >( metadata.height );
+
 	// 5. SRV作成
 	srvManager_->CreateSRVforTexture2D(
 		texData.srvIndex,
@@ -284,4 +288,15 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateDepthStencilTexture
 	}
 
 	return resource;
+}
+// SRVインデックスからテクスチャデータを取得
+const TextureData& TextureManager::GetTextureDataBySrvIndex(uint32_t srvIndex){
+	for ( auto& pair : textureDatas ) {
+		if ( pair.second.srvIndex == srvIndex ) {
+			return pair.second;
+		}
+	}
+	// 見つからなかった場合のダミー
+	static TextureData dummy {};
+	return dummy;
 }
