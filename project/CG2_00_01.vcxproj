@@ -206,6 +206,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\graphics\RenderTexture.cpp" />
     <ClCompile Include="engine\graphics\GraphicsPipelineBuilder.cpp" />
     <ClCompile Include="engine\postEffect\PostEffect.cpp" />
+    <ClCompile Include="engine\utils\Level\LevelManager.cpp" />
+    <ClCompile Include="engine\utils\Level\LevelEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -260,6 +262,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\audio\AudioManager.h" />
     <ClInclude Include="engine\graphics\BlendMode.h" />
     <ClInclude Include="engine\base\DirectXCommon.h" />
+    <ClInclude Include="engine\utils\Level\LevelData.h" />
     <ClInclude Include="engine\utils\Color.h" />
     <ClInclude Include="engine\utils\CrashDumper.h" />
     <ClInclude Include="engine\utils\ImGuiManager.h" />
@@ -289,6 +292,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\graphics\RenderTexture.h" />
     <ClInclude Include="engine\graphics\GraphicsPipelineBuilder.h" />
     <ClInclude Include="engine\postEffect\PostEffect.h" />
+    <ClInclude Include="engine\utils\Level\LevelManager.h" />
+    <ClInclude Include="engine\utils\Level\LevelEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
