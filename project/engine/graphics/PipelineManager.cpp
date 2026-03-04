@@ -213,8 +213,8 @@ void PipelineManager::CreatePostEffectRootSignature(){
 void PipelineManager::CreatePostEffectPipeline(){
 
 	// 1. シェーダーのコンパイル
-	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/CopyImage.VS.hlsl", L"vs_6_0");
-	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/CopyImage.PS.hlsl", L"ps_6_0");
+	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Grayscale.PS.hlsl", L"ps_6_0");
 
 	// 2. GraphicsPipelineBuilderに設定
 	GraphicsPipelineBuilder builder;
