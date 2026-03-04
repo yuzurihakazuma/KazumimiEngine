@@ -22,10 +22,11 @@ class ResourceFactory;
 
 
 struct TextureData{
-    
-        
     Microsoft::WRL::ComPtr<ID3D12Resource> resource;
     uint32_t srvIndex;
+	float width;
+	float height;
+
 };
 
 class TextureManager{
@@ -52,6 +53,8 @@ public:
        /// </summary>
     DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
+	
+    const TextureData& GetTextureDataBySrvIndex(uint32_t srvIndex);
 
     //   -------------------- SRV作成までをまとめた関数 -------------------- 
 
@@ -90,6 +93,9 @@ public:
 
 
     // -------------------- デバイス・依存コンポーネント設定 --------------------
+
+
+
 
     /// <summary>
     /// DirectX12 Device を設定する
