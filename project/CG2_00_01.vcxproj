@@ -279,6 +279,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\scene\IScene.h" />
     <ClInclude Include="engine\utils\ResourceLeakChecker.h" />
     <ClInclude Include="engine\scene\SceneManager.h" />
+    <ClInclude Include="externals\nlohmann\json.hpp" />
     <ClInclude Include="game\base\Game.h" />
     <ClInclude Include="game\scene\GamePlayScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />

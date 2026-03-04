@@ -366,6 +366,9 @@
     <ClInclude Include="engine\postEffect\PostEffect.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="externals\nlohmann\json.hpp">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">
