@@ -5,6 +5,7 @@
 #include <cassert>
 #include <random>
 #include <numbers>
+#include "externals/imgui/imgui.h"
 
 // --- エンジン側のファイル ---
 #include "engine/graphics/TextureManager.h"
@@ -340,4 +341,26 @@ uint32_t ParticleManager::GetInstanceCount(const std::string& name) const{
 		return 0;
 	}
 	return it->second.kNumInstance;
+}
+
+
+void ParticleManager::DrawDebugUI() {
+#ifdef USE_IMGUI
+	// 他のツールと同じ "Inspector" ウィンドウの中にまとめる
+	if (ImGui::Begin("Inspector")) {
+		if (ImGui::CollapsingHeader("Particle Debug", ImGuiTreeNodeFlags_DefaultOpen)) {
+			// 現在のパーティクル数とインスタンス数を取得して表示
+			size_t particleCount = GetParticleCount("Circle");
+			uint32_t instanceCount = GetInstanceCount("Circle");
+			ImGui::Text("Particles (CPU) : %zu", particleCount);
+			ImGui::Text("Instances (GPU) : %u", instanceCount);
+
+			// 10個発生させるテストボタン
+			if (ImGui::Button("Emit 10 Circle")) {
+				Emit("Circle", { 0.0f, 5.0f, 0.0f }, 10);
+			}
+		}
+	}
+	ImGui::End();
+#endif
 }

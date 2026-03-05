@@ -47,9 +47,6 @@ private: // メンバ変数
 
 	// 3Dオブジェクト
 	std::vector<std::unique_ptr<Obj3d>> object3ds_;
-	std::unique_ptr<Obj3d>fence_ = nullptr;
-	std::unique_ptr<Obj3d> sphere_ = nullptr;
-	std::unique_ptr<Obj3d> ground_ = nullptr;
 
 	// スプライト
 	std::vector<std::unique_ptr<Sprite>> sprites_;
@@ -63,18 +60,12 @@ private: // メンバ変数
 	// デプスステンシル
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
 
-	// ゲーム用パラメータ
-	Vector3 groundPos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 groundScale_ = { 1.0f, 1.0f, 1.0f };
-	Vector3 spherePos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 sphereScale_ = { 1.0f, 1.0f, 1.0f };
-	Vector3 fencePos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 fenceScale_ = { 1.0f, 1.0f, 1.0f };
 
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
+
 
 	// マップエディタ
 	std::unique_ptr<LevelEditor> levelEditor_;
