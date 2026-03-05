@@ -21,6 +21,10 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
 
     // 1. コンテキストの生成とスタイル設定
     ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+
     ImGui::StyleColorsDark();
 
     // 2. Win32用初期化
