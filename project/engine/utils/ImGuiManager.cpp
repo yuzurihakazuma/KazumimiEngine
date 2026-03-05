@@ -21,6 +21,10 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
 
     // 1. コンテキストの生成とスタイル設定
     ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+
     ImGui::StyleColorsDark();
 
     // 2. Win32用初期化
@@ -41,15 +45,27 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
     ID3D12DescriptorHeap* srvHeap = srvManager->GetDescriptorHeap();
 #pragma endregion
 
-    // 初期化関数を呼び出す
-    ImGui_ImplDX12_Init(
-        dxCommon->GetDevice(),
-        static_cast< int >( dxCommon->GetBackBufferCount() ), // バックバッファ数(通常2)
-        DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,                  // RTVのフォーマット(DirectXCommonと合わせる)
-        srvHeap,                                          // SRVヒープ
-        srvCpuHandle,                                     // ImGuiが使うSRVのCPUハンドル
-        srvGpuHandle                                      // ImGuiが使うSRVのGPUハンドル
-    );
+    // コールバック用にハンドルを保持する（最新仕様への対応）
+    static D3D12_CPU_DESCRIPTOR_HANDLE staticSrvCpuHandle = srvCpuHandle;
+    static D3D12_GPU_DESCRIPTOR_HANDLE staticSrvGpuHandle = srvGpuHandle;
+
+    ImGui_ImplDX12_InitInfo init_info = {};
+    init_info.Device = dxCommon->GetDevice();
+    init_info.CommandQueue = dxCommon->GetCommandQueue(); // ★これが必要！フォント転送の道
+    init_info.NumFramesInFlight = static_cast<int>(dxCommon->GetBackBufferCount());
+    init_info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    init_info.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT; // 深度フォーマット(プロジェクトに合わせて変更可)
+    init_info.SrvDescriptorHeap = srvHeap;
+
+    // 最新ImGuiのルール：ハンドルはコールバック関数で渡す
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu) {
+        *out_cpu = staticSrvCpuHandle;
+        *out_gpu = staticSrvGpuHandle;
+        };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE) {};
+
+    // 新しい構造体を渡して初期化！
+    ImGui_ImplDX12_Init(&init_info);
 }
 
 void ImGuiManager::Begin(){
