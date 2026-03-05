@@ -131,8 +131,8 @@ void GamePlayScene::Initialize(){
 void GamePlayScene::Update(){
 	
 	// デバッグカメラ更新
-	if (isDebugCameraActive_ && debugCamera_) {
-		debugCamera_->Update(camera_.get()); 
+	if (debugCamera_) {
+		debugCamera_->Update(camera_.get());
 	}
 	// カメラ更新
 	camera_->Update();
@@ -181,15 +181,44 @@ void GamePlayScene::Update(){
 
 #ifdef USE_IMGUI
 
-	
+	if (input->Triggerkey(DIK_F1)) {
+		isEditorActive_ = !isEditorActive_;
+	}
+
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowViewport(viewport->ID);
+
+	// ウィンドウのタイトルバーや背景をすべて消すフラグ
+	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+		ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+	ImGui::Begin("MasterDockSpace", nullptr, window_flags);
+
+	ImGui::PopStyleColor();
+
+	ImGui::PopStyleVar(3);
+
+	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+	// ★最重要：ImGuiDockNodeFlags_PassthruCentralNode を付けることで真ん中が透明になりゲーム画面が見える！
+	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+	ImGui::End();
+
+
 	ImGui::Text("Current Scene: GamePlay");
 	ImGui::Separator(); // 区切り線
 
 
 	ImGui::Begin("Debug");
-	// デバッグカメラの切り替え前の座標・回転を保存
-	bool isPreDebugCameraActive = isDebugCameraActive_;
-
+	
 	ImGui::DragFloat3("Pos", &groundPos_.x, 0.1f);
 	ImGui::DragFloat3("Scale", &groundScale_.x, 0.1f);
 	ImGui::DragFloat3("FencePos", &fencePos_.x, 0.1f);
@@ -197,7 +226,6 @@ void GamePlayScene::Update(){
 
 	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
 	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
-	ImGui::Checkbox("Debug Camera Active", &isDebugCameraActive_);
 
 	ImGui::Text("=== Collision Test ===");
 
@@ -233,15 +261,9 @@ void GamePlayScene::Update(){
 		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Safe");
 	}
 
-
-	if (isDebugCameraActive_ && !isPreDebugCameraActive) {
-		preDebugCameraPos_ = camera_->GetTransform().translate;
-		preDebugCameraRot_ = camera_->GetTransform().rotate;
-	}
-	// デバッグカメラが非アクティブになったとき、切り替え前の座標・回転を復元
-	if (!isDebugCameraActive_ && isPreDebugCameraActive) {
-		camera_->SetTranslation(preDebugCameraPos_);
-		camera_->SetRotation(preDebugCameraRot_);
+	// デバッグカメラのUI表示
+	if (debugCamera_) {
+		debugCamera_->DrawDebugUI();
 	}
 
 	if ( ImGui::TreeNode("Directional Light") ) {
@@ -274,14 +296,10 @@ void GamePlayScene::Update(){
 		ImGui::DragFloat("FalloffStart", &sLight->cosFalloffStart, 0.01f, -1.0f, 1.0f);
 		ImGui::TreePop();
 	}
-	if ( ImGui::TreeNode("Camera") ) {
-		Vector3 camPos = camera_->GetTransform().translate;
-		Vector3 camRot = camera_->GetTransform().rotate;
-		ImGui::DragFloat3("Position", &camPos.x, 0.1f);
-		ImGui::DragFloat3("Rotation", &camRot.x, 0.01f);
-		camera_->SetTranslation(camPos);
-		camera_->SetRotation(camRot);
-		ImGui::TreePop();
+
+	// カメラのUI表示
+	if (camera_) {
+		camera_->DrawDebugUI();
 	}
 
 	ImGui::Text("=== Particle Debug ===");
@@ -312,10 +330,6 @@ void GamePlayScene::Update(){
 		sprite_->Update();
 	}
 
-	// デバッグカメラ更新 (デバッグカメラがアクティブなときのみ、カメラの座標・回転を更新)
-	if (isDebugCameraActive_ && debugCamera_) {
-		debugCamera_->Update(camera_.get());
-	}
 	// カメラ更新
 	camera_->Update();
 
@@ -325,7 +339,7 @@ void GamePlayScene::Update(){
 	}
 #endif
 
-	levelEditor_->Update();
+	levelEditor_->Update(isEditorActive_);
 }
 
 void GamePlayScene::Draw(){
