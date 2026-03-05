@@ -17,8 +17,13 @@ public:
 
     // マップの読み込み＆生成
     void LoadAndCreateMap(const std::string& fileName);
+	// カメラのセット
+    void SetCamera(const Camera* camera) { camera_ = camera; }
 
 private:
+
+    const Camera* camera_ = nullptr;
+
     LevelData levelData_; // 現在のマップデータ
     std::vector<std::unique_ptr<Obj3d>> object3ds_; // 配置された3Dオブジェクト
     int selectedObjectIndex_ = -1; // 選択中のオブジェクト番号

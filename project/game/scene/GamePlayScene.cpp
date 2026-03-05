@@ -26,7 +26,7 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-#include "engine/editor/LevelEditor.h"
+#include"engine/utils/Level/LevelEditor.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -125,7 +125,7 @@ void GamePlayScene::Initialize(){
 
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->Initialize();
-
+	levelEditor_->SetCamera(camera_.get());
 }
 
 void GamePlayScene::Update(){
