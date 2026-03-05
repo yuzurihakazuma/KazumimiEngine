@@ -26,7 +26,7 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-
+#include"engine/utils/Level/LevelEditor.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -46,6 +46,7 @@ void GamePlayScene::Initialize(){
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
 	
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
+	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
 
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
@@ -57,7 +58,7 @@ void GamePlayScene::Initialize(){
 	textures_["monsterBall"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
-
+	
 	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
@@ -122,6 +123,9 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientHeight()
 	);
 
+	levelEditor_ = std::make_unique<LevelEditor>();
+	levelEditor_->SetCamera(camera_.get());
+	levelEditor_->Initialize();
 }
 
 void GamePlayScene::Update(){
@@ -321,7 +325,7 @@ void GamePlayScene::Update(){
 	}
 #endif
 
-
+	levelEditor_->Update();
 }
 
 void GamePlayScene::Draw(){
@@ -354,6 +358,9 @@ void GamePlayScene::Draw(){
 		obj->Draw();
 	}
 
+	levelEditor_->Draw();
+
+
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
@@ -370,6 +377,8 @@ void GamePlayScene::Draw(){
 	if (sprite_) {
 		sprite_->Draw();
 	}
+
+	
 }
 
 GamePlayScene::GamePlayScene(){}

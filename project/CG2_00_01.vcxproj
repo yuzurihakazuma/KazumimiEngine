@@ -60,17 +60,17 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)..\generated\outputs\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(SolutionDir)imgui;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)imgui;$(SolutionDir)nlohmann;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
     <OutDir>$(SolutionDir)..\generated\outputs\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(SolutionDir)imgui;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)imgui;$(SolutionDir)nlohmann;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)..\generated\outputs\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(SolutionDir)imgui;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)imgui;$(SolutionDir)nlohmann;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -206,6 +206,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\graphics\RenderTexture.cpp" />
     <ClCompile Include="engine\graphics\GraphicsPipelineBuilder.cpp" />
     <ClCompile Include="engine\postEffect\PostEffect.cpp" />
+    <ClCompile Include="engine\utils\Level\LevelManager.cpp" />
+    <ClCompile Include="engine\utils\Level\LevelEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -260,6 +262,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\audio\AudioManager.h" />
     <ClInclude Include="engine\graphics\BlendMode.h" />
     <ClInclude Include="engine\base\DirectXCommon.h" />
+    <ClInclude Include="engine\utils\Level\LevelData.h" />
     <ClInclude Include="engine\utils\Color.h" />
     <ClInclude Include="engine\utils\CrashDumper.h" />
     <ClInclude Include="engine\utils\ImGuiManager.h" />
@@ -279,6 +282,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\scene\IScene.h" />
     <ClInclude Include="engine\utils\ResourceLeakChecker.h" />
     <ClInclude Include="engine\scene\SceneManager.h" />
+    <ClInclude Include="externals\nlohmann\json.hpp" />
     <ClInclude Include="game\base\Game.h" />
     <ClInclude Include="game\scene\GamePlayScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
@@ -288,6 +292,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\graphics\RenderTexture.h" />
     <ClInclude Include="engine\graphics\GraphicsPipelineBuilder.h" />
     <ClInclude Include="engine\postEffect\PostEffect.h" />
+    <ClInclude Include="engine\utils\Level\LevelManager.h" />
+    <ClInclude Include="engine\utils\Level\LevelEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
