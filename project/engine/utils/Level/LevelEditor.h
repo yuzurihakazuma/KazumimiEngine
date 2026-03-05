@@ -22,7 +22,7 @@ public:
     // 初期化
     void Initialize();
     // 毎フレームの処理（ImGuiの表示とオブジェクトの更新）
-    void Update();
+    void Update(bool isEditorActive = true);
     // 配置したオブジェクトの描画
     void Draw();
 
