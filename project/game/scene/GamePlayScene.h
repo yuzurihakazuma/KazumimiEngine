@@ -20,6 +20,7 @@ class DirectXCommon;
 class Input;
 class RenderTexture; 
 class PostEffect;
+class LevelEditor;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -80,5 +81,7 @@ private: // メンバ変数
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
+	// マップエディタ
+	std::unique_ptr<LevelEditor> levelEditor_;
 
 };
