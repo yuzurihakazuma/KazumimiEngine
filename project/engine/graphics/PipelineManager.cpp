@@ -7,7 +7,7 @@
 #include "engine/graphics/ShaderCompiler.h"
 #include "engine/graphics/RootSignatureBuilder.h"
 #include "engine/graphics/GraphicsPipelineBuilder.h"
-
+#include "engine/postEffect/PostEffect.h"
 
 // 終了処理
 void PipelineManager::Finalize(){
@@ -21,6 +21,15 @@ void PipelineManager::Finalize(){
 	particlePipelineState_.Reset();
 	postEffectPipelineState_.Reset();
 	postEffectRootSignature_.Reset();
+
+
+
+	for (int i = 0; i < 7; ++i) {
+		if (postEffectPipelineStates_[i] != nullptr) {
+			postEffectPipelineStates_[i].Reset();
+		}
+	}
+
 }
 
 
@@ -212,21 +221,34 @@ void PipelineManager::CreatePostEffectRootSignature(){
 // グラフィックスパイプラインの生成 PostEffect用
 void PipelineManager::CreatePostEffectPipeline(){
 
-	// 1. シェーダーのコンパイル
+	// 頂点シェーダーは全エフェクトで共通
 	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl", L"ps_6_0");
 
-	// 2. GraphicsPipelineBuilderに設定
+	// ピクセルシェーダーのパスを配列にしておく（PostEffectType の順番と合わせる）
+	const std::wstring psPaths[] = {
+		L"resources/shaders/PostEffect/Fullscreen.PS.hlsl",       // 0: None (そのまま表示)
+		L"resources/shaders/PostEffect/Grayscale.PS.hlsl",      // 1: Grayscale
+		L"resources/shaders/PostEffect/Sepia.PS.hlsl",          // 2: Sepia
+		L"resources/shaders/PostEffect/Vignetting.PS.hlsl",     // 3: Vignetting
+		L"resources/shaders/PostEffect/BoxFilter.PS.hlsl",      // 4: BoxFilter
+		L"resources/shaders/PostEffect/BoxFilter5x5.PS.hlsl",   // 5: BoxFilter5x5
+		L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl"  // 6: GaussianFilter
+	};
+
+	// パイプラインの共通設定（ブレンドやカリングなど）
 	GraphicsPipelineBuilder builder;
-	builder.SetRootSignature(postEffectRootSignature_.Get()) // ルートシグネチャ
-		.SetShaders(vsBlob.Get(), psBlob.Get()) // シェーダー
-		.SetInputLayoutEmpty()           // ポストエフェクトは頂点を使わないのでInputLayoutは空
-		.SetCullMode(D3D12_CULL_MODE_NONE) // カリングなし
-		.SetDepthStencil(false)          // 深度テストなし
-	    .SetBlendMode(BlendMode::kNormal);
-	// 3. 生成
-	builder.Build(dxCommon_->GetDevice(), postEffectPipelineState_);
+	builder.SetRootSignature(postEffectRootSignature_.Get())
+		.SetInputLayoutEmpty()
+		.SetCullMode(D3D12_CULL_MODE_NONE)
+		.SetDepthStencil(false)
+		.SetBlendMode(BlendMode::kNormal);
 
+	// for文で7個のシェーダーを一気にコンパイルして配列に保存！
+	for (int i = 0; i < 7; ++i) {
+		auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(psPaths[i], L"ps_6_0");
+		builder.SetShaders(vsBlob.Get(), psBlob.Get());
+		builder.Build(dxCommon_->GetDevice(), postEffectPipelineStates_[i]);
+	}
 }
 
 
@@ -295,4 +317,16 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	pipelineState = nullptr;
 	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)); // PSO生成
 	assert(SUCCEEDED(hr));
+}
+
+void PipelineManager::SetPostEffectPipeline(ID3D12GraphicsCommandList* commandList, PostEffectType effectType) {
+	// ルートシグネチャをセット
+	commandList->SetGraphicsRootSignature(postEffectRootSignature_.Get());
+
+	// enumの番号（0～6）を使って、対応するパイプラインをセット
+	int index = static_cast<int>(effectType);
+
+	if (postEffectPipelineStates_[index] != nullptr) {
+		commandList->SetPipelineState(postEffectPipelineStates_[index].Get());
+	}
 }

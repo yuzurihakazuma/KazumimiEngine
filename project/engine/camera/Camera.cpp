@@ -7,7 +7,32 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
 
+#include "externals/imgui/imgui.h"
+
+
 using namespace MatrixMath;
+
+
+void Camera::DrawDebugUI() {
+#ifdef USE_IMGUI
+	// "Inspector" などのウィンドウ名にすると、Unity風のインスペクターにまとめられます
+	// ここでは分かりやすく単独の "Camera Settings" ウィンドウにします
+	if (ImGui::Begin("Inspector")) {
+		if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+			// transform は Camera クラスのメンバ変数なので、直接編集できます！
+			ImGui::DragFloat3("Camera Position", &transform.translate.x, 0.1f);
+			ImGui::DragFloat3("Camera Rotation", &transform.rotate.x, 0.01f);
+
+			// おまけ：視野角やクリップ距離も調整できるようにしておくと便利です
+			ImGui::DragFloat("FOV", &fovY, 0.01f);
+			ImGui::DragFloat("Near Clip", &nearClip, 0.01f);
+			ImGui::DragFloat("Far Clip", &farClip, 1.0f);
+		}
+	}
+	ImGui::End();
+#endif
+}
+
 
 Camera::Camera(int windowWidth, int windowHeight, DirectXCommon* dxcmmon)
 	: dxCommon_(dxcmmon)

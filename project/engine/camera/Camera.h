@@ -24,7 +24,8 @@ public:
 
 	// カメラ更新
 	void Update();
-
+	// デバッグ用UIの描画
+	void DrawDebugUI();
 
 	// setter/getter
 	void SetRotation(const Vector3& rotation){ transform.rotate = rotation; } // 回転をセット

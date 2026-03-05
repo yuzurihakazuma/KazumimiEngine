@@ -66,6 +66,10 @@ public:
 	/// </summary>
 	void Initialize(DirectXCommon* dxCommon);
 	
+	// デバッグUIの描画
+	void DrawDebugUI();
+
+
 	// 終了処理
 	void Finalize();
 

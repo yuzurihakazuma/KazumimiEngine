@@ -79,6 +79,10 @@ public: // メンバ関数
     // name: グループ名 ("Smoke"など), textureFilePath: テクスチャのパス
     void CreateParticleGroup(const std::string& name, const std::string& textureFilePath);
 
+	// デバッグ用UIの描画
+    void DrawDebugUI();
+
+
     // パーティクルの発生 (グループ名を指定して発生させる)
     void Emit(const std::string& name, const Vector3& position, uint32_t count);
 

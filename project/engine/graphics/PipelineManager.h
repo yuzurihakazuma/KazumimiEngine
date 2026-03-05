@@ -10,6 +10,8 @@
 
 class DirectXCommon;
 
+enum class PostEffectType;
+
 // パイプラインマネージャー
 class PipelineManager{
 public:
@@ -27,6 +29,8 @@ public:
 		PipelineType type
 	);
 
+	// 汎用グラフィックスパイプライン生成
+	void SetPostEffectPipeline(ID3D12GraphicsCommandList* commandList, PostEffectType effectType);
 
 
 private:
@@ -45,6 +49,23 @@ private:
 	void CreatePostEffectRootSignature();
 	void CreatePostEffectPipeline();
 
+	
+
+	// 汎用グラフィックスパイプライン生成
+	// 引数で「違い」を受け取ることで、あらゆるパイプラインに対応します
+	void CreateGraphicsPipelineCommon(
+		const std::wstring& vsPath,   // VS(頂点シェーダー)のファイルパス
+		const std::wstring& psPath,   // PS(ピクセルシェーダー)のファイルパス
+		ID3D12RootSignature* rootSig, // 使用するルートシグネチャ
+		BlendMode blendMode,          // ブレンドモード (Normal, Addなど)
+		D3D12_CULL_MODE cullMode,     // カリングモード (None, Backなど)
+		bool isDepthWrite,            // 深度を書き込むか (Spriteはfalse, 3Dはtrue)
+		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState // 結果を入れる変数
+	);
+
+
+
+private:
 	DirectXCommon* dxCommon_ = nullptr;
 
 	// スプライト用変数
@@ -67,18 +88,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineState_;
 
 
-	// 汎用グラフィックスパイプライン生成
-	// 引数で「違い」を受け取ることで、あらゆるパイプラインに対応します
-	void CreateGraphicsPipelineCommon(
-		const std::wstring& vsPath,   // VS(頂点シェーダー)のファイルパス
-		const std::wstring& psPath,   // PS(ピクセルシェーダー)のファイルパス
-		ID3D12RootSignature* rootSig, // 使用するルートシグネチャ
-		BlendMode blendMode,          // ブレンドモード (Normal, Addなど)
-		D3D12_CULL_MODE cullMode,     // カリングモード (None, Backなど)
-		bool isDepthWrite,            // 深度を書き込むか (Spriteはfalse, 3Dはtrue)
-		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState // 結果を入れる変数
-	);
-
+	// ポストエフェクトの種類ごとのパイプラインステートを格納する配列
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineStates_[7];
 
 };
 

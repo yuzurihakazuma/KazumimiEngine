@@ -15,6 +15,8 @@
 #include "engine/graphics/PipelineManager.h"
 #include "engine/scene/AbstractSceneFactory.h"
 #include "engine/scene/SceneManager.h"
+#include "engine/postEffect/PostEffect.h"
+
 
 void Framework::Initialize(){
 	// ---------------------------------------------
@@ -67,6 +69,14 @@ void Framework::Initialize(){
 	// パーティクルマネージャー初期化
 	ParticleManager::GetInstance()->Initialize(dxCommon, srvManager);
 
+
+	PostEffect::GetInstance()->Initialize(
+		dxCommon,
+		srvManager,
+		WindowProc::GetInstance()->GetClientWidth(),
+		WindowProc::GetInstance()->GetClientHeight()
+	);
+
 }
 
 void Framework::Finalize(){
@@ -77,6 +87,7 @@ void Framework::Finalize(){
 	SceneManager::GetInstance()->Finalize();
 
 	// 2. ゲーム固有のマネージャー類を終了
+	PostEffect::GetInstance()->Finalize();
 	ParticleManager::GetInstance()->Finalize();
 	ModelManager::GetInstance()->Finalize();
 	Obj3dCommon::GetInstance()->Finalize();
