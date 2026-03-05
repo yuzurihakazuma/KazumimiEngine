@@ -1,6 +1,16 @@
 #include "LevelEditor.h"
+
+
+// --- エンジン側のファイル ---
+#include "LevelManager.h"
+#include "engine/3d/obj/Obj3d.h"
 #include "engine/utils/ImGuiManager.h"
 #include "engine/3d/model/ModelManager.h"
+
+
+LevelEditor::LevelEditor() = default;
+LevelEditor::~LevelEditor() = default;
+
 
 void LevelEditor::Initialize(){
     // 最初は空の状態でスタートするか、デフォルトのマップを読み込む
@@ -56,7 +66,7 @@ void LevelEditor::Update(){
         Model* model = ModelManager::GetInstance()->FindModel("block");
         std::unique_ptr<Obj3d> obj = std::make_unique<Obj3d>();
         obj->Initialize(model); 
-
+        obj->SetCamera(camera_);
         object3ds_.push_back(std::move(obj));
         selectedObjectIndex_ = ( int ) levelData_.objects.size() - 1;
     }

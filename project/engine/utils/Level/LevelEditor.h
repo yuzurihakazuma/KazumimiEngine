@@ -1,13 +1,24 @@
 #pragma once
+
+#include "engine/utils/Level/LevelData.h"
 #include "LevelManager.h"
-#include "engine/3d/obj/Obj3d.h"
 #include <vector>
 #include <memory>
 #include <string>
 
+class Obj3d;
+class Camera;
+
+
 // マップエディタ専用クラス
 class LevelEditor{
 public:
+
+    LevelEditor();
+
+	~LevelEditor();
+
+
     // 初期化
     void Initialize();
     // 毎フレームの処理（ImGuiの表示とオブジェクトの更新）
@@ -21,7 +32,7 @@ public:
     void SetCamera(const Camera* camera) { camera_ = camera; }
 
 private:
-
+	// カメラは所有しない参照（描画のときに使う）
     const Camera* camera_ = nullptr;
 
     LevelData levelData_; // 現在のマップデータ

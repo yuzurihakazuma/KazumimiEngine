@@ -124,8 +124,8 @@ void GamePlayScene::Initialize(){
 	);
 
 	levelEditor_ = std::make_unique<LevelEditor>();
-	levelEditor_->Initialize();
 	levelEditor_->SetCamera(camera_.get());
+	levelEditor_->Initialize();
 }
 
 void GamePlayScene::Update(){
@@ -358,6 +358,9 @@ void GamePlayScene::Draw(){
 		obj->Draw();
 	}
 
+	levelEditor_->Draw();
+
+
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
@@ -375,7 +378,7 @@ void GamePlayScene::Draw(){
 		sprite_->Draw();
 	}
 
-	levelEditor_->Draw();
+	
 }
 
 GamePlayScene::GamePlayScene(){}
