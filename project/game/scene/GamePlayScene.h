@@ -4,6 +4,8 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/graphics/TextureManager.h"
 
+#include "HandManager.h"
+
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -20,6 +22,7 @@ class DirectXCommon;
 class Input;
 class RenderTexture; 
 class PostEffect;
+class Player;
 class LevelEditor;
 
 	// ゲームプレイシーン
@@ -70,10 +73,20 @@ private: // メンバ変数
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
+	std::unique_ptr<Player> player_ = nullptr;
+
+	std::unique_ptr<Obj3d> playerObj_ = nullptr;
+
+	Vector3 playerPos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
 	// マップエディタ
 	std::unique_ptr<LevelEditor> levelEditor_;
 
 	bool isEditorActive_ = true;
+
+	//手札管理とプレイヤーコスト
+	HandManager handManager_;
+	int dummyPlayerCost_ = 3;
 
 };
