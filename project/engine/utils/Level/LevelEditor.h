@@ -45,6 +45,6 @@ private:
     std::string saveFileName_ = "map01.json"; // ファイル名
     bool snapToGrid_ = true;
 
-	bool isEditorActive = false; // エディタのアクティブ状態
+	bool isEditorActive = true; // エディタのアクティブ状態
 
 };

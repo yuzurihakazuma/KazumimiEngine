@@ -44,8 +44,7 @@ public:
 	void PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
 
 	// ポストエフェクトの描画（巨大な三角形を描く）
-	void Draw(ID3D12GraphicsCommandList* commandList);
-
+	void Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
 	// デバッグ用UIの描画
 	void DrawDebugUI();
 
@@ -53,9 +52,7 @@ public:
 	void Save(const std::string& filePath = "resources/data/postEffect.json"); // 現在のエフェクト設定をJSONファイルに保存
 	void Load(const std::string& filePath = "resources/data/postEffect.json"); // JSONファイルからエフェクト設定を読み込む
 
-	// SRVインデックスのゲッター
-	uint32_t GetSrvIndex() const{ return renderTexture_->GetSrvIndex(); }
-
+	uint32_t GetSrvIndex() const;
 private:
 
 	PostEffect() = default;
@@ -65,10 +62,12 @@ private:
 private:
 	// 内部でRenderTexture（画用紙）を所有する
 	std::unique_ptr<RenderTexture> renderTexture_ = nullptr;
+	std::unique_ptr<RenderTexture> resultTexture_ = nullptr;
+
 
 	// 現在のエフェクトの種類
 	PostEffectType currentType_ = PostEffectType::None;
 
-	bool isActive_ = false;
+	bool isActive_ = true;
 
 };

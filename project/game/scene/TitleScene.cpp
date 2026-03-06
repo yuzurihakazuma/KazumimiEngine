@@ -192,7 +192,7 @@ void TitleScene::Draw(){
 
 
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList);
+	PostEffect::GetInstance()->Draw(commandList,dxCommon);
 
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
