@@ -92,44 +92,46 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxC
 	commandList->DrawInstanced(3, 1, 0, 0);
 }
 
-void PostEffect::DrawDebugUI() {
+void PostEffect::DrawDebugUI(){
 #ifdef USE_IMGUI
-	if (ImGui::Begin("Inspector")) {
-		if (ImGui::CollapsingHeader("Post Effect Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
+		if ( ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 			// エフェクトの有効/無効を切り替えるチェックボックス
-			ImGui::Checkbox("Enable Post Effect", &isActive_);
+			ImGui::Checkbox("エフェクトを有効化", &isActive_);
 			ImGui::Separator();
 
 			// エフェクト名のリスト（enumの順番と合わせる）
+			// コンボボックスの中身も分かりやすく日本語化！
 			const char* effectNames[] = {
-				"None", "Grayscale", "Sepia", "Vignetting",
-				"Box Filter", "Box Filter 5x5", "Gaussian Filter"
+				"なし (None)",
+				"グレースケール (Grayscale)",
+				"セピア (Sepia)",
+				"ビネット・周辺減光 (Vignetting)",
+				"ぼかし弱 (Box Filter)",
+				"ぼかし強 (Box Filter 5x5)",
+				"綺麗にぼかす (Gaussian Filter)"
 			};
 
-			int currentItem = static_cast<int>(currentType_);
+			int currentItem = static_cast< int >( currentType_ );
 
 			// コンボボックスで切り替え
-			if (ImGui::Combo("Effect Type", &currentItem, effectNames, IM_ARRAYSIZE(effectNames))) {
-				currentType_ = static_cast<PostEffectType>(currentItem);
+			if ( ImGui::Combo("エフェクトの種類", &currentItem, effectNames, IM_ARRAYSIZE(effectNames)) ) {
+				currentType_ = static_cast< PostEffectType >( currentItem );
 			}
 
 			ImGui::Separator();
 
 			// セーブ＆ロードボタン
-			if (ImGui::Button("Save Effect Settings")) {
+			if ( ImGui::Button("設定を保存") ) {
 				Save();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Load Effect Settings")) {
+			if ( ImGui::Button("設定を読み込む") ) {
 				Load();
 			}
 		}
 	}
 	ImGui::End();
-
-
-
-
 #endif
 }
 

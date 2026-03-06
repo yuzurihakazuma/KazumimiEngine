@@ -344,19 +344,19 @@ uint32_t ParticleManager::GetInstanceCount(const std::string& name) const{
 }
 
 
-void ParticleManager::DrawDebugUI() {
+void ParticleManager::DrawDebugUI(){
 #ifdef USE_IMGUI
-	// 他のツールと同じ "Inspector" ウィンドウの中にまとめる
-	if (ImGui::Begin("Inspector")) {
-		if (ImGui::CollapsingHeader("Particle Debug", ImGuiTreeNodeFlags_DefaultOpen)) {
+	// 他のツールと同じ "インスペクター (詳細設定)" ウィンドウの中にまとめる
+	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
+		if ( ImGui::CollapsingHeader("パーティクル情報 (Particle Debug)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 			// 現在のパーティクル数とインスタンス数を取得して表示
 			size_t particleCount = GetParticleCount("Circle");
 			uint32_t instanceCount = GetInstanceCount("Circle");
-			ImGui::Text("Particles (CPU) : %zu", particleCount);
-			ImGui::Text("Instances (GPU) : %u", instanceCount);
+			ImGui::Text("パーティクル数 (CPU) : %zu", particleCount);
+			ImGui::Text("インスタンス数 (GPU) : %u", instanceCount);
 
 			// 10個発生させるテストボタン
-			if (ImGui::Button("Emit 10 Circle")) {
+			if ( ImGui::Button("テスト発生 (Circleを10個)") ) {
 				Emit("Circle", { 0.0f, 5.0f, 0.0f }, 10);
 			}
 		}
