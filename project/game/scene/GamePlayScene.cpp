@@ -81,7 +81,7 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-	PostEffect::GetInstance()->DrawDebugUI();
+	
 
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
@@ -122,66 +122,6 @@ void GamePlayScene::Update(){
 	// スプライト更新
 	sprite_->Update();
 
-#ifdef USE_IMGUI
-
-	if (input->Triggerkey(DIK_F1)) {
-		isEditorActive_ = !isEditorActive_;
-	}
-
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->WorkPos);
-	ImGui::SetNextWindowSize(viewport->WorkSize);
-	ImGui::SetNextWindowViewport(viewport->ID);
-
-	// ウィンドウのタイトルバーや背景をすべて消すフラグ
-	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
-
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-
-	ImGui::Begin("MasterDockSpace", nullptr, window_flags);
-
-	ImGui::PopStyleColor();
-
-	ImGui::PopStyleVar(3);
-
-	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-	// ★最重要：ImGuiDockNodeFlags_PassthruCentralNode を付けることで真ん中が透明になりゲーム画面が見える！
-	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-	ImGui::End();
-
-
-	// デバッグカメラのUI表示
-	if (debugCamera_) {
-		debugCamera_->DrawDebugUI();
-	}
-
-	// 3Dオブジェクト共通のUI表示
-	Obj3dCommon::GetInstance()->DrawDebugUI();
-
-	// カメラのUI表示
-	if (camera_) {
-		camera_->DrawDebugUI();
-	}
-
-	ParticleManager::GetInstance()->DrawDebugUI();
-
-	PostEffect::GetInstance()->DrawDebugUI();
-
-	// 要件2: ウィンドウサイズを(500, 100)に固定
-	ImGui::SetNextWindowSize(ImVec2(500, 100));
-
-	// 要件1: 専用のImGuiウィンドウを作成
-	ImGui::Begin("Sprite Setup");
-
-	// 要件4: 小数第1位まで表示するため、最後の引数に "%.1f" を指定する！
-	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f,"% 06.1f");
-	ImGui::End();
 
 
 	if (sprite_) {
@@ -189,14 +129,8 @@ void GamePlayScene::Update(){
 		sprite_->Update();
 	}
 
-	// カメラ更新
-	camera_->Update();
 
-
-
-#endif
-
-	levelEditor_->Update(isEditorActive_);
+	levelEditor_->Update();
 }
 
 void GamePlayScene::Draw(){
@@ -231,7 +165,7 @@ void GamePlayScene::Draw(){
 	
 	
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList);
+	PostEffect::GetInstance()->Draw(commandList,dxCommon);
 	
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
@@ -241,6 +175,27 @@ void GamePlayScene::Draw(){
 	}
 
 	
+}
+
+void GamePlayScene::DrawDebugUI(){
+
+#ifdef USE_IMGUI
+	// 3Dオブジェクト、カメラ、パーティクルのUI
+	Obj3dCommon::GetInstance()->DrawDebugUI();
+	if ( camera_ ) { camera_->DrawDebugUI(); }
+	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
+	ParticleManager::GetInstance()->DrawDebugUI();
+
+	
+	levelEditor_->DrawDebugUI();
+
+	// スプライト調整用UI
+	ImGui::SetNextWindowSize(ImVec2(500, 100));
+	ImGui::Begin("Sprite Setup");
+	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "% 06.1f");
+	ImGui::End();
+#endif
+
 }
 
 GamePlayScene::GamePlayScene(){}

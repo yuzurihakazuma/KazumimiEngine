@@ -20,9 +20,9 @@ void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, 
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 
-	// rtvHndle
-	rtvHandle_ = dxCommon->GetRtvHandle(2);
-
+	static uint32_t s_rtvIndex = 2; // メイン画面が0と1を使っているので2からスタート
+	rtvHandle_ = dxCommon->GetRtvHandle(s_rtvIndex);
+	s_rtvIndex++;
 	// RTVを作成
 	dxCommon->GetDevice()->CreateRenderTargetView(resource_.Get(), &rtvDesc, rtvHandle_);
 
@@ -78,7 +78,11 @@ void RenderTexture::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectX
 
 // 描画先を Swapchain（メイン画面）に戻す処理
 void RenderTexture::PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon){
-	// ハンドル取得
+	
+	
+	
+	
+// ハンドル取得
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_Swapchain = dxCommon->GetBackBufferRtvHandle();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
@@ -87,7 +91,7 @@ void RenderTexture::PostDrawScene(ID3D12GraphicsCommandList* commandList, Direct
 	commandList->OMSetRenderTargets(1, &rtvHandle_Swapchain, FALSE, &dsvHandle);
 
 	// 2. メイン画面のクリア
-	const float clearColor[4] = { 0.1f, 0.25f, 0.5f, 1.0f }; // メイン画面の背景色
+	const float clearColor[4] = { 0.0f, 0.25f, 0.5f, 1.0f }; // メイン画面の背景色
 	commandList->ClearRenderTargetView(rtvHandle_Swapchain, clearColor, 0, nullptr);
 
 	// 3. ビューポートとシザー矩形の設定
