@@ -147,7 +147,6 @@ void GamePlayScene::Update(){
 
 	ImGui::DragFloat3("PlayerPos", &playerPos_.x, 0.1f);
 	ImGui::DragFloat3("PlayerScale", &playerScale_.x, 0.1f);
-	ImGui::Checkbox("Debug Camera Active", &isDebugCameraActive_);
 	ImGui::Begin("MasterDockSpace", nullptr, window_flags);
 
 	ImGui::PopStyleColor();
