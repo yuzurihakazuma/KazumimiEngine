@@ -1,0 +1,3 @@
+id,name,cost,effectType,sffectValue,desciption,modelName,effectName,seName
+1,Fist,0,0,1,Deal1Damage,plane,nullptr,nullptr
+2,Fireball,1,0,3,Deal3Damage,plane,nullptr,nullptr

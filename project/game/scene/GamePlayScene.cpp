@@ -28,6 +28,8 @@
 #include "engine/postEffect/PostEffect.h"
 #include"engine/utils/Level/LevelEditor.h"
 
+
+
 using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
@@ -86,6 +88,15 @@ void GamePlayScene::Initialize(){
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
+
+	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
+	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
+
+	// CSVからカードデータベースを初期化
+	CardDatabase::Initialize("Resources/CardData.csv");
+
+	// 手札マネージャーの初期化
+	handManager_.Initialize(camera_.get());
 }
 
 void GamePlayScene::Update(){
@@ -187,29 +198,24 @@ void GamePlayScene::Update(){
 	//------------カードシステム単体テスト------------
 	ImGui::Begin("Card System Test");
 
-	// 仮のプレイヤーコスト状況を表示
 	ImGui::Text("Player Cost: %d", dummyPlayerCost_);
 	if (ImGui::Button("Turn End (Reset Cost)")) {
-		dummyPlayerCost_ = 3; //コスト回復
+		dummyPlayerCost_ = 3;
 	}
 
 	ImGui::Separator();
-
-	//ダンジョンでカードを拾う
 	ImGui::Text("[Dungeon Floor]");
-	if (ImGui::Button("Pick Up 'Sword'(Cost: 1)")) {
-		handManager_.AddCard({ 1,"Sword",1 });
+
+	// ★修正：図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
+	if (ImGui::Button("Pick Up 'Fist'(ID: 1)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(1));
 	}
-
 	ImGui::SameLine();
-
-	if (ImGui::Button("Pick Up 'Fireball' (Cost: 2)")) {
-		handManager_.AddCard({ 2,"Fireball",2 });
+	if (ImGui::Button("Pick Up 'Fireball'(ID: 2)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(2));
 	}
 
 	ImGui::Separator();
-
-	//今の手札を表示して使う
 	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
 
 	//手札の数だけループしてボタンを作る
@@ -235,6 +241,8 @@ void GamePlayScene::Update(){
 
 	ImGui::End();
 	
+	// 手札（3Dモデル）の移動などの更新
+	handManager_.Update();
 
 	if (sprite_) {
 		sprite_->SetPosition(spritePos_);
@@ -273,6 +281,8 @@ void GamePlayScene::Draw(){
 	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
 	}
+
+	handManager_.Draw();
 
 	levelEditor_->Draw();
 
