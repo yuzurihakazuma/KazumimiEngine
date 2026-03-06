@@ -25,6 +25,7 @@ class RenderTexture;
 class PostEffect;
 class Player;
 class LevelEditor;
+class Enemy;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -92,5 +93,11 @@ private: // メンバ変数
 
 
 	CardPickupManager cardPickupManager_;
+
+	std::unique_ptr<Enemy> enemy_ = nullptr;
+	std::unique_ptr<Obj3d> enemyObj_ = nullptr;
+
+	Vector3 enemyPos_ = { 5.0f, 0.0f, 5.0f };
+	Vector3 enemyScale_ = { 1.0f, 1.0f, 1.0f };
 
 };
