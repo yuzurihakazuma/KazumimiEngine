@@ -26,6 +26,7 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
+#include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 
 using namespace VectorMath;
@@ -144,10 +145,17 @@ void GamePlayScene::Update(){
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
 
+	ImGui::DragFloat3("PlayerPos", &playerPos_.x, 0.1f);
+	ImGui::DragFloat3("PlayerScale", &playerScale_.x, 0.1f);
+	ImGui::Checkbox("Debug Camera Active", &isDebugCameraActive_);
 	ImGui::Begin("MasterDockSpace", nullptr, window_flags);
 
 	ImGui::PopStyleColor();
 
+	// 1. スフィアの当たり判定データを作成
+	Sphere playerCollider;
+	playerCollider.center = playerPos_;
+	playerCollider.radius = playerScale_.x;
 	ImGui::PopStyleVar(3);
 
 	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
@@ -265,6 +273,9 @@ void GamePlayScene::Draw(){
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
 	
+	if (playerObj_) {
+		playerObj_->Draw();
+	}
 	
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	
