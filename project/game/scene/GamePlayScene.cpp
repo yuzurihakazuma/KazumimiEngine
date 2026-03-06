@@ -50,8 +50,7 @@ void GamePlayScene::Initialize(){
 	
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
-	ModelManager::GetInstance()->LoadModel("plane", "resources", "plane.obj");
-
+	
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 	// パーティクルグループ作成 (シングルトン)
@@ -248,6 +247,9 @@ void GamePlayScene::Draw(){
 		obj->Draw();
 	}
 
+	//手札カード
+	handManager_.Draw();
+
 	levelEditor_->Draw();
 
 
@@ -342,54 +344,10 @@ void GamePlayScene::DrawDebugUI(){
 
 #endif
 
-	levelEditor_->Update(isEditorActive_);
+	levelEditor_->Update();
 }
 
-void GamePlayScene::Draw(){
 
-
-	auto dxCommon = DirectXCommon::GetInstance();
-	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
-	
-	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
-
-
-	// 3D描画の前準備
-	Obj3dCommon::GetInstance()->PreDraw(commandList);
-
-	
-	
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-	
-	
-	// 3Dオブジェクト描画
-	for ( auto& obj : object3ds_ ) {
-		obj->Draw();
-	}
-
-	handManager_.Draw();
-
-	levelEditor_->Draw();
-
-
-	// パーティクル描画 (パイプライン切り替え)
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
-	
-	
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList);
-	
-	// スプライト描画の前準備
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-	
-	if (sprite_) {
-		sprite_->Draw();
-	}
-
-	
-}
 
 GamePlayScene::GamePlayScene(){}
 
