@@ -26,6 +26,7 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
+#include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 
 
@@ -49,6 +50,7 @@ void GamePlayScene::Initialize(){
 	
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
+	ModelManager::GetInstance()->LoadModel("plane", "resources", "plane.obj");
 
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
@@ -61,14 +63,27 @@ void GamePlayScene::Initialize(){
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 	
-	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
-	
+
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
+
+
+	playerObj_ = Obj3d::Create("sphere");
+	if (playerObj_) {
+		playerObj_->SetCamera(camera_.get());
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetScale(playerScale_);
+	}
+
+	player_ = std::make_unique<Player>();
+	player_->Initialize();
+	player_->SetPosition(playerPos_);
+	player_->SetScale(playerScale_);
+	
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
@@ -83,7 +98,7 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-	PostEffect::GetInstance()->DrawDebugUI();
+	
 
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
@@ -97,6 +112,13 @@ void GamePlayScene::Initialize(){
 
 	// 手札マネージャーの初期化
 	handManager_.Initialize(camera_.get());
+
+
+	cardPickupManager_.Initialize(camera_.get());
+
+	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, { 1, "Sword", 1 });
+	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, { 2, "Fireball", 2 });
+
 }
 
 void GamePlayScene::Update(){
@@ -105,8 +127,6 @@ void GamePlayScene::Update(){
 	if (debugCamera_) {
 		debugCamera_->Update(camera_.get());
 	}
-	// カメラ更新
-	camera_->Update();
 
 	Input* input = Input::GetInstance();
 
@@ -125,6 +145,53 @@ void GamePlayScene::Update(){
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
+	if (player_) {
+		player_->Update();
+		playerPos_ = player_->GetPosition();
+		playerScale_ = player_->GetScale();
+	}
+
+	if (playerObj_) {
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetRotation(player_->GetRotation());
+		playerObj_->SetScale(playerScale_);
+		playerObj_->Update();
+	}
+
+	for (auto& pickup : cardPickupManager_.GetPickups()) {
+		if (!pickup.isActive) {
+			continue;
+		}
+
+		Vector3 diff = {
+			playerPos_.x - pickup.position.x,
+			playerPos_.y - pickup.position.y,
+			playerPos_.z - pickup.position.z
+		};
+
+		float dist = Length(diff);
+
+		if (dist < 2.0f) {
+			bool success = handManager_.AddCard(pickup.card);
+			if (success) {
+				pickup.isActive = false;
+			}
+		}
+	}
+
+	cardPickupManager_.Update();
+
+	if (camera_) {
+		camera_->SetTranslation({
+			playerPos_.x,
+			playerPos_.y + 8.0f,
+			playerPos_.z - 18.0f
+			});
+		camera_->SetRotation({
+			0.45f, 0.0f, 0.0f
+			});
+		camera_->Update();
+	}
 
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
@@ -133,74 +200,111 @@ void GamePlayScene::Update(){
 	// スプライト更新
 	sprite_->Update();
 
+	
+	Sphere playerCollider;
+	playerCollider.center = playerPos_;
+	playerCollider.radius = playerScale_.x;
+
+
+
+	if (sprite_) {
+		sprite_->SetPosition(spritePos_);
+		sprite_->Update();
+	}
+
+
+	levelEditor_->Update();
+}
+
+void GamePlayScene::Draw(){
+
+
+	auto dxCommon = DirectXCommon::GetInstance();
+	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
+	
+	// 画用紙への切り替え
+	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
+
+
+	// 3D描画の前準備
+	Obj3dCommon::GetInstance()->PreDraw(commandList);
+
+	
+	if (playerObj_) {
+		playerObj_->Draw();
+	}
+	
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+	
+	if (playerObj_) {
+		playerObj_->Draw();
+	}
+
+	cardPickupManager_.Draw();
+
+	
+	// 3Dオブジェクト描画
+	for ( auto& obj : object3ds_ ) {
+		obj->Draw();
+	}
+
+	levelEditor_->Draw();
+
+
+	// パーティクル描画 (パイプライン切り替え)
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
+	ParticleManager::GetInstance()->Draw(commandList);
+	
+	
+	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->Draw(commandList,dxCommon);
+	
+	// スプライト描画の前準備
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+	
+	if (sprite_) {
+		sprite_->Draw();
+	}
+
+	
+}
+
+void GamePlayScene::DrawDebugUI(){
+
 #ifdef USE_IMGUI
-
-	if (input->Triggerkey(DIK_F1)) {
-		isEditorActive_ = !isEditorActive_;
-	}
-
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->WorkPos);
-	ImGui::SetNextWindowSize(viewport->WorkSize);
-	ImGui::SetNextWindowViewport(viewport->ID);
-
-	// ウィンドウのタイトルバーや背景をすべて消すフラグ
-	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
-
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-
-	ImGui::Begin("MasterDockSpace", nullptr, window_flags);
-
-	ImGui::PopStyleColor();
-
-	ImGui::PopStyleVar(3);
-
-	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-	// ★最重要：ImGuiDockNodeFlags_PassthruCentralNode を付けることで真ん中が透明になりゲーム画面が見える！
-	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-	ImGui::End();
-
-
-	// デバッグカメラのUI表示
-	if (debugCamera_) {
-		debugCamera_->DrawDebugUI();
-	}
-
-	// 3Dオブジェクト共通のUI表示
+	// 3Dオブジェクト、カメラ、パーティクルのUI
 	Obj3dCommon::GetInstance()->DrawDebugUI();
-
-	// カメラのUI表示
-	if (camera_) {
-		camera_->DrawDebugUI();
-	}
-
+	if ( camera_ ) { camera_->DrawDebugUI(); }
+	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
 	ParticleManager::GetInstance()->DrawDebugUI();
 
-	PostEffect::GetInstance()->DrawDebugUI();
+	
+	levelEditor_->DrawDebugUI();
 
-	// 要件2: ウィンドウサイズを(500, 100)に固定
+	// スプライト調整用UI
 	ImGui::SetNextWindowSize(ImVec2(500, 100));
-
-	// 要件1: 専用のImGuiウィンドウを作成
 	ImGui::Begin("Sprite Setup");
-
-	// 要件4: 小数第1位まで表示するため、最後の引数に "%.1f" を指定する！
-	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f,"% 06.1f");
-
+	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "% 06.1f");
 	ImGui::End();
 
-	//------------カードシステム単体テスト------------
 	ImGui::Begin("Card System Test");
 
+	ImGui::Separator();
+	ImGui::Text("[Card Pickups]");
+	for (size_t i = 0; i < cardPickupManager_.GetPickups().size(); ++i) {
+		const auto& pickup = cardPickupManager_.GetPickups()[i];
+		ImGui::Text("%s : pos(%.1f, %.1f, %.1f) active=%s",
+			pickup.card.name.c_str(),
+			pickup.position.x,
+			pickup.position.y,
+			pickup.position.z,
+			pickup.isActive ? "true" : "false");
+	}
+
+	// 仮のプレイヤーコスト状況を表示
 	ImGui::Text("Player Cost: %d", dummyPlayerCost_);
-	if (ImGui::Button("Turn End (Reset Cost)")) {
-		dummyPlayerCost_ = 3;
+	if ( ImGui::Button("Turn End (Reset Cost)") ) {
+		dummyPlayerCost_ = 3; //コスト回復
 	}
 
 	ImGui::Separator();
@@ -219,40 +323,22 @@ void GamePlayScene::Update(){
 	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
 
 	//手札の数だけループしてボタンを作る
-	for (int i = 0; i < handManager_.GetHandSize(); ++i) {
+	for ( int i = 0; i < handManager_.GetHandSize(); ++i ) {
 		Card card = handManager_.GetCard(i);
 
 		//ボタンの名前
 		std::string btnName = card.name + "(Cost:" + std::to_string(card.cost) + ")##" + std::to_string(i);
 
-		if (ImGui::Button(btnName.c_str())) {
-			//コスト足りるかチェック
-			if (dummyPlayerCost_ >= card.cost) {
-				dummyPlayerCost_ -= card.cost; //コスト消費
-				handManager_.RemoveCard(i);    //手札から消す
-
-				ImGui::LogText("Used %s!\n", card.name.c_str());
-			} else {
-				ImGui::LogText("Not enough cost for %s!\n", card.name.c_str());
-			}
+		// 使う処理を入れる場合はこのif文の中に書く
+		if ( ImGui::Button(btnName.c_str()) ) {
+			// 例：手札を使用する処理
 		}
 	}
-
 
 	ImGui::End();
 	
 	// 手札（3Dモデル）の移動などの更新
 	handManager_.Update();
-
-	if (sprite_) {
-		sprite_->SetPosition(spritePos_);
-		sprite_->Update();
-	}
-
-	// カメラ更新
-	camera_->Update();
-
-
 
 #endif
 

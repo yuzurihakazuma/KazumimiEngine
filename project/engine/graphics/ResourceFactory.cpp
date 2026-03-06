@@ -1,5 +1,5 @@
 #include "ResourceFactory.h"
-
+#include "engine/base/DirectXCommon.h"
 // --- 標準ライブラリ ---
 #include <cassert>
 
@@ -86,7 +86,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> ResourceFactory::CreateRenderTextureResou
 		&heapProps, // Default Heap を指定
 		D3D12_HEAP_FLAG_NONE, // ヒープフラグはなし
 		&desc, // テクスチャリソースのディスクリプションを指定
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&clearValue, // クリア値を指定
 		IID_PPV_ARGS(&resource)
 	);

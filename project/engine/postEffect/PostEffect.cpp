@@ -18,6 +18,18 @@ void PostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uin
 	// RenderTextureの生成と初期化
 	renderTexture_ = std::make_unique<RenderTexture>();
 	renderTexture_->Initialize(dxCommon, srvManager, width, height);
+
+	resultTexture_ = std::make_unique<RenderTexture>();
+	resultTexture_->Initialize(dxCommon, srvManager, width, height);
+
+}
+
+uint32_t PostEffect::GetSrvIndex() const{
+	if ( isActive_ ) {
+		return resultTexture_->GetSrvIndex(); // ONなら2枚目(エフェクト後)を渡す
+	} else {
+		return renderTexture_->GetSrvIndex(); // OFFなら1枚目(エフェクト前)を渡す
+	}
 }
 
 void PostEffect::Finalize() {
@@ -25,42 +37,58 @@ void PostEffect::Finalize() {
 	if (renderTexture_) {
 		renderTexture_.reset();
 	}
+	if ( resultTexture_ ) { resultTexture_.reset(); }
 }
 
 void PostEffect::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
-	// エフェクトが無効な場合は何もしない
-	if (!isActive_){
-		return;
-	}
+	
 	
 	renderTexture_->PreDrawScene(commandList, dxCommon);
 }
 
 void PostEffect::PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
-	// エフェクトが無効な場合は何もしない
-	if (!isActive_) {
-		return;
-	}
+	
 	
 	renderTexture_->PostDrawScene(commandList, dxCommon);
 }
 
-void PostEffect::Draw(ID3D12GraphicsCommandList* commandList) {
-	// エフェクトが無効な場合は何もしない
-	if (!isActive_) {
-		return;
-	}
-	
-	// 1. パイプライン設定
-	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, currentType_);
+void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
+	// -----------------------------------------------------------------
+	// 【ステップ①】1枚目（素の絵）にエフェクトをかけて、2枚目（結果用）に保存する
+	// -----------------------------------------------------------------
 
-	// 2. トポロジー設定（三角形で描画）
+	// 描画先を「2枚目の画用紙」に切り替える（2枚目を書き込みモードにする）
+	resultTexture_->PreDrawScene(commandList, dxCommon);
+
+	// かけるエフェクトを決定する（OFFの場合はエフェクトなしのパイプラインにする）
+	PostEffectType applyType = isActive_ ? currentType_ : PostEffectType::None;
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, applyType);
+
+	// 三角形を描画する設定
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 3. SRV（描き込んだ画像）をシェーダーに渡す
+	// 1枚目（読み込みモードになっているはずの画用紙）をシェーダーに渡す
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTexture_->GetSrvIndex());
 
-	// 4. 描画コマンド（画面全体を覆う三角形）
+	// エフェクトをかけながら2枚目に描き込む！
+	commandList->DrawInstanced(3, 1, 0, 0);
+
+	// 2枚目の画用紙のお絵かきを終了する（2枚目を読み込みモードにする）
+	resultTexture_->PostDrawScene(commandList, dxCommon);
+
+
+	// -----------------------------------------------------------------
+	// 【ステップ②】出来上がった2枚目の絵を、メイン画面（スワップチェーン）に直接描画する
+	// -----------------------------------------------------------------
+
+	// エフェクトなし（ただ画像を表示するだけ）のパイプラインをセット
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// 完成した2枚目の画用紙をシェーダーに渡す
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, resultTexture_->GetSrvIndex());
+
+	// メイン画面に描画する
 	commandList->DrawInstanced(3, 1, 0, 0);
 }
 
@@ -98,6 +126,10 @@ void PostEffect::DrawDebugUI() {
 		}
 	}
 	ImGui::End();
+
+
+
+
 #endif
 }
 
