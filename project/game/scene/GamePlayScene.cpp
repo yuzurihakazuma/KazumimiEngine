@@ -28,6 +28,7 @@
 #include "engine/postEffect/PostEffect.h"
 #include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
+#include "game/enemy/Enemy.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -81,6 +82,18 @@ void GamePlayScene::Initialize(){
 	player_->Initialize();
 	player_->SetPosition(playerPos_);
 	player_->SetScale(playerScale_);
+
+	enemyObj_ = Obj3d::Create("sphere");
+	if (enemyObj_) {
+		enemyObj_->SetCamera(camera_.get());
+		enemyObj_->SetTranslation(enemyPos_);
+		enemyObj_->SetScale(enemyScale_);
+	}
+
+	enemy_ = std::make_unique<Enemy>();
+	enemy_->Initialize();
+	enemy_->SetPosition(enemyPos_);
+	enemy_->SetScale(enemyScale_);
 	
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
@@ -147,6 +160,73 @@ void GamePlayScene::Update(){
 		playerObj_->Update();
 	}
 
+	if (enemy_) {
+		enemy_->SetPlayerPosition(playerPos_);
+
+		bool foundCard = false;
+		Vector3 nearestCardPos{};
+		Card nearestCard{};
+		float nearestCardDist = 99999.0f;
+
+		for (auto& pickup : cardPickupManager_.GetPickups()) {
+			if (!pickup.isActive) {
+				continue;
+			}
+
+			Vector3 diff = {
+				pickup.position.x - enemyPos_.x,
+				0.0f,
+				pickup.position.z - enemyPos_.z
+			};
+
+			float dist = Length(diff);
+
+			if (dist < 6.0f && dist < nearestCardDist) {
+				nearestCardDist = dist;
+				nearestCardPos = pickup.position;
+				nearestCard = pickup.card;
+				foundCard = true;
+			}
+		}
+
+		Vector3 toPlayer = {
+			playerPos_.x - enemyPos_.x,
+			0.0f,
+			playerPos_.z - enemyPos_.z
+		};
+		float playerDist = Length(toPlayer);
+
+		if (!enemy_->HasCard()) {
+			if (foundCard) {
+				enemy_->SetTargetCardPosition(nearestCardPos);
+				enemy_->SetState(Enemy::State::MoveToCard);
+			} else if (playerDist < 8.0f) {
+				enemy_->SetState(Enemy::State::ChasePlayer);
+			} else {
+				enemy_->SetState(Enemy::State::Patrol);
+			}
+		} else {
+			enemy_->SetState(Enemy::State::ChasePlayer);
+		}
+
+		enemy_->Update();
+		enemyPos_ = enemy_->GetPosition();
+		enemyScale_ = enemy_->GetScale();
+	}
+
+	if (enemy_) {
+		enemy_->Update();
+		enemyPos_ = enemy_->GetPosition();
+		enemyScale_ = enemy_->GetScale();
+	}
+
+	if (enemyObj_) {
+		enemyObj_->SetTranslation(enemyPos_);
+		enemyObj_->SetRotation(enemy_->GetRotation());
+		enemyObj_->SetScale(enemyScale_);
+		enemyObj_->Update();
+	}
+
 	for (auto& pickup : cardPickupManager_.GetPickups()) {
 		if (!pickup.isActive) {
 			continue;
@@ -169,6 +249,45 @@ void GamePlayScene::Update(){
 	}
 
 	cardPickupManager_.Update();
+
+	for (auto& pickup : cardPickupManager_.GetPickups()) {
+		if (!pickup.isActive) {
+			continue;
+		}
+
+		// プレイヤーが拾う
+		Vector3 playerDiff = {
+			playerPos_.x - pickup.position.x,
+			playerPos_.y - pickup.position.y,
+			playerPos_.z - pickup.position.z
+		};
+
+		float playerDist = Length(playerDiff);
+
+		if (playerDist < 2.0f) {
+			bool success = handManager_.AddCard(pickup.card);
+			if (success) {
+				pickup.isActive = false;
+				continue;
+			}
+		}
+
+		// 敵が拾う
+		if (enemy_ && !enemy_->HasCard()) {
+			Vector3 enemyDiff = {
+				enemyPos_.x - pickup.position.x,
+				enemyPos_.y - pickup.position.y,
+				enemyPos_.z - pickup.position.z
+			};
+
+			float enemyDist = Length(enemyDiff);
+
+			if (enemyDist < 2.0f) {
+				enemy_->SetHeldCard(pickup.card);
+				pickup.isActive = false;
+			}
+		}
+	}
 
 	if (camera_) {
 		camera_->SetTranslation({
@@ -217,16 +336,15 @@ void GamePlayScene::Draw(){
 
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
-
-	
-	if (playerObj_) {
-		playerObj_->Draw();
-	}
 	
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	
 	if (playerObj_) {
 		playerObj_->Draw();
+	}
+
+	if (enemyObj_) {
+		enemyObj_->Draw();
 	}
 
 	cardPickupManager_.Draw();
