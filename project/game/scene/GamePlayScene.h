@@ -4,6 +4,8 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/graphics/TextureManager.h"
 
+#include "HandManager.h"
+
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -71,5 +73,9 @@ private: // メンバ変数
 	std::unique_ptr<LevelEditor> levelEditor_;
 
 	bool isEditorActive_ = true;
+
+	//手札管理とプレイヤーコスト
+	HandManager handManager_;
+	int dummyPlayerCost_ = 3;
 
 };
