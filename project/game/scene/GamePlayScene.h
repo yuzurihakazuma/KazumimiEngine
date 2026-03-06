@@ -4,7 +4,8 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/graphics/TextureManager.h"
 
-#include "HandManager.h"
+#include "game/card/HandManager.h"
+#include "game/card/CardPickupManager.h"
 
 // --- 標準ライブラリ ---
 #include <vector>
@@ -88,5 +89,8 @@ private: // メンバ変数
 	//手札管理とプレイヤーコスト
 	HandManager handManager_;
 	int dummyPlayerCost_ = 3;
+
+
+	CardPickupManager cardPickupManager_;
 
 };

@@ -48,6 +48,7 @@ void GamePlayScene::Initialize(){
 	
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
+	ModelManager::GetInstance()->LoadModel("plane", "resources", "plane.obj");
 
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
@@ -60,14 +61,27 @@ void GamePlayScene::Initialize(){
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 	
-	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
-	
+
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
+
+
+	playerObj_ = Obj3d::Create("sphere");
+	if (playerObj_) {
+		playerObj_->SetCamera(camera_.get());
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetScale(playerScale_);
+	}
+
+	player_ = std::make_unique<Player>();
+	player_->Initialize();
+	player_->SetPosition(playerPos_);
+	player_->SetScale(playerScale_);
+	
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
@@ -87,6 +101,13 @@ void GamePlayScene::Initialize(){
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
+
+
+	cardPickupManager_.Initialize(camera_.get());
+
+	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, { 1, "Sword", 1 });
+	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, { 2, "Fireball", 2 });
+
 }
 
 void GamePlayScene::Update(){
@@ -95,8 +116,6 @@ void GamePlayScene::Update(){
 	if (debugCamera_) {
 		debugCamera_->Update(camera_.get());
 	}
-	// カメラ更新
-	camera_->Update();
 
 	Input* input = Input::GetInstance();
 
@@ -115,6 +134,53 @@ void GamePlayScene::Update(){
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
+	if (player_) {
+		player_->Update();
+		playerPos_ = player_->GetPosition();
+		playerScale_ = player_->GetScale();
+	}
+
+	if (playerObj_) {
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetRotation(player_->GetRotation());
+		playerObj_->SetScale(playerScale_);
+		playerObj_->Update();
+	}
+
+	for (auto& pickup : cardPickupManager_.GetPickups()) {
+		if (!pickup.isActive) {
+			continue;
+		}
+
+		Vector3 diff = {
+			playerPos_.x - pickup.position.x,
+			playerPos_.y - pickup.position.y,
+			playerPos_.z - pickup.position.z
+		};
+
+		float dist = Length(diff);
+
+		if (dist < 2.0f) {
+			bool success = handManager_.AddCard(pickup.card);
+			if (success) {
+				pickup.isActive = false;
+			}
+		}
+	}
+
+	cardPickupManager_.Update();
+
+	if (camera_) {
+		camera_->SetTranslation({
+			playerPos_.x,
+			playerPos_.y + 8.0f,
+			playerPos_.z - 18.0f
+			});
+		camera_->SetRotation({
+			0.45f, 0.0f, 0.0f
+			});
+		camera_->Update();
+	}
 
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
@@ -159,6 +225,12 @@ void GamePlayScene::Draw(){
 	
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	
+	if (playerObj_) {
+		playerObj_->Draw();
+	}
+
+	cardPickupManager_.Draw();
+
 	
 	// 3Dオブジェクト描画
 	for ( auto& obj : object3ds_ ) {
@@ -205,6 +277,18 @@ void GamePlayScene::DrawDebugUI(){
 	ImGui::End();
 
 	ImGui::Begin("Card System Test");
+
+	ImGui::Separator();
+	ImGui::Text("[Card Pickups]");
+	for (size_t i = 0; i < cardPickupManager_.GetPickups().size(); ++i) {
+		const auto& pickup = cardPickupManager_.GetPickups()[i];
+		ImGui::Text("%s : pos(%.1f, %.1f, %.1f) active=%s",
+			pickup.card.name.c_str(),
+			pickup.position.x,
+			pickup.position.y,
+			pickup.position.z,
+			pickup.isActive ? "true" : "false");
+	}
 
 	// 仮のプレイヤーコスト状況を表示
 	ImGui::Text("Player Cost: %d", dummyPlayerCost_);
