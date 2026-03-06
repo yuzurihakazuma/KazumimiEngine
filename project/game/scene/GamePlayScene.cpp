@@ -26,6 +26,7 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
+#include "game/player/Player.h"
 
 
 using namespace VectorMath;
@@ -68,17 +69,6 @@ void GamePlayScene::Initialize(){
 	debugCamera_->Initialize();
 
 
-	// オブジェクト生成
-	fence_ = std::make_unique<Obj3d>();
-	sphere_ = std::make_unique<Obj3d>();
-	ground_ = std::make_unique<Obj3d>();
-
-	// モデル取得 (シングルトンから)
-	Model* modelFence = ModelManager::GetInstance()->FindModel("fence");
-	Model* modelSphere = ModelManager::GetInstance()->FindModel("sphere");
-	Model* modelGround = ModelManager::GetInstance()->FindModel("grass");
-
-
 	// オブジェクト生成＆初期化
 	fence_ = Obj3d::Create("fence");
 	if (fence_) {
@@ -86,11 +76,11 @@ void GamePlayScene::Initialize(){
 		fence_->SetTranslation(fencePos_);
 	}
 
-	sphere_ = Obj3d::Create("sphere");
-	if (sphere_) {
-		sphere_->SetCamera(camera_.get());
-		sphere_->SetTranslation(spherePos_);
-		sphere_->SetScale(sphereScale_);
+	playerObj_ = Obj3d::Create("sphere");
+	if (playerObj_) {
+		playerObj_->SetCamera(camera_.get());
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetScale(playerScale_);
 	}
 
 	ground_ = Obj3d::Create("grass"); 
@@ -100,6 +90,10 @@ void GamePlayScene::Initialize(){
 		ground_->SetScale(groundScale_);
 	}
 
+	player_ = std::make_unique<Player>();
+	player_->Initialize();
+	player_->SetPosition(playerPos_);
+	player_->SetScale(playerScale_);
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
@@ -150,12 +144,32 @@ void GamePlayScene::Update(){
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
-	// オブジェクト更新
-	if (sphere_) {
-		sphere_->SetTranslation(spherePos_);
-		sphere_->SetScale(sphereScale_);
-		sphere_->Update();
+	// プレイヤー更新
+	if (player_) {
+		player_->Update();
+		playerPos_ = player_->GetPosition();
+		playerScale_ = player_->GetScale();
 	}
+
+	if (playerObj_) {
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetScale(playerScale_);
+		playerObj_->Update();
+	}
+
+	if (!isDebugCameraActive_ && camera_) {
+		camera_->SetTranslation({
+			playerPos_.x,
+			playerPos_.y + 8.0f,
+			playerPos_.z - 18.0f
+			});
+
+		camera_->SetRotation({
+			0.45f, 0.0f, 0.0f
+			});
+	}
+	camera_->Update();
+
 	if (fence_) {
 		fence_->SetTranslation(fencePos_); 
 		fence_->SetScale(fenceScale_);
@@ -191,16 +205,16 @@ void GamePlayScene::Update(){
 	ImGui::DragFloat3("FencePos", &fencePos_.x, 0.1f);
 	ImGui::DragFloat3("FenceScale", &fenceScale_.x, 0.1f);
 
-	ImGui::DragFloat3("SpherePos", &spherePos_.x, 0.1f);
-	ImGui::DragFloat3("SphereScale", &sphereScale_.x, 0.1f);
+	ImGui::DragFloat3("PlayerPos", &playerPos_.x, 0.1f);
+	ImGui::DragFloat3("PlayerScale", &playerScale_.x, 0.1f);
 	ImGui::Checkbox("Debug Camera Active", &isDebugCameraActive_);
 
 	ImGui::Text("=== Collision Test ===");
 
 	// 1. スフィアの当たり判定データを作成
-	Sphere sphereCollider;
-	sphereCollider.center = spherePos_;
-	sphereCollider.radius = sphereScale_.x; // スケールのXを半径とする
+	Sphere playerCollider;
+	playerCollider.center = playerPos_;
+	playerCollider.radius = playerScale_.x;
 
 	// 2. フェンスの当たり判定データを作成 (AABB)
 	AABB fenceCollider;
@@ -217,7 +231,7 @@ void GamePlayScene::Update(){
 	};
 
 	// 3. 判定チェック！
-	bool isHit = Collision::IsCollision(sphereCollider, fenceCollider);
+	bool isHit = Collision::IsCollision(playerCollider, fenceCollider);
 
 	// 4. 結果を色付きで表示
 	if (isHit) {
@@ -337,8 +351,8 @@ void GamePlayScene::Draw(){
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
 	
-	if (sphere_) {
-		sphere_->Draw();
+	if (playerObj_) {
+		playerObj_->Draw();
 	}
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	

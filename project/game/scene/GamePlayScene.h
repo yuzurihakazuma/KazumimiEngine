@@ -20,6 +20,7 @@ class DirectXCommon;
 class Input;
 class RenderTexture; 
 class PostEffect;
+class Player;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -52,7 +53,6 @@ private: // メンバ変数
 	// 3Dオブジェクト
 	std::vector<std::unique_ptr<Obj3d>> object3ds_;
 	std::unique_ptr<Obj3d>fence_ = nullptr;
-	std::unique_ptr<Obj3d> sphere_ = nullptr;
 	std::unique_ptr<Obj3d> ground_ = nullptr;
 
 	// スプライト
@@ -70,8 +70,6 @@ private: // メンバ変数
 	// ゲーム用パラメータ
 	Vector3 groundPos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 groundScale_ = { 1.0f, 1.0f, 1.0f };
-	Vector3 spherePos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 sphereScale_ = { 1.0f, 1.0f, 1.0f };
 	Vector3 fencePos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 fenceScale_ = { 1.0f, 1.0f, 1.0f };
 
@@ -80,5 +78,11 @@ private: // メンバ変数
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
+	std::unique_ptr<Player> player_ = nullptr;
+
+	std::unique_ptr<Obj3d> playerObj_ = nullptr;
+
+	Vector3 playerPos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
 };
