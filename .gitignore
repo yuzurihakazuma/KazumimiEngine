@@ -330,7 +330,6 @@ project/externals/DirectXTex/Bin/
 *.tlog
 *.lastbuildstate
 *.recipe
-*.obj
 *.pch
 *.pdb
 *.ilk

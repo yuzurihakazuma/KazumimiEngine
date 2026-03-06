@@ -4,6 +4,8 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/graphics/TextureManager.h"
 
+#include "HandManager.h"
+
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -44,17 +46,9 @@ private: // メンバ変数
 	std::unique_ptr<Camera> camera_ = nullptr;
 	// デバッグカメラ
 	std::unique_ptr<DebugCamera> debugCamera_ = nullptr;
-	bool isDebugCameraActive_ = false;
-
-	// デバッグカメラの前回の座標・回転（切り替えたときにカメラが飛ばないようにするため）
-	Vector3 preDebugCameraPos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 preDebugCameraRot_ = { 0.0f, 0.0f, 0.0f };
 
 	// 3Dオブジェクト
 	std::vector<std::unique_ptr<Obj3d>> object3ds_;
-	std::unique_ptr<Obj3d>fence_ = nullptr;
-	std::unique_ptr<Obj3d> sphere_ = nullptr;
-	std::unique_ptr<Obj3d> ground_ = nullptr;
 
 	// スプライト
 	std::vector<std::unique_ptr<Sprite>> sprites_;
@@ -68,20 +62,20 @@ private: // メンバ変数
 	// デプスステンシル
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
 
-	// ゲーム用パラメータ
-	Vector3 groundPos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 groundScale_ = { 1.0f, 1.0f, 1.0f };
-	Vector3 spherePos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 sphereScale_ = { 1.0f, 1.0f, 1.0f };
-	Vector3 fencePos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 fenceScale_ = { 1.0f, 1.0f, 1.0f };
 
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
+
 	// マップエディタ
 	std::unique_ptr<LevelEditor> levelEditor_;
+
+	bool isEditorActive_ = true;
+
+	//手札管理とプレイヤーコスト
+	HandManager handManager_;
+	int dummyPlayerCost_ = 3;
 
 };
