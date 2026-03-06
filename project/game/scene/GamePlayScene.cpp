@@ -181,8 +181,60 @@ void GamePlayScene::Update(){
 
 	// 要件4: 小数第1位まで表示するため、最後の引数に "%.1f" を指定する！
 	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f,"% 06.1f");
+
 	ImGui::End();
 
+	//------------カードシステム単体テスト------------
+	ImGui::Begin("Card System Test");
+
+	// 仮のプレイヤーコスト状況を表示
+	ImGui::Text("Player Cost: %d", dummyPlayerCost_);
+	if (ImGui::Button("Turn End (Reset Cost)")) {
+		dummyPlayerCost_ = 3; //コスト回復
+	}
+
+	ImGui::Separator();
+
+	//ダンジョンでカードを拾う
+	ImGui::Text("[Dungeon Floor]");
+	if (ImGui::Button("Pick Up 'Sword'(Cost: 1)")) {
+		handManager_.AddCard({ 1,"Sword",1 });
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Pick Up 'Fireball' (Cost: 2)")) {
+		handManager_.AddCard({ 2,"Fireball",2 });
+	}
+
+	ImGui::Separator();
+
+	//今の手札を表示して使う
+	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
+
+	//手札の数だけループしてボタンを作る
+	for (int i = 0; i < handManager_.GetHandSize(); ++i) {
+		Card card = handManager_.GetCard(i);
+
+		//ボタンの名前
+		std::string btnName = card.name + "(Cost:" + std::to_string(card.cost) + ")##" + std::to_string(i);
+
+		if (ImGui::Button(btnName.c_str())) {
+			//コスト足りるかチェック
+			if (dummyPlayerCost_ >= card.cost) {
+				dummyPlayerCost_ -= card.cost; //コスト消費
+				handManager_.RemoveCard(i);    //手札から消す
+
+				ImGui::LogText("Used %s!\n", card.name.c_str());
+			} else {
+				ImGui::LogText("Not enough cost for %s!\n", card.name.c_str());
+			}
+		}
+	}
+
+
+	ImGui::End();
+	
 
 	if (sprite_) {
 		sprite_->SetPosition(spritePos_);
