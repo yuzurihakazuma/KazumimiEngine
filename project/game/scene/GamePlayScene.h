@@ -37,6 +37,10 @@ public:
 	// 描画
 	void Draw() override;
 
+	// デバッグ用UIの描画
+	void DrawDebugUI() override;
+
+
 	GamePlayScene();
 
 	~GamePlayScene();

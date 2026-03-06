@@ -82,7 +82,7 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-	PostEffect::GetInstance()->DrawDebugUI();
+	
 
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
@@ -122,6 +122,7 @@ void GamePlayScene::Update(){
 	}
 	// スプライト更新
 	sprite_->Update();
+
 
 #ifdef USE_IMGUI
 
@@ -191,7 +192,7 @@ void GamePlayScene::Update(){
 
 	ImGui::End();
 
-	//------------カードシステム単体テスト------------
+  //------------カードシステム単体テスト------------
 	ImGui::Begin("Card System Test");
 
 	// 仮のプレイヤーコスト状況を表示
@@ -248,14 +249,8 @@ void GamePlayScene::Update(){
 		sprite_->Update();
 	}
 
-	// カメラ更新
-	camera_->Update();
 
-
-
-#endif
-
-	levelEditor_->Update(isEditorActive_);
+	levelEditor_->Update();
 }
 
 void GamePlayScene::Draw(){
@@ -293,7 +288,7 @@ void GamePlayScene::Draw(){
 	
 	
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList);
+	PostEffect::GetInstance()->Draw(commandList,dxCommon);
 	
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
@@ -303,6 +298,27 @@ void GamePlayScene::Draw(){
 	}
 
 	
+}
+
+void GamePlayScene::DrawDebugUI(){
+
+#ifdef USE_IMGUI
+	// 3Dオブジェクト、カメラ、パーティクルのUI
+	Obj3dCommon::GetInstance()->DrawDebugUI();
+	if ( camera_ ) { camera_->DrawDebugUI(); }
+	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
+	ParticleManager::GetInstance()->DrawDebugUI();
+
+	
+	levelEditor_->DrawDebugUI();
+
+	// スプライト調整用UI
+	ImGui::SetNextWindowSize(ImVec2(500, 100));
+	ImGui::Begin("Sprite Setup");
+	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "% 06.1f");
+	ImGui::End();
+#endif
+
 }
 
 GamePlayScene::GamePlayScene(){}
