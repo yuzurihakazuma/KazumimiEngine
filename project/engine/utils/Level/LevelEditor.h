@@ -22,7 +22,7 @@ public:
     // 初期化
     void Initialize();
     // 毎フレームの処理（ImGuiの表示とオブジェクトの更新）
-    void Update(bool isEditorActive = true);
+    void Update();
     // 配置したオブジェクトの描画
     void Draw();
 
@@ -30,6 +30,9 @@ public:
     void LoadAndCreateMap(const std::string& fileName);
 	// カメラのセット
     void SetCamera(const Camera* camera) { camera_ = camera; }
+
+	// デバッグ用UIの描画
+    void DrawDebugUI();
 
 private:
 	// カメラは所有しない参照（描画のときに使う）
@@ -41,5 +44,7 @@ private:
 
     std::string saveFileName_ = "map01.json"; // ファイル名
     bool snapToGrid_ = true;
+
+	bool isEditorActive = false; // エディタのアクティブ状態
 
 };

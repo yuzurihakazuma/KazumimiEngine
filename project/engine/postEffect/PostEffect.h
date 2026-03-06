@@ -49,9 +49,12 @@ public:
 	// デバッグ用UIの描画
 	void DrawDebugUI();
 
-	
+	// エフェクトの有効化・無効化
 	void Save(const std::string& filePath = "resources/data/postEffect.json"); // 現在のエフェクト設定をJSONファイルに保存
 	void Load(const std::string& filePath = "resources/data/postEffect.json"); // JSONファイルからエフェクト設定を読み込む
+
+	// SRVインデックスのゲッター
+	uint32_t GetSrvIndex() const{ return renderTexture_->GetSrvIndex(); }
 
 private:
 

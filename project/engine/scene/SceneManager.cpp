@@ -1,11 +1,19 @@
 #include "SceneManager.h"
 // --- 標準ライブラリ ---
 #include <cassert>
+#include "externals/imgui/imgui.h"
 
 // --- エンジン側のファイル ---
 #include "engine/scene/IScene.h"
 #include "engine/scene/AbstractSceneFactory.h"
 #include "engine/base/DirectXCommon.h"
+#include "engine/utils/ImGuiManager.h"
+#include "engine/utils/Level/LevelEditor.h"
+#include "engine/postEffect/PostEffect.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/base/Input.h"
+
+
 
 // シングルトンクラスの実装
 SceneManager* SceneManager::GetInstance(){
@@ -46,7 +54,54 @@ void SceneManager::Update(){
 		currentScene_->Update();
 	}
 
-	
+#ifdef USE_IMGUI
+	Input* input = Input::GetInstance();
+	// F1キーでエディタのON/OFF切り替え
+	if ( input->Triggerkey(DIK_F1) ) {
+		isEditorActive_ = !isEditorActive_;
+	}
+
+	if ( isEditorActive_ ) {
+		// 1. 全画面の透明なドッキング土台（MasterDockSpace）
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(viewport->WorkSize);
+		ImGui::SetNextWindowViewport(viewport->ID);
+
+		ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+
+		ImGui::Begin("MasterDockSpace", nullptr, window_flags);
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar(3);
+
+		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+		ImGui::End();
+
+		// 2. 🎮 ゲーム画面（Game View）ウィンドウを作成！
+		ImGui::Begin("Game View");
+		ImVec2 sceneSize = ImGui::GetContentRegionAvail();
+		uint32_t srvIndex = PostEffect::GetInstance()->GetSrvIndex();
+		D3D12_GPU_DESCRIPTOR_HANDLE textureHandle = SrvManager::GetInstance()->GetGPUDescriptorHandle(srvIndex);
+		ImGui::Image(( ImTextureID ) textureHandle.ptr, sceneSize);
+		ImGui::End();
+
+		// 3. 全シーン共通のUI（ポストエフェクトなど）
+		PostEffect::GetInstance()->DrawDebugUI();
+
+		// 4. 現在のシーン固有のUIを描画させる！
+		if ( currentScene_ ) {
+			currentScene_->DrawDebugUI();
+		}
+	}
+#endif
 
 }
 // シーンマネージャーの描画
