@@ -112,11 +112,14 @@ void GamePlayScene::Initialize(){
 	// 手札マネージャーの初期化
 	handManager_.Initialize(camera_.get());
 
+	//最初から手札にID１を追加する
+	handManager_.AddCard(CardDatabase::GetCardData(1));
+
 
 	cardPickupManager_.Initialize(camera_.get());
 
-	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, { 1, "Sword", 1 });
-	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, { 2, "Fireball", 2 });
+	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
+	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
 
 }
 
@@ -213,6 +216,39 @@ void GamePlayScene::Update(){
 
 
 	levelEditor_->Update();
+
+	// 手札（3Dモデル）の移動などの更新
+	handManager_.Update();
+
+	//SPACEキーを押した瞬間
+	if (input->Triggerkey(DIK_SPACE)) {
+
+		//今選んでいるカードのデータを取得
+		Card selectedCard = handManager_.GetSelectedCard();
+
+		//カードがない状態じゃなければ使用処理を行う
+		if (selectedCard.id != -1) {
+
+			//プレイヤーのコストが足りているかチェック
+			if (dummyPlayerCost_ >= selectedCard.cost) {
+
+				//コストを減らす
+				dummyPlayerCost_ -= selectedCard.cost;
+
+				//ここでカードの効果を発動する処理を書く
+
+
+				//IDが1じゃないときだけ手札から消す
+				if (selectedCard.id != 1) {
+					//使ったカードを手札から消す
+					handManager_.RemoveSelectedCard();
+				}
+			} else {
+				//コスト不足の時の処理
+			}
+		}
+	}
+
 }
 
 void GamePlayScene::Draw(){
@@ -338,9 +374,6 @@ void GamePlayScene::DrawDebugUI(){
 	}
 
 	ImGui::End();
-	
-	// 手札（3Dモデル）の移動などの更新
-	handManager_.Update();
 
 #endif
 

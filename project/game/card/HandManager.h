@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <vector>
 #include <string>
-#include "CardDatabase.h"
+#include "game/card/CardDatabase.h"
 
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/base/Input.h"

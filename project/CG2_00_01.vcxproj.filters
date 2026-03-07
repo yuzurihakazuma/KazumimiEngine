@@ -213,7 +213,7 @@
     <ClCompile Include="game\card\CardPickupManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="CardDatabase.cpp">
+    <ClCompile Include="game\card\CardDatabase.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -408,7 +408,7 @@
     <ClInclude Include="game\card\CardPickupManager.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="CardDatabase.h">
+    <ClInclude Include="game\card\CardDatabase.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

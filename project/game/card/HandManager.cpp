@@ -62,19 +62,19 @@ void HandManager::Update() {
 	}
 
 	//3Dモデルをきれいに並べる
-	float startX = 1.0f; //最初のカードのX座標
+	float startX = -5.0f; //最初のカードのX座標
 	float spacing = 1.0f; //カード同士のスペース
 
 	
 
 	for (int i = 0; i < handModels_.size(); ++i) {
 		//基本位置
-		Vector3 pos = { startX + (i * spacing),0.0f,0.0f };
+		Vector3 pos = { startX + (i * spacing),-2.0f,-4.0f };
 
 		//選ばれているカードだけ、すこし上に浮かせて手元に出す
 		if (i == selectedCardIndex_) {
 			pos.y += 1.0f; //1.0上に浮かせる
-			pos.z = -1.0f; // 1.0手前に出す
+			pos.z -= 1.0f; // 1.0手前に出す
 		}
 
 		handModels_[i]->SetTranslation(pos);
