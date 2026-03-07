@@ -89,8 +89,6 @@ private: // メンバ変数
 
 	//手札管理とプレイヤーコスト
 	HandManager handManager_;
-	int dummyPlayerCost_ = 3;
-
 
 	CardPickupManager cardPickupManager_;
 
@@ -100,4 +98,19 @@ private: // メンバ変数
 	Vector3 enemyPos_ = { 5.0f, 0.0f, 5.0f };
 	Vector3 enemyScale_ = { 1.0f, 1.0f, 1.0f };
 
+	// パンチ演出
+	std::unique_ptr<Obj3d> punchObj_ = nullptr;
+	bool isPunchActive_ = false;
+	Vector3 punchPos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 punchScale_ = { 0.8f, 0.8f, 0.8f };
+	int punchTimer_ = 0;
+
+	// 火球演出
+	std::unique_ptr<Obj3d> fireballObj_ = nullptr;
+	bool isFireballActive_ = false;
+	Vector3 fireballPos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 fireballVelocity_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 fireballScale_ = { 0.5f, 0.5f, 0.5f };
+
+	bool enemyDeadHandled_ = false; // 敵死亡時の処理を1回だけにする
 };

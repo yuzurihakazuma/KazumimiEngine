@@ -39,8 +39,6 @@ void GamePlayScene::Initialize(){
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	WindowProc* windowProc = WindowProc::GetInstance();
 
-	
-	
 	// コマンドリスト取得
 	auto commandList = dxCommon->GetCommandList();
 
@@ -95,6 +93,18 @@ void GamePlayScene::Initialize(){
 	enemy_->Initialize();
 	enemy_->SetPosition(enemyPos_);
 	enemy_->SetScale(enemyScale_);
+
+	punchObj_ = Obj3d::Create("sphere");
+	if (punchObj_) {
+		punchObj_->SetCamera(camera_.get());
+		punchObj_->SetScale(punchScale_);
+	}
+
+	fireballObj_ = Obj3d::Create("sphere");
+	if (fireballObj_) {
+		fireballObj_->SetCamera(camera_.get());
+		fireballObj_->SetScale(fireballScale_);
+	}
 	
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
@@ -133,6 +143,8 @@ void GamePlayScene::Initialize(){
 
 	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
 	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
+
+	enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
 
 }
 
@@ -173,18 +185,16 @@ void GamePlayScene::Update(){
 		playerObj_->Update();
 	}
 
-	if (enemy_) {
-		enemy_->SetPlayerPosition(playerPos_);
+	if (enemy_ && !enemy_->IsDead()) {
+		enemy_->SetPlayerPosition(playerPos_); // プレイヤー位置を渡す
 
-		bool foundCard = false;
-		Vector3 nearestCardPos{};
-		Card nearestCard{};
-		float nearestCardDist = 99999.0f;
+		bool foundCard = false;                // 近くに拾えるカードがあるか
+		Vector3 nearestCardPos{};              // 一番近いカード位置
+		Card nearestCard{};                    // 一番近いカード情報
+		float nearestCardDist = 99999.0f;      // 一番近いカード距離
 
 		for (auto& pickup : cardPickupManager_.GetPickups()) {
-			if (!pickup.isActive) {
-				continue;
-			}
+			if (!pickup.isActive) { continue; } // 非アクティブカードは無視
 
 			Vector3 diff = {
 				pickup.position.x - enemyPos_.x,
@@ -192,10 +202,10 @@ void GamePlayScene::Update(){
 				pickup.position.z - enemyPos_.z
 			};
 
-			float dist = Length(diff);
+			float dist = Length(diff); // 敵とカードの距離
 
 			if (dist < 6.0f && dist < nearestCardDist) {
-				nearestCardDist = dist;
+				nearestCardDist = dist;     // 最短距離更新
 				nearestCardPos = pickup.position;
 				nearestCard = pickup.card;
 				foundCard = true;
@@ -207,58 +217,59 @@ void GamePlayScene::Update(){
 			0.0f,
 			playerPos_.z - enemyPos_.z
 		};
-		float playerDist = Length(toPlayer);
 
-		if (!enemy_->HasCard()) {
-			if (foundCard) {
-				enemy_->SetTargetCardPosition(nearestCardPos);
-				enemy_->SetState(Enemy::State::MoveToCard);
-			} else if (playerDist < 8.0f) {
-				enemy_->SetState(Enemy::State::ChasePlayer);
-			} else {
-				enemy_->SetState(Enemy::State::Patrol);
-			}
-		} else {
-			enemy_->SetState(Enemy::State::ChasePlayer);
-		}
+		float playerDist = Length(toPlayer); // 敵とプレイヤーの距離
 
-		enemy_->Update();
-		enemyPos_ = enemy_->GetPosition();
-		enemyScale_ = enemy_->GetScale();
-	}
+		// 行動ロック中でなければ状態を決める
+		if (!enemy_->IsActionLocked()) {
 
-	if (enemy_) {
-		enemy_->Update();
-		enemyPos_ = enemy_->GetPosition();
-		enemyScale_ = enemy_->GetScale();
-	}
+			if (enemy_->HasCard()) { // カードを持っている場合
 
-	if (enemyObj_) {
-		enemyObj_->SetTranslation(enemyPos_);
-		enemyObj_->SetRotation(enemy_->GetRotation());
-		enemyObj_->SetScale(enemyScale_);
-		enemyObj_->Update();
-	}
+				if (playerDist <= 6.0f) {
+					enemy_->SetState(Enemy::State::UseCard); // 射程内ならカード使用
+				} else {
+					enemy_->SetState(Enemy::State::ChasePlayer); // 射程外なら追跡
+				}
 
-	for (auto& pickup : cardPickupManager_.GetPickups()) {
-		if (!pickup.isActive) {
-			continue;
-		}
+			} else { // カードを持っていない場合
 
-		Vector3 diff = {
-			playerPos_.x - pickup.position.x,
-			playerPos_.y - pickup.position.y,
-			playerPos_.z - pickup.position.z
-		};
-
-		float dist = Length(diff);
-
-		if (dist < 2.0f) {
-			bool success = handManager_.AddCard(pickup.card);
-			if (success) {
-				pickup.isActive = false;
+				if (playerDist <= 2.0f) {
+					enemy_->SetState(Enemy::State::AttackPlayer); // 近ければ通常攻撃
+				} else if (foundCard) {
+					enemy_->SetTargetCardPosition(nearestCardPos); // カード位置を設定
+					enemy_->SetState(Enemy::State::MoveToCard);    // カード回収を優先
+				} else if (playerDist <= 8.0f) {
+					enemy_->SetState(Enemy::State::ChasePlayer);   // プレイヤー追跡
+				} else {
+					enemy_->SetState(Enemy::State::Patrol);        // 何もなければ巡回
+				}
 			}
 		}
+
+		enemy_->Update();                     // 敵更新
+		enemyPos_ = enemy_->GetPosition();    // 位置反映
+		enemyScale_ = enemy_->GetScale();     // スケール反映
+	}
+
+	if (enemy_ && enemy_->IsDead() && !enemyDeadHandled_) {
+
+		if (player_) {
+			player_->AddExp(1); // 敵撃破で経験値を加算
+		}
+
+		if (enemy_->HasCard()) {
+			cardPickupManager_.AddPickup(enemyPos_, enemy_->GetHeldCard()); // 敵の位置にカードを落とす
+			enemy_->ClearHeldCard(); // 所持カードを空にする
+		}
+
+		enemyDeadHandled_ = true; // 死亡時処理は1回だけ
+	}
+
+	if (enemyObj_ && enemy_ && !enemy_->IsDead()) {
+		enemyObj_->SetTranslation(enemyPos_);      // 敵位置反映
+		enemyObj_->SetRotation(enemy_->GetRotation()); // 敵回転反映
+		enemyObj_->SetScale(enemyScale_);          // 敵スケール反映
+		enemyObj_->Update();                       // 行列更新
 	}
 
 	cardPickupManager_.Update();
@@ -286,7 +297,7 @@ void GamePlayScene::Update(){
 		}
 
 		// 敵が拾う
-		if (enemy_ && !enemy_->HasCard()) {
+		if (enemy_ && !enemy_->IsDead() && !enemy_->HasCard()) {
 			Vector3 enemyDiff = {
 				enemyPos_.x - pickup.position.x,
 				enemyPos_.y - pickup.position.y,
@@ -339,31 +350,133 @@ void GamePlayScene::Update(){
 	// 手札（3Dモデル）の移動などの更新
 	handManager_.Update();
 
-	//SPACEキーを押した瞬間
+	// パンチ更新
+	if (isPunchActive_) {
+		punchTimer_--;
+		if (punchTimer_ <= 0) {
+			isPunchActive_ = false;
+		}
+
+		if (punchObj_) {
+			punchObj_->SetTranslation(punchPos_);
+			punchObj_->SetScale(punchScale_);
+			punchObj_->Update();
+		}
+	}
+
+	// 火球更新
+	if (isFireballActive_) {
+		fireballPos_ += fireballVelocity_;
+
+		if (fireballObj_) {
+			fireballObj_->SetTranslation(fireballPos_);
+			fireballObj_->SetScale(fireballScale_);
+			fireballObj_->Update();
+		}
+
+		// 敵との当たり判定
+		if (enemy_) {
+			Vector3 diff = {
+				enemyPos_.x - fireballPos_.x,
+				enemyPos_.y - fireballPos_.y,
+				enemyPos_.z - fireballPos_.z
+			};
+
+			if (Length(diff) < 1.5f) {
+				isFireballActive_ = false;
+				// ここでダメージ
+				enemy_->TakeDamage(1);
+			}
+		}
+
+		// 遠くまで飛んだら消す
+		if (Length(fireballPos_ - playerPos_) > 20.0f) {
+			isFireballActive_ = false;
+		}
+	}
+
+	// カード使用
 	if (input->Triggerkey(DIK_SPACE)) {
 
-		//今選んでいるカードのデータを取得
-		Card selectedCard = handManager_.GetSelectedCard();
+		Card selectedCard = handManager_.GetSelectedCard(); // 現在選択中のカード取得
 
-		//カードがない状態じゃなければ使用処理を行う
 		if (selectedCard.id != -1) {
 
-			//プレイヤーのコストが足りているかチェック
-			if (dummyPlayerCost_ >= selectedCard.cost) {
+			if (player_ && player_->CanUseCost(selectedCard.cost)) {
 
-				//コストを減らす
-				dummyPlayerCost_ -= selectedCard.cost;
+				player_->UseCost(selectedCard.cost); // コスト消費
 
-				//ここでカードの効果を発動する処理を書く
+				float yaw = player_->GetRotation().y; // プレイヤーの向き
+				Vector3 forward = {
+					std::sinf(yaw),
+					0.0f,
+					std::cosf(yaw)
+				}; // 向きから前方向を計算
 
+				switch (selectedCard.id) {
+				case 1: // パンチ
+				{
+					player_->LockAction(10); // パンチ中は少し硬直
 
-				//IDが1じゃないときだけ手札から消す
-				if (selectedCard.id != 1) {
-					//使ったカードを手札から消す
-					handManager_.RemoveSelectedCard();
+					punchPos_ = {
+						playerPos_.x + forward.x * 1.5f,
+						playerPos_.y,
+						playerPos_.z + forward.z * 1.5f
+					}; // プレイヤー前方に配置
+
+					isPunchActive_ = true;   // パンチ演出開始
+					punchTimer_ = 10;        // 表示時間
+
+					if (punchObj_) {
+						punchObj_->SetTranslation(punchPos_); // パンチ位置更新
+						punchObj_->SetScale(punchScale_);     // パンチサイズ更新
+						punchObj_->Update();                  // 行列更新
+					}
+
+					if (enemy_) {
+						Vector3 diff = {
+							enemyPos_.x - punchPos_.x,
+							enemyPos_.y - punchPos_.y,
+							enemyPos_.z - punchPos_.z
+						}; // 敵との距離計算
+
+						if (Length(diff) < 2.0f) {
+							enemy_->TakeDamage(1); // パンチヒット時ダメージ
+						}
+					}
 				}
-			} else {
-				//コスト不足の時の処理
+				break;
+
+				case 2: // 火球
+				{
+					player_->LockAction(20); // 火球はパンチより長めに硬直
+
+					fireballPos_ = {
+						playerPos_.x + forward.x * 1.5f,
+						playerPos_.y,
+						playerPos_.z + forward.z * 1.5f
+					}; // 発射位置
+
+					fireballVelocity_ = {
+						forward.x * 0.3f,
+						0.0f,
+						forward.z * 0.3f
+					}; // 前方向へ飛ばす速度
+
+					isFireballActive_ = true; // 火球演出開始
+
+					if (fireballObj_) {
+						fireballObj_->SetTranslation(fireballPos_); // 火球位置更新
+						fireballObj_->SetScale(fireballScale_);     // 火球サイズ更新
+						fireballObj_->Update();                     // 行列更新
+					}
+				}
+				break;
+				}
+
+				if (selectedCard.id != 1) {
+					handManager_.RemoveSelectedCard(); // 使い切りカードは手札から削除
+				}
 			}
 		}
 	}
@@ -389,10 +502,17 @@ void GamePlayScene::Draw(){
 		playerObj_->Draw();
 	}
 
-	if (enemyObj_) {
-		enemyObj_->Draw();
+	if (enemyObj_ && enemy_ && !enemy_->IsDead() && enemy_->IsVisible()) {
+		enemyObj_->Draw(); // ヒット中は点滅表示
 	}
 
+	if (isPunchActive_ && punchObj_) {
+		punchObj_->Draw();
+	}
+
+	if (isFireballActive_ && fireballObj_) {
+		fireballObj_->Draw();
+	}
 	cardPickupManager_.Draw();
 
 	
@@ -458,9 +578,17 @@ void GamePlayScene::DrawDebugUI(){
 	}
 
 	// 仮のプレイヤーコスト状況を表示
-	ImGui::Text("Player Cost: %d", dummyPlayerCost_);
-	if ( ImGui::Button("Turn End (Reset Cost)") ) {
-		dummyPlayerCost_ = 3; //コスト回復
+	if (player_) {
+		ImGui::Text("Player Level: %d", player_->GetLevel());       // プレイヤーレベル表示
+		ImGui::Text("Player EXP: %d / %d", player_->GetExp(), player_->GetNextLevelExp()); // 経験値表示
+		ImGui::Text("Player Cost: %d / %d", player_->GetCost(), player_->GetMaxCost());     // コスト表示
+	}
+
+	// デバッグ用
+	if (ImGui::Button("Add EXP +1")) {
+		if (player_) {
+			player_->AddExp(1); // デバッグ用経験値追加
+		}
 	}
 
 	ImGui::Separator();
@@ -495,7 +623,6 @@ void GamePlayScene::DrawDebugUI(){
 
 #endif
 
-	levelEditor_->Update();
 }
 
 
