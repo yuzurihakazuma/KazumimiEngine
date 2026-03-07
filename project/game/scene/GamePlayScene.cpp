@@ -173,8 +173,32 @@ void GamePlayScene::Update(){
 	ParticleManager::GetInstance()->Update(camera_.get());
 
 	if (player_) {
+		Vector3 oldPos = player_->GetPosition();
+
+		// プレイヤー更新
 		player_->Update();
 		playerPos_ = player_->GetPosition();
+
+		// プレイヤーのAABBを作成
+		AABB playerAABB;
+		playerAABB.min = { playerPos_.x - 0.5f, playerPos_.y - 0.5f, playerPos_.z - 0.5f };
+		playerAABB.max = { playerPos_.x + 0.5f, playerPos_.y + 0.5f, playerPos_.z + 0.5f };
+
+		for (const auto& obj : levelEditor_->GetLevelData().objects) {
+
+			if (obj.type != "block") continue;
+
+			AABB blockAABB;
+			blockAABB.min = { obj.translation.x - 1.0f, obj.translation.y - 1.0f, obj.translation.z - 1.0f };
+			blockAABB.max = { obj.translation.x + 1.0f, obj.translation.y + 1.0f, obj.translation.z + 1.0f };
+
+			if (Collision::IsCollision(playerAABB, blockAABB)) {
+				player_->SetPosition(oldPos);
+				playerPos_ = oldPos;
+				break;
+			}
+		}
+
 		playerScale_ = player_->GetScale();
 	}
 

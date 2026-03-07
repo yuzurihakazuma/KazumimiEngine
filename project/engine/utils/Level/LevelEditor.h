@@ -34,6 +34,9 @@ public:
 	// デバッグ用UIの描画
     void DrawDebugUI();
 
+	// 現在のマップデータのgetter
+    const LevelData& GetLevelData() const { return levelData_; }
+
 private:
 	// カメラは所有しない参照（描画のときに使う）
     const Camera* camera_ = nullptr;

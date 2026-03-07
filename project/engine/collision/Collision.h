@@ -16,6 +16,5 @@ public:
     static bool IsCollision(const Sphere& sphere, const AABB& aabb);
 	//  レイ と 球 の当たり判定
     static bool IsCollision(const Ray& ray, const Sphere& sphere);
-
  
 };
