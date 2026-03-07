@@ -25,6 +25,8 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 
+    io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
+
     ImGui::StyleColorsDark();
 
     // 2. Win32用初期化

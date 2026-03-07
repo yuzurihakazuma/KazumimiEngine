@@ -101,33 +101,36 @@ void DebugCamera::Update(Camera* camera) {
 }
 
 
-void DebugCamera::DrawDebugUI() {
+void DebugCamera::DrawDebugUI(){
 #ifdef USE_IMGUI
-    if (ImGui::Begin("Inspector")) {
-        if (ImGui::CollapsingHeader("Debug Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if ( ImGui::Begin("インスペクター (詳細設定)") ) {
+        if ( ImGui::CollapsingHeader("デバッグカメラ (Debug Camera)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 
             bool isPreDebugCameraActive = isActive_;
 
             // チェックボックスでON/OFFを切り替え
-            ImGui::Checkbox("Debug Camera Active", &isActive_);
+            ImGui::Checkbox("デバッグカメラを有効化", &isActive_);
 
             // ターゲットとなるカメラが存在し、状態が切り替わったときの処理
-            if (targetCamera_) {
+            if ( targetCamera_ ) {
                 // OFF -> ON になった瞬間（切り替え前の状態を保存）
-                if (isActive_ && !isPreDebugCameraActive) {
+                if ( isActive_ && !isPreDebugCameraActive ) {
                     preCameraPos_ = targetCamera_->GetTransform().translate;
                     preCameraRot_ = targetCamera_->GetTransform().rotate;
                 }
                 // ON -> OFF になった瞬間（切り替え前の状態を復元）
-                if (!isActive_ && isPreDebugCameraActive) {
+                if ( !isActive_ && isPreDebugCameraActive ) {
                     targetCamera_->SetTranslation(preCameraPos_);
                     targetCamera_->SetRotation(preCameraRot_);
                 }
             }
 
-            // 操作方法のヒントを表示
-            ImGui::TextDisabled("(Hold Right-Click to Look around)");
-            ImGui::TextDisabled("(W/A/S/D/Q/E to Move)");
+            // 操作方法の説明を追加（ユーザーに親切な設計）
+            ImGui::TextDisabled("操作方法:");
+            ImGui::Text("  右ドラッグ : 視点回転");
+            ImGui::Text("  ホイール   : 前後移動");
+            ImGui::Text("  中ドラッグ : 平行移動");
+            ImGui::Text("  WASD       : 水行・昇降移動");
         }
     }
     ImGui::End();

@@ -13,20 +13,19 @@
 using namespace MatrixMath;
 
 
-void Camera::DrawDebugUI() {
+void Camera::DrawDebugUI(){
 #ifdef USE_IMGUI
 	// "Inspector" などのウィンドウ名にすると、Unity風のインスペクターにまとめられます
-	// ここでは分かりやすく単独の "Camera Settings" ウィンドウにします
-	if (ImGui::Begin("Inspector")) {
-		if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
+		if ( ImGui::CollapsingHeader("カメラ設定 (Camera Settings)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 			// transform は Camera クラスのメンバ変数なので、直接編集できます！
-			ImGui::DragFloat3("Camera Position", &transform.translate.x, 0.1f);
-			ImGui::DragFloat3("Camera Rotation", &transform.rotate.x, 0.01f);
+			ImGui::DragFloat3("座標 (Position)", &transform.translate.x, 0.1f);
+			ImGui::DragFloat3("回転 (Rotation)", &transform.rotate.x, 0.01f);
 
 			// おまけ：視野角やクリップ距離も調整できるようにしておくと便利です
-			ImGui::DragFloat("FOV", &fovY, 0.01f);
-			ImGui::DragFloat("Near Clip", &nearClip, 0.01f);
-			ImGui::DragFloat("Far Clip", &farClip, 1.0f);
+			ImGui::DragFloat("視野角 (FOV)", &fovY, 0.01f);
+			ImGui::DragFloat("ニアクリップ (Near Clip)", &nearClip, 0.01f);
+			ImGui::DragFloat("ファークリップ (Far Clip)", &farClip, 1.0f);
 		}
 	}
 	ImGui::End();
