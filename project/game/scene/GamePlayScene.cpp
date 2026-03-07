@@ -30,6 +30,8 @@
 #include"engine/utils/Level/LevelEditor.h"
 #include "game/enemy/Enemy.h"
 
+
+
 using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
@@ -49,8 +51,7 @@ void GamePlayScene::Initialize(){
 	
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
-	ModelManager::GetInstance()->LoadModel("plane", "resources", "plane.obj");
-
+	
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 	// パーティクルグループ作成 (シングルトン)
@@ -115,11 +116,23 @@ void GamePlayScene::Initialize(){
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
 
+	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
+	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
+
+	// CSVからカードデータベースを初期化
+	CardDatabase::Initialize("Resources/CardData.csv");
+
+	// 手札マネージャーの初期化
+	handManager_.Initialize(camera_.get());
+
+	//最初から手札にID１を追加する
+	handManager_.AddCard(CardDatabase::GetCardData(1));
+
 
 	cardPickupManager_.Initialize(camera_.get());
 
-	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, { 1, "Sword", 1 });
-	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, { 2, "Fireball", 2 });
+	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
+	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
 
 }
 
@@ -322,6 +335,39 @@ void GamePlayScene::Update(){
 
 
 	levelEditor_->Update();
+
+	// 手札（3Dモデル）の移動などの更新
+	handManager_.Update();
+
+	//SPACEキーを押した瞬間
+	if (input->Triggerkey(DIK_SPACE)) {
+
+		//今選んでいるカードのデータを取得
+		Card selectedCard = handManager_.GetSelectedCard();
+
+		//カードがない状態じゃなければ使用処理を行う
+		if (selectedCard.id != -1) {
+
+			//プレイヤーのコストが足りているかチェック
+			if (dummyPlayerCost_ >= selectedCard.cost) {
+
+				//コストを減らす
+				dummyPlayerCost_ -= selectedCard.cost;
+
+				//ここでカードの効果を発動する処理を書く
+
+
+				//IDが1じゃないときだけ手札から消す
+				if (selectedCard.id != 1) {
+					//使ったカードを手札から消す
+					handManager_.RemoveSelectedCard();
+				}
+			} else {
+				//コスト不足の時の処理
+			}
+		}
+	}
+
 }
 
 void GamePlayScene::Draw(){
@@ -354,6 +400,9 @@ void GamePlayScene::Draw(){
 	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
 	}
+
+	//手札カード
+	handManager_.Draw();
 
 	levelEditor_->Draw();
 
@@ -415,22 +464,18 @@ void GamePlayScene::DrawDebugUI(){
 	}
 
 	ImGui::Separator();
-
-	//ダンジョンでカードを拾う
 	ImGui::Text("[Dungeon Floor]");
-	if ( ImGui::Button("Pick Up 'Sword'(Cost: 1)") ) {
-		handManager_.AddCard({ 1,"Sword",1 });
+
+	// ★修正：図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
+	if (ImGui::Button("Pick Up 'Fist'(ID: 1)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(1));
 	}
-
 	ImGui::SameLine();
-
-	if ( ImGui::Button("Pick Up 'Fireball' (Cost: 2)") ) {
-		handManager_.AddCard({ 2,"Fireball",2 });
+	if (ImGui::Button("Pick Up 'Fireball'(ID: 2)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(2));
 	}
 
 	ImGui::Separator();
-
-	//今の手札を表示して使う
 	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
 
 	//手札の数だけループしてボタンを作る
@@ -448,10 +493,12 @@ void GamePlayScene::DrawDebugUI(){
 
 	ImGui::End();
 
-
 #endif
 
+	levelEditor_->Update();
 }
+
+
 
 GamePlayScene::GamePlayScene(){}
 
