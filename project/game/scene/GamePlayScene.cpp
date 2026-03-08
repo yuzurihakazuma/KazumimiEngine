@@ -29,7 +29,7 @@
 #include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "game/enemy/Enemy.h"
-
+#include "game/card/CardUseSystem.h"
 
 
 using namespace VectorMath;
@@ -94,18 +94,9 @@ void GamePlayScene::Initialize(){
 	enemy_->SetPosition(enemyPos_);
 	enemy_->SetScale(enemyScale_);
 
-	punchObj_ = Obj3d::Create("sphere");
-	if (punchObj_) {
-		punchObj_->SetCamera(camera_.get());
-		punchObj_->SetScale(punchScale_);
-	}
-
-	fireballObj_ = Obj3d::Create("sphere");
-	if (fireballObj_) {
-		fireballObj_->SetCamera(camera_.get());
-		fireballObj_->SetScale(fireballScale_);
-	}
-	
+	// カード使用システム初期化
+	cardUseSystem_ = std::make_unique<CardUseSystem>();
+	cardUseSystem_->Initialize(camera_.get());
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
@@ -156,6 +147,11 @@ void GamePlayScene::Update(){
 	}
 
 	Input* input = Input::GetInstance();
+
+	// デバッグ用リセット
+	if (input->Triggerkey(DIK_R)) {
+		ResetBattleDebug(); // プレイヤー・敵・カードを初期状態に戻す
+	}
 
 	// BGM再生 (シングルトン)
 	if ( input->Triggerkey(DIK_SPACE) ) {
@@ -208,6 +204,7 @@ void GamePlayScene::Update(){
 		playerObj_->SetScale(playerScale_);
 		playerObj_->Update();
 	}
+
 
 	if (enemy_ && !enemy_->IsDead()) {
 		enemy_->SetPlayerPosition(playerPos_); // プレイヤー位置を渡す
@@ -275,6 +272,48 @@ void GamePlayScene::Update(){
 		enemyScale_ = enemy_->GetScale();     // スケール反映
 	}
 
+	// 敵の攻撃結果をプレイヤーへ反映
+	if (enemy_ && player_ && !enemy_->IsDead() && !player_->IsDead()) {
+
+		// 近接攻撃リクエストが来ていたらプレイヤーにダメージ
+		if (enemy_->GetAttackRequest()) {
+
+			Vector3 diff = {
+				playerPos_.x - enemyPos_.x,
+				0.0f,
+				playerPos_.z - enemyPos_.z
+			}; // 敵とプレイヤーの距離ベクトル
+
+			// 念のため近接範囲内のときだけダメージ
+			if (Length(diff) <= 2.0f) {
+				player_->TakeDamage(1, enemyPos_); // 敵位置を攻撃元として渡す
+			}
+
+			enemy_->ClearAttackRequest(); // 攻撃リクエスト消去
+		}
+
+		// カード使用リクエストが来ていたら敵の所持カードを発動
+		if (enemy_->GetCardUseRequest()) {
+
+			// カードを持っている場合のみ使用
+			if (enemy_->HasCard()) {
+
+				if (cardUseSystem_) {
+					cardUseSystem_->UseCard(
+						enemy_->GetHeldCard(),      // 使用するカード
+						enemyPos_,                  // 使用者位置
+						enemy_->GetRotation().y,    // 使用者の向き
+						false                       // 敵が使用
+					);
+				}
+
+				enemy_->ClearHeldCard(); // 使用後はカードを消費
+			}
+
+			enemy_->ClearCardUseRequest(); // カード使用リクエスト消去
+		}
+	}
+
 	if (enemy_ && enemy_->IsDead() && !enemyDeadHandled_) {
 
 		if (player_) {
@@ -312,7 +351,8 @@ void GamePlayScene::Update(){
 
 		float playerDist = Length(playerDiff);
 
-		if (playerDist < 2.0f) {
+		// プレイヤーが拾う
+		if (player_ && !player_->IsDead() && playerDist < 2.0f) {
 			bool success = handManager_.AddCard(pickup.card);
 			if (success) {
 				pickup.isActive = false;
@@ -372,132 +412,44 @@ void GamePlayScene::Update(){
 	levelEditor_->Update();
 
 	// 手札（3Dモデル）の移動などの更新
-	handManager_.Update();
-
-	// パンチ更新
-	if (isPunchActive_) {
-		punchTimer_--;
-		if (punchTimer_ <= 0) {
-			isPunchActive_ = false;
-		}
-
-		if (punchObj_) {
-			punchObj_->SetTranslation(punchPos_);
-			punchObj_->SetScale(punchScale_);
-			punchObj_->Update();
-		}
+	if (player_ && !player_->IsDead()) {
+		handManager_.Update();
 	}
 
-	// 火球更新
-	if (isFireballActive_) {
-		fireballPos_ += fireballVelocity_;
-
-		if (fireballObj_) {
-			fireballObj_->SetTranslation(fireballPos_);
-			fireballObj_->SetScale(fireballScale_);
-			fireballObj_->Update();
-		}
-
-		// 敵との当たり判定
-		if (enemy_) {
-			Vector3 diff = {
-				enemyPos_.x - fireballPos_.x,
-				enemyPos_.y - fireballPos_.y,
-				enemyPos_.z - fireballPos_.z
-			};
-
-			if (Length(diff) < 1.5f) {
-				isFireballActive_ = false;
-				// ここでダメージ
-				enemy_->TakeDamage(1);
-			}
-		}
-
-		// 遠くまで飛んだら消す
-		if (Length(fireballPos_ - playerPos_) > 20.0f) {
-			isFireballActive_ = false;
-		}
+	// カード使用システム更新
+	if (cardUseSystem_) {
+		cardUseSystem_->Update(
+			player_.get(), // プレイヤー
+			enemy_.get(),  // 敵
+			playerPos_,    // プレイヤー位置
+			enemyPos_      // 敵位置
+		);
 	}
 
 	// カード使用
-	if (input->Triggerkey(DIK_SPACE)) {
+	if (input->Triggerkey(DIK_SPACE) && player_ && !player_->IsDead()) {
 
 		Card selectedCard = handManager_.GetSelectedCard(); // 現在選択中のカード取得
 
 		if (selectedCard.id != -1) {
 
-			if (player_ && player_->CanUseCost(selectedCard.cost)) {
+			// コストが足りる場合のみ使用
+			if (player_->CanUseCost(selectedCard.cost)) {
 
 				player_->UseCost(selectedCard.cost); // コスト消費
 
-				float yaw = player_->GetRotation().y; // プレイヤーの向き
-				Vector3 forward = {
-					std::sinf(yaw),
-					0.0f,
-					std::cosf(yaw)
-				}; // 向きから前方向を計算
-
-				switch (selectedCard.id) {
-				case 1: // パンチ
-				{
-					player_->LockAction(10); // パンチ中は少し硬直
-
-					punchPos_ = {
-						playerPos_.x + forward.x * 1.5f,
-						playerPos_.y,
-						playerPos_.z + forward.z * 1.5f
-					}; // プレイヤー前方に配置
-
-					isPunchActive_ = true;   // パンチ演出開始
-					punchTimer_ = 10;        // 表示時間
-
-					if (punchObj_) {
-						punchObj_->SetTranslation(punchPos_); // パンチ位置更新
-						punchObj_->SetScale(punchScale_);     // パンチサイズ更新
-						punchObj_->Update();                  // 行列更新
-					}
-
-					if (enemy_) {
-						Vector3 diff = {
-							enemyPos_.x - punchPos_.x,
-							enemyPos_.y - punchPos_.y,
-							enemyPos_.z - punchPos_.z
-						}; // 敵との距離計算
-
-						if (Length(diff) < 2.0f) {
-							enemy_->TakeDamage(1); // パンチヒット時ダメージ
-						}
-					}
-				}
-				break;
-
-				case 2: // 火球
-				{
-					player_->LockAction(20); // 火球はパンチより長めに硬直
-
-					fireballPos_ = {
-						playerPos_.x + forward.x * 1.5f,
-						playerPos_.y,
-						playerPos_.z + forward.z * 1.5f
-					}; // 発射位置
-
-					fireballVelocity_ = {
-						forward.x * 0.3f,
-						0.0f,
-						forward.z * 0.3f
-					}; // 前方向へ飛ばす速度
-
-					isFireballActive_ = true; // 火球演出開始
-
-					if (fireballObj_) {
-						fireballObj_->SetTranslation(fireballPos_); // 火球位置更新
-						fireballObj_->SetScale(fireballScale_);     // 火球サイズ更新
-						fireballObj_->Update();                     // 行列更新
-					}
-				}
-				break;
+				// カード使用システムにカード使用を依頼
+				if (cardUseSystem_) {
+					cardUseSystem_->UseCard(
+						selectedCard,             // 使用するカード
+						playerPos_,               // 使用者位置
+						player_->GetRotation().y, // 使用者の向き
+						true,                     // プレイヤーが使用
+						player_.get()             // プレイヤー本体
+					);
 				}
 
+				// 初期カード以外は使用後に削除
 				if (selectedCard.id != 1) {
 					handManager_.RemoveSelectedCard(); // 使い切りカードは手札から削除
 				}
@@ -522,20 +474,18 @@ void GamePlayScene::Draw(){
 	
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	
-	if (playerObj_) {
-		playerObj_->Draw();
+	// プレイヤー描画
+	if (playerObj_ && player_ && !player_->IsDead() && player_->IsVisible()) {
+		playerObj_->Draw(); // 被弾中は点滅表示
 	}
 
 	if (enemyObj_ && enemy_ && !enemy_->IsDead() && enemy_->IsVisible()) {
 		enemyObj_->Draw(); // ヒット中は点滅表示
 	}
 
-	if (isPunchActive_ && punchObj_) {
-		punchObj_->Draw();
-	}
-
-	if (isFireballActive_ && fireballObj_) {
-		fireballObj_->Draw();
+	// カード使用演出描画
+	if (cardUseSystem_) {
+		cardUseSystem_->Draw();
 	}
 	cardPickupManager_.Draw();
 
@@ -601,11 +551,15 @@ void GamePlayScene::DrawDebugUI(){
 			pickup.isActive ? "true" : "false");
 	}
 
-	// 仮のプレイヤーコスト状況を表示
+	// 仮のプレイヤー状況を表示
 	if (player_) {
 		ImGui::Text("Player Level: %d", player_->GetLevel());       // プレイヤーレベル表示
 		ImGui::Text("Player EXP: %d / %d", player_->GetExp(), player_->GetNextLevelExp()); // 経験値表示
 		ImGui::Text("Player Cost: %d / %d", player_->GetCost(), player_->GetMaxCost());     // コスト表示
+		ImGui::Text("Player HP: %d / %d", player_->GetHP(), player_->GetMaxHP());           // HP表示
+		ImGui::Text("Player Dead: %s", player_->IsDead() ? "true" : "false");               // 死亡状態表示
+		ImGui::Text("Player Hit: %s", player_->IsHit() ? "true" : "false");                 // 被弾状態表示
+		ImGui::Text("Player Invincible: %s", player_->IsInvincible() ? "true" : "false");   // 無敵状態表示
 	}
 
 	// デバッグ用
@@ -649,7 +603,60 @@ void GamePlayScene::DrawDebugUI(){
 
 }
 
+// デバッグ用バトルリセット
+void GamePlayScene::ResetBattleDebug() {
 
+	// プレイヤー初期化
+	if (player_) {
+		player_->Initialize();
+		playerPos_ = { 0.0f, 0.0f, 0.0f };
+		playerScale_ = { 1.0f, 1.0f, 1.0f };
+		player_->SetPosition(playerPos_);
+		player_->SetScale(playerScale_);
+	}
+
+	// 敵初期化
+	if (enemy_) {
+		enemy_->Initialize();
+		enemyPos_ = { 5.0f, 0.0f, 5.0f };
+		enemyScale_ = { 1.0f, 1.0f, 1.0f };
+		enemy_->SetPosition(enemyPos_);
+		enemy_->SetScale(enemyScale_);
+	}
+
+	// プレイヤーモデル更新
+	if (playerObj_ && player_) {
+		playerObj_->SetTranslation(player_->GetPosition());
+		playerObj_->SetRotation(player_->GetRotation());
+		playerObj_->SetScale(player_->GetScale());
+		playerObj_->Update();
+	}
+
+	// 敵モデル更新
+	if (enemyObj_ && enemy_) {
+		enemyObj_->SetTranslation(enemy_->GetPosition());
+		enemyObj_->SetRotation(enemy_->GetRotation());
+		enemyObj_->SetScale(enemy_->GetScale());
+		enemyObj_->Update();
+	}
+
+	// カード使用システムの状態をリセット
+	if (cardUseSystem_) {
+		cardUseSystem_->Reset(); // パンチ・火球などの演出状態を初期化
+	}
+
+	// 敵死亡処理フラグリセット
+	enemyDeadHandled_ = false;
+
+	// 手札を初期化
+	handManager_.Initialize(camera_.get());
+	handManager_.AddCard(CardDatabase::GetCardData(1)); // 初期カードを再追加
+
+	// フィールドカードを初期化
+	cardPickupManager_.Initialize(camera_.get());
+	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
+	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
+}
 
 GamePlayScene::GamePlayScene(){}
 

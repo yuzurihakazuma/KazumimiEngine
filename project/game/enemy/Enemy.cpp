@@ -1,5 +1,6 @@
 #include "game/enemy/Enemy.h"
 #include "engine/math/VectorMath.h"
+#include <cmath>
 
 using namespace VectorMath;
 
@@ -21,11 +22,33 @@ void Enemy::Initialize() {
     isHit_ = false;                            // ヒット状態リセット
     hitTimer_ = 0;                             // ヒット時間リセット
     knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック初期化
+
+    // 攻撃・カード使用リクエスト初期化
+    attackRequest_ = false; // 近接攻撃発生フラグ初期化
+    cardUseRequest_ = false; // カード使用発生フラグ初期化
+
+    // クールダウン初期化
+    attackCooldownTimer_ = 0; // 近接攻撃クールダウン初期化
+    cardCooldownTimer_ = 0;   // カード使用クールダウン初期化
 }
 
 void Enemy::Update() {
 
     if (isDead_) return; // 死亡していたら何もしない
+
+    // このフレームの攻撃・カード使用フラグをリセット
+    attackRequest_ = false; // 毎フレーム初期化
+    cardUseRequest_ = false; // 毎フレーム初期化
+
+    // 近接攻撃クールダウン更新
+    if (attackCooldownTimer_ > 0) {
+        attackCooldownTimer_--; // クールダウン減少
+    }
+
+    // カード使用クールダウン更新
+    if (cardCooldownTimer_ > 0) {
+        cardCooldownTimer_--; // クールダウン減少
+    }
 
     // ヒット演出中
     if (isHit_) {
@@ -99,11 +122,9 @@ void Enemy::UpdateMoveToCard() {
 
     if (Length(dir) > 0.01f) {
         dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_; // カードへ移動
+        pos_ += dir * chaseSpeed_;               // カードへ移動
+        rot_.y = std::atan2f(dir.x, dir.z);     // 移動方向を向く
     }
-
-    if (dir.x > 0.0f) { rot_.y = 1.57f; }     // 右向き
-    else if (dir.x < 0.0f) { rot_.y = -1.57f; } // 左向き
 }
 
 void Enemy::UpdateChasePlayer() {
@@ -116,11 +137,9 @@ void Enemy::UpdateChasePlayer() {
 
     if (Length(dir) > 0.01f) {
         dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_; // プレイヤー追跡
+        pos_ += dir * chaseSpeed_;               // プレイヤー追跡
+        rot_.y = std::atan2f(dir.x, dir.z);     // プレイヤー方向を向く
     }
-
-    if (dir.x > 0.0f) { rot_.y = 1.57f; }     // 右向き
-    else if (dir.x < 0.0f) { rot_.y = -1.57f; } // 左向き
 }
 
 void Enemy::UpdateAttackPlayer() {
@@ -131,8 +150,19 @@ void Enemy::UpdateAttackPlayer() {
         playerPos_.z - pos_.z
     }; // プレイヤー方向
 
-    if (dir.x > 0.0f) { rot_.y = 1.57f; }     // 右向き
-    else if (dir.x < 0.0f) { rot_.y = -1.57f; } // 左向き
+    // プレイヤー方向を向く
+    if (Length(dir) > 0.01f) {
+        rot_.y = std::atan2f(dir.x, dir.z);
+    }
+
+    // クールダウン中は攻撃しない
+    if (attackCooldownTimer_ > 0) {
+        return;
+    }
+
+    // 近接攻撃発生
+    attackRequest_ = true;                // GamePlaySceneへ攻撃発生を通知
+    attackCooldownTimer_ = attackCooldown_; // クールダウン開始
 
     SetActionLock(20); // 攻撃硬直
     thinkTimer_ = 20;  // 少しの間判断を固定
@@ -146,8 +176,19 @@ void Enemy::UpdateUseCard() {
         playerPos_.z - pos_.z
     }; // プレイヤー方向
 
-    if (dir.x > 0.0f) { rot_.y = 1.57f; }     // 右向き
-    else if (dir.x < 0.0f) { rot_.y = -1.57f; } // 左向き
+    // プレイヤー方向を向く
+    if (Length(dir) > 0.01f) {
+        rot_.y = std::atan2f(dir.x, dir.z);
+    }
+
+    // クールダウン中はカードを使わない
+    if (cardCooldownTimer_ > 0) {
+        return;
+    }
+
+    // カード使用発生
+    cardUseRequest_ = true;             // GamePlaySceneへカード使用発生を通知
+    cardCooldownTimer_ = cardCooldown_; // クールダウン開始
 
     SetActionLock(30); // カード使用硬直
     thinkTimer_ = 30;  // 少しの間判断を固定
