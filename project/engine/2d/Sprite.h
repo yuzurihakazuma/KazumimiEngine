@@ -96,8 +96,7 @@ public:
 	}
 
 	// テクスチャの切り抜き範囲を設定する関数 (ピクセル単位で指定)
-	void SetTextureRect(float startX, float startY, float width, float height, float textureWidth, float textureHeight);
-
+	void SetTextureRect(float startX, float startY, float width, float height);
 private:
 
 
@@ -170,15 +169,16 @@ private:
 
 	Vector2 anchorPoint_ = { 0.0f,0.0f }; // スプライトの拡大率
 
+	uint32_t textureIndex_ = 0;
+
+
 	// 左右クリップ
 	bool isFlipX_ = false;
 	// 上下クリップ
 	bool isFlipY_ = false;
 
-	// テクスチャの切り抜き開始位置 (UV座標 0.0～1.0)
-	Vector2 texBase_ = { 0.0f, 0.0f };
-	// テクスチャの切り抜きサイズ (UV座標 0.0～1.0)
-	Vector2 texSize_ = { 1.0f, 1.0f };
+	Vector2 textureLeftTop_ = { 0.0f, 0.0f }; // 切り抜き開始位置（ピクセル）
+	Vector2 textureSize_ = { 100.0f, 100.0f }; // 切り抜きサイズ（ピクセル）
 
 	bool isDirty_ = true; // 頂点データ更新フラグ
 
