@@ -112,7 +112,8 @@ void PostEffect::DrawDebugUI(){
 				"ぼかし弱 (Box Filter)",
 				"ぼかし強 (Box Filter 5x5)",
 				"綺麗にぼかす (Gaussian Filter)",
-				"アウトライン・輪郭抽出 (Outline)"
+				"アウトライン・輪郭抽出 (Outline)",
+				"放射状ブラー (Radial Blur)"
 			};
 
 			int currentItem = static_cast< int >( currentType_ );
