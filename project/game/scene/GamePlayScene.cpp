@@ -69,10 +69,6 @@ void GamePlayScene::Initialize(){
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
 
-	// ファイル名を指定するだけで、読み込み・生成・配置
-	// 引数: (ファイルパス, 座標)
-	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
-
 	
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
@@ -118,15 +114,7 @@ void GamePlayScene::Update(){
 	for ( auto& obj : object3ds_ ) {
 		obj->Update();
 	}
-	// スプライト更新
-	sprite_->Update();
-
-
-	if (sprite_) {
-		sprite_->SetPosition(spritePos_);
-		sprite_->Update();
-	}
-
+	
 
 	levelEditor_->Update();
 }
@@ -171,9 +159,6 @@ void GamePlayScene::Draw(){
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	
-	if (sprite_) {
-		sprite_->Draw();
-	}
 
 	
 }
@@ -190,11 +175,6 @@ void GamePlayScene::DrawDebugUI(){
 	
 	levelEditor_->DrawDebugUI();
 
-	// スプライト調整用UI
-	ImGui::SetNextWindowSize(ImVec2(500, 100));
-	ImGui::Begin("Sprite Setup");
-	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "% 06.1f");
-	ImGui::End();
 #endif
 
 }
