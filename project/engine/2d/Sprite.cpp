@@ -48,6 +48,7 @@ std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, 
 }
 
 void Sprite::SetTexture(uint32_t textureIndex) {
+	textureIndex_ = textureIndex;
 	textureHandle_ = SrvManager::GetInstance()->GetGPUDescriptorHandle(textureIndex);
 	
 	//	テクスチャの幅と高さを取得して、スプライトのサイズに反映させる
@@ -56,6 +57,9 @@ void Sprite::SetTexture(uint32_t textureIndex) {
 	// 幅か高さが0じゃない時だけ上書きする（安全対策）
 	if ( texData.width > 0.0f && texData.height > 0.0f ) {
 		size_ = { texData.width, texData.height };
+
+		textureSize_ = { texData.width, texData.height };
+
 	}
 	// サイズが変わったので、頂点の形を再計算させる！
 	UpdateVertexData();
@@ -255,10 +259,16 @@ void Sprite::UpdateVertexData(){
 		std::swap(top, bottom);
 	}
 
-	float texLeft = texBase_.x;
-	float texRight = texBase_.x + texSize_.x;
-	float texTop = texBase_.y;
-	float texBottom = texBase_.y + texSize_.y;
+	// 1. TextureManagerから実際の画像のサイズを取得する
+	const TextureData& texData = TextureManager::GetInstance()->GetTextureDataBySrvIndex(textureIndex_);
+	float texWidth = texData.width;
+	float texHeight = texData.height;
+
+	// 2. ピクセル座標を画像全体のサイズで割って、UV座標（0.0～1.0）を計算する！
+	float texLeft = textureLeftTop_.x / texWidth;
+	float texRight = (textureLeftTop_.x + textureSize_.x) / texWidth;
+	float texTop = textureLeftTop_.y / texHeight;
+	float texBottom = (textureLeftTop_.y + textureSize_.y) / texHeight;
 
 
 	// 0: 左上 (Top-Left)
@@ -285,12 +295,10 @@ void Sprite::UpdateVertexData(){
 
 
 // 切り抜きを指定する関数
-void Sprite::SetTextureRect(float startX, float startY, float width, float height, float textureWidth, float textureHeight) {
-	// ピクセル座標から UV座標(0.0 ～ 1.0) の割合に変換して保存
-	texBase_.x = startX / textureWidth;
-	texBase_.y = startY / textureHeight;
-	texSize_.x = width / textureWidth;
-	texSize_.y = height / textureHeight;
+void Sprite::SetTextureRect(float startX, float startY, float width, float height) {
+	// ピクセルとしてそのまま保存する！
+	textureLeftTop_ = { startX, startY };
+	textureSize_ = { width, height };
 
 	UpdateVertexData();
 }

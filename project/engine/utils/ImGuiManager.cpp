@@ -1,14 +1,14 @@
 #include "ImGuiManager.h"
+#ifdef USE_IMGUI
 // --- 外部ライブラリ ---
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
-
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#endif
 // --- エンジン側のファイル ---
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/WindowProc.h"
 #include "engine/graphics/SrvManager.h"
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
 ImGuiManager* ImGuiManager::GetInstance() {
@@ -18,6 +18,9 @@ ImGuiManager* ImGuiManager::GetInstance() {
 
 
 void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
+
+#ifdef USE_IMGUI
+
 
     // 1. コンテキストの生成とスタイル設定
     ImGui::CreateContext();
@@ -68,27 +71,40 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
 
     // 新しい構造体を渡して初期化！
     ImGui_ImplDX12_Init(&init_info);
+#endif 
 }
 
 void ImGuiManager::Begin(){
-	ImGui_ImplDX12_NewFrame();
+#ifdef USE_IMGUI
+    ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+#endif
 }
 void ImGuiManager::End(ID3D12GraphicsCommandList* commandList){
+#ifdef USE_IMGUI
     ImGui::Render(); // ImGui描画データ生成
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+#endif
 }
 void ImGuiManager::Render(ID3D12GraphicsCommandList* commandList){
+#ifdef USE_IMGUI
     // Endの中でRenderDrawDataを呼んでいるなら、ここはEndを呼ぶか、あるいは空でもよい
     End(commandList);
+#endif
 }
 void ImGuiManager::Shutdown(){
-	ImGui_ImplDX12_Shutdown();
+#ifdef USE_IMGUI
+    ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+#endif
 }
 
 bool ImGuiManager::WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam){
-	return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
+#ifdef USE_IMGUI
+    return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
+#else
+	return false; // ImGuiが処理しない場合はfalseを返す
+#endif
 }

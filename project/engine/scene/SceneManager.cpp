@@ -1,8 +1,9 @@
 #include "SceneManager.h"
 // --- 標準ライブラリ ---
 #include <cassert>
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
-
+#endif
 // --- エンジン側のファイル ---
 #include "engine/scene/IScene.h"
 #include "engine/scene/AbstractSceneFactory.h"

@@ -5,8 +5,9 @@
 #include <cassert>
 #include <random>
 #include <numbers>
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
-
+#endif
 // --- エンジン側のファイル ---
 #include "engine/graphics/TextureManager.h"
 #include "engine/graphics/PipelineManager.h" 
