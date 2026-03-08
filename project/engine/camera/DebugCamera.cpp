@@ -2,8 +2,9 @@
 
 // --- 標準・外部ライブラリ ---
 #include <algorithm>
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
-
+#endif
 
 // --- エンジン側のファイル ---
 #include "Camera.h" 

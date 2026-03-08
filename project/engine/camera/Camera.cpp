@@ -6,10 +6,9 @@
 #include "engine/base/WindowProc.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
-
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
-
-
+#endif
 using namespace MatrixMath;
 
 
