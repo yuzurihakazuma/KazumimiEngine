@@ -140,6 +140,11 @@ void PipelineManager::CreateObject3DRootSignature(){
 	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
 	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
 	builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
+
+	// ディゾルブ用のリソースを追加
+	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
+	builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ進行度 (b5)
+
 	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
 	// 構築して object3DRootSignature_ に入れる！
 	builder.Build(dxCommon_->GetDevice(), object3DRootSignature_);

@@ -11,6 +11,7 @@
 #include "engine/math/Matrix4x4.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
+#include "engine/graphics/SrvManager.h"
 
 using namespace MatrixMath;
 
@@ -62,6 +63,18 @@ void Obj3d::Initialize(Model* model){
 	// 単位行列を初期値として書き込んでおく
 	transformationMatrixData_->WVP = MakeIdentity4x4();
 	transformationMatrixData_->World = MakeIdentity4x4();
+
+
+
+	// ---------------------------------------------------------
+	// ディゾルブエフェクト用のリソースを作る
+	// ---------------------------------------------------------
+	dissolveResource_ = obj3dCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(DissolveData));
+	dissolveResource_->Map(0, nullptr, reinterpret_cast<void**>(&dissolveData_));
+	dissolveData_->threshold = 0.0f; //最初は溶けていない状態(0.0)にしておく
+
+	// 初期値は「0.0」（溶けていない状態）にしておく
+	dissolveData_->threshold = 0.0f;
 
 	// ---------------------------------------------------------
 	// Transform変数の初期化
@@ -134,10 +147,24 @@ void Obj3d::Draw(){
 	commandList->SetGraphicsRootConstantBufferView(5, Obj3dCommon::GetInstance()->GetPointLightResource()->GetGPUVirtualAddress());
 	// スポットライトの転送 -> RootParameter[6]
 	commandList->SetGraphicsRootConstantBufferView(6, Obj3dCommon::GetInstance()->GetSpotLightResource()->GetGPUVirtualAddress());
+	// ディゾルブエフェクトの転送 -> RootParameter[8]
+	commandList->SetGraphicsRootConstantBufferView(8, dissolveResource_->GetGPUVirtualAddress());
+	// ノイズ画像を転送->RootParameter[7]
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(7, noiseTextureIndex_);
 
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {
 		model_->Draw();
 	}
+}
+
+void Obj3d::SetDissolveThreshold(float threshold) {
+	if (dissolveData_) {
+		dissolveData_->threshold = threshold;
+	}
+}
+
+void Obj3d::SetNoiseTexture(uint32_t textureIndex) {
+	noiseTextureIndex_ = textureIndex;
 }

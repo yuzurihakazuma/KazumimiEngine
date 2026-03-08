@@ -54,3 +54,7 @@ struct Camera
     float3 worldPosition;
 };
 
+struct DissolveData
+{
+    float threshold; 
+};

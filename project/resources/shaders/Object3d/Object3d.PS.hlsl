@@ -1,12 +1,15 @@
 #include "Object3d.hlsli"
 
-ConstantBuffer<Material> gMaterial : register(b0);
-Texture2D<float4> gTexture : register(t0); 
-SamplerState gSampler : register(s0);
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
-ConstantBuffer<Camera> gCamera : register(b2);
-ConstantBuffer<PointLight> gPointLight : register(b3);
-ConstantBuffer<SpotLight> gSpotLight : register(b4); 
+ConstantBuffer<Material> gMaterial : register(b0); // マテリアルの定数バッファ
+Texture2D<float4> gTexture : register(t0); // テクスチャ
+SamplerState gSampler : register(s0); // サンプラー
+ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1); // 平行光源の定数バッファ
+ConstantBuffer<Camera> gCamera : register(b2); // カメラの定数バッファ
+ConstantBuffer<PointLight> gPointLight : register(b3); // 点光源の定数バッファ
+ConstantBuffer<SpotLight> gSpotLight : register(b4); // スポットライトの定数バッファ
+
+Texture2D<float4> gNoiseTexture : register(t1); // ノイズテクスチャ
+ConstantBuffer<DissolveData> gDissolve : register(b5); // ディゾルブ用の定数バッファ
 
 struct PixelShaderOutput
 {
@@ -18,11 +21,17 @@ PixelShaderOutput main(VertexShaderOutput input)
     PixelShaderOutput output;
     float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
-    if (textureColor.a <= 0.5)
+    if (gDissolve.threshold > 0.0f)
     {
-        discard;
+        // 1. ノイズテクスチャからノイズの暗さをサンプリングする
+        float noiseValue = gNoiseTexture.Sample(gSampler, transformedUV.xy).r;
+        
+        // 2. ノイズの暗さ が「進行度(threshold)」より小さかったら消滅させる！
+        if (noiseValue <= gDissolve.threshold)
+        {
+            discard;
+        }
     }
-    
     float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
     
     // --- 光の計算結果を入れる変数 ---

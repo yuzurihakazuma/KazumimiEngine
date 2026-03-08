@@ -89,4 +89,7 @@ private: // メンバ変数
 	HandManager handManager_;
 	int dummyPlayerCost_ = 3;
 
+	uint32_t dissolveNoiseTex_ = 0; // ノイズテクスチャの番号
+	float dissolveThreshold_ = 0.0f; // 消滅の進行度(0.0〜1.0)
+
 };
