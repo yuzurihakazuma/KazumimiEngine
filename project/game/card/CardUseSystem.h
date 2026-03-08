@@ -1,0 +1,62 @@
+#pragma once
+#include <memory>
+#include "engine/math/VectorMath.h"
+#include "game/card/HandManager.h"
+
+// 前方宣言
+class Camera;
+class Obj3d;
+class Player;
+class Enemy;
+
+// カード使用システム
+class CardUseSystem {
+public:
+    // 初期化
+    void Initialize(Camera* camera);
+
+    // 更新
+    void Update(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
+
+    // 描画
+    void Draw();
+
+    // カード使用
+    // card           : 使用するカード
+    // casterPos      : 使用者の位置
+    // casterYaw      : 使用者の向き
+    // isPlayerCaster : プレイヤーが使ったかどうか
+    // player         : プレイヤー本人（プレイヤー使用時の行動ロック用）
+    void UseCard(const Card& card, const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Player* player = nullptr);
+
+    // リセット
+    void Reset();
+
+private:
+    // パンチ更新
+    void UpdatePunch(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
+
+    // 火球更新
+    void UpdateFireball(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
+
+private:
+    // -----------------------------
+    // パンチ演出
+    // -----------------------------
+    std::unique_ptr<Obj3d> punchObj_ = nullptr;   // パンチ用オブジェクト
+    bool isPunchActive_ = false;                  // パンチ演出中か
+    bool isPunchPlayerCaster_ = true;            // プレイヤーが使ったパンチか
+    Vector3 punchPos_ = { 0.0f, 0.0f, 0.0f };    // パンチ位置
+    Vector3 punchScale_ = { 0.8f, 0.8f, 0.8f };  // パンチサイズ
+    int punchTimer_ = 0;                         // パンチ残り時間
+
+    // -----------------------------
+    // 火球演出
+    // -----------------------------
+    std::unique_ptr<Obj3d> fireballObj_ = nullptr;      // 火球用オブジェクト
+    bool isFireballActive_ = false;                     // 火球演出中か
+    bool isFireballPlayerCaster_ = true;               // プレイヤーが使った火球か
+    Vector3 fireballPos_ = { 0.0f, 0.0f, 0.0f };       // 火球位置
+    Vector3 fireballVelocity_ = { 0.0f, 0.0f, 0.0f };  // 火球速度
+    Vector3 fireballScale_ = { 0.5f, 0.5f, 0.5f };     // 火球サイズ
+};

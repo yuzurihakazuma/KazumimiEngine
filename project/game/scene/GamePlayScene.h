@@ -4,7 +4,8 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/graphics/TextureManager.h"
 
-#include "HandManager.h"
+#include "game/card/HandManager.h"
+#include "game/card/CardPickupManager.h"
 
 // --- 標準ライブラリ ---
 #include <vector>
@@ -24,6 +25,8 @@ class RenderTexture;
 class PostEffect;
 class Player;
 class LevelEditor;
+class Enemy;
+class CardUseSystem;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -87,6 +90,20 @@ private: // メンバ変数
 
 	//手札管理とプレイヤーコスト
 	HandManager handManager_;
-	int dummyPlayerCost_ = 3;
+
+	CardPickupManager cardPickupManager_;
+
+	std::unique_ptr<CardUseSystem> cardUseSystem_ = nullptr; // カード使用システム
+
+	std::unique_ptr<Enemy> enemy_ = nullptr;
+	std::unique_ptr<Obj3d> enemyObj_ = nullptr;
+
+	Vector3 enemyPos_ = { 5.0f, 0.0f, 5.0f };
+	Vector3 enemyScale_ = { 1.0f, 1.0f, 1.0f };
+
+	bool enemyDeadHandled_ = false; // 敵死亡時の処理を1回だけにする
+
+	void ResetBattleDebug(); // デバッグ用バトルリセット
+
 
 };

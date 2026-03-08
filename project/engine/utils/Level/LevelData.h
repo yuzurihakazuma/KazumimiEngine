@@ -1,19 +1,13 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "engine/math/struct.h"
-
-// レベルデータ
-struct LevelObjectData{
-	std::string type; // オブジェクトの種類（例: "fence", "sphere", "grass"）
-	Vector3 translation; // 座標
-	Vector3 rotation; // 回転
-	Vector3 scale = { 1.0f,1.0f,1.0f }; // スケール
-};
 
 // マップ全体のデータ
-struct LevelData{
-	std::string name; // マップの名前
-	std::vector<LevelObjectData> objects; // マップに配置するオブジェクトのデータ
-
+struct LevelData {
+	std::string name;                  // マップ名
+	int width = 10;                    // 横マス数
+	int height = 10;                   // 縦マス数
+	float tileSize = 2.0f;             // 1マスの大きさ
+	float baseY = -2.0f;               // 床の高さ
+	std::vector<std::vector<int>> tiles; // 0=床, 1=壁
 };
