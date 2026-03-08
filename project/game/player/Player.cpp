@@ -26,15 +26,69 @@ void Player::Initialize() {
 
     costRecoveryTimer_ = 0;   // コスト回復タイマー初期化
     costRecoveryInterval_ = 180; // コスト回復速度初期化
+
+    hp_ = 5;                // 現在HP初期化
+    maxHp_ = 5;             // 最大HP初期化
+    isDead_ = false;        // 死亡状態リセット
+
+    isInvincible_ = false;  // 無敵状態リセット
+    invincibleTimer_ = 0;   // 無敵時間リセット
+
+    isHit_ = false;           // 被弾状態リセット
+    hitTimer_ = 0;            // 被弾時間リセット
+
+    // ノックバック初期化
+    isKnockback_ = false;                          // ノックバック状態リセット
+    knockbackTimer_ = 0;                           // ノックバック時間リセット
+    knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };    // ノックバック速度リセット
 }
 
 void Player::Update() {
+
+    if (isDead_) {
+        return; // 死亡中は更新しない
+    }
 
     Input* input = Input::GetInstance();
 
     Vector3 move{ 0.0f,0.0f,0.0f };
 
     UpdateCost(); // コスト自然回復
+
+    // 被弾後無敵時間の更新
+    if (isInvincible_) {
+        invincibleTimer_--;
+
+        if (invincibleTimer_ <= 0) {
+            isInvincible_ = false;
+            invincibleTimer_ = 0;
+        }
+    }
+
+
+    // 被弾演出時間の更新
+    if (isHit_) {
+        hitTimer_--; // 被弾演出残り時間減少
+
+        if (hitTimer_ <= 0) {
+            isHit_ = false; // 被弾演出終了
+            hitTimer_ = 0;
+        }
+    }
+
+    // ノックバック中の更新
+    if (isKnockback_) {
+        pos_ += knockbackVelocity_;       // ノックバック移動
+        knockbackVelocity_ *= 0.85f;      // 徐々に減速
+
+        knockbackTimer_--;                // ノックバック残り時間減少
+
+        if (knockbackTimer_ <= 0) {
+            isKnockback_ = false;         // ノックバック終了
+            knockbackTimer_ = 0;
+            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
+        }
+    }
 
     // 行動ロック中は操作不可
     if (isActionLocked_) {
@@ -157,4 +211,70 @@ void Player::UpdateCost() {
             cost_ = maxCost_;   // 上限補正
         }
     }
+}
+
+// ダメージ処理
+void Player::TakeDamage(int damage, const Vector3& attackFrom) {
+
+    // 既に死亡していたら無視
+    if (isDead_) {
+        return;
+    }
+
+    // 回避中はダメージ無効
+    if (isDodging_) {
+        return;
+    }
+
+    // 無敵中はダメージ無効
+    if (isInvincible_) {
+        return;
+    }
+
+    // HP減少
+    hp_ -= damage;
+
+    if (hp_ < 0) {
+        hp_ = 0;
+    }
+
+    // 被弾演出開始
+    isHit_ = true;
+    hitTimer_ = hitDuration_;
+
+    // 被弾後無敵開始
+    isInvincible_ = true;
+    invincibleTimer_ = invincibleDuration_;
+
+    // 攻撃元からプレイヤーへの方向を計算
+    Vector3 hitDir = {
+        pos_.x - attackFrom.x,
+        0.0f,
+        pos_.z - attackFrom.z
+    };
+
+    // ノックバック開始
+    if (Length(hitDir) > 0.01f) {
+        hitDir = Normalize(hitDir);
+        knockbackVelocity_ = hitDir * 0.35f; // ノックバック速度
+        isKnockback_ = true;
+        knockbackTimer_ = knockbackDuration_;
+    }
+
+    // HPが0なら死亡
+    if (hp_ <= 0) {
+        isDead_ = true;
+    }
+}
+
+// 描画するか判定
+bool Player::IsVisible() const {
+
+    // 被弾中でなければ常に表示
+    if (!isHit_) {
+        return true;
+    }
+
+    // 被弾中は1フレームおきに表示して点滅させる
+    return (hitTimer_ % 2) == 0;
 }
