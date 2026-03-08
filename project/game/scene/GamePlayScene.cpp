@@ -35,7 +35,7 @@
 using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
-void GamePlayScene::Initialize(){
+void GamePlayScene::Initialize() {
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	WindowProc* windowProc = WindowProc::GetInstance();
 
@@ -46,10 +46,10 @@ void GamePlayScene::Initialize(){
 	AudioManager::GetInstance()->LoadWave(bgmFile_);
 	// モデル読み込み (シングルトン)
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
-	
+
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
-	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
-	
+	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
+
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 	// パーティクルグループ作成 (シングルトン)
@@ -60,7 +60,7 @@ void GamePlayScene::Initialize(){
 	textures_["monsterBall"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
-	
+
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
@@ -105,7 +105,7 @@ void GamePlayScene::Initialize(){
 		fireballObj_->SetCamera(camera_.get());
 		fireballObj_->SetScale(fireballScale_);
 	}
-	
+
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
@@ -120,7 +120,7 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-	
+
 
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
@@ -148,8 +148,8 @@ void GamePlayScene::Initialize(){
 
 }
 
-void GamePlayScene::Update(){
-	
+void GamePlayScene::Update() {
+
 	// デバッグカメラ更新
 	if (debugCamera_) {
 		debugCamera_->Update(camera_.get());
@@ -158,15 +158,15 @@ void GamePlayScene::Update(){
 	Input* input = Input::GetInstance();
 
 	// BGM再生 (シングルトン)
-	if ( input->Triggerkey(DIK_SPACE) ) {
+	if (input->Triggerkey(DIK_SPACE)) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 	// タイトルシーンへ移動
-	if ( input->Triggerkey(DIK_T) ) {
+	if (input->Triggerkey(DIK_T)) {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 	// パーティクル発生 (シングルトン)
-	if ( input->Triggerkey(DIK_P) ) {
+	if (input->Triggerkey(DIK_P)) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
 	// パーティクル更新
@@ -184,18 +184,25 @@ void GamePlayScene::Update(){
 		playerAABB.min = { playerPos_.x - 0.5f, playerPos_.y - 0.5f, playerPos_.z - 0.5f };
 		playerAABB.max = { playerPos_.x + 0.5f, playerPos_.y + 0.5f, playerPos_.z + 0.5f };
 
-		for (const auto& obj : levelEditor_->GetLevelData().objects) {
+		const LevelData& level = levelEditor_->GetLevelData();
 
-			if (obj.type != "block") continue;
+		for (int z = 0; z < level.height; z++) {
+			for (int x = 0; x < level.width; x++) {
 
-			AABB blockAABB;
-			blockAABB.min = { obj.translation.x - 1.0f, obj.translation.y - 1.0f, obj.translation.z - 1.0f };
-			blockAABB.max = { obj.translation.x + 1.0f, obj.translation.y + 1.0f, obj.translation.z + 1.0f };
+				if (level.tiles[z][x] != 1) continue;
 
-			if (Collision::IsCollision(playerAABB, blockAABB)) {
-				player_->SetPosition(oldPos);
-				playerPos_ = oldPos;
-				break;
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				if (Collision::IsCollision(playerAABB, blockAABB)) {
+					player_->SetPosition(oldPos);
+					playerPos_ = oldPos;
+					break;
+				}
 			}
 		}
 
@@ -350,13 +357,13 @@ void GamePlayScene::Update(){
 	}
 
 	// 全オブジェクト更新
-	for ( auto& obj : object3ds_ ) {
+	for (auto& obj : object3ds_) {
 		obj->Update();
 	}
 	// スプライト更新
 	sprite_->Update();
 
-	
+
 	Sphere playerCollider;
 	playerCollider.center = playerPos_;
 	playerCollider.radius = playerScale_.x;
@@ -507,21 +514,21 @@ void GamePlayScene::Update(){
 
 }
 
-void GamePlayScene::Draw(){
+void GamePlayScene::Draw() {
 
 
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
-	
+
 	// 画用紙への切り替え
 	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
 
 
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
-	
+
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-	
+
 	if (playerObj_) {
 		playerObj_->Draw();
 	}
@@ -539,9 +546,9 @@ void GamePlayScene::Draw(){
 	}
 	cardPickupManager_.Draw();
 
-	
+
 	// 3Dオブジェクト描画
-	for ( auto& obj : object3ds_ ) {
+	for (auto& obj : object3ds_) {
 		obj->Draw();
 	}
 
@@ -554,31 +561,31 @@ void GamePlayScene::Draw(){
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
-	
-	
+
+
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList,dxCommon);
-	
+	PostEffect::GetInstance()->Draw(commandList, dxCommon);
+
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
-	
+
 	if (sprite_) {
 		sprite_->Draw();
 	}
 
-	
+
 }
 
-void GamePlayScene::DrawDebugUI(){
+void GamePlayScene::DrawDebugUI() {
 
 #ifdef USE_IMGUI
 	// 3Dオブジェクト、カメラ、パーティクルのUI
 	Obj3dCommon::GetInstance()->DrawDebugUI();
-	if ( camera_ ) { camera_->DrawDebugUI(); }
-	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
+	if (camera_) { camera_->DrawDebugUI(); }
+	if (debugCamera_) { debugCamera_->DrawDebugUI(); }
 	ParticleManager::GetInstance()->DrawDebugUI();
 
-	
+
 	levelEditor_->DrawDebugUI();
 
 	// スプライト調整用UI
@@ -631,14 +638,14 @@ void GamePlayScene::DrawDebugUI(){
 	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
 
 	//手札の数だけループしてボタンを作る
-	for ( int i = 0; i < handManager_.GetHandSize(); ++i ) {
+	for (int i = 0; i < handManager_.GetHandSize(); ++i) {
 		Card card = handManager_.GetCard(i);
 
 		//ボタンの名前
 		std::string btnName = card.name + "(Cost:" + std::to_string(card.cost) + ")##" + std::to_string(i);
 
 		// 使う処理を入れる場合はこのif文の中に書く
-		if ( ImGui::Button(btnName.c_str()) ) {
+		if (ImGui::Button(btnName.c_str())) {
 			// 例：手札を使用する処理
 		}
 	}
@@ -651,12 +658,12 @@ void GamePlayScene::DrawDebugUI(){
 
 
 
-GamePlayScene::GamePlayScene(){}
+GamePlayScene::GamePlayScene() {}
 
-GamePlayScene::~GamePlayScene(){}
+GamePlayScene::~GamePlayScene() {}
 // 終了
-void GamePlayScene::Finalize(){
-	
+void GamePlayScene::Finalize() {
+
 
 	object3ds_.clear();
 

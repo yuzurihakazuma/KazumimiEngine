@@ -1,6 +1,6 @@
 #include "LevelEditor.h"
 
-/// --- 標準ライブラリ ---
+// --- 標準ライブラリ ---
 #include <cmath>
 
 // --- エンジン側のファイル ---
@@ -9,179 +9,166 @@
 #include "engine/utils/ImGuiManager.h"
 #include "engine/3d/model/ModelManager.h"
 
-
 LevelEditor::LevelEditor() = default;
 LevelEditor::~LevelEditor() = default;
 
-
 void LevelEditor::Initialize() {
-	// 最初は空の状態でスタートするか、デフォルトのマップを読み込む
 	LoadAndCreateMap("resources/map/map01.json");
 }
-// マップの読み込みと生成
+
 void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
-	object3ds_.clear();
 	levelData_ = LevelManager::GetInstance()->Load(fileName);
-
-	for (auto& objData : levelData_.objects) {
-		// 実際のモデルデータを検索して持ってくる
-		Model* model = ModelManager::GetInstance()->FindModel(objData.type);
-
-		std::unique_ptr<Obj3d> newObj = std::make_unique<Obj3d>();
-		// 検索したモデルを渡す！
-		newObj->Initialize(model);
-		newObj->SetCamera(camera_);
-		newObj->SetTranslation(objData.translation);
-		newObj->SetRotation(objData.rotation);
-		newObj->SetScale(objData.scale);
-		newObj->Update();
-		object3ds_.push_back(std::move(newObj));
-	}
-	selectedObjectIndex_ = -1;
+	RebuildMapObjects();
 }
 
+void LevelEditor::RebuildMapObjects() {
+	object3ds_.clear();
+
+	for (int z = 0; z < levelData_.height; ++z) {
+		for (int x = 0; x < levelData_.width; ++x) {
+			int tile = levelData_.tiles[z][x];
+
+			// 0=床, 1=壁
+			// どちらも block を使う
+			Model* model = ModelManager::GetInstance()->FindModel("block");
+			if (model == nullptr) {
+				continue;
+			}
+
+			// まず床を置く
+			{
+				std::unique_ptr<Obj3d> floorObj = std::make_unique<Obj3d>();
+				floorObj->Initialize(model);
+				floorObj->SetCamera(camera_);
+
+				Vector3 pos;
+				pos.x = x * levelData_.tileSize;
+				pos.y = levelData_.baseY;
+				pos.z = z * levelData_.tileSize;
+
+				floorObj->SetTranslation(pos);
+				floorObj->SetRotation({ 0.0f, 0.0f, 0.0f });
+				floorObj->SetScale({ 1.0f, 1.0f, 1.0f });
+				floorObj->Update();
+
+				object3ds_.push_back(std::move(floorObj));
+			}
+
+			// 壁なら床の上にもう1個置く
+			if (tile == 1) {
+				std::unique_ptr<Obj3d> wallObj = std::make_unique<Obj3d>();
+				wallObj->Initialize(model);
+				wallObj->SetCamera(camera_);
+
+				Vector3 pos;
+				pos.x = x * levelData_.tileSize;
+				pos.y = levelData_.baseY + levelData_.tileSize;
+				pos.z = z * levelData_.tileSize;
+
+				wallObj->SetTranslation(pos);
+				wallObj->SetRotation({ 0.0f, 0.0f, 0.0f });
+				wallObj->SetScale({ 1.0f, 1.0f, 1.0f });
+				wallObj->Update();
+
+				object3ds_.push_back(std::move(wallObj));
+			}
+		}
+	}
+}
 
 void LevelEditor::Update() {
-
 	for (auto& obj : object3ds_) {
 		obj->Update();
 	}
 }
+
 void LevelEditor::Draw() {
 	for (auto& obj : object3ds_) {
 		obj->Draw();
 	}
 }
 
-
-void LevelEditor::DrawDebugUI(){
+void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
+	if (isEditorActive) {
 
-	if ( isEditorActive ) {
-
-		// =========================================================
-		// 📁 1. Main Menu ウィンドウ（ファイル操作・追加）
-		// =========================================================
-		ImGui::Begin("メインメニュー");
+		ImGui::Begin("マップエディタ");
 
 		char buffer[256];
 		strcpy_s(buffer, saveFileName_.c_str());
-		if ( ImGui::InputText("保存ファイル名", buffer, sizeof(buffer)) ) {
+		if (ImGui::InputText("保存ファイル名", buffer, sizeof(buffer))) {
 			saveFileName_ = buffer;
 		}
 
 		std::string fullPath = "resources/map/" + saveFileName_;
-		if ( ImGui::Button("マップを保存") ) { LevelManager::GetInstance()->Save(fullPath, levelData_); }
+
+		if (ImGui::Button("マップを保存")) {
+			LevelManager::GetInstance()->Save(fullPath, levelData_);
+		}
 		ImGui::SameLine();
-		if ( ImGui::Button("マップを読み込む") ) { LoadAndCreateMap(fullPath); }
+		if (ImGui::Button("マップを読み込む")) {
+			LoadAndCreateMap(fullPath);
+		}
 		ImGui::SameLine();
-		if ( ImGui::Button("マップをクリア") ) {
-			object3ds_.clear();
-			levelData_.objects.clear();
-			selectedObjectIndex_ = -1;
+		if (ImGui::Button("マップをクリア")) {
+			for (int z = 0; z < levelData_.height; ++z) {
+				for (int x = 0; x < levelData_.width; ++x) {
+					levelData_.tiles[z][x] = 0;
+				}
+			}
+			RebuildMapObjects();
 		}
 
 		ImGui::Separator();
 
-		const char* modelNames[] = { "block", "fence", "plane", "sphere", "terrain", "axis" };
-		static int currentModelIndex = 0;
-		ImGui::Combo("モデルの種類", &currentModelIndex, modelNames, IM_ARRAYSIZE(modelNames));
+		ImGui::InputInt("幅", &levelData_.width);
+		ImGui::InputInt("高さ", &levelData_.height);
+		ImGui::DragFloat("タイルサイズ", &levelData_.tileSize, 0.1f, 0.5f, 10.0f);
+		ImGui::DragFloat("床の高さ", &levelData_.baseY, 0.1f);
 
-		if ( ImGui::Button("選択したモデルを追加") ) {
-			LevelObjectData newObj;
-			newObj.type = modelNames[currentModelIndex];
-			newObj.translation = { 0.0f, 0.0f, 0.0f };
-			newObj.rotation = { 0.0f, 0.0f, 0.0f };
-			newObj.scale = { 1.0f, 1.0f, 1.0f };
-			levelData_.objects.push_back(newObj);
+		if (levelData_.width < 1) { levelData_.width = 1; }
+		if (levelData_.height < 1) { levelData_.height = 1; }
 
-			Model* model = ModelManager::GetInstance()->FindModel(newObj.type);
-			if ( model != nullptr ) {
-				std::unique_ptr<Obj3d> obj = std::make_unique<Obj3d>();
-				obj->Initialize(model);
-				obj->SetCamera(camera_);
-				object3ds_.push_back(std::move(obj));
-				selectedObjectIndex_ = ( int ) levelData_.objects.size() - 1;
+		if (ImGui::Button("サイズを反映")) {
+			levelData_.tiles.resize(levelData_.height);
+			for (auto& row : levelData_.tiles) {
+				row.resize(levelData_.width, 0);
+			}
+			RebuildMapObjects();
+		}
+
+		ImGui::Separator();
+
+		ImGui::Text("配置タイル");
+		ImGui::RadioButton("床(0)", &selectedTile_, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("壁(1)", &selectedTile_, 1);
+
+		ImGui::Separator();
+		if ((int)levelData_.tiles.size() != levelData_.height) {
+			levelData_.tiles.resize(levelData_.height);
+		}
+		for (auto& row : levelData_.tiles) {
+			if ((int)row.size() != levelData_.width) {
+				row.resize(levelData_.width, 0);
 			}
 		}
-		ImGui::End();
+		ImGui::Text("グリッド編集");
 
-		// =========================================================
-		// 📋 2. Hierarchy ウィンドウ（オブジェクト一覧）
-		// =========================================================
-		ImGui::Begin("ヒエラルキー (配置リスト)");
-		// リストをウィンドウいっぱいに広げる
-		if ( ImGui::BeginListBox("##ObjectList", ImVec2(-FLT_MIN, -FLT_MIN)) ) {
-			for ( int i = 0; i < levelData_.objects.size(); ++i ) {
-				std::string label = std::to_string(i) + ": " + levelData_.objects[i].type;
-				if ( ImGui::Selectable(label.c_str(), selectedObjectIndex_ == i) ) {
-					selectedObjectIndex_ = i;
+		for (int z = 0; z < levelData_.height; ++z) {
+			for (int x = 0; x < levelData_.width; ++x) {
+				std::string label = std::to_string(levelData_.tiles[z][x]) + "##" + std::to_string(z) + "_" + std::to_string(x);
+				if (ImGui::Button(label.c_str(), ImVec2(24, 24))) {
+					levelData_.tiles[z][x] = selectedTile_;
+					RebuildMapObjects();
+				}
+				if (x < levelData_.width - 1) {
+					ImGui::SameLine();
 				}
 			}
-			ImGui::EndListBox();
 		}
-		ImGui::End();
 
-		// =========================================================
-		// ⚙️ 3. Inspector ウィンドウ（選択中のオブジェクト編集）
-		// =========================================================
-		ImGui::Begin("インスペクター (詳細設定)");
-		if ( selectedObjectIndex_ >= 0 && selectedObjectIndex_ < levelData_.objects.size() ) {
-			auto& objData = levelData_.objects[selectedObjectIndex_];
-
-			ImGui::Text("選択中: [%d] %s", selectedObjectIndex_, objData.type.c_str());
-			ImGui::Separator();
-
-			if ( ImGui::Button("オブジェクトを削除") ) {
-				levelData_.objects.erase(levelData_.objects.begin() + selectedObjectIndex_);
-				object3ds_.erase(object3ds_.begin() + selectedObjectIndex_);
-				selectedObjectIndex_ = -1;
-			}
-
-			if ( selectedObjectIndex_ != -1 ) {
-				ImGui::SameLine();
-				if ( ImGui::Button("複製") ) {
-					LevelObjectData dupObj = objData;
-					levelData_.objects.push_back(dupObj);
-
-					Model* model = ModelManager::GetInstance()->FindModel(dupObj.type);
-					if ( model != nullptr ) {
-						std::unique_ptr<Obj3d> obj = std::make_unique<Obj3d>();
-						obj->Initialize(model);
-						obj->SetCamera(camera_);
-						obj->SetTranslation(dupObj.translation);
-						obj->SetRotation(dupObj.rotation);
-						obj->SetScale(dupObj.scale);
-						object3ds_.push_back(std::move(obj));
-						selectedObjectIndex_ = ( int ) levelData_.objects.size() - 1;
-					}
-				}
-
-				ImGui::Checkbox("グリッドにスナップ (1.0刻み)", &snapToGrid_);
-				ImGui::Separator();
-
-				bool isChanged = false;
-				float moveStep = snapToGrid_ ? 1.0f : 0.1f;
-				isChanged |= ImGui::DragFloat3("座標", &objData.translation.x, moveStep);
-				isChanged |= ImGui::DragFloat3("回転", &objData.rotation.x, 0.05f);
-				isChanged |= ImGui::DragFloat3("スケール", &objData.scale.x, 0.1f);
-
-				if ( isChanged ) {
-					if ( snapToGrid_ ) {
-						objData.translation.x = std::round(objData.translation.x);
-						objData.translation.y = std::round(objData.translation.y);
-						objData.translation.z = std::round(objData.translation.z);
-					}
-					object3ds_[selectedObjectIndex_]->SetTranslation(objData.translation);
-					object3ds_[selectedObjectIndex_]->SetRotation(objData.rotation);
-					object3ds_[selectedObjectIndex_]->SetScale(objData.scale);
-				}
-			}
-		} else {
-			ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "オブジェクトが選択されていません");
-		}
 		ImGui::End();
 	}
 #endif
-
 }
