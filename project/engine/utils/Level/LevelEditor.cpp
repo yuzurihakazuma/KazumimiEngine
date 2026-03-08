@@ -41,28 +41,41 @@ void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
 }
 
 
-void LevelEditor::Update(bool isEditorActive) {
+void LevelEditor::Update() {
+
+	for (auto& obj : object3ds_) {
+		obj->Update();
+	}
+}
+void LevelEditor::Draw() {
+	for (auto& obj : object3ds_) {
+		obj->Draw();
+	}
+}
+
+
+void LevelEditor::DrawDebugUI(){
 #ifdef USE_IMGUI
 
-	if (isEditorActive) {
+	if ( isEditorActive ) {
 
 		// =========================================================
 		// 📁 1. Main Menu ウィンドウ（ファイル操作・追加）
 		// =========================================================
-		ImGui::Begin("Main Menu");
+		ImGui::Begin("メインメニュー");
 
 		char buffer[256];
 		strcpy_s(buffer, saveFileName_.c_str());
-		if (ImGui::InputText("File Name (.json)", buffer, sizeof(buffer))) {
+		if ( ImGui::InputText("保存ファイル名", buffer, sizeof(buffer)) ) {
 			saveFileName_ = buffer;
 		}
 
 		std::string fullPath = "resources/map/" + saveFileName_;
-		if (ImGui::Button("Save map")) { LevelManager::GetInstance()->Save(fullPath, levelData_); }
+		if ( ImGui::Button("マップを保存") ) { LevelManager::GetInstance()->Save(fullPath, levelData_); }
 		ImGui::SameLine();
-		if (ImGui::Button("Load map")) { LoadAndCreateMap(fullPath); }
+		if ( ImGui::Button("マップを読み込む") ) { LoadAndCreateMap(fullPath); }
 		ImGui::SameLine();
-		if (ImGui::Button("Clear Map")) {
+		if ( ImGui::Button("マップをクリア") ) {
 			object3ds_.clear();
 			levelData_.objects.clear();
 			selectedObjectIndex_ = -1;
@@ -72,8 +85,9 @@ void LevelEditor::Update(bool isEditorActive) {
 
 		const char* modelNames[] = { "block", "fence", "plane", "sphere", "terrain", "axis" };
 		static int currentModelIndex = 0;
-		ImGui::Combo("Model Type", &currentModelIndex, modelNames, IM_ARRAYSIZE(modelNames));
-		if (ImGui::Button("Add Selected Object")) {
+		ImGui::Combo("モデルの種類", &currentModelIndex, modelNames, IM_ARRAYSIZE(modelNames));
+
+		if ( ImGui::Button("選択したモデルを追加") ) {
 			LevelObjectData newObj;
 			newObj.type = modelNames[currentModelIndex];
 			newObj.translation = { 0.0f, 0.0f, 0.0f };
@@ -82,12 +96,12 @@ void LevelEditor::Update(bool isEditorActive) {
 			levelData_.objects.push_back(newObj);
 
 			Model* model = ModelManager::GetInstance()->FindModel(newObj.type);
-			if (model != nullptr) {
+			if ( model != nullptr ) {
 				std::unique_ptr<Obj3d> obj = std::make_unique<Obj3d>();
 				obj->Initialize(model);
 				obj->SetCamera(camera_);
 				object3ds_.push_back(std::move(obj));
-				selectedObjectIndex_ = (int)levelData_.objects.size() - 1;
+				selectedObjectIndex_ = ( int ) levelData_.objects.size() - 1;
 			}
 		}
 		ImGui::End();
@@ -95,12 +109,12 @@ void LevelEditor::Update(bool isEditorActive) {
 		// =========================================================
 		// 📋 2. Hierarchy ウィンドウ（オブジェクト一覧）
 		// =========================================================
-		ImGui::Begin("Hierarchy");
+		ImGui::Begin("ヒエラルキー (配置リスト)");
 		// リストをウィンドウいっぱいに広げる
-		if (ImGui::BeginListBox("##ObjectList", ImVec2(-FLT_MIN, -FLT_MIN))) {
-			for (int i = 0; i < levelData_.objects.size(); ++i) {
+		if ( ImGui::BeginListBox("##ObjectList", ImVec2(-FLT_MIN, -FLT_MIN)) ) {
+			for ( int i = 0; i < levelData_.objects.size(); ++i ) {
 				std::string label = std::to_string(i) + ": " + levelData_.objects[i].type;
-				if (ImGui::Selectable(label.c_str(), selectedObjectIndex_ == i)) {
+				if ( ImGui::Selectable(label.c_str(), selectedObjectIndex_ == i) ) {
 					selectedObjectIndex_ = i;
 				}
 			}
@@ -111,27 +125,27 @@ void LevelEditor::Update(bool isEditorActive) {
 		// =========================================================
 		// ⚙️ 3. Inspector ウィンドウ（選択中のオブジェクト編集）
 		// =========================================================
-		ImGui::Begin("Inspector");
-		if (selectedObjectIndex_ >= 0 && selectedObjectIndex_ < levelData_.objects.size()) {
+		ImGui::Begin("インスペクター (詳細設定)");
+		if ( selectedObjectIndex_ >= 0 && selectedObjectIndex_ < levelData_.objects.size() ) {
 			auto& objData = levelData_.objects[selectedObjectIndex_];
 
-			ImGui::Text("Selected: [%d] %s", selectedObjectIndex_, objData.type.c_str());
+			ImGui::Text("選択中: [%d] %s", selectedObjectIndex_, objData.type.c_str());
 			ImGui::Separator();
 
-			if (ImGui::Button("Delete Object")) {
+			if ( ImGui::Button("オブジェクトを削除") ) {
 				levelData_.objects.erase(levelData_.objects.begin() + selectedObjectIndex_);
 				object3ds_.erase(object3ds_.begin() + selectedObjectIndex_);
 				selectedObjectIndex_ = -1;
 			}
 
-			if (selectedObjectIndex_ != -1) {
+			if ( selectedObjectIndex_ != -1 ) {
 				ImGui::SameLine();
-				if (ImGui::Button("Duplicate")) {
+				if ( ImGui::Button("複製") ) {
 					LevelObjectData dupObj = objData;
 					levelData_.objects.push_back(dupObj);
 
 					Model* model = ModelManager::GetInstance()->FindModel(dupObj.type);
-					if (model != nullptr) {
+					if ( model != nullptr ) {
 						std::unique_ptr<Obj3d> obj = std::make_unique<Obj3d>();
 						obj->Initialize(model);
 						obj->SetCamera(camera_);
@@ -139,21 +153,21 @@ void LevelEditor::Update(bool isEditorActive) {
 						obj->SetRotation(dupObj.rotation);
 						obj->SetScale(dupObj.scale);
 						object3ds_.push_back(std::move(obj));
-						selectedObjectIndex_ = (int)levelData_.objects.size() - 1;
+						selectedObjectIndex_ = ( int ) levelData_.objects.size() - 1;
 					}
 				}
 
-				ImGui::Checkbox("Snap to Grid (1.0 step)", &snapToGrid_);
+				ImGui::Checkbox("グリッドにスナップ (1.0刻み)", &snapToGrid_);
 				ImGui::Separator();
 
 				bool isChanged = false;
 				float moveStep = snapToGrid_ ? 1.0f : 0.1f;
-				isChanged |= ImGui::DragFloat3("Position", &objData.translation.x, moveStep);
-				isChanged |= ImGui::DragFloat3("Rotation", &objData.rotation.x, 0.05f);
-				isChanged |= ImGui::DragFloat3("Scale", &objData.scale.x, 0.1f);
+				isChanged |= ImGui::DragFloat3("座標", &objData.translation.x, moveStep);
+				isChanged |= ImGui::DragFloat3("回転", &objData.rotation.x, 0.05f);
+				isChanged |= ImGui::DragFloat3("スケール", &objData.scale.x, 0.1f);
 
-				if (isChanged) {
-					if (snapToGrid_) {
+				if ( isChanged ) {
+					if ( snapToGrid_ ) {
 						objData.translation.x = std::round(objData.translation.x);
 						objData.translation.y = std::round(objData.translation.y);
 						objData.translation.z = std::round(objData.translation.z);
@@ -163,20 +177,11 @@ void LevelEditor::Update(bool isEditorActive) {
 					object3ds_[selectedObjectIndex_]->SetScale(objData.scale);
 				}
 			}
-		}
-		else {
-			ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No object selected.");
+		} else {
+			ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "オブジェクトが選択されていません");
 		}
 		ImGui::End();
 	}
 #endif
 
-	for (auto& obj : object3ds_) {
-		obj->Update();
-	}
-}
-void LevelEditor::Draw() {
-	for (auto& obj : object3ds_) {
-		obj->Draw();
-	}
 }

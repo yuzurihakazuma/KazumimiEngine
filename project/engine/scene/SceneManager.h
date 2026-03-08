@@ -26,6 +26,10 @@ public:
 
 	void Finalize();
 
+	// エディタのアクティブ状態を管理
+	bool IsEditorActive() const{ return isEditorActive_; }
+
+
 private:
 	// コンストラクタを private にして外部からの生成を禁止
 	SceneManager() = default;
@@ -37,4 +41,7 @@ private:
 	std::unique_ptr<IScene> nextScene_ = nullptr;
 
 	AbstractSceneFactory* sceneFactory_ = nullptr; 
+
+	bool isEditorActive_ = false;
+
 };

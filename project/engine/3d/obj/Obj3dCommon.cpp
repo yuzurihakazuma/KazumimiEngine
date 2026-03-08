@@ -15,42 +15,43 @@
 using namespace VectorMath;
 using namespace MatrixMath;
 
-void Obj3dCommon::DrawDebugUI() {
+void Obj3dCommon::DrawDebugUI(){
 #ifdef USE_IMGUI
-	if (ImGui::Begin("Inspector")) {
-		if (ImGui::CollapsingHeader("Lighting Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+	// 他のツールと同じウィンドウにまとめる
+	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
+		if ( ImGui::CollapsingHeader("ライティング設定 (Lighting)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 
 			// --- 平行光源 (Directional Light) ---
-			if (ImGui::TreeNode("Directional Light")) {
+			if ( ImGui::TreeNode("平行光源 (Directional Light)") ) {
 				// クラス内のメンバ変数(構造体)を直接編集できるのでシンプルに書けます
-				ImGui::DragFloat3("Direction", &directionalLightData_->direction.x, 0.01f);
-				ImGui::ColorEdit3("Color", &directionalLightData_->color.x);
-				ImGui::DragFloat("Intensity", &directionalLightData_->intensity, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat3("向き (Direction)", &directionalLightData_->direction.x, 0.01f);
+				ImGui::ColorEdit3("色 (Color)", &directionalLightData_->color.x);
+				ImGui::DragFloat("強度 (Intensity)", &directionalLightData_->intensity, 0.01f, 0.0f, 10.0f);
 				directionalLightData_->direction = Normalize(directionalLightData_->direction);
 				ImGui::TreePop();
 			}
 
 			// --- 点光源 (Point Light) ---
-			if (ImGui::TreeNode("Point Light")) {
-				ImGui::DragFloat3("Position", &pointLightData_->position.x, 0.01f);
-				ImGui::ColorEdit3("Color", &pointLightData_->color.x);
-				ImGui::DragFloat("Intensity", &pointLightData_->intensity, 0.01f, 0.0f, 10.0f);
-				ImGui::DragFloat("Radius", &pointLightData_->radius, 0.1f, 0.1f, 100.0f);
-				ImGui::DragFloat("Decay", &pointLightData_->decay, 0.1f, 0.1f, 10.0f);
+			if ( ImGui::TreeNode("点光源 (Point Light)") ) {
+				ImGui::DragFloat3("座標 (Position)", &pointLightData_->position.x, 0.01f);
+				ImGui::ColorEdit3("色 (Color)", &pointLightData_->color.x);
+				ImGui::DragFloat("強度 (Intensity)", &pointLightData_->intensity, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("影響半径 (Radius)", &pointLightData_->radius, 0.1f, 0.1f, 100.0f);
+				ImGui::DragFloat("減衰率 (Decay)", &pointLightData_->decay, 0.1f, 0.1f, 10.0f);
 				ImGui::TreePop();
 			}
 
 			// --- スポットライト (Spot Light) ---
-			if (ImGui::TreeNode("Spot Light")) {
-				ImGui::DragFloat3("Position", &spotLightData_->position.x, 0.01f);
-				ImGui::DragFloat3("Direction", &spotLightData_->direction.x, 0.01f);
+			if ( ImGui::TreeNode("スポットライト (Spot Light)") ) {
+				ImGui::DragFloat3("座標 (Position)", &spotLightData_->position.x, 0.01f);
+				ImGui::DragFloat3("向き (Direction)", &spotLightData_->direction.x, 0.01f);
 				spotLightData_->direction = Normalize(spotLightData_->direction); // 常に正規化
-				ImGui::ColorEdit3("Color", &spotLightData_->color.x);
-				ImGui::DragFloat("Intensity", &spotLightData_->intensity, 0.01f, 0.0f, 10.0f);
-				ImGui::DragFloat("Distance", &spotLightData_->distance, 0.1f, 0.1f, 100.0f);
-				ImGui::DragFloat("Decay", &spotLightData_->decay, 0.1f, 0.1f, 10.0f);
-				ImGui::DragFloat("cosAngle", &spotLightData_->cosAngle, 0.01f, -1.0f, 1.0f);
-				ImGui::DragFloat("FalloffStart", &spotLightData_->cosFalloffStart, 0.01f, -1.0f, 1.0f);
+				ImGui::ColorEdit3("色 (Color)", &spotLightData_->color.x);
+				ImGui::DragFloat("強度 (Intensity)", &spotLightData_->intensity, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("影響距離 (Distance)", &spotLightData_->distance, 0.1f, 0.1f, 100.0f);
+				ImGui::DragFloat("減衰率 (Decay)", &spotLightData_->decay, 0.1f, 0.1f, 10.0f);
+				ImGui::DragFloat("照射角 (cosAngle)", &spotLightData_->cosAngle, 0.01f, -1.0f, 1.0f);
+				ImGui::DragFloat("減衰開始角 (FalloffStart)", &spotLightData_->cosFalloffStart, 0.01f, -1.0f, 1.0f);
 				ImGui::TreePop();
 			}
 		}
