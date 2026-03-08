@@ -111,7 +111,8 @@ void PostEffect::DrawDebugUI(){
 				"ビネット・周辺減光 (Vignetting)",
 				"ぼかし弱 (Box Filter)",
 				"ぼかし強 (Box Filter 5x5)",
-				"綺麗にぼかす (Gaussian Filter)"
+				"綺麗にぼかす (Gaussian Filter)",
+				"アウトライン・輪郭抽出 (Outline)"
 			};
 
 			int currentItem = static_cast< int >( currentType_ );

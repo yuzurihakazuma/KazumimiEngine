@@ -18,6 +18,7 @@ enum class PostEffectType {
 	BoxFilter,      // ボックスフィルター（ぼかし）
 	BoxFilter5x5,   // ボックスフィルター 5x5（強めのぼかし）
 	GaussianFilter, // ガウシアンフィルター（綺麗なぼかし）
+	Outline,
 	Count           // 種類の数
 };
 

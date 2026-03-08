@@ -24,7 +24,7 @@ void PipelineManager::Finalize(){
 
 
 
-	for (int i = 0; i < 7; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		if (postEffectPipelineStates_[i] != nullptr) {
 			postEffectPipelineStates_[i].Reset();
 		}
@@ -232,7 +232,8 @@ void PipelineManager::CreatePostEffectPipeline(){
 		L"resources/shaders/PostEffect/Vignetting.PS.hlsl",     // 3: Vignetting
 		L"resources/shaders/PostEffect/BoxFilter.PS.hlsl",      // 4: BoxFilter
 		L"resources/shaders/PostEffect/BoxFilter5x5.PS.hlsl",   // 5: BoxFilter5x5
-		L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl"  // 6: GaussianFilter
+		L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl" , // 6: GaussianFilter
+		L"resources/shaders/PostEffect/LuminanceBasedOutline.PS.hlsl" // 7: LuminanceBasedOutline
 	};
 
 	// パイプラインの共通設定（ブレンドやカリングなど）
@@ -244,7 +245,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 		.SetBlendMode(BlendMode::kNormal);
 
 	// for文で7個のシェーダーを一気にコンパイルして配列に保存！
-	for (int i = 0; i < 7; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(psPaths[i], L"ps_6_0");
 		builder.SetShaders(vsBlob.Get(), psBlob.Get());
 		builder.Build(dxCommon_->GetDevice(), postEffectPipelineStates_[i]);
