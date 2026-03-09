@@ -21,10 +21,11 @@ void PipelineManager::Finalize(){
 	particlePipelineState_.Reset();
 	postEffectPipelineState_.Reset();
 	postEffectRootSignature_.Reset();
+	
 
 
 
-	for (int i = 0; i < 9; ++i) {
+	for (int i = 0; i < 10; ++i) {
 		if (postEffectPipelineStates_[i] != nullptr) {
 			postEffectPipelineStates_[i].Reset();
 		}
@@ -58,7 +59,7 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateParticleGraphicsPipeline();
 	// ポストエフェクト用グラフィックスパイプラインの作成
 	CreatePostEffectRootSignature();
-	// 
+	// ポストエフェクト用グラフィックスパイプラインの作成
 	CreatePostEffectPipeline();
 
 }
@@ -217,6 +218,7 @@ void PipelineManager::CreatePostEffectRootSignature(){
 
 	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL);  // [0]: テクスチャ (t0)
 	builder.AddDefaultSampler(0);                                     // サンプラー (s0)
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [1]: エフェクト共通定数バッファ (b0)
 
 	// 構築して postEffectRootSignature_ に入れる！
 	builder.Build(dxCommon_->GetDevice(), postEffectRootSignature_);
@@ -239,7 +241,8 @@ void PipelineManager::CreatePostEffectPipeline(){
 		L"resources/shaders/PostEffect/BoxFilter5x5.PS.hlsl",   // 5: BoxFilter5x5
 		L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl" , // 6: GaussianFilter
 		L"resources/shaders/PostEffect/LuminanceBasedOutline.PS.hlsl", // 7: LuminanceBasedOutline
-		L"resources/shaders/PostEffect/RadialBlur.PS.hlsl" // 8: RadialBlur
+		L"resources/shaders/PostEffect/RadialBlur.PS.hlsl", // 8: RadialBlur
+		L"resources/shaders/PostEffect/RandomNoise.PS.hlsl" // 9: RandomNoise
 	};
 
 	// パイプラインの共通設定（ブレンドやカリングなど）
@@ -251,7 +254,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 		.SetBlendMode(BlendMode::kNormal);
 
 	// for文で7個のシェーダーを一気にコンパイルして配列に保存！
-	for (int i = 0; i < 9; ++i) {
+	for (int i = 0; i < 10; ++i) {
 		auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(psPaths[i], L"ps_6_0");
 		builder.SetShaders(vsBlob.Get(), psBlob.Get());
 		builder.Build(dxCommon_->GetDevice(), postEffectPipelineStates_[i]);
