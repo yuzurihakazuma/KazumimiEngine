@@ -48,5 +48,8 @@ public:
 	Card GetSelectedCard() const;
 	void RemoveSelectedCard();//次のカードを選ぶ
 
+	// 現在選んでいるカードと、新しいカードを入れ替える
+	bool SwapSelectedCard(const Card &newCard);
+
 };
 

@@ -105,5 +105,17 @@ private: // メンバ変数
 
 	void ResetBattleDebug(); // デバッグ用バトルリセット
 
+	//UI専用カメラ
+	std::unique_ptr<Camera> uiCamera_ = nullptr;
+
+	// カード交換モード用変数
+	bool isCardSwapMode_ = false; // 交換モード中かどうか
+	Card pendingCard_;            // 拾おうとしている（保留中の）カード
+
+	//カード交換モードの処理
+	void UpdateCardSwapMode(Input *input);
+
+	//カード使用の処理
+	void UpdateCardUse(Input *input);
 
 };
