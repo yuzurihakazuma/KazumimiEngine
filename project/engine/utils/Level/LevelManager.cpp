@@ -1,76 +1,67 @@
 #include "LevelManager.h"
 #include "externals/nlohmann/json.hpp"
 #include <fstream>
-#include <cassert>
 
 using json = nlohmann::json;
 
-void LevelManager::Save(const std::string& fileName, const LevelData& levelData){
+void LevelManager::Save(const std::string& fileName, const LevelData& levelData) {
     json j;
     j["name"] = levelData.name;
+    j["width"] = levelData.width;
+    j["height"] = levelData.height;
+    j["tileSize"] = levelData.tileSize;
+    j["baseY"] = levelData.baseY;
+    j["tiles"] = levelData.tiles;
 
-    // オブジェクトのリストをJSONの配列に変換する
-    json objectsArray = json::array();
-    for ( const auto& obj : levelData.objects ) {
-        json jsonObj;
-        jsonObj["type"] = obj.type;
-        // Vector3を配列 [x, y, z] の形で保存
-        jsonObj["translation"] = { obj.translation.x, obj.translation.y, obj.translation.z };
-        jsonObj["rotation"] = { obj.rotation.x, obj.rotation.y, obj.rotation.z };
-        jsonObj["scale"] = { obj.scale.x, obj.scale.y, obj.scale.z };
-
-        objectsArray.push_back(jsonObj);
-    }
-    j["objects"] = objectsArray;
-
-    // ファイルに書き込み
     std::ofstream file(fileName);
-    if ( file.is_open() ) {
-        // dump(4) は見やすくするためにインデント（空白）を4つ入れる設定です
+    if (file.is_open()) {
         file << j.dump(4);
         file.close();
     }
 }
 
-LevelData LevelManager::Load(const std::string& fileName){
+LevelData LevelManager::Load(const std::string& fileName) {
     LevelData levelData;
 
     std::ifstream file(fileName);
-    if ( !file.is_open() ) {
-        // ファイルがない場合は空のデータを返す
+    if (!file.is_open()) {
+        // デフォルトで10x10の床マップを作る
+        levelData.name = "NewMap";
+        levelData.width = 10;
+        levelData.height = 10;
+        levelData.tileSize = 2.0f;
+        levelData.baseY = -2.0f;
+        levelData.tiles.resize(levelData.height, std::vector<int>(levelData.width, 0));
         return levelData;
     }
 
     json j;
     file >> j;
 
-    // マップ名の読み込み（無い場合は "Unknown" にする）
     levelData.name = j.value("name", "Unknown");
+    levelData.width = j.value("width", 10);
+    levelData.height = j.value("height", 10);
+    levelData.tileSize = j.value("tileSize", 2.0f);
+    levelData.baseY = j.value("baseY", -2.0f);
 
-    // オブジェクトの配列を読み込む
-    if ( j.contains("objects") && j["objects"].is_array() ) {
-        for ( const auto& jsonObj : j["objects"] ) {
-            LevelObjectData obj;
-            obj.type = jsonObj.value("type", "unknown");
+    if (j.contains("tiles") && j["tiles"].is_array()) {
+        levelData.tiles = j["tiles"].get<std::vector<std::vector<int>>>();
+    } else {
+        levelData.tiles.resize(levelData.height, std::vector<int>(levelData.width, 0));
+    }
 
-            // XYZの座標データを取り出して Vector3 に入れる
-            if ( jsonObj.contains("translation") ) {
-                obj.translation.x = jsonObj["translation"][0];
-                obj.translation.y = jsonObj["translation"][1];
-                obj.translation.z = jsonObj["translation"][2];
-            }
-            if ( jsonObj.contains("rotation") ) {
-                obj.rotation.x = jsonObj["rotation"][0];
-                obj.rotation.y = jsonObj["rotation"][1];
-                obj.rotation.z = jsonObj["rotation"][2];
-            }
-            if ( jsonObj.contains("scale") ) {
-                obj.scale.x = jsonObj["scale"][0];
-                obj.scale.y = jsonObj["scale"][1];
-                obj.scale.z = jsonObj["scale"][2];
-            }
-            // 読み込んだオブジェクトをリストに追加
-            levelData.objects.push_back(obj);
+    if (!levelData.tiles.empty()) {
+        levelData.height = static_cast<int>(levelData.tiles.size());
+        levelData.width = static_cast<int>(levelData.tiles[0].size());
+    }
+
+    // 念のためサイズ補正
+    if ((int)levelData.tiles.size() != levelData.height) {
+        levelData.tiles.resize(levelData.height, std::vector<int>(levelData.width, 0));
+    }
+    for (auto& row : levelData.tiles) {
+        if ((int)row.size() != levelData.width) {
+            row.resize(levelData.width, 0);
         }
     }
 
