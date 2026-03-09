@@ -67,6 +67,9 @@ void GamePlayScene::Initialize() {
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
+	//UI専用カメラの初期化
+	uiCamera_ = std::make_unique<Camera>(1280,720,dxCommon);
+
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
@@ -136,7 +139,7 @@ void GamePlayScene::Initialize() {
 	CardDatabase::Initialize("Resources/CardData.csv");
 
 	// 手札マネージャーの初期化
-	handManager_.Initialize(camera_.get());
+	handManager_.Initialize(uiCamera_.get());
 
 	//最初から手札にID１を追加する
 	handManager_.AddCard(CardDatabase::GetCardData(1));
@@ -148,7 +151,6 @@ void GamePlayScene::Initialize() {
 	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
 
 	enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
-
 }
 
 void GamePlayScene::Update() {
@@ -159,6 +161,11 @@ void GamePlayScene::Update() {
 	}
 
 	Input* input = Input::GetInstance();
+
+	if (isCardSwapMode_) {
+		UpdateCardSwapMode(input);
+		return;
+	}
 
 	// デバッグ用リセット
 	if (input->Triggerkey(DIK_R)) {
@@ -387,6 +394,13 @@ void GamePlayScene::Update() {
 			if (success) {
 				pickup.isActive = false;
 				continue;
+			} else {
+				isCardSwapMode_ = true;
+				pendingCard_ = pickup.card; // 拾おうとしたカードを一時保存
+
+				// 一旦マップ上からは消しておく
+				pickup.isActive = false;
+				continue;
 			}
 		}
 
@@ -465,35 +479,7 @@ void GamePlayScene::Update() {
 	}
 
 	// カード使用
-	if (input->Triggerkey(DIK_SPACE) && player_ && !player_->IsDead()) {
-
-		Card selectedCard = handManager_.GetSelectedCard(); // 現在選択中のカード取得
-
-		if (selectedCard.id != -1) {
-
-			// コストが足りる場合のみ使用
-			if (player_->CanUseCost(selectedCard.cost)) {
-
-				player_->UseCost(selectedCard.cost); // コスト消費
-
-				// カード使用システムにカード使用を依頼
-				if (cardUseSystem_) {
-					cardUseSystem_->UseCard(
-						selectedCard,             // 使用するカード
-						playerPos_,               // 使用者位置
-						player_->GetRotation().y, // 使用者の向き
-						true,                     // プレイヤーが使用
-						player_.get()             // プレイヤー本体
-					);
-				}
-
-				// 初期カード以外は使用後に削除
-				if (selectedCard.id != 1) {
-					handManager_.RemoveSelectedCard(); // 使い切りカードは手札から削除
-				}
-			}
-		}
-	}
+	UpdateCardUse(input);
 
 }
 
@@ -710,13 +696,77 @@ void GamePlayScene::ResetBattleDebug() {
 	enemyDeadHandled_ = false;
 
 	// 手札を初期化
-	handManager_.Initialize(camera_.get());
+	handManager_.Initialize(uiCamera_.get());
 	handManager_.AddCard(CardDatabase::GetCardData(1)); // 初期カードを再追加
 
 	// フィールドカードを初期化
 	cardPickupManager_.Initialize(camera_.get());
 	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
 	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
+}
+
+void GamePlayScene::UpdateCardSwapMode(Input *input) {
+
+	// 手札の選択と見た目の更新
+	handManager_.Update();
+	uiCamera_->Update(); // UIカメラの更新もここで行う
+
+	if (input->Triggerkey(DIK_SPACE)) {
+		// 現在選んでいるカードを取得
+		Card selectedCard = handManager_.GetSelectedCard();
+
+		// 選んでいるカードがID: 1（初期カード)なら交換をしない
+		if (selectedCard.id == 1) {
+			return;
+		}
+
+		handManager_.SwapSelectedCard(pendingCard_);
+		isCardSwapMode_ = false;
+	} else if (input->Triggerkey(DIK_C)) {
+		isCardSwapMode_ = false;
+	}
+}
+
+void GamePlayScene::UpdateCardUse(Input *input) {
+
+	// プレイヤーが死んでいる、またはスペースキーが押されていなければ何もしない
+	if (!player_ || player_->IsDead() || !input->Triggerkey(DIK_SPACE)) {
+		return;
+	}
+
+	// 選んでいるカードを取得（エラーカードなら何もしない）
+	Card selectedCard = handManager_.GetSelectedCard();
+	if (selectedCard.id == -1) {
+		return;
+	}
+
+	// コストが足りなければ何もしない
+	if (!player_->CanUseCost(selectedCard.cost)) {
+		return;
+	}
+
+	// ----------------------------------------
+	// ここから下が実際の「使用処理」
+	// ----------------------------------------
+
+	// コスト消費
+	player_->UseCost(selectedCard.cost);
+
+	// カード効果発動
+	if (cardUseSystem_) {
+		cardUseSystem_->UseCard(
+			selectedCard,
+			playerPos_,               
+			player_->GetRotation().y,
+			true,
+			player_.get()
+		);
+	}
+
+	// 使い切りカード（IDが1以外）なら手札から削除
+	if (selectedCard.id != 1) {
+		handManager_.RemoveSelectedCard();
+	}
 }
 
 GamePlayScene::GamePlayScene() {}
