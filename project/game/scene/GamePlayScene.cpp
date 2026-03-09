@@ -133,6 +133,8 @@ void GamePlayScene::Update(){
 		testObj_->Update();
 	}
 
+	PostEffect::GetInstance()->Update();
+
 	levelEditor_->Update();
 }
 
