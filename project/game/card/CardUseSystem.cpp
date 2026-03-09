@@ -32,13 +32,13 @@ void CardUseSystem::Initialize(Camera* camera) {
 }
 
 // 更新
-void CardUseSystem::Update(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos) {
+void CardUseSystem::Update(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos, const LevelData& level) {
 
     // パンチ更新
     UpdatePunch(player, enemy, playerPos, enemyPos);
 
     // 火球更新
-    UpdateFireball(player, enemy, playerPos, enemyPos);
+    UpdateFireball(player, enemy, playerPos, enemyPos, level);
 }
 
 // 描画
@@ -146,6 +146,41 @@ void CardUseSystem::Reset() {
     fireballVelocity_ = { 0.0f, 0.0f, 0.0f };
 }
 
+// ブロックとの衝突判定
+bool CardUseSystem::CheckBlockCollision(const Vector3& pos, float radius, const LevelData& level) {
+
+    // 火球用のAABBを作成
+    AABB projectileAABB;
+    projectileAABB.min = { pos.x - radius, pos.y - radius, pos.z - radius };
+    projectileAABB.max = { pos.x + radius, pos.y + radius, pos.z + radius };
+
+    // タイルを走査
+    for (int z = 0; z < level.height; z++) {
+        for (int x = 0; x < level.width; x++) {
+
+            // ブロック以外は無視
+            if (level.tiles[z][x] != 1) {
+                continue;
+            }
+
+            float worldX = x * level.tileSize;
+            float worldZ = z * level.tileSize;
+
+            // ブロックのAABBを作成
+            AABB blockAABB;
+            blockAABB.min = { worldX - 1.0f, level.baseY,         worldZ - 1.0f };
+            blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f,  worldZ + 1.0f };
+
+            // 火球とブロックが当たったらtrue
+            if (Collision::IsCollision(projectileAABB, blockAABB)) {
+                return true;
+            }
+        }
+    }
+
+    return false; // どのブロックにも当たっていない
+}
+
 // パンチ更新
 void CardUseSystem::UpdatePunch(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos) {
 
@@ -203,7 +238,7 @@ void CardUseSystem::UpdatePunch(Player* player, Enemy* enemy, const Vector3& pla
 }
 
 // 火球更新
-void CardUseSystem::UpdateFireball(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos) {
+void CardUseSystem::UpdateFireball(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos, const LevelData& level) {
 
     if (!isFireballActive_) {
         return; // 火球演出中でなければ何もしない
@@ -211,6 +246,12 @@ void CardUseSystem::UpdateFireball(Player* player, Enemy* enemy, const Vector3& 
 
     // 火球移動
     fireballPos_ += fireballVelocity_;
+
+    // ブロックに当たったら消す
+    if (CheckBlockCollision(fireballPos_, 0.5f, level)) {
+        isFireballActive_ = false; // 壁ヒットで火球消滅
+        return;
+    }
 
     // 火球オブジェクト更新
     if (fireballObj_) {
@@ -230,8 +271,8 @@ void CardUseSystem::UpdateFireball(Player* player, Enemy* enemy, const Vector3& 
             }; // 敵との距離
 
             if (Length(diff) < 1.5f) {
-                enemy->TakeDamage(1);     // 敵にダメージ
-                isFireballActive_ = false;// ヒットしたら終了
+                enemy->TakeDamage(1);      // 敵にダメージ
+                isFireballActive_ = false; // ヒットしたら終了
                 return;
             }
         }

@@ -30,6 +30,10 @@ void Enemy::Initialize() {
     // クールダウン初期化
     attackCooldownTimer_ = 0; // 近接攻撃クールダウン初期化
     cardCooldownTimer_ = 0;   // カード使用クールダウン初期化
+
+    hasTargetCard_ = false;                 // 目標カード状態リセット
+    prevPos_ = pos_;                        // 前フレーム位置初期化
+    stuckTimer_ = 0;                        // 詰まりタイマー初期化
 }
 
 void Enemy::Update() {
@@ -37,8 +41,8 @@ void Enemy::Update() {
     if (isDead_) return; // 死亡していたら何もしない
 
     // このフレームの攻撃・カード使用フラグをリセット
-    attackRequest_ = false; // 毎フレーム初期化
-    cardUseRequest_ = false; // 毎フレーム初期化
+    attackRequest_ = false;   // 毎フレーム初期化
+    cardUseRequest_ = false;  // 毎フレーム初期化
 
     // 近接攻撃クールダウン更新
     if (attackCooldownTimer_ > 0) {
@@ -62,6 +66,14 @@ void Enemy::Update() {
         }
     }
 
+    // 詰まり判定更新
+    if (Length(pos_ - prevPos_) < stuckDistanceThreshold_) {
+        stuckTimer_++; // ほとんど動いていなければ加算
+    } else {
+        stuckTimer_ = 0; // 動いていればリセット
+    }
+    prevPos_ = pos_; // 現在位置を保存
+
     // 行動ロック中はタイマーだけ進める
     if (isActionLocked_) {
         actionLockTimer_--; // ロック残り時間減少
@@ -76,6 +88,11 @@ void Enemy::Update() {
     // 思考タイマー更新
     if (thinkTimer_ > 0) {
         thinkTimer_--; // 次の判断まで待つ
+    }
+
+    // 思考タイマーが切れていたら次の状態を決定
+    if (thinkTimer_ <= 0) {
+        DecideNextState();
     }
 
     switch (state_) {
@@ -98,7 +115,91 @@ void Enemy::Update() {
     case State::UseCard:
         UpdateUseCard();
         break;
+
+    case State::Retreat:
+        UpdateRetreat();
+        break;
     }
+}
+
+// 次の状態を決める
+void Enemy::DecideNextState() {
+
+    Vector3 toPlayer = {
+        playerPos_.x - pos_.x,
+        0.0f,
+        playerPos_.z - pos_.z
+    };
+
+    float playerDist = Length(toPlayer); // プレイヤーとの距離
+
+    // 詰まっていたら一旦巡回に戻して方向転換
+    if (IsStuck()) {
+        state_ = State::Patrol; // 巡回へ戻す
+        direction_ *= -1;       // 巡回方向反転
+        thinkTimer_ = 20;       // 少しの間判断固定
+        stuckTimer_ = 0;        // 詰まり状態解除
+        return;
+    }
+
+    // カードを持っている場合
+    if (hasCard_) {
+
+        // 近接カードを持っている場合
+        if (HasMeleeCard()) {
+            if (playerDist <= attackRange_) {
+                state_ = State::UseCard;    // 近ければカード使用
+            } else {
+                state_ = State::ChasePlayer; // 遠ければ追跡
+            }
+        }
+        // 遠距離カードを持っている場合
+        else if (HasRangedCard()) {
+            if (playerDist < retreatRange_) {
+                state_ = State::Retreat;    // 近すぎたら離れる
+            } else if (playerDist <= cardUseRange_) {
+                state_ = State::UseCard;    // 射程内ならカード使用
+            } else {
+                state_ = State::ChasePlayer; // 遠ければ追跡
+            }
+        }
+        // その他カード
+        else {
+            if (playerDist <= cardUseRange_) {
+                state_ = State::UseCard;
+            } else {
+                state_ = State::ChasePlayer;
+            }
+        }
+
+        return;
+    }
+
+    // カードを持っていない場合
+    if (playerDist <= attackRange_) {
+        state_ = State::AttackPlayer; // 近ければ通常攻撃
+    } else if (hasTargetCard_) {
+        state_ = State::MoveToCard;   // カードが見つかっていれば拾いに行く
+    } else if (playerDist <= 8.0f) {
+        state_ = State::ChasePlayer;  // プレイヤー追跡
+    } else {
+        state_ = State::Patrol;       // 何もなければ巡回
+    }
+}
+
+// 詰まり判定
+bool Enemy::IsStuck() const {
+    return stuckTimer_ >= stuckThreshold_; // 一定時間動いていなければ詰まり
+}
+
+// 近接カードを持っているか
+bool Enemy::HasMeleeCard() const {
+    return hasCard_ && heldCard_.id == 1; // 例：Fist
+}
+
+// 遠距離カードを持っているか
+bool Enemy::HasRangedCard() const {
+    return hasCard_ && heldCard_.id == 2; // 例：Fireball
 }
 
 void Enemy::UpdatePatrol() {
@@ -150,8 +251,17 @@ void Enemy::UpdateAttackPlayer() {
         playerPos_.z - pos_.z
     }; // プレイヤー方向
 
+    float dist = Length(dir); // プレイヤーとの距離
+
+    // 攻撃範囲外なら追跡に戻す
+    if (dist > attackRange_) {
+        state_ = State::ChasePlayer; // 追跡へ戻す
+        thinkTimer_ = 0;             // すぐ再判断できるようにする
+        return;
+    }
+
     // プレイヤー方向を向く
-    if (Length(dir) > 0.01f) {
+    if (dist > 0.01f) {
         rot_.y = std::atan2f(dir.x, dir.z);
     }
 
@@ -161,11 +271,11 @@ void Enemy::UpdateAttackPlayer() {
     }
 
     // 近接攻撃発生
-    attackRequest_ = true;                // GamePlaySceneへ攻撃発生を通知
+    attackRequest_ = true;                  // GamePlaySceneへ攻撃発生を通知
     attackCooldownTimer_ = attackCooldown_; // クールダウン開始
 
-    SetActionLock(20); // 攻撃硬直
-    thinkTimer_ = 20;  // 少しの間判断を固定
+    SetActionLock(10); // 少し短めにする
+    thinkTimer_ = 10;  // 少し短めにする
 }
 
 void Enemy::UpdateUseCard() {
@@ -176,8 +286,17 @@ void Enemy::UpdateUseCard() {
         playerPos_.z - pos_.z
     }; // プレイヤー方向
 
+    float dist = Length(dir); // プレイヤーとの距離
+
+    // 射程外なら追跡へ戻す
+    if (dist > cardUseRange_) {
+        state_ = State::ChasePlayer; // 追跡へ戻す
+        thinkTimer_ = 0;             // すぐ再判断
+        return;
+    }
+
     // プレイヤー方向を向く
-    if (Length(dir) > 0.01f) {
+    if (dist > 0.01f) {
         rot_.y = std::atan2f(dir.x, dir.z);
     }
 
@@ -190,8 +309,23 @@ void Enemy::UpdateUseCard() {
     cardUseRequest_ = true;             // GamePlaySceneへカード使用発生を通知
     cardCooldownTimer_ = cardCooldown_; // クールダウン開始
 
-    SetActionLock(30); // カード使用硬直
-    thinkTimer_ = 30;  // 少しの間判断を固定
+    SetActionLock(15); // 少し短め
+    thinkTimer_ = 15;  // 少し短め
+}
+
+void Enemy::UpdateRetreat() {
+
+    Vector3 dir = {
+        pos_.x - playerPos_.x,
+        0.0f,
+        pos_.z - playerPos_.z
+    }; // プレイヤーから離れる方向
+
+    if (Length(dir) > 0.01f) {
+        dir = Normalize(dir);
+        pos_ += dir * chaseSpeed_;          // 離れるように移動
+        rot_.y = std::atan2f(dir.x, dir.z); // 移動方向を向く
+    }
 }
 
 void Enemy::TakeDamage(int damage) {
