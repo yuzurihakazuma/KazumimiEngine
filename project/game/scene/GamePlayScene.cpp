@@ -59,7 +59,8 @@ void GamePlayScene::Initialize(){
 	textures_["monsterBall"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
-	
+	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
+	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 	
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
@@ -69,7 +70,20 @@ void GamePlayScene::Initialize(){
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
 
-	
+	// プレイヤーオブジェクト生成
+	testObj_ = Obj3d::Create("block");
+	if ( testObj_ ){
+
+		testObj_->SetCamera(camera_.get());
+		testObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
+
+		// ノイズ画像と初期の閾値(0.0)をセット
+		testObj_->SetNoiseTexture(textures_["noise0"].srvIndex);
+		testObj_->SetDissolveThreshold(0.0f);
+
+	}
+
+
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -113,8 +127,11 @@ void GamePlayScene::Update(){
 	// 全オブジェクト更新
 	for ( auto& obj : object3ds_ ) {
 		obj->Update();
+		
 	}
-	
+	if ( testObj_ ){
+		testObj_->Update();
+	}
 
 	levelEditor_->Update();
 }
@@ -139,6 +156,9 @@ void GamePlayScene::Draw(){
 	
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	
+	if ( testObj_ ){
+		testObj_->Draw();
+	}
 	
 	// 3Dオブジェクト描画
 	for ( auto& obj : object3ds_ ) {
@@ -174,6 +194,36 @@ void GamePlayScene::DrawDebugUI(){
 
 	
 	levelEditor_->DrawDebugUI();
+
+	ImGui::Begin("Block Dissolve Test");
+
+	// スライダーで 0.0(通常) 〜 1.0(消滅) を操作
+	if ( ImGui::SliderFloat("ブロックの消滅度", &dissolveThreshold_, 0.0f, 1.0f) ) {
+		if ( testObj_ ) {
+			// スライダーを動かすと、このブロックの閾値だけが書き換わる
+			testObj_->SetDissolveThreshold(dissolveThreshold_);
+		}
+	}
+
+	// 便利なリセットボタン
+	if ( ImGui::Button("元に戻す") ) {
+		dissolveThreshold_ = 0.0f;
+		if ( testObj_ ){
+
+			testObj_->SetDissolveThreshold(0.0f);
+		}
+			
+	}
+	ImGui::SameLine();
+	if ( ImGui::Button("完全に消す") ) {
+		dissolveThreshold_ = 1.0f;
+		if ( testObj_ ){
+			testObj_->SetDissolveThreshold(1.0f);
+		}
+	}
+
+	ImGui::End();
+
 
 #endif
 

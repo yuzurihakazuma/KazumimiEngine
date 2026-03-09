@@ -28,6 +28,12 @@ public:
 		Matrix4x4 WorldInverseTranspose;
 	};
 
+	// ディゾルブエフェクト用の定数バッファ構造体
+	struct DissolveData {
+		float threshold; // 進行度（0.0で通常、1.0で完全に消える）
+		float padding[3]; // 16バイト境界に合わせるための空き箱
+	};
+
 	/// <summary>
 	/// 静的生成・初期化短縮関数
 	///  <summary>
@@ -65,6 +71,9 @@ public:
 	void SetModel(Model* model){ model_ = model; }
 	void SetCamera(const Camera* camera){ this->camera_ = camera; }
 
+	// ディゾルブエフェクトのパラメータをセットする関数
+	void SetDissolveThreshold(float threshold);
+	void SetNoiseTexture(uint32_t textureIndex);
 
 private:
 
@@ -89,6 +98,8 @@ private:
 	TransformationMatrix* transformationMatrixData_ = nullptr;
 
 	const Camera* camera_ = nullptr; // 所有しない参照
-
-
+	// ディゾルブエフェクト用リソース
+	Microsoft::WRL::ComPtr<ID3D12Resource> dissolveResource_;
+	DissolveData* dissolveData_ = nullptr;
+	uint32_t noiseTextureIndex_ = 0;
 };
