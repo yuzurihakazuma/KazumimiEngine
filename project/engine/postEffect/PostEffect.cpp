@@ -11,7 +11,7 @@
 // --- エンジン側のファイル ---
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/SrvManager.h"
-
+#include "engine/graphics/ResourceFactory.h"
 
 
 using json = nlohmann::json;
@@ -23,8 +23,21 @@ void PostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uin
 
 	resultTexture_ = std::make_unique<RenderTexture>();
 	resultTexture_->Initialize(dxCommon, srvManager, width, height);
-
+	// 時間管理用のバッファを生成してマッピングする
+	timeResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(float));
+	timeResource_->Map(0, nullptr, reinterpret_cast< void** >( &timeData_ ));
+	*timeData_ = 0.0f;
 }
+
+void PostEffect::Update(){
+	if ( isActive_ ) {
+		time_ += timeSpeed_; // 自分の持っているスピード分だけ進める
+		if ( timeData_ ) {
+			*timeData_ = time_;
+		}
+	}
+}
+
 
 uint32_t PostEffect::GetSrvIndex() const{
 	if ( isActive_ ) {
@@ -40,6 +53,10 @@ void PostEffect::Finalize() {
 		renderTexture_.reset();
 	}
 	if ( resultTexture_ ) { resultTexture_.reset(); }
+
+	if ( timeResource_ ) {
+		timeResource_.Reset();
+	}
 }
 
 void PostEffect::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
@@ -72,6 +89,9 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxC
 	// 1枚目（読み込みモードになっているはずの画用紙）をシェーダーに渡す
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTexture_->GetSrvIndex());
 
+	commandList->SetGraphicsRootConstantBufferView(1, timeResource_->GetGPUVirtualAddress());
+
+
 	// エフェクトをかけながら2枚目に描き込む！
 	commandList->DrawInstanced(3, 1, 0, 0);
 
@@ -89,7 +109,7 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxC
 
 	// 完成した2枚目の画用紙をシェーダーに渡す
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, resultTexture_->GetSrvIndex());
-
+	
 	// メイン画面に描画する
 	commandList->DrawInstanced(3, 1, 0, 0);
 }
@@ -113,7 +133,8 @@ void PostEffect::DrawDebugUI(){
 				"ぼかし強 (Box Filter 5x5)",
 				"綺麗にぼかす (Gaussian Filter)",
 				"アウトライン・輪郭抽出 (Outline)",
-				"放射状ブラー (Radial Blur)"
+				"放射状ブラー (Radial Blur)",
+				"ノイズ・砂嵐 (Random Noise)"
 			};
 
 			int currentItem = static_cast< int >( currentType_ );
@@ -121,6 +142,13 @@ void PostEffect::DrawDebugUI(){
 			// コンボボックスで切り替え
 			if ( ImGui::Combo("エフェクトの種類", &currentItem, effectNames, IM_ARRAYSIZE(effectNames)) ) {
 				currentType_ = static_cast< PostEffectType >( currentItem );
+			}
+			// ノイズエフェクトのときだけ、時間の進む速さを調整するスライダーを表示
+			if ( currentType_ == PostEffectType::RandomNoise ) {
+				ImGui::SliderFloat("ノイズの速度 (Time Speed)", &timeSpeed_, 0.0f, 0.5f);
+				if ( ImGui::Button("速度リセット") ) {
+					timeSpeed_ = 0.05f;
+				}
 			}
 
 			ImGui::Separator();

@@ -18,7 +18,8 @@ enum class PostEffectType {
 	BoxFilter,      // ボックスフィルター（ぼかし）
 	BoxFilter5x5,   // ボックスフィルター 5x5（強めのぼかし）
 	GaussianFilter, // ガウシアンフィルター（綺麗なぼかし）
-	Outline,
+	Outline,        // アウトライン
+	RandomNoise,    // ランダムノイズ
 	Count           // 種類の数
 };
 
@@ -35,7 +36,11 @@ public:
 
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
+	
+	// 更新
+	void Update();
 
+	// 終了処理
 	void Finalize();
 
 	// お絵かき開始（画用紙への切り替え）
@@ -54,6 +59,15 @@ public:
 	void Load(const std::string& filePath = "resources/data/postEffect.json"); // JSONファイルからエフェクト設定を読み込む
 
 	uint32_t GetSrvIndex() const;
+
+
+	// 外から時間を進めるための関数
+	void AddTime(float addValue){
+		time_ += addValue;
+		if ( timeData_ ) {
+			*timeData_ = time_;
+		}
+	}
 private:
 
 	PostEffect() = default;
@@ -70,5 +84,10 @@ private:
 	PostEffectType currentType_ = PostEffectType::None;
 
 	bool isActive_ = true;
+	// 時間経過で変化するエフェクトのための時間管理
+	Microsoft::WRL::ComPtr<ID3D12Resource> timeResource_;
+	float* timeData_ = nullptr; // GPUに送る用の時間データ
+	float time_ = 0.0f;         // C++側でカウントアップする時間
 
+	float timeSpeed_ = 0.05f;
 };

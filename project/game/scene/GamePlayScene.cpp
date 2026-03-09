@@ -499,6 +499,8 @@ void GamePlayScene::Update() {
 		testObj_->Update();
 	}
 
+	PostEffect::GetInstance()->Update();
+
 	levelEditor_->Update();
 
 	// 手札（3Dモデル）の移動などの更新
