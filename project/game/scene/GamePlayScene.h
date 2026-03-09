@@ -77,6 +77,8 @@ private: // メンバ変数
 
 	std::unique_ptr<Obj3d> playerObj_ = nullptr;
 
+	std::unique_ptr<Obj3d> testObj_ = nullptr;
+
 	Vector3 playerPos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
@@ -89,7 +91,7 @@ private: // メンバ変数
 	HandManager handManager_;
 	int dummyPlayerCost_ = 3;
 
-	uint32_t dissolveNoiseTex_ = 0; // ノイズテクスチャの番号
-	float dissolveThreshold_ = 0.0f; // 消滅の進行度(0.0〜1.0)
+	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
+	
 
 };
