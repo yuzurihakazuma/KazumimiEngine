@@ -117,5 +117,4 @@ private: // メンバ変数
 
 	//カード使用の処理
 	void UpdateCardUse(Input *input);
-
 };
