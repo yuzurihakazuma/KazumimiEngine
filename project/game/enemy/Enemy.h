@@ -10,7 +10,8 @@ public:
         MoveToCard,   // カードへ移動
         ChasePlayer,  // プレイヤー追跡
         AttackPlayer, // 近接攻撃
-        UseCard       // カード使用
+        UseCard,      // カード使用
+        Retreat       // プレイヤーから離れる
     };
 
     void Initialize(); // 初期化
@@ -25,9 +26,17 @@ public:
     void SetPosition(const Vector3& pos) { pos_ = pos; startX_ = pos.x; } // 位置設定
     void SetScale(const Vector3& scale) { scale_ = scale; }                // スケール設定
 
+    // 通常の位置補正用（巡回基準は変えない）
+    void SetPositionOnly(const Vector3& pos) { pos_ = pos; } // 位置だけ設定
+
     // 各種ターゲット設定
-    void SetPlayerPosition(const Vector3& pos) { playerPos_ = pos; }          // プレイヤー位置設定
-    void SetTargetCardPosition(const Vector3& pos) { targetCardPos_ = pos; }  // 目標カード位置設定
+    void SetPlayerPosition(const Vector3& pos) { playerPos_ = pos; } // プレイヤー位置設定
+
+    // 目標カード設定
+    void SetCardTarget(bool hasTarget, const Vector3& pos) {
+        hasTargetCard_ = hasTarget;   // 目標カードがあるか
+        targetCardPos_ = pos;         // 目標カード位置
+    }
 
     // 状態設定・取得
     void SetState(State state) { state_ = state; } // 状態設定
@@ -45,28 +54,32 @@ public:
     int GetHP() const { return hp_; }       // HP取得
 
     // 行動ロック関連
-    void SetActionLock(int frame);                            // 一定時間行動ロック
-    bool IsActionLocked() const { return isActionLocked_; }   // 行動ロック中か
+    void SetActionLock(int frame);                          // 一定時間行動ロック
+    bool IsActionLocked() const { return isActionLocked_; } // 行動ロック中か
 
     // ヒット演出関連
     bool IsHit() const { return isHit_; } // ヒット中か
     bool IsVisible() const;               // 描画するか
 
-    // -----------------------------
     // 攻撃・カード使用リクエスト
-    // -----------------------------
-    bool GetAttackRequest() const { return attackRequest_; } // 近接攻撃発生取得
-    bool GetCardUseRequest() const { return cardUseRequest_; } // カード使用発生取得
+    bool GetAttackRequest() const { return attackRequest_; }      // 近接攻撃発生取得
+    bool GetCardUseRequest() const { return cardUseRequest_; }    // カード使用発生取得
 
-    void ClearAttackRequest() { attackRequest_ = false; } // 近接攻撃発生クリア
-    void ClearCardUseRequest() { cardUseRequest_ = false; } // カード使用発生クリア
+    void ClearAttackRequest() { attackRequest_ = false; }         // 近接攻撃発生クリア
+    void ClearCardUseRequest() { cardUseRequest_ = false; }       // カード使用発生クリア
 
 private:
+    void DecideNextState();     // 次の状態を決める
+    bool IsStuck() const;       // 詰まり判定
+    bool HasMeleeCard() const;  // 近接カードを持っているか
+    bool HasRangedCard() const; // 遠距離カードを持っているか
+
     void UpdatePatrol();        // 巡回処理
     void UpdateMoveToCard();    // カードへ向かう処理
     void UpdateChasePlayer();   // プレイヤー追跡処理
     void UpdateAttackPlayer();  // 近接攻撃処理
     void UpdateUseCard();       // カード使用処理
+    void UpdateRetreat();       // プレイヤーから離れる処理
 
 private:
     Vector3 pos_{ 5.0f, 0.0f, 5.0f };       // 位置
@@ -79,6 +92,7 @@ private:
 
     float attackRange_ = 2.0f;              // 近接攻撃距離
     float cardUseRange_ = 6.0f;             // カード使用距離
+    float retreatRange_ = 3.0f;             // 離れたい距離
 
     float startX_ = 5.0f;                   // 巡回開始X
     int direction_ = 1;                     // 巡回方向
@@ -87,6 +101,7 @@ private:
 
     Vector3 playerPos_{ 0.0f, 0.0f, 0.0f };     // プレイヤー位置
     Vector3 targetCardPos_{ 0.0f, 0.0f, 0.0f }; // 目標カード位置
+    bool hasTargetCard_ = false;                // 目標カードがあるか
 
     bool hasCard_ = false;                  // カード所持中か
     Card heldCard_{ -1, "", 0 };            // 所持カード
@@ -104,20 +119,20 @@ private:
     const int hitDuration_ = 10;            // ヒット演出時間
     Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f }; // ノックバック速度
 
-    // -----------------------------
     // 攻撃・カード使用発生フラグ
-    // GamePlayScene側で受け取って使う
-    // -----------------------------
     bool attackRequest_ = false;            // 近接攻撃発生フラグ
     bool cardUseRequest_ = false;           // カード使用発生フラグ
 
-    // -----------------------------
     // クールダウン
-    // 連続攻撃・連続カード使用を防ぐ
-    // -----------------------------
     int attackCooldownTimer_ = 0;           // 近接攻撃クールダウン
     int cardCooldownTimer_ = 0;             // カード使用クールダウン
 
     const int attackCooldown_ = 30;         // 近接攻撃クールダウン時間
     const int cardCooldown_ = 60;           // カード使用クールダウン時間
+
+    // 詰まり判定用
+    Vector3 prevPos_{ 5.0f, 0.0f, 5.0f };   // 前フレーム位置
+    int stuckTimer_ = 0;                    // 詰まり継続時間
+    const int stuckThreshold_ = 20;         // 何フレームで詰まり判定するか
+    float stuckDistanceThreshold_ = 0.01f;  // ほぼ動いていない距離
 };

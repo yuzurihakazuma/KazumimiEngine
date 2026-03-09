@@ -243,14 +243,13 @@ void GamePlayScene::Update() {
 	}
 
 
-		if (enemy_ && !enemy_->IsDead()) {
+	if (enemy_ && !enemy_->IsDead()) {
 		Vector3 oldEnemyPos = enemy_->GetPosition(); // 敵更新前の位置を保存
 
 		enemy_->SetPlayerPosition(playerPos_); // プレイヤー位置を渡す
 
 		bool foundCard = false;                // 近くに拾えるカードがあるか
 		Vector3 nearestCardPos{};              // 一番近いカード位置
-		Card nearestCard{};                    // 一番近いカード情報
 		float nearestCardDist = 99999.0f;      // 一番近いカード距離
 
 		for (auto& pickup : cardPickupManager_.GetPickups()) {
@@ -267,49 +266,12 @@ void GamePlayScene::Update() {
 			if (dist < 6.0f && dist < nearestCardDist) {
 				nearestCardDist = dist;     // 最短距離更新
 				nearestCardPos = pickup.position;
-				nearestCard = pickup.card;
 				foundCard = true;
 			}
 		}
 
-		Vector3 toPlayer = {
-			playerPos_.x - enemyPos_.x,
-			0.0f,
-			playerPos_.z - enemyPos_.z
-		};
-
-		float playerDist = Length(toPlayer); // 敵とプレイヤーの距離
-
-		// 行動ロック中でなければ状態を決める
-		if (!enemy_->IsActionLocked()) {
-
-			if (enemy_->HasCard()) { // カードを持っている場合
-
-				if (playerDist <= 6.0f) {
-					enemy_->SetState(Enemy::State::UseCard); // 射程内ならカード使用
-				}
-				else {
-					enemy_->SetState(Enemy::State::ChasePlayer); // 射程外なら追跡
-				}
-
-			}
-			else { // カードを持っていない場合
-
-				if (playerDist <= 2.0f) {
-					enemy_->SetState(Enemy::State::AttackPlayer); // 近ければ通常攻撃
-				}
-				else if (foundCard) {
-					enemy_->SetTargetCardPosition(nearestCardPos); // カード位置を設定
-					enemy_->SetState(Enemy::State::MoveToCard);    // カード回収を優先
-				}
-				else if (playerDist <= 8.0f) {
-					enemy_->SetState(Enemy::State::ChasePlayer);   // プレイヤー追跡
-				}
-				else {
-					enemy_->SetState(Enemy::State::Patrol);        // 何もなければ巡回
-				}
-			}
-		}
+		// 敵にカード目標情報を渡す
+		enemy_->SetCardTarget(foundCard, nearestCardPos);
 
 		// 敵更新
 		enemy_->Update();
@@ -334,13 +296,13 @@ void GamePlayScene::Update() {
 				float worldZ = z * level.tileSize;
 
 				AABB blockAABB;
-				blockAABB.min = { worldX - 1.0f, level.baseY,     worldZ - 1.0f };
-				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+				blockAABB.min = { worldX - 1.0f, level.baseY,         worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f,  worldZ + 1.0f };
 
 				// 敵とブロックが当たったら更新前の位置に戻す
 				if (Collision::IsCollision(enemyAABB, blockAABB)) {
-					enemy_->SetPosition(oldEnemyPos); // 敵位置を戻す
-					enemyPos_ = oldEnemyPos;          // キャッシュも戻す
+					enemy_->SetPositionOnly(oldEnemyPos); // 巡回基準を変えずに位置だけ戻す
+					enemyPos_ = oldEnemyPos;              // キャッシュも戻す
 					break;
 				}
 			}
@@ -511,10 +473,11 @@ void GamePlayScene::Update() {
 	// カード使用システム更新
 	if (cardUseSystem_) {
 		cardUseSystem_->Update(
-			player_.get(), // プレイヤー
-			enemy_.get(),  // 敵
-			playerPos_,    // プレイヤー位置
-			enemyPos_      // 敵位置
+			player_.get(),                // プレイヤー
+			enemy_.get(),                 // 敵
+			playerPos_,                   // プレイヤー位置
+			enemyPos_,                    // 敵位置
+			levelEditor_->GetLevelData()  // レベルデータ
 		);
 	}
 

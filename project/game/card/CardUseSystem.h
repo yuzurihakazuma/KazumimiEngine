@@ -2,6 +2,8 @@
 #include <memory>
 #include "engine/math/VectorMath.h"
 #include "game/card/HandManager.h"
+#include "engine/utils/Level/LevelEditor.h" // LevelDataを使うため
+#include "engine/collision/Collision.h"     // AABB衝突判定用
 
 // 前方宣言
 class Camera;
@@ -16,7 +18,7 @@ public:
     void Initialize(Camera* camera);
 
     // 更新
-    void Update(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
+    void Update(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos, const LevelData& level);
 
     // 描画
     void Draw();
@@ -37,7 +39,10 @@ private:
     void UpdatePunch(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
 
     // 火球更新
-    void UpdateFireball(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
+    void UpdateFireball(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos, const LevelData& level);
+
+    // ブロック衝突判定
+    bool CheckBlockCollision(const Vector3& pos, float radius, const LevelData& level);
 
 private:
     // -----------------------------
@@ -45,7 +50,7 @@ private:
     // -----------------------------
     std::unique_ptr<Obj3d> punchObj_ = nullptr;   // パンチ用オブジェクト
     bool isPunchActive_ = false;                  // パンチ演出中か
-    bool isPunchPlayerCaster_ = true;            // プレイヤーが使ったパンチか
+    bool isPunchPlayerCaster_ = true;             // プレイヤーが使ったパンチか
     Vector3 punchPos_ = { 0.0f, 0.0f, 0.0f };    // パンチ位置
     Vector3 punchScale_ = { 0.8f, 0.8f, 0.8f };  // パンチサイズ
     int punchTimer_ = 0;                         // パンチ残り時間
@@ -55,7 +60,7 @@ private:
     // -----------------------------
     std::unique_ptr<Obj3d> fireballObj_ = nullptr;      // 火球用オブジェクト
     bool isFireballActive_ = false;                     // 火球演出中か
-    bool isFireballPlayerCaster_ = true;               // プレイヤーが使った火球か
+    bool isFireballPlayerCaster_ = true;                // プレイヤーが使った火球か
     Vector3 fireballPos_ = { 0.0f, 0.0f, 0.0f };       // 火球位置
     Vector3 fireballVelocity_ = { 0.0f, 0.0f, 0.0f };  // 火球速度
     Vector3 fireballScale_ = { 0.5f, 0.5f, 0.5f };     // 火球サイズ
