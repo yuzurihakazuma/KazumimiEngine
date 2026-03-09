@@ -213,7 +213,9 @@ void GamePlayScene::Update() {
 	}
 
 
-	if (enemy_ && !enemy_->IsDead()) {
+		if (enemy_ && !enemy_->IsDead()) {
+		Vector3 oldEnemyPos = enemy_->GetPosition(); // 敵更新前の位置を保存
+
 		enemy_->SetPlayerPosition(playerPos_); // プレイヤー位置を渡す
 
 		bool foundCard = false;                // 近くに拾えるカードがあるか
@@ -255,28 +257,64 @@ void GamePlayScene::Update() {
 
 				if (playerDist <= 6.0f) {
 					enemy_->SetState(Enemy::State::UseCard); // 射程内ならカード使用
-				} else {
+				}
+				else {
 					enemy_->SetState(Enemy::State::ChasePlayer); // 射程外なら追跡
 				}
 
-			} else { // カードを持っていない場合
+			}
+			else { // カードを持っていない場合
 
 				if (playerDist <= 2.0f) {
 					enemy_->SetState(Enemy::State::AttackPlayer); // 近ければ通常攻撃
-				} else if (foundCard) {
+				}
+				else if (foundCard) {
 					enemy_->SetTargetCardPosition(nearestCardPos); // カード位置を設定
 					enemy_->SetState(Enemy::State::MoveToCard);    // カード回収を優先
-				} else if (playerDist <= 8.0f) {
+				}
+				else if (playerDist <= 8.0f) {
 					enemy_->SetState(Enemy::State::ChasePlayer);   // プレイヤー追跡
-				} else {
+				}
+				else {
 					enemy_->SetState(Enemy::State::Patrol);        // 何もなければ巡回
 				}
 			}
 		}
 
-		enemy_->Update();                     // 敵更新
+		// 敵更新
+		enemy_->Update();
 		enemyPos_ = enemy_->GetPosition();    // 位置反映
 		enemyScale_ = enemy_->GetScale();     // スケール反映
+
+		// 敵のAABBを作成
+		AABB enemyAABB;
+		enemyAABB.min = { enemyPos_.x - 0.5f, enemyPos_.y - 0.5f, enemyPos_.z - 0.5f };
+		enemyAABB.max = { enemyPos_.x + 0.5f, enemyPos_.y + 0.5f, enemyPos_.z + 0.5f };
+
+		// レベルデータ取得
+		const LevelData& level = levelEditor_->GetLevelData();
+
+		// ブロックとの当たり判定
+		for (int z = 0; z < level.height; z++) {
+			for (int x = 0; x < level.width; x++) {
+
+				if (level.tiles[z][x] != 1) continue; // ブロック以外は無視
+
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY,     worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				// 敵とブロックが当たったら更新前の位置に戻す
+				if (Collision::IsCollision(enemyAABB, blockAABB)) {
+					enemy_->SetPosition(oldEnemyPos); // 敵位置を戻す
+					enemyPos_ = oldEnemyPos;          // キャッシュも戻す
+					break;
+				}
+			}
+		}
 	}
 
 	// 敵の攻撃結果をプレイヤーへ反映

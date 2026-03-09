@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <string>
 
-
 // 前方宣言
 class DebugCamera;
 class Camera;
@@ -28,7 +27,7 @@ class LevelEditor;
 class Enemy;
 class CardUseSystem;
 
-	// ゲームプレイシーン
+// ゲームプレイシーン
 class GamePlayScene : public IScene {
 public:
 	// 初期化
@@ -42,7 +41,6 @@ public:
 
 	// デバッグ用UIの描画
 	void DrawDebugUI() override;
-
 
 	GamePlayScene();
 
@@ -69,7 +67,6 @@ private: // メンバ変数
 
 	// デプスステンシル
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
-
 
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
@@ -104,6 +101,4 @@ private: // メンバ変数
 	bool enemyDeadHandled_ = false; // 敵死亡時の処理を1回だけにする
 
 	void ResetBattleDebug(); // デバッグ用バトルリセット
-
-
 };
