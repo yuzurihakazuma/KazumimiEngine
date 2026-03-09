@@ -197,6 +197,27 @@ void GamePlayScene::DrawDebugUI(){
 	
 	levelEditor_->DrawDebugUI();
 
+	// ==========================================
+	// ★追加：文字入力テスト用のウィンドウ
+	ImGui::Begin("テキスト表示テスト (Text Test)");
+
+	// 1. 文字の入力欄 (最大256文字)
+	ImGui::InputText("表示する文字", inputTextBuffer_, sizeof(inputTextBuffer_));
+
+	// 2. 決定ボタン
+	if ( ImGui::Button("文字を確定して表示！") ) {
+		// 入力された文字(char配列)を、string型に変換して保存する
+		displayText_ = inputTextBuffer_;
+	}
+
+	ImGui::Separator(); // 区切り線
+
+	// 3. 描画位置の調整スライダー
+	ImGui::DragFloat("X座標", &textPosX_, 1.0f);
+	ImGui::DragFloat("Y座標", &textPosY_, 1.0f);
+
+	ImGui::End();
+
 	ImGui::Begin("Block Dissolve Test");
 
 	// スライダーで 0.0(通常) 〜 1.0(消滅) を操作
@@ -225,7 +246,18 @@ void GamePlayScene::DrawDebugUI(){
 	}
 
 	ImGui::End();
+	if ( !displayText_.empty() ) {
+		// 背景用のキャンバスを取得
+		ImDrawList* drawList = ImGui::GetBackgroundDrawList();
 
+		// textPosX_, textPosY_ の位置に、白色で displayText_ を描画する！
+		// ※変数(std::string)の中身を取り出すには .c_str() を使います
+		drawList->AddText(
+			ImVec2(textPosX_, textPosY_),
+			IM_COL32(255, 255, 255, 255),
+			displayText_.c_str()
+		);
+	}
 
 #endif
 

@@ -32,6 +32,14 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
 
     ImGui::StyleColorsDark();
 
+
+    // 日本語の文字（ひらがな、カタカナ、漢字）を読み込むための設定
+    const ImWchar* glyphRanges = io.Fonts->GetGlyphRangesJapanese();
+
+    // フォントファイルのパスと、フォントのサイズ（例: 24.0f）を指定
+    // ※パスはご自身のフォルダ構成に合わせてください
+    io.Fonts->AddFontFromFileTTF("resources/AFSSerifGothic04trialE.ttf", 24.0f, nullptr, glyphRanges);
+
     // 2. Win32用初期化
     // WindowProcからハンドルを取得して渡す
     ImGui_ImplWin32_Init(windowProc->GetHwnd());
