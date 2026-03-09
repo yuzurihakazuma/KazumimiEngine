@@ -44,6 +44,8 @@ public:
 
     void TakeDamage(int damage, const Vector3& attackFrom); // ダメージ処理
 
+	void SetInputEnable(bool enable){ isInputEnabled_ = enable; } // 入力有効/無効切り替え
+
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
@@ -97,4 +99,7 @@ private:
     int knockbackTimer_ = 0;                      // ノックバック残り時間
     const int knockbackDuration_ = 10;            // ノックバック時間
     Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f }; // ノックバック速度
+
+
+	bool isInputEnabled_ = true; // 入力有効フラグ
 };

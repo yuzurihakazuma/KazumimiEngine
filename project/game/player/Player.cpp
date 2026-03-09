@@ -91,15 +91,14 @@ void Player::Update() {
     }
 
     // 行動ロック中は操作不可
-    if (isActionLocked_) {
-
-        actionLockTimer_--; // ロック時間減少
-
-        if (actionLockTimer_ <= 0) {
-            isActionLocked_ = false; // ロック解除
+    if ( !isInputEnabled_ || isActionLocked_ ) {
+        if ( isActionLocked_ ) {
+            actionLockTimer_--;
+            if ( actionLockTimer_ <= 0 ) {
+                isActionLocked_ = false;
+            }
         }
-
-        return; // このフレームは操作処理をしない
+        return; // ここでリターンすればWASD入力は処理されない
     }
 
     // WASD入力

@@ -180,7 +180,17 @@ void GamePlayScene::Update() {
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
+
+
 	if (player_) {
+		// デバッグカメラが有効ならプレイヤーの入力を切る
+		if ( debugCamera_ && debugCamera_->IsActive() ) {
+			player_->SetInputEnable(false);
+		} else {
+			player_->SetInputEnable(true);
+		}
+		
+		
 		Vector3 oldPos = player_->GetPosition();
 
 		// プレイヤー更新
@@ -397,15 +407,20 @@ void GamePlayScene::Update() {
 		}
 	}
 
-	if (camera_) {
-		camera_->SetTranslation({
-			playerPos_.x,
-			playerPos_.y + 8.0f,
-			playerPos_.z - 18.0f
-			});
-		camera_->SetRotation({
-			0.45f, 0.0f, 0.0f
-			});
+	if ( camera_ ) {
+		// デバッグカメラが非アクティブなときは、プレイヤーを追従する通常カメラ
+		if ( debugCamera_ && !debugCamera_->IsActive() ) {
+			camera_->SetTranslation({
+				playerPos_.x,
+				playerPos_.y + 8.0f,
+				playerPos_.z - 18.0f
+				});
+			camera_->SetRotation({
+				0.45f, 0.0f, 0.0f
+				});
+		}
+
+		// 行列の更新自体は常に行う
 		camera_->Update();
 	}
 
