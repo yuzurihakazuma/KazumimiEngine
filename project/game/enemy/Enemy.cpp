@@ -147,28 +147,72 @@ void Enemy::DecideNextState() {
 
         // 近接カードを持っている場合
         if (HasMeleeCard()) {
-            if (playerDist <= attackRange_) {
-                state_ = State::UseCard;    // 近ければカード使用
+
+            // すでにカード使用中なら、少し離れても維持する
+            if (state_ == State::UseCard) {
+                if (playerDist > attackExitRange_) {
+                    state_ = State::ChasePlayer; // 離れすぎたら追跡へ戻る
+                }
             } else {
-                state_ = State::ChasePlayer; // 遠ければ追跡
+                if (playerDist <= attackEnterRange_) {
+                    state_ = State::UseCard;     // 近ければカード使用
+                } else if (playerDist <= chaseRange_) {
+                    state_ = State::ChasePlayer; // 射程外なら追跡
+                } else {
+                    state_ = State::Patrol;      // 遠ければ巡回
+                }
             }
+
+            return;
         }
+
         // 遠距離カードを持っている場合
-        else if (HasRangedCard()) {
-            if (playerDist < retreatRange_) {
-                state_ = State::Retreat;    // 近すぎたら離れる
-            } else if (playerDist <= cardUseRange_) {
-                state_ = State::UseCard;    // 射程内ならカード使用
-            } else {
-                state_ = State::ChasePlayer; // 遠ければ追跡
+        if (HasRangedCard()) {
+
+            // 離れる状態中なら、十分離れるまで維持
+            if (state_ == State::Retreat) {
+                if (playerDist >= retreatExitRange_) {
+                    state_ = State::UseCard; // 十分離れたらカード使用へ
+                }
+                return;
             }
-        }
-        // その他カード
-        else {
-            if (playerDist <= cardUseRange_) {
-                state_ = State::UseCard;
+
+            // カード使用中なら、少し離れても維持
+            if (state_ == State::UseCard) {
+                if (playerDist < retreatEnterRange_) {
+                    state_ = State::Retreat;     // 近すぎたら離れる
+                } else if (playerDist > cardUseExitRange_) {
+                    state_ = State::ChasePlayer; // 離れすぎたら追跡
+                }
+                return;
+            }
+
+            // 通常時の判定
+            if (playerDist < retreatEnterRange_) {
+                state_ = State::Retreat;         // 近すぎる
+            } else if (playerDist <= cardUseEnterRange_) {
+                state_ = State::UseCard;         // 射程内
+            } else if (playerDist <= chaseRange_) {
+                state_ = State::ChasePlayer;     // 追跡
             } else {
+                state_ = State::Patrol;          // 遠い
+            }
+
+            return;
+        }
+
+        // その他カード
+        if (state_ == State::UseCard) {
+            if (playerDist > cardUseExitRange_) {
                 state_ = State::ChasePlayer;
+            }
+        } else {
+            if (playerDist <= cardUseEnterRange_) {
+                state_ = State::UseCard;
+            } else if (playerDist <= chaseRange_) {
+                state_ = State::ChasePlayer;
+            } else {
+                state_ = State::Patrol;
             }
         }
 
@@ -176,11 +220,18 @@ void Enemy::DecideNextState() {
     }
 
     // カードを持っていない場合
-    if (playerDist <= attackRange_) {
+    if (state_ == State::AttackPlayer) {
+        if (playerDist > attackExitRange_) {
+            state_ = State::ChasePlayer; // 離れたら追跡へ戻る
+        }
+        return;
+    }
+
+    if (playerDist <= attackEnterRange_) {
         state_ = State::AttackPlayer; // 近ければ通常攻撃
     } else if (hasTargetCard_) {
         state_ = State::MoveToCard;   // カードが見つかっていれば拾いに行く
-    } else if (playerDist <= 8.0f) {
+    } else if (playerDist <= chaseRange_) {
         state_ = State::ChasePlayer;  // プレイヤー追跡
     } else {
         state_ = State::Patrol;       // 何もなければ巡回
@@ -253,8 +304,8 @@ void Enemy::UpdateAttackPlayer() {
 
     float dist = Length(dir); // プレイヤーとの距離
 
-    // 攻撃範囲外なら追跡に戻す
-    if (dist > attackRange_) {
+    // 十分離れたら追跡に戻す
+    if (dist > attackExitRange_) {
         state_ = State::ChasePlayer; // 追跡へ戻す
         thinkTimer_ = 0;             // すぐ再判断できるようにする
         return;
@@ -271,11 +322,11 @@ void Enemy::UpdateAttackPlayer() {
     }
 
     // 近接攻撃発生
-    attackRequest_ = true;                  // GamePlaySceneへ攻撃発生を通知
-    attackCooldownTimer_ = attackCooldown_; // クールダウン開始
+    attackRequest_ = true;
+    attackCooldownTimer_ = attackCooldown_;
 
-    SetActionLock(10); // 少し短めにする
-    thinkTimer_ = 10;  // 少し短めにする
+    SetActionLock(10);
+    thinkTimer_ = 10;
 }
 
 void Enemy::UpdateUseCard() {
@@ -288,10 +339,10 @@ void Enemy::UpdateUseCard() {
 
     float dist = Length(dir); // プレイヤーとの距離
 
-    // 射程外なら追跡へ戻す
-    if (dist > cardUseRange_) {
-        state_ = State::ChasePlayer; // 追跡へ戻す
-        thinkTimer_ = 0;             // すぐ再判断
+    // 十分離れたら追跡へ戻す
+    if (dist > cardUseExitRange_) {
+        state_ = State::ChasePlayer;
+        thinkTimer_ = 0;
         return;
     }
 
@@ -306,11 +357,11 @@ void Enemy::UpdateUseCard() {
     }
 
     // カード使用発生
-    cardUseRequest_ = true;             // GamePlaySceneへカード使用発生を通知
-    cardCooldownTimer_ = cardCooldown_; // クールダウン開始
+    cardUseRequest_ = true;
+    cardCooldownTimer_ = cardCooldown_;
 
-    SetActionLock(15); // 少し短め
-    thinkTimer_ = 15;  // 少し短め
+    SetActionLock(15);
+    thinkTimer_ = 15;
 }
 
 void Enemy::UpdateRetreat() {
@@ -321,13 +372,21 @@ void Enemy::UpdateRetreat() {
         pos_.z - playerPos_.z
     }; // プレイヤーから離れる方向
 
-    if (Length(dir) > 0.01f) {
+    float dist = Length(dir); // プレイヤーとの距離
+
+    // 十分離れたらカード使用へ戻す
+    if (dist >= retreatExitRange_) {
+        state_ = State::UseCard;
+        thinkTimer_ = 0;
+        return;
+    }
+
+    if (dist > 0.01f) {
         dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_;          // 離れるように移動
-        rot_.y = std::atan2f(dir.x, dir.z); // 移動方向を向く
+        pos_ += dir * chaseSpeed_;
+        rot_.y = std::atan2f(dir.x, dir.z);
     }
 }
-
 void Enemy::TakeDamage(int damage) {
 
     if (isDead_) return; // 既に死亡していたら無視
