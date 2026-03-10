@@ -457,11 +457,11 @@ void GamePlayScene::Update() {
 		if (debugCamera_ && !debugCamera_->IsActive()) {
 			camera_->SetTranslation({
 				playerPos_.x,
-				playerPos_.y + 8.0f,
-				playerPos_.z - 18.0f
+				playerPos_.y + 15.0f,
+				playerPos_.z - 15.0f
 				});
 			camera_->SetRotation({
-				0.45f, 0.0f, 0.0f
+				0.9f, 0.0f, 0.0f
 				});
 		}
 

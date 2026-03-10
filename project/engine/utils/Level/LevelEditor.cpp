@@ -29,22 +29,16 @@ void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
 }
 
 void LevelEditor::ResizeObjectGrids() {
-	floorObjects_.resize(levelData_.height);
 	wallObjects_.resize(levelData_.height);
 
 	for (int z = 0; z < levelData_.height; ++z) {
-		floorObjects_[z].resize(levelData_.width);
 		wallObjects_[z].resize(levelData_.width);
 	}
 }
 
 void LevelEditor::RebuildMapObjects() {
 	ResizeObjectGrids();
-
-	Model* model = ModelManager::GetInstance()->FindModel("block");
-	if (model == nullptr) {
-		return;
-	}
+	CreateFloorObject();
 
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
@@ -52,64 +46,47 @@ void LevelEditor::RebuildMapObjects() {
 		}
 	}
 }
+
 void LevelEditor::Update(const Vector3& playerPos) {
+	if (floorObject_) {
+		floorObject_->Update();
+	}
+
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
-
-			if (floorObjects_[z][x]) {
-				Vector3 objPos = floorObjects_[z][x]->GetTranslation();
-				float diffX = objPos.x - playerPos.x;
-				float diffZ = objPos.z - playerPos.z;
-				float distSq = (diffX * diffX) + (diffZ * diffZ);
-
-				if (distSq < 400.0f) {
-					floorObjects_[z][x]->Update();
-				}
-			}
-
 			if (wallObjects_[z][x]) {
 				Vector3 objPos = wallObjects_[z][x]->GetTranslation();
 				float diffX = objPos.x - playerPos.x;
 				float diffZ = objPos.z - playerPos.z;
 				float distSq = (diffX * diffX) + (diffZ * diffZ);
 
-				if (distSq < 400.0f) {
+				if (distSq < 800.0f) {
 					wallObjects_[z][x]->Update();
 				}
 			}
 		}
 	}
 }
-// LevelEditor.cpp
 void LevelEditor::Draw(const Vector3& playerPos) {
+	if (floorObject_) {
+		floorObject_->Draw();
+	}
+
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
-
-			if (floorObjects_[z][x]) {
-				Vector3 objPos = floorObjects_[z][x]->GetTranslation();
-				float diffX = objPos.x - playerPos.x;
-				float diffZ = objPos.z - playerPos.z;
-				float distSq = diffX * diffX + diffZ * diffZ;
-
-				if (distSq < 400.0f) {
-					floorObjects_[z][x]->Draw();
-				}
-			}
-
 			if (wallObjects_[z][x]) {
 				Vector3 objPos = wallObjects_[z][x]->GetTranslation();
 				float diffX = objPos.x - playerPos.x;
 				float diffZ = objPos.z - playerPos.z;
 				float distSq = diffX * diffX + diffZ * diffZ;
 
-				if (distSq < 400.0f) {
+				if (distSq < 800.0f) {
 					wallObjects_[z][x]->Draw();
 				}
 			}
 		}
 	}
-}
-void LevelEditor::DrawDebugUI() {
+}void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
 	if (isEditorActive) {
 
@@ -214,32 +191,13 @@ void LevelEditor::UpdateTileObject(int x, int z) {
 	}
 
 	// いったんそのマスの床・壁を消す
-	floorObjects_[z][x].reset();
+	//floorObjects_[z][x].reset();
 	wallObjects_[z][x].reset();
 
 	const float tileSize = levelData_.tileSize;
 	const int tile = levelData_.tiles[z][x];
 
-	// --------------------
-	// 床は常に置く
-	// --------------------
-	{
-		std::unique_ptr<Obj3d> floorObj = std::make_unique<Obj3d>();
-		floorObj->Initialize(model);
-		floorObj->SetCamera(camera_);
-
-		Vector3 pos;
-		pos.x = x * tileSize;
-		pos.y = levelData_.baseY;
-		pos.z = z * tileSize;
-
-		floorObj->SetTranslation(pos);
-		floorObj->SetRotation({ 0.0f, 0.0f, 0.0f });
-		floorObj->SetScale({ 1.0f, 1.0f, 1.0f });
-		floorObj->Update();
-
-		floorObjects_[z][x] = std::move(floorObj);
-	}
+	
 
 	// --------------------
 	// 壁タイルなら上に壁を置く
@@ -261,4 +219,34 @@ void LevelEditor::UpdateTileObject(int x, int z) {
 
 		wallObjects_[z][x] = std::move(wallObj);
 	}
+}
+
+void LevelEditor::CreateFloorObject() {
+	Model* model = ModelManager::GetInstance()->FindModel("block");
+	if (model == nullptr) {
+		return;
+	}
+
+	floorObject_ = std::make_unique<Obj3d>();
+	floorObject_->Initialize(model);
+	floorObject_->SetCamera(camera_);
+
+	const float tileSize = levelData_.tileSize;
+
+	Vector3 pos;
+	pos.x = ((float)levelData_.width - 1.0f) * tileSize * 0.5f;
+	pos.y = levelData_.baseY;
+	pos.z = ((float)levelData_.height - 1.0f) * tileSize * 0.5f;
+
+	floorObject_->SetTranslation(pos);
+	floorObject_->SetRotation({ 0.0f, 0.0f, 0.0f });
+
+	// blockモデル1個をマップ全体サイズまで拡大
+	floorObject_->SetScale({
+		(float)levelData_.width,
+		1.0f,
+		(float)levelData_.height
+		});
+
+	floorObject_->Update();
 }

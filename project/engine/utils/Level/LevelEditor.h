@@ -28,13 +28,14 @@ public:
 
     const LevelData& GetLevelData() const { return levelData_; }
     void UpdateTileObject(int x, int z);
+    void CreateFloorObject();
     void ResizeObjectGrids();
 private:
     const Camera* camera_ = nullptr;
 
     LevelData levelData_;
     // 1マスごとの床オブジェクト
-    std::vector<std::vector<std::unique_ptr<Obj3d>>> floorObjects_;
+    std::unique_ptr<Obj3d> floorObject_;
 
     // 1マスごとの壁オブジェクト
     std::vector<std::vector<std::unique_ptr<Obj3d>>> wallObjects_;
