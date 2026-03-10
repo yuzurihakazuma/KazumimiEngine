@@ -27,15 +27,23 @@ public:
     void DrawDebugUI();
 
     const LevelData& GetLevelData() const { return levelData_; }
-
+    void UpdateTileObject(int x, int z);
+    void ResizeObjectGrids();
 private:
     const Camera* camera_ = nullptr;
 
     LevelData levelData_;
-    std::vector<std::unique_ptr<Obj3d>> object3ds_;
+    // 1マスごとの床オブジェクト
+    std::vector<std::vector<std::unique_ptr<Obj3d>>> floorObjects_;
+
+    // 1マスごとの壁オブジェクト
+    std::vector<std::vector<std::unique_ptr<Obj3d>>> wallObjects_;
 
     std::string saveFileName_ = "map01.json";
     bool isEditorActive = true;
 
     int selectedTile_ = 0; // 0=床, 1=壁
+
+    int editWidth_ = 10;
+    int editHeight_ = 10;
 };
