@@ -83,8 +83,9 @@ void GamePlayScene::Initialize(){
 
 	}
 
-
-	
+	// sprite生成
+	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
+	sprite_->SetSize({ 100.0f, 100.0f });
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -100,6 +101,12 @@ void GamePlayScene::Initialize(){
 
 void GamePlayScene::Update(){
 	
+	if (sprite_){
+		sprite_->Update();
+		sprite_->SetPosition(spritePos_);
+		
+	}
+
 	// デバッグカメラ更新
 	if (debugCamera_) {
 		debugCamera_->Update(camera_.get());
@@ -148,7 +155,11 @@ void GamePlayScene::Draw(){
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 
-//	sprite_->Draw();
+	if (sprite_){
+
+	sprite_->Draw();
+	}
+
 
 	// 画用紙への切り替え
 	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);

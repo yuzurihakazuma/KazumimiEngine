@@ -151,6 +151,7 @@ void PipelineManager::CreateObject3DRootSignature(){
 	builder.Build(dxCommon_->GetDevice(), object3DRootSignature_);
 
 }
+
 // グラフィックスパイプラインの生成 Object3D用
 void PipelineManager::CreateObject3DGraphicsPipeline(){
 	// カリングあり用
@@ -253,7 +254,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 		.SetDepthStencil(false)
 		.SetBlendMode(BlendMode::kNormal);
 
-	// for文で7個のシェーダーを一気にコンパイルして配列に保存！
+	// for文で10個のシェーダーを一気にコンパイルして配列に保存！
 	for (int i = 0; i < 10; ++i) {
 		auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(psPaths[i], L"ps_6_0");
 		builder.SetShaders(vsBlob.Get(), psBlob.Get());
