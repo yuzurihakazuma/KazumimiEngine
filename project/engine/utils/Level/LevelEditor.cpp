@@ -178,13 +178,18 @@ void LevelEditor::DrawDebugUI() {
 		}
 		ImGui::Text("グリッド編集");
 
-		for (int z = 0; z < levelData_.height; ++z) {
+		for (int viewZ = 0; viewZ < levelData_.height; ++viewZ) {
+			int dataZ = levelData_.height - 1 - viewZ; // 表示だけ上下反転
+
 			for (int x = 0; x < levelData_.width; ++x) {
-				std::string label = std::to_string(levelData_.tiles[z][x]) + "##" + std::to_string(z) + "_" + std::to_string(x);
+				std::string label =
+					std::to_string(levelData_.tiles[dataZ][x]) +
+					"##" + std::to_string(dataZ) + "_" + std::to_string(x);
+
 				if (ImGui::Button(label.c_str(), ImVec2(24, 24))) {
-					if (levelData_.tiles[z][x] != selectedTile_) {
-						levelData_.tiles[z][x] = selectedTile_;
-						UpdateTileObject(x, z);
+					if (levelData_.tiles[dataZ][x] != selectedTile_) {
+						levelData_.tiles[dataZ][x] = selectedTile_;
+						UpdateTileObject(x, dataZ);
 					}
 				}
 				if (x < levelData_.width - 1) {
