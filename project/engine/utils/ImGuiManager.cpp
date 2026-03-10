@@ -27,7 +27,6 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-
     io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
 
     ImGui::StyleColorsDark();

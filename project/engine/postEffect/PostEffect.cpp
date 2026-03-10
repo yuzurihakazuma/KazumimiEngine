@@ -98,7 +98,6 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxC
 	// 2枚目の画用紙のお絵かきを終了する（2枚目を読み込みモードにする）
 	resultTexture_->PostDrawScene(commandList, dxCommon);
 
-
 	// -----------------------------------------------------------------
 	// 【ステップ②】出来上がった2枚目の絵を、メイン画面（スワップチェーン）に直接描画する
 	// -----------------------------------------------------------------
@@ -112,6 +111,7 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxC
 	
 	// メイン画面に描画する
 	commandList->DrawInstanced(3, 1, 0, 0);
+
 }
 
 void PostEffect::DrawDebugUI(){

@@ -68,6 +68,15 @@ public:
 			*timeData_ = time_;
 		}
 	}
+
+	// ビューポートの位置とサイズを設定する関数
+	void SetViewArea(float x,float y, float width, float height) {		
+		viewX_ = x;
+		viewY_ = y;
+		viewWidth_ = width;
+		viewHeight_ = height;
+	}
+
 private:
 
 	PostEffect() = default;
@@ -88,6 +97,12 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> timeResource_;
 	float* timeData_ = nullptr; // GPUに送る用の時間データ
 	float time_ = 0.0f;         // C++側でカウントアップする時間
-
+	// 時間の進むスピード（エフェクトの変化の速さ）
 	float timeSpeed_ = 0.05f;
+	// ビューポートの位置とサイズ
+	float viewX_ = 0.0f;
+	float viewY_ = 0.0f;
+	float viewWidth_ = 1280.0f;
+	float viewHeight_ = 720.0f;
+
 };

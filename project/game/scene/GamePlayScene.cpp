@@ -84,6 +84,7 @@ void GamePlayScene::Initialize(){
 	}
 
 
+	
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -110,7 +111,7 @@ void GamePlayScene::Update(){
 
 	// BGM再生 (シングルトン)
 	if ( input->Triggerkey(DIK_SPACE) ) {
-		AudioManager::GetInstance()->PlayWave(bgmFile_);
+		//AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 	// タイトルシーンへ移動
 	if ( input->Triggerkey(DIK_T) ) {
@@ -144,6 +145,11 @@ void GamePlayScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 	
+	// スプライト描画の前準備
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+
+//	sprite_->Draw();
+
 	// 画用紙への切り替え
 	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
 
@@ -178,8 +184,6 @@ void GamePlayScene::Draw(){
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
 	PostEffect::GetInstance()->Draw(commandList,dxCommon);
 	
-	// スプライト描画の前準備
-	SpriteCommon::GetInstance()->PreDraw(commandList);
 	
 
 	
