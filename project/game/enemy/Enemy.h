@@ -90,9 +90,16 @@ private:
     float chaseSpeed_ = 0.08f;              // 追跡速度
     float moveRange_ = 3.0f;                // 巡回範囲
 
-    float attackRange_ = 2.0f;              // 近接攻撃距離
-    float cardUseRange_ = 6.0f;             // カード使用距離
-    float retreatRange_ = 3.0f;             // 離れたい距離
+    float chaseRange_ = 15.0f;              // プレイヤーを追跡し始める距離
+
+    float attackEnterRange_ = 2.0f;         // 近接攻撃に入る距離
+    float attackExitRange_ = 3.0f;          // 近接攻撃をやめる距離
+
+    float cardUseEnterRange_ = 6.0f;        // カード使用に入る距離
+    float cardUseExitRange_ = 7.5f;         // カード使用をやめる距離
+
+    float retreatEnterRange_ = 3.0f;        // 離れる状態に入る距離
+    float retreatExitRange_ = 4.5f;         // 離れる状態をやめる距離
 
     float startX_ = 5.0f;                   // 巡回開始X
     int direction_ = 1;                     // 巡回方向
