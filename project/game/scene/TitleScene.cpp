@@ -132,7 +132,7 @@ void TitleScene::Update(){
 	}
 
 
-	levelEditor_->Update();
+	//levelEditor_->Update();
 
 
 }
@@ -181,7 +181,7 @@ void TitleScene::Draw(){
 		obj->Draw();
 	}
 
-	levelEditor_->Draw();
+	//levelEditor_->Draw();
 
 
 	// パーティクル描画 (パイプライン切り替え)

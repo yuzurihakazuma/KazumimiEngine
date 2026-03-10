@@ -14,80 +14,101 @@ LevelEditor::~LevelEditor() = default;
 
 void LevelEditor::Initialize() {
 	LoadAndCreateMap("resources/map/map01.json");
+
+	editWidth_ = levelData_.width;
+	editHeight_ = levelData_.height;
 }
 
 void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
 	levelData_ = LevelManager::GetInstance()->Load(fileName);
+
+	editWidth_ = levelData_.width;
+	editHeight_ = levelData_.height;
+
 	RebuildMapObjects();
 }
 
+void LevelEditor::ResizeObjectGrids() {
+	floorObjects_.resize(levelData_.height);
+	wallObjects_.resize(levelData_.height);
+
+	for (int z = 0; z < levelData_.height; ++z) {
+		floorObjects_[z].resize(levelData_.width);
+		wallObjects_[z].resize(levelData_.width);
+	}
+}
+
 void LevelEditor::RebuildMapObjects() {
-	object3ds_.clear();
+	ResizeObjectGrids();
+
+	Model* model = ModelManager::GetInstance()->FindModel("block");
+	if (model == nullptr) {
+		return;
+	}
 
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
-			int tile = levelData_.tiles[z][x];
+			UpdateTileObject(x, z);
+		}
+	}
+}
+void LevelEditor::Update(const Vector3& playerPos) {
+	for (int z = 0; z < levelData_.height; ++z) {
+		for (int x = 0; x < levelData_.width; ++x) {
 
-			// 0=床, 1=壁
-			// どちらも block を使う
-			Model* model = ModelManager::GetInstance()->FindModel("block");
-			if (model == nullptr) {
-				continue;
+			if (floorObjects_[z][x]) {
+				Vector3 objPos = floorObjects_[z][x]->GetTranslation();
+				float diffX = objPos.x - playerPos.x;
+				float diffZ = objPos.z - playerPos.z;
+				float distSq = (diffX * diffX) + (diffZ * diffZ);
+
+				if (distSq < 400.0f) {
+					floorObjects_[z][x]->Update();
+				}
 			}
 
-			// まず床を置く
-			{
-				std::unique_ptr<Obj3d> floorObj = std::make_unique<Obj3d>();
-				floorObj->Initialize(model);
-				floorObj->SetCamera(camera_);
+			if (wallObjects_[z][x]) {
+				Vector3 objPos = wallObjects_[z][x]->GetTranslation();
+				float diffX = objPos.x - playerPos.x;
+				float diffZ = objPos.z - playerPos.z;
+				float distSq = (diffX * diffX) + (diffZ * diffZ);
 
-				Vector3 pos;
-				pos.x = x * levelData_.tileSize;
-				pos.y = levelData_.baseY;
-				pos.z = z * levelData_.tileSize;
-
-				floorObj->SetTranslation(pos);
-				floorObj->SetRotation({ 0.0f, 0.0f, 0.0f });
-				floorObj->SetScale({ 1.0f, 1.0f, 1.0f });
-				floorObj->Update();
-
-				object3ds_.push_back(std::move(floorObj));
-			}
-
-			// 壁なら床の上にもう1個置く
-			if (tile == 1) {
-				std::unique_ptr<Obj3d> wallObj = std::make_unique<Obj3d>();
-				wallObj->Initialize(model);
-				wallObj->SetCamera(camera_);
-
-				Vector3 pos;
-				pos.x = x * levelData_.tileSize;
-				pos.y = levelData_.baseY + levelData_.tileSize;
-				pos.z = z * levelData_.tileSize;
-
-				wallObj->SetTranslation(pos);
-				wallObj->SetRotation({ 0.0f, 0.0f, 0.0f });
-				wallObj->SetScale({ 1.0f, 1.0f, 1.0f });
-				wallObj->Update();
-
-				object3ds_.push_back(std::move(wallObj));
+				if (distSq < 400.0f) {
+					wallObjects_[z][x]->Update();
+				}
 			}
 		}
 	}
 }
+// LevelEditor.cpp
+void LevelEditor::Draw(const Vector3& playerPos) {
+	for (int z = 0; z < levelData_.height; ++z) {
+		for (int x = 0; x < levelData_.width; ++x) {
 
-void LevelEditor::Update() {
-	for (auto& obj : object3ds_) {
-		obj->Update();
+			if (floorObjects_[z][x]) {
+				Vector3 objPos = floorObjects_[z][x]->GetTranslation();
+				float diffX = objPos.x - playerPos.x;
+				float diffZ = objPos.z - playerPos.z;
+				float distSq = diffX * diffX + diffZ * diffZ;
+
+				if (distSq < 400.0f) {
+					floorObjects_[z][x]->Draw();
+				}
+			}
+
+			if (wallObjects_[z][x]) {
+				Vector3 objPos = wallObjects_[z][x]->GetTranslation();
+				float diffX = objPos.x - playerPos.x;
+				float diffZ = objPos.z - playerPos.z;
+				float distSq = diffX * diffX + diffZ * diffZ;
+
+				if (distSq < 400.0f) {
+					wallObjects_[z][x]->Draw();
+				}
+			}
+		}
 	}
 }
-
-void LevelEditor::Draw() {
-	for (auto& obj : object3ds_) {
-		obj->Draw();
-	}
-}
-
 void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
 	if (isEditorActive) {
@@ -121,19 +142,21 @@ void LevelEditor::DrawDebugUI() {
 
 		ImGui::Separator();
 
-		ImGui::InputInt("幅", &levelData_.width);
-		ImGui::InputInt("高さ", &levelData_.height);
-		ImGui::DragFloat("タイルサイズ", &levelData_.tileSize, 0.1f, 0.5f, 10.0f);
-		ImGui::DragFloat("床の高さ", &levelData_.baseY, 0.1f);
+		ImGui::InputInt("幅", &editWidth_);
+		ImGui::InputInt("高さ", &editHeight_);
 
-		if (levelData_.width < 1) { levelData_.width = 1; }
-		if (levelData_.height < 1) { levelData_.height = 1; }
+		if (editWidth_ < 1) { editWidth_ = 1; }
+		if (editHeight_ < 1) { editHeight_ = 1; }
 
 		if (ImGui::Button("サイズを反映")) {
+			levelData_.width = editWidth_;
+			levelData_.height = editHeight_;
+
 			levelData_.tiles.resize(levelData_.height);
 			for (auto& row : levelData_.tiles) {
 				row.resize(levelData_.width, 0);
 			}
+
 			RebuildMapObjects();
 		}
 
@@ -159,8 +182,10 @@ void LevelEditor::DrawDebugUI() {
 			for (int x = 0; x < levelData_.width; ++x) {
 				std::string label = std::to_string(levelData_.tiles[z][x]) + "##" + std::to_string(z) + "_" + std::to_string(x);
 				if (ImGui::Button(label.c_str(), ImVec2(24, 24))) {
-					levelData_.tiles[z][x] = selectedTile_;
-					RebuildMapObjects();
+					if (levelData_.tiles[z][x] != selectedTile_) {
+						levelData_.tiles[z][x] = selectedTile_;
+						UpdateTileObject(x, z);
+					}
 				}
 				if (x < levelData_.width - 1) {
 					ImGui::SameLine();
@@ -171,4 +196,64 @@ void LevelEditor::DrawDebugUI() {
 		ImGui::End();
 	}
 #endif
+}
+
+void LevelEditor::UpdateTileObject(int x, int z) {
+	if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) {
+		return;
+	}
+
+	Model* model = ModelManager::GetInstance()->FindModel("block");
+	if (model == nullptr) {
+		return;
+	}
+
+	// いったんそのマスの床・壁を消す
+	floorObjects_[z][x].reset();
+	wallObjects_[z][x].reset();
+
+	const float tileSize = levelData_.tileSize;
+	const int tile = levelData_.tiles[z][x];
+
+	// --------------------
+	// 床は常に置く
+	// --------------------
+	{
+		std::unique_ptr<Obj3d> floorObj = std::make_unique<Obj3d>();
+		floorObj->Initialize(model);
+		floorObj->SetCamera(camera_);
+
+		Vector3 pos;
+		pos.x = x * tileSize;
+		pos.y = levelData_.baseY;
+		pos.z = z * tileSize;
+
+		floorObj->SetTranslation(pos);
+		floorObj->SetRotation({ 0.0f, 0.0f, 0.0f });
+		floorObj->SetScale({ 1.0f, 1.0f, 1.0f });
+		floorObj->Update();
+
+		floorObjects_[z][x] = std::move(floorObj);
+	}
+
+	// --------------------
+	// 壁タイルなら上に壁を置く
+	// --------------------
+	if (tile == 1) {
+		std::unique_ptr<Obj3d> wallObj = std::make_unique<Obj3d>();
+		wallObj->Initialize(model);
+		wallObj->SetCamera(camera_);
+
+		Vector3 pos;
+		pos.x = x * tileSize;
+		pos.y = levelData_.baseY + tileSize;
+		pos.z = z * tileSize;
+
+		wallObj->SetTranslation(pos);
+		wallObj->SetRotation({ 0.0f, 0.0f, 0.0f });
+		wallObj->SetScale({ 1.0f, 1.0f, 1.0f });
+		wallObj->Update();
+
+		wallObjects_[z][x] = std::move(wallObj);
+	}
 }

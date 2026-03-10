@@ -1,4 +1,5 @@
 #pragma once
+#define NOMINMAX
 // --- エンジン側のファイル ---
 #include "Engine/Scene/IScene.h"
 #include "Engine/Math/Matrix4x4.h"
@@ -12,6 +13,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <algorithm>
 
 // 前方宣言
 class DebugCamera;
