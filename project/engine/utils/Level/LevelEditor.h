@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include "engine/math/VectorMath.h"
 
 class Obj3d;
 class Camera;
@@ -16,8 +17,8 @@ public:
     ~LevelEditor();
 
     void Initialize();
-    void Update();
-    void Draw();
+    void Update(const Vector3& playerPos);
+    void Draw(const Vector3& playerPos);
 
     void LoadAndCreateMap(const std::string& fileName);
     void RebuildMapObjects();

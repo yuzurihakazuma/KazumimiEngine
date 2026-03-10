@@ -76,18 +76,36 @@ void LevelEditor::RebuildMapObjects() {
 	}
 }
 
-void LevelEditor::Update() {
+// ※LevelEditor.h も void Update(const Vector3& playerPos); に変更する
+void LevelEditor::Update(const Vector3& playerPos) {
 	for (auto& obj : object3ds_) {
-		obj->Update();
+		Vector3 objPos = obj->GetTranslation();
+		float diffX = objPos.x - playerPos.x;
+		float diffZ = objPos.z - playerPos.z;
+		float distSq = (diffX * diffX) + (diffZ * diffZ);
+
+		if (distSq < 400.0f) {
+			obj->Update(); // 近いブロックだけ更新！
+		}
 	}
 }
-
-void LevelEditor::Draw() {
+// LevelEditor.cpp
+void LevelEditor::Draw(const Vector3& playerPos) { // 引数でプレイヤー座標をもらうように変更
 	for (auto& obj : object3ds_) {
-		obj->Draw();
+		// ブロックの座標を取得
+		Vector3 objPos = obj->GetTranslation(); // ※Obj3dに座標取得関数がある前提
+
+		// プレイヤーとの距離を計算 (XとZのみで判定)
+		float diffX = objPos.x - playerPos.x;
+		float diffZ = objPos.z - playerPos.z;
+		float distSq = diffX * diffX + diffZ * diffZ;
+
+		// 例えば半径20.0f（距離の2乗で400.0f）以内のものだけ描画する
+		if (distSq < 400.0f) {
+			obj->Draw();
+		}
 	}
 }
-
 void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
 	if (isEditorActive) {

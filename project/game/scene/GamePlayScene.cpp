@@ -62,13 +62,13 @@ void GamePlayScene::Initialize() {
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
-	
+
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
 	//UI専用カメラの初期化
-	uiCamera_ = std::make_unique<Camera>(1280,720,dxCommon);
+	uiCamera_ = std::make_unique<Camera>(1280, 720, dxCommon);
 
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
@@ -108,7 +108,7 @@ void GamePlayScene::Initialize() {
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	// プレイヤーオブジェクト生成
 	testObj_ = Obj3d::Create("block");
-	if ( testObj_ ){
+	if (testObj_) {
 
 		testObj_->SetCamera(camera_.get());
 		testObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
@@ -191,13 +191,13 @@ void GamePlayScene::Update() {
 
 	if (player_) {
 		// デバッグカメラが有効ならプレイヤーの入力を切る
-		if ( debugCamera_ && debugCamera_->IsActive() ) {
+		if (debugCamera_ && debugCamera_->IsActive()) {
 			player_->SetInputEnable(false);
 		} else {
 			player_->SetInputEnable(true);
 		}
-		
-		
+
+
 		Vector3 oldPos = player_->GetPosition();
 
 		// プレイヤー更新
@@ -212,8 +212,23 @@ void GamePlayScene::Update() {
 
 		const LevelData& level = levelEditor_->GetLevelData();
 
-		for (int z = 0; z < level.height; z++) {
-			for (int x = 0; x < level.width; x++) {
+		// --- ここからプレイヤーの当たり判定改良 ---
+		// プレイヤーの現在座標から、今いるマスの配列インデックス(x, z)を割り出す
+		int centerGridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
+		int centerGridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
+
+		// 調べる範囲を「周囲1マス（3x3 = 9マス）」に限定する
+		// （※マップ外のマイナスや、width以上にならないように std::max/min で制限）
+		int startX = std::max(0, centerGridX - 1);
+		int endX = std::min(level.width - 1, centerGridX + 1);
+		int startZ = std::max(0, centerGridZ - 1);
+		int endZ = std::min(level.height - 1, centerGridZ + 1);
+
+		bool isPlayerHit = false; // 当たったかどうかを判定するフラグ
+
+		// 0からではなく、計算した範囲(start〜end)だけをループする！
+		for (int z = startZ; z <= endZ && !isPlayerHit; z++) {
+			for (int x = startX; x <= endX; x++) {
 
 				if (level.tiles[z][x] != 1) continue;
 
@@ -227,10 +242,12 @@ void GamePlayScene::Update() {
 				if (Collision::IsCollision(playerAABB, blockAABB)) {
 					player_->SetPosition(oldPos);
 					playerPos_ = oldPos;
+					isPlayerHit = true; // フラグを立てて二重ループをまとめて抜ける
 					break;
 				}
 			}
 		}
+		// --- 改良ここまで ---
 
 		playerScale_ = player_->GetScale();
 	}
@@ -243,7 +260,7 @@ void GamePlayScene::Update() {
 	}
 
 
-		if (enemy_ && !enemy_->IsDead()) {
+	if (enemy_ && !enemy_->IsDead()) {
 		Vector3 oldEnemyPos = enemy_->GetPosition(); // 敵更新前の位置を保存
 
 		enemy_->SetPlayerPosition(playerPos_); // プレイヤー位置を渡す
@@ -287,25 +304,20 @@ void GamePlayScene::Update() {
 
 				if (playerDist <= 6.0f) {
 					enemy_->SetState(Enemy::State::UseCard); // 射程内ならカード使用
-				}
-				else {
+				} else {
 					enemy_->SetState(Enemy::State::ChasePlayer); // 射程外なら追跡
 				}
 
-			}
-			else { // カードを持っていない場合
+			} else { // カードを持っていない場合
 
 				if (playerDist <= 2.0f) {
 					enemy_->SetState(Enemy::State::AttackPlayer); // 近ければ通常攻撃
-				}
-				else if (foundCard) {
+				} else if (foundCard) {
 					enemy_->SetTargetCardPosition(nearestCardPos); // カード位置を設定
 					enemy_->SetState(Enemy::State::MoveToCard);    // カード回収を優先
-				}
-				else if (playerDist <= 8.0f) {
+				} else if (playerDist <= 8.0f) {
 					enemy_->SetState(Enemy::State::ChasePlayer);   // プレイヤー追跡
-				}
-				else {
+				} else {
 					enemy_->SetState(Enemy::State::Patrol);        // 何もなければ巡回
 				}
 			}
@@ -324,9 +336,21 @@ void GamePlayScene::Update() {
 		// レベルデータ取得
 		const LevelData& level = levelEditor_->GetLevelData();
 
-		// ブロックとの当たり判定
-		for (int z = 0; z < level.height; z++) {
-			for (int x = 0; x < level.width; x++) {
+		// --- ここから敵の当たり判定改良 ---
+		// 敵の現在座標から、今いるマスの配列インデックスを割り出す
+		int enemyGridX = static_cast<int>(std::round(enemyPos_.x / level.tileSize));
+		int enemyGridZ = static_cast<int>(std::round(enemyPos_.z / level.tileSize));
+
+		int eStartX = std::max(0, enemyGridX - 1);
+		int eEndX = std::min(level.width - 1, enemyGridX + 1);
+		int eStartZ = std::max(0, enemyGridZ - 1);
+		int eEndZ = std::min(level.height - 1, enemyGridZ + 1);
+
+		bool isEnemyHit = false;
+
+		// 敵の周囲3x3マスだけループ
+		for (int z = eStartZ; z <= eEndZ && !isEnemyHit; z++) {
+			for (int x = eStartX; x <= eEndX; x++) {
 
 				if (level.tiles[z][x] != 1) continue; // ブロック以外は無視
 
@@ -341,10 +365,12 @@ void GamePlayScene::Update() {
 				if (Collision::IsCollision(enemyAABB, blockAABB)) {
 					enemy_->SetPosition(oldEnemyPos); // 敵位置を戻す
 					enemyPos_ = oldEnemyPos;          // キャッシュも戻す
+					isEnemyHit = true;
 					break;
 				}
 			}
 		}
+		// --- 改良ここまで ---
 	}
 
 	// 敵の攻撃結果をプレイヤーへ反映
@@ -459,9 +485,9 @@ void GamePlayScene::Update() {
 		}
 	}
 
-	if ( camera_ ) {
+	if (camera_) {
 		// デバッグカメラが非アクティブなときは、プレイヤーを追従する通常カメラ
-		if ( debugCamera_ && !debugCamera_->IsActive() ) {
+		if (debugCamera_ && !debugCamera_->IsActive()) {
 			camera_->SetTranslation({
 				playerPos_.x,
 				playerPos_.y + 8.0f,
@@ -495,11 +521,11 @@ void GamePlayScene::Update() {
 		sprite_->SetPosition(spritePos_);
 		sprite_->Update();
 	}
-	if ( testObj_ ){
+	if (testObj_) {
 		testObj_->Update();
 	}
 
-	levelEditor_->Update();
+	levelEditor_->Update(playerPos_);
 
 	// 手札（3Dモデル）の移動などの更新
 	if (player_ && !player_->IsDead()) {
@@ -535,7 +561,7 @@ void GamePlayScene::Draw() {
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-	
+
 	// プレイヤー描画
 	if (playerObj_ && player_ && !player_->IsDead() && player_->IsVisible()) {
 		playerObj_->Draw(); // 被弾中は点滅表示
@@ -560,7 +586,8 @@ void GamePlayScene::Draw() {
 	//手札カード
 	handManager_.Draw();
 
-	levelEditor_->Draw();
+	// レベルエディタの描画 
+	levelEditor_->Draw(playerPos_);
 
 
 	// パーティクル描画 (パイプライン切り替え)
@@ -596,26 +623,26 @@ void GamePlayScene::DrawDebugUI() {
 	ImGui::Begin("Block Dissolve Test");
 
 	// スライダーで 0.0(通常) 〜 1.0(消滅) を操作
-	if ( ImGui::SliderFloat("ブロックの消滅度", &dissolveThreshold_, 0.0f, 1.0f) ) {
-		if ( testObj_ ) {
+	if (ImGui::SliderFloat("ブロックの消滅度", &dissolveThreshold_, 0.0f, 1.0f)) {
+		if (testObj_) {
 			// スライダーを動かすと、このブロックの閾値だけが書き換わる
 			testObj_->SetDissolveThreshold(dissolveThreshold_);
 		}
 	}
 
 	// 便利なリセットボタン
-	if ( ImGui::Button("元に戻す") ) {
+	if (ImGui::Button("元に戻す")) {
 		dissolveThreshold_ = 0.0f;
-		if ( testObj_ ){
+		if (testObj_) {
 
 			testObj_->SetDissolveThreshold(0.0f);
 		}
-			
+
 	}
 	ImGui::SameLine();
-	if ( ImGui::Button("完全に消す") ) {
+	if (ImGui::Button("完全に消す")) {
 		dissolveThreshold_ = 1.0f;
-		if ( testObj_ ){
+		if (testObj_) {
 			testObj_->SetDissolveThreshold(1.0f);
 		}
 	}
@@ -743,7 +770,7 @@ void GamePlayScene::ResetBattleDebug() {
 	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
 }
 
-void GamePlayScene::UpdateCardSwapMode(Input *input) {
+void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 	// 手札の選択と見た目の更新
 	handManager_.Update();
@@ -765,7 +792,7 @@ void GamePlayScene::UpdateCardSwapMode(Input *input) {
 	}
 }
 
-void GamePlayScene::UpdateCardUse(Input *input) {
+void GamePlayScene::UpdateCardUse(Input* input) {
 
 	// プレイヤーが死んでいる、またはスペースキーが押されていなければ何もしない
 	if (!player_ || player_->IsDead() || !input->Triggerkey(DIK_SPACE)) {
@@ -794,7 +821,7 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 	if (cardUseSystem_) {
 		cardUseSystem_->UseCard(
 			selectedCard,
-			playerPos_,               
+			playerPos_,
 			player_->GetRotation().y,
 			true,
 			player_.get()
