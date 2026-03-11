@@ -95,6 +95,15 @@ void Enemy::Update() {
         DecideNextState();
     }
 
+    //　凍結中の処理
+    if (isFrozen_) {
+        freezeTimer_--; // 凍結残り時間減少
+        if (freezeTimer_ <= 0) {
+            isFrozen_ = false; // 時間切れで氷が溶ける
+        }
+        return;
+    }
+
     switch (state_) {
     case State::Patrol:
         UpdatePatrol();
@@ -120,6 +129,11 @@ void Enemy::Update() {
         UpdateRetreat();
         break;
     }
+}
+
+void Enemy::Freeze(int durationFrames) {
+    isFrozen_ = true;
+    freezeTimer_ = durationFrames;
 }
 
 // 次の状態を決める

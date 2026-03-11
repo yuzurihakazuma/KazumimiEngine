@@ -68,6 +68,9 @@ public:
     void ClearAttackRequest() { attackRequest_ = false; }         // 近接攻撃発生クリア
     void ClearCardUseRequest() { cardUseRequest_ = false; }       // カード使用発生クリア
 
+    // 敵を凍らせる関数
+    void Freeze(int durationFrames);
+
 private:
     void DecideNextState();     // 次の状態を決める
     bool IsStuck() const;       // 詰まり判定
@@ -142,4 +145,8 @@ private:
     int stuckTimer_ = 0;                    // 詰まり継続時間
     const int stuckThreshold_ = 20;         // 何フレームで詰まり判定するか
     float stuckDistanceThreshold_ = 0.01f;  // ほぼ動いていない距離
+
+    //凍結状態の管理
+    bool isFrozen_ = false;                 // 凍結状態フラグ
+    int freezeTimer_ = 0;                   // 凍結残り時間
 };

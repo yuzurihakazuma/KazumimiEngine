@@ -47,6 +47,9 @@ private:
     //シールド更新
     void UpdateShield(Player *player);
 
+    //　氷の弾の更新関数
+    void UpdateIceBullet(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos, const LevelData &level);
+
 private:
     // -----------------------------
     // パンチ演出
@@ -71,8 +74,18 @@ private:
     // -----------------------------
     // シールド演出
     // -----------------------------
-
     std::unique_ptr<Obj3d> shieldObj_ = nullptr;      // シールド用オブジェクト
     Vector3 shieldScale_ = { 1.5f,1.5f,1.5f };          // プレイヤーをすっぽり囲うサイズ
     bool isShieldVisualActive_ = false;               // 描画フラグ
+
+    // -----------------------------
+    // シールド演出
+    // -----------------------------
+    std::unique_ptr<Obj3d> iceBulletObj_ = nullptr;     // 氷の弾用オブジェクト
+    bool isIceBulletActive_ = false;                    // 氷の弾演出中か
+    bool isIceBulletPLayerCaster_ = true;               // プレイヤーが使った氷の弾か
+    Vector3 iceBulletPos_ = { 0.0f,0.0f,0.0f };         // 氷の弾位置
+    Vector3 iceBulletVelocity_ = { 0.0f,0.0f,0.0f };    // 氷の弾速度
+    Vector3 iceBulletScale_ = { 0.5f,0.5f,0.5f };       // 氷の弾サイズ
+
 };

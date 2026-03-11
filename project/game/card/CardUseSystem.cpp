@@ -33,6 +33,13 @@ void CardUseSystem::Initialize(Camera *camera) {
 		shieldObj_->SetScale(shieldScale_);
 		
 	}
+
+	iceBulletObj_ = Obj3d::Create("sphere");
+	if (iceBulletObj_) {
+		iceBulletObj_->SetCamera(camera);
+		iceBulletObj_->SetScale(iceBulletScale_);
+	}
+
 	// 演出状態をリセット
 	Reset();
 }
@@ -48,6 +55,9 @@ void CardUseSystem::Update(Player *player, Enemy *enemy, const Vector3 &playerPo
 
 	//シールドの見た目更新
 	UpdateShield(player);
+
+	// 氷の弾の更新
+	UpdateIceBullet(player, enemy, playerPos, enemyPos, level);
 }
 
 // 描画
@@ -66,6 +76,11 @@ void CardUseSystem::Draw() {
 	// シールドが有効な時だけ描画
 	if (isShieldVisualActive_ && shieldObj_) {
 		shieldObj_->Draw();
+	}
+
+	//　氷の描画
+	if (isIceBulletActive_ && iceBulletObj_) {
+		iceBulletObj_->Draw();
 	}
 }
 
@@ -170,7 +185,26 @@ void CardUseSystem::UseCard(const Card &card, const Vector3 &casterPos, float ca
 			}
 		}
 	}
+	case 6: //氷の弾
+	{
+		if (!isIceBulletActive_) {
+			isIceBulletActive_ = true;
+			isIceBulletPLayerCaster_ = isPlayerCaster;
+			iceBulletPos_ = casterPos;
 
+			//向いている方向から飛んでいく速度を計算
+			float speed = 0.5f;
+
+			iceBulletVelocity_.x = std::sinf(casterYaw) * speed;
+			iceBulletVelocity_.y = 0.0f; // 上下には飛ばさない
+			iceBulletVelocity_.z = std::cosf(casterYaw) * speed;
+
+			if (player) {
+				player->LockAction(20); // プレイヤーが撃った時のスキ
+			}
+
+		}
+	}
 	break;
 	default:
 		// 未対応カードは何もしない
@@ -244,6 +278,56 @@ void CardUseSystem::UpdateShield(Player *player) {
 		shieldObj_->Update();
 
 
+	}
+}
+
+void CardUseSystem::UpdateIceBullet(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos, const LevelData &level) {
+	if (!isIceBulletActive_) {
+		return;
+	}
+
+	//弾を移動させる
+	iceBulletPos_ += iceBulletVelocity_;
+
+	//ブロックに当たったら消滅
+	if (CheckBlockCollision(iceBulletPos_, 0.5f, level)) {
+		isIceBulletActive_ = false;
+		return;
+	}
+
+	//見た目の位置を更新
+	if (iceBulletObj_){
+		iceBulletObj_->SetTranslation(iceBulletPos_);
+		iceBulletObj_->SetScale(iceBulletScale_);
+		iceBulletObj_->Update();
+	}
+
+	//プレイヤーが撃った弾の場合
+	if (isIceBulletPLayerCaster_) {
+		//敵との当たり判定
+		if (enemy && !enemy->IsDead()) {
+			Vector3 diff = {
+				enemyPos.x - iceBulletPos_.x,
+				enemyPos.y - iceBulletPos_.y,
+				enemyPos.z - iceBulletPos_.z
+			};
+
+			//敵に当たった
+			if (Length(diff) < 1.5f) {
+				enemy->TakeDamage(2);
+
+				//敵を5秒間凍結させる
+				enemy->Freeze(300);
+
+				isIceBulletActive_ = false; //当たった消滅
+				return;
+			}
+		}
+
+		//一定距離飛んだら消滅
+		if (Length(iceBulletPos_ - playerPos) > 20.0f) {
+			isIceBulletActive_ = false;
+		}
 	}
 }
 
