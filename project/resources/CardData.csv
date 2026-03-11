@@ -3,3 +3,4 @@ id,name,cost,effectType,sffectValue,desciption,modelName,effectName,seName
 2,Fireball,1,0,3,Deal3Damage,plane,nullptr,nullptr
 3,potion(S),3,1,5,HP5回復,plane,nullptr,nullptr
 4,speedUp,3,3,2,速度を2倍にする,plane,nullptr,nullptr
+5,shield,4,2,3,シールド展開,plane,nullptr,nullptr
