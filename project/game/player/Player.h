@@ -52,6 +52,9 @@ public:
 
     void Heal(int amount); // HP回復処理
 
+    void ActivateShield(int duration); // シールド展開
+    bool IsShieldActive() const { return isShieldActive_; } // シールド状態の取得
+
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
@@ -112,4 +115,8 @@ private:
     //速度
     float speedMultiplier_ = 1.0f; //　移動速度倍率
     int speedBuffTimer_ = 0; // スピードアップの残り時間
+
+    //　シールド管理
+    bool isShieldActive_ = false; // シールド展開中か
+    int shieldTimer_ = 0; // シールド残り時間
 };

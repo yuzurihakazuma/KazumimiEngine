@@ -45,6 +45,10 @@ void Player::Initialize() {
     //速度
     speedMultiplier_ = 1.0f;
     speedBuffTimer_ = 0;
+
+    //シールド
+    isShieldActive_ = false;
+    shieldTimer_ = 0;
 }
 
 void Player::Update() {
@@ -163,6 +167,14 @@ void Player::Update() {
             speedMultiplier_ = 1.0f;
         }
     }
+
+    // シールドのタイマー処理
+    if (isShieldActive_) {
+        shieldTimer_--;
+        if (shieldTimer_ <= 0) {
+            isShieldActive_ = false;
+        }
+    }
 }
 
 // 指定フレームの間プレイヤー操作をロック
@@ -208,6 +220,11 @@ void Player::Heal(int amount) {
     if (hp_ > maxHp_) {
         hp_ = maxHp_;
     }
+}
+
+void Player::ActivateShield(int duration) {
+    isShieldActive_ = true;
+    shieldTimer_ = duration;
 }
 
 void Player::LevelUp() {
@@ -290,6 +307,13 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
     // HPが0なら死亡
     if (hp_ <= 0) {
         isDead_ = true;
+    }
+
+    // シールド展開中ならダメージとノックバックを無効化し、シールドを壊す
+    if (isShieldActive_) {
+        isShieldActive_ = false;
+        shieldTimer_ = 0;
+        return;
     }
 }
 

@@ -44,6 +44,9 @@ private:
     // ブロック衝突判定
     bool CheckBlockCollision(const Vector3& pos, float radius, const LevelData& level);
 
+    //シールド更新
+    void UpdateShield(Player *player);
+
 private:
     // -----------------------------
     // パンチ演出
@@ -64,4 +67,12 @@ private:
     Vector3 fireballPos_ = { 0.0f, 0.0f, 0.0f };       // 火球位置
     Vector3 fireballVelocity_ = { 0.0f, 0.0f, 0.0f };  // 火球速度
     Vector3 fireballScale_ = { 0.5f, 0.5f, 0.5f };     // 火球サイズ
+
+    // -----------------------------
+    // シールド演出
+    // -----------------------------
+
+    std::unique_ptr<Obj3d> shieldObj_ = nullptr;      // シールド用オブジェクト
+    Vector3 shieldScale_ = { 1.5f,1.5f,1.5f };          // プレイヤーをすっぽり囲うサイズ
+    bool isShieldVisualActive_ = false;               // 描画フラグ
 };

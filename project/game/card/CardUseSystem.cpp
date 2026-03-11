@@ -27,6 +27,12 @@ void CardUseSystem::Initialize(Camera *camera) {
 		fireballObj_->SetScale(fireballScale_);// 初期サイズ設定
 	}
 
+	shieldObj_ = Obj3d::Create("sphere");
+	if (shieldObj_) {
+		shieldObj_->SetCamera(camera);
+		shieldObj_->SetScale(shieldScale_);
+		
+	}
 	// 演出状態をリセット
 	Reset();
 }
@@ -39,6 +45,9 @@ void CardUseSystem::Update(Player *player, Enemy *enemy, const Vector3 &playerPo
 
 	// 火球更新
 	UpdateFireball(player, enemy, playerPos, enemyPos, level);
+
+	//シールドの見た目更新
+	UpdateShield(player);
 }
 
 // 描画
@@ -52,6 +61,11 @@ void CardUseSystem::Draw() {
 	// 火球描画
 	if (isFireballActive_ && fireballObj_) {
 		fireballObj_->Draw();
+	}
+
+	// シールドが有効な時だけ描画
+	if (isShieldVisualActive_ && shieldObj_) {
+		shieldObj_->Draw();
 	}
 }
 
@@ -146,6 +160,18 @@ void CardUseSystem::UseCard(const Card &card, const Vector3 &casterPos, float ca
 
 	}
 	break;
+	case 5: //シールド
+	{
+		// 防御（シールド）カードの処理を追加
+		if (card.effectType == CardEffectType::Defense) {
+			if (isPlayerCaster && player!=nullptr) {
+				// 60FPS想定で 5秒 × 60フレーム = 300フレーム
+				player->ActivateShield(300);
+			}
+		}
+	}
+
+	break;
 	default:
 		// 未対応カードは何もしない
 		break;
@@ -201,6 +227,24 @@ bool CardUseSystem::CheckBlockCollision(const Vector3 &pos, float radius, const 
 	}
 
 	return false; // どのブロックにも当たっていない
+}
+
+void CardUseSystem::UpdateShield(Player *player) {
+	if (!player || !shieldObj_) {
+		return;
+	}
+
+	//プレイヤーのシールド状態と見た目の表示フラグを同期
+	isShieldVisualActive_ = player->IsShieldActive();
+
+	if (isShieldVisualActive_) {
+		//プレイヤーの位置にシールドを配置
+		Vector3 shieldPos = player->GetPosition();
+		shieldObj_->SetTranslation(shieldPos);
+		shieldObj_->Update();
+
+
+	}
 }
 
 // パンチ更新
