@@ -87,18 +87,6 @@ void GamePlayScene::Initialize() {
 	player_->SetPosition(playerPos_);
 	player_->SetScale(playerScale_);
 
-	enemyObj_ = Obj3d::Create("sphere");
-	if (enemyObj_) {
-		enemyObj_->SetCamera(camera_.get());
-		enemyObj_->SetTranslation(enemyPos_);
-		enemyObj_->SetScale(enemyScale_);
-	}
-
-	enemy_ = std::make_unique<Enemy>();
-	enemy_->Initialize();
-	enemy_->SetPosition(enemyPos_);
-	enemy_->SetScale(enemyScale_);
-
 	// カード使用システム初期化
 	cardUseSystem_ = std::make_unique<CardUseSystem>();
 	cardUseSystem_->Initialize(camera_.get());
@@ -132,6 +120,9 @@ void GamePlayScene::Initialize() {
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
 
+	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
+	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
+
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
 
@@ -150,7 +141,7 @@ void GamePlayScene::Initialize() {
 	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
 	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
 
-	enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
+	//enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
 }
 
 void GamePlayScene::Update() {
@@ -260,53 +251,68 @@ void GamePlayScene::Update() {
 	}
 
 
-	if (enemy_ && !enemy_->IsDead()) {
-		Vector3 oldEnemyPos = enemy_->GetPosition(); // 敵更新前の位置を保存
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto& enemy = enemies_[i];
+		if (!enemy || enemy->IsDead()) {
+			continue;
+		}
 
-		enemy_->SetPlayerPosition(playerPos_); // プレイヤー位置を渡す
+		Vector3 oldEnemyPos = enemy->GetPosition();
 
-		bool foundCard = false;                // 近くに拾えるカードがあるか
-		Vector3 nearestCardPos{};              // 一番近いカード位置
-		float nearestCardDist = 99999.0f;      // 一番近いカード距離
+		enemy->SetPlayerPosition(playerPos_);
+
+		bool foundCard = false;
+		Vector3 nearestCardPos{};
+		float nearestCardDist = 99999.0f;
 
 		for (auto& pickup : cardPickupManager_.GetPickups()) {
-			if (!pickup.isActive) { continue; } // 非アクティブカードは無視
+			if (!pickup.isActive) {
+				continue;
+			}
 
 			Vector3 diff = {
-				pickup.position.x - enemyPos_.x,
+				pickup.position.x - oldEnemyPos.x,
 				0.0f,
-				pickup.position.z - enemyPos_.z
+				pickup.position.z - oldEnemyPos.z
 			};
 
-			float dist = Length(diff); // 敵とカードの距離
+			float dist = Length(diff);
 
 			if (dist < 6.0f && dist < nearestCardDist) {
-				nearestCardDist = dist;     // 最短距離更新
+				nearestCardDist = dist;
 				nearestCardPos = pickup.position;
 				foundCard = true;
 			}
 		}
 
-		// 敵にカード目標情報を渡す
-		enemy_->SetCardTarget(foundCard, nearestCardPos);
+		enemy->SetCardTarget(foundCard, nearestCardPos);
 
-		// 敵更新
-		enemy_->Update();
-		enemyPos_ = enemy_->GetPosition();    // 位置反映
-		enemyScale_ = enemy_->GetScale();     // スケール反映
+		enemy->Update();
 
-		// 敵のAABBを作成
+		for (size_t i = 0; i < enemies_.size(); ++i) {
+			auto& enemy = enemies_[i];
+			auto& enemyObj = enemyObjs_[i];
+
+			if (!enemy || !enemyObj || enemy->IsDead()) {
+				continue;
+			}
+
+			enemyObj->SetTranslation(enemy->GetPosition());
+			enemyObj->SetRotation(enemy->GetRotation());
+			enemyObj->SetScale(enemy->GetScale());
+			enemyObj->Update();
+		}
+
+		Vector3 enemyPos = enemy->GetPosition();
+
 		AABB enemyAABB;
-		enemyAABB.min = { enemyPos_.x - 0.5f, enemyPos_.y - 0.5f, enemyPos_.z - 0.5f };
-		enemyAABB.max = { enemyPos_.x + 0.5f, enemyPos_.y + 0.5f, enemyPos_.z + 0.5f };
+		enemyAABB.min = { enemyPos.x - 0.5f, enemyPos.y - 0.5f, enemyPos.z - 0.5f };
+		enemyAABB.max = { enemyPos.x + 0.5f, enemyPos.y + 0.5f, enemyPos.z + 0.5f };
 
-		// レベルデータ取得
 		const LevelData& level = levelEditor_->GetLevelData();
 
-		// --- ここから敵の当たり判定改良 ---
-		// 敵の現在座標から、今いるマスの配列インデックスを割り出す
-		int enemyGridX = static_cast<int>(std::round(enemyPos_.x / level.tileSize));
-		int enemyGridZ = static_cast<int>(std::round(enemyPos_.z / level.tileSize));
+		int enemyGridX = static_cast<int>(std::round(enemyPos.x / level.tileSize));
+		int enemyGridZ = static_cast<int>(std::round(enemyPos.z / level.tileSize));
 
 		int eStartX = std::max(0, enemyGridX - 1);
 		int eEndX = std::min(level.width - 1, enemyGridX + 1);
@@ -315,92 +321,86 @@ void GamePlayScene::Update() {
 
 		bool isEnemyHit = false;
 
-		// 敵の周囲3x3マスだけループ
 		for (int z = eStartZ; z <= eEndZ && !isEnemyHit; z++) {
 			for (int x = eStartX; x <= eEndX; x++) {
 
-				if (level.tiles[z][x] != 1) continue; // ブロック以外は無視
+				if (level.tiles[z][x] != 1) {
+					continue;
+				}
 
 				float worldX = x * level.tileSize;
 				float worldZ = z * level.tileSize;
 
 				AABB blockAABB;
-				blockAABB.min = { worldX - 1.0f, level.baseY,         worldZ - 1.0f };
-				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f,  worldZ + 1.0f };
+				blockAABB.min = { worldX - 1.0f, level.baseY,        worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
 
-				// 敵とブロックが当たったら更新前の位置に戻す
 				if (Collision::IsCollision(enemyAABB, blockAABB)) {
-					enemy_->SetPosition(oldEnemyPos); // 敵位置を戻す
-					enemyPos_ = oldEnemyPos;          // キャッシュも戻す
+					enemy->SetPosition(oldEnemyPos);
 					isEnemyHit = true;
 					break;
 				}
 			}
 		}
-		// --- 改良ここまで ---
 	}
 
-	// 敵の攻撃結果をプレイヤーへ反映
-	if (enemy_ && player_ && !enemy_->IsDead() && !player_->IsDead()) {
-
-		// 近接攻撃リクエストが来ていたらプレイヤーにダメージ
-		if (enemy_->GetAttackRequest()) {
-
-			Vector3 diff = {
-				playerPos_.x - enemyPos_.x,
-				0.0f,
-				playerPos_.z - enemyPos_.z
-			}; // 敵とプレイヤーの距離ベクトル
-
-			// 念のため近接範囲内のときだけダメージ
-			if (Length(diff) <= 2.0f) {
-				player_->TakeDamage(1, enemyPos_); // 敵位置を攻撃元として渡す
-			}
-
-			enemy_->ClearAttackRequest(); // 攻撃リクエスト消去
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto& enemy = enemies_[i];
+		if (!enemy || !player_ || enemy->IsDead() || player_->IsDead()) {
+			continue;
 		}
 
-		// カード使用リクエストが来ていたら敵の所持カードを発動
-		if (enemy_->GetCardUseRequest()) {
+		Vector3 enemyPos = enemy->GetPosition();
 
-			// カードを持っている場合のみ使用
-			if (enemy_->HasCard()) {
+		if (enemy->GetAttackRequest()) {
+			Vector3 diff = {
+				playerPos_.x - enemyPos.x,
+				0.0f,
+				playerPos_.z - enemyPos.z
+			};
 
+			if (Length(diff) <= 2.0f) {
+				player_->TakeDamage(1, enemyPos);
+			}
+
+			enemy->ClearAttackRequest();
+		}
+
+		if (enemy->GetCardUseRequest()) {
+			if (enemy->HasCard()) {
 				if (cardUseSystem_) {
 					cardUseSystem_->UseCard(
-						enemy_->GetHeldCard(),      // 使用するカード
-						enemyPos_,                  // 使用者位置
-						enemy_->GetRotation().y,    // 使用者の向き
-						false                       // 敵が使用
+						enemy->GetHeldCard(),
+						enemyPos,
+						enemy->GetRotation().y,
+						false
 					);
 				}
-
-				enemy_->ClearHeldCard(); // 使用後はカードを消費
+				enemy->ClearHeldCard();
 			}
 
-			enemy_->ClearCardUseRequest(); // カード使用リクエスト消去
+			enemy->ClearCardUseRequest();
 		}
 	}
 
-	if (enemy_ && enemy_->IsDead() && !enemyDeadHandled_) {
-
-		if (player_) {
-			player_->AddExp(1); // 敵撃破で経験値を加算
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto& enemy = enemies_[i];
+		if (!enemy) {
+			continue;
 		}
 
-		if (enemy_->HasCard()) {
-			cardPickupManager_.AddPickup(enemyPos_, enemy_->GetHeldCard()); // 敵の位置にカードを落とす
-			enemy_->ClearHeldCard(); // 所持カードを空にする
+		if (enemy->IsDead() && !enemyDeadHandled_[i]) {
+			if (player_) {
+				player_->AddExp(1);
+			}
+
+			if (enemy->HasCard()) {
+				cardPickupManager_.AddPickup(enemy->GetPosition(), enemy->GetHeldCard());
+				enemy->ClearHeldCard();
+			}
+
+			enemyDeadHandled_[i] = true;
 		}
-
-		enemyDeadHandled_ = true; // 死亡時処理は1回だけ
-	}
-
-	if (enemyObj_ && enemy_ && !enemy_->IsDead()) {
-		enemyObj_->SetTranslation(enemyPos_);      // 敵位置反映
-		enemyObj_->SetRotation(enemy_->GetRotation()); // 敵回転反映
-		enemyObj_->SetScale(enemyScale_);          // 敵スケール反映
-		enemyObj_->Update();                       // 行列更新
 	}
 
 	cardPickupManager_.Update();
@@ -436,18 +436,26 @@ void GamePlayScene::Update() {
 		}
 
 		// 敵が拾う
-		if (enemy_ && !enemy_->IsDead() && !enemy_->HasCard()) {
+		for (size_t i = 0; i < enemies_.size(); ++i) {
+			auto& enemy = enemies_[i];
+			if (!enemy || enemy->IsDead() || enemy->HasCard()) {
+				continue;
+			}
+
+			Vector3 enemyPos = enemy->GetPosition();
+
 			Vector3 enemyDiff = {
-				enemyPos_.x - pickup.position.x,
-				enemyPos_.y - pickup.position.y,
-				enemyPos_.z - pickup.position.z
+				enemyPos.x - pickup.position.x,
+				enemyPos.y - pickup.position.y,
+				enemyPos.z - pickup.position.z
 			};
 
 			float enemyDist = Length(enemyDiff);
 
 			if (enemyDist < 2.0f) {
-				enemy_->SetHeldCard(pickup.card);
+				enemy->SetHeldCard(pickup.card);
 				pickup.isActive = false;
+				break;
 			}
 		}
 	}
@@ -503,13 +511,37 @@ void GamePlayScene::Update() {
 	}
 
 	// カード使用システム更新
+	Enemy* nearestEnemy = nullptr;
+	Vector3 nearestEnemyPos{};
+	float nearestEnemyDist = 99999.0f;
+
+	for (auto& enemy : enemies_) {
+		if (!enemy || enemy->IsDead()) {
+			continue;
+		}
+
+		Vector3 pos = enemy->GetPosition();
+		Vector3 diff = {
+			pos.x - playerPos_.x,
+			0.0f,
+			pos.z - playerPos_.z
+		};
+
+		float dist = Length(diff);
+		if (dist < nearestEnemyDist) {
+			nearestEnemyDist = dist;
+			nearestEnemy = enemy.get();
+			nearestEnemyPos = pos;
+		}
+	}
+
 	if (cardUseSystem_) {
 		cardUseSystem_->Update(
-			player_.get(),                // プレイヤー
-			enemy_.get(),                 // 敵
-			playerPos_,                   // プレイヤー位置
-			enemyPos_,                    // 敵位置
-			levelEditor_->GetLevelData()  // レベルデータ
+			player_.get(),
+			nearestEnemy,
+			playerPos_,
+			nearestEnemyPos,
+			levelEditor_->GetLevelData()
 		);
 	}
 
@@ -538,10 +570,16 @@ void GamePlayScene::Draw() {
 		playerObj_->Draw(); // 被弾中は点滅表示
 	}
 
-	if (enemyObj_ && enemy_ && !enemy_->IsDead() && enemy_->IsVisible()) {
-		enemyObj_->Draw(); // ヒット中は点滅表示
-	}
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto& enemy = enemies_[i];
+		auto& enemyObj = enemyObjs_[i];
 
+		if (!enemy || !enemyObj || enemy->IsDead() || !enemy->IsVisible()) {
+			continue;
+		}
+
+		enemyObj->Draw();
+	}
 	// カード使用演出描画
 	if (cardUseSystem_) {
 		cardUseSystem_->Draw();
@@ -698,15 +736,6 @@ void GamePlayScene::ResetBattleDebug() {
 		player_->SetScale(playerScale_);
 	}
 
-	// 敵初期化
-	if (enemy_) {
-		enemy_->Initialize();
-		enemyPos_ = { 5.0f, 0.0f, 5.0f };
-		enemyScale_ = { 1.0f, 1.0f, 1.0f };
-		enemy_->SetPosition(enemyPos_);
-		enemy_->SetScale(enemyScale_);
-	}
-
 	// プレイヤーモデル更新
 	if (playerObj_ && player_) {
 		playerObj_->SetTranslation(player_->GetPosition());
@@ -715,32 +744,27 @@ void GamePlayScene::ResetBattleDebug() {
 		playerObj_->Update();
 	}
 
-	// 敵モデル更新
-	if (enemyObj_ && enemy_) {
-		enemyObj_->SetTranslation(enemy_->GetPosition());
-		enemyObj_->SetRotation(enemy_->GetRotation());
-		enemyObj_->SetScale(enemy_->GetScale());
-		enemyObj_->Update();
-	}
+	// 敵を再生成
+	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 
 	// カード使用システムの状態をリセット
 	if (cardUseSystem_) {
-		cardUseSystem_->Reset(); // パンチ・火球などの演出状態を初期化
+		cardUseSystem_->Reset();
 	}
-
-	// 敵死亡処理フラグリセット
-	enemyDeadHandled_ = false;
 
 	// 手札を初期化
 	handManager_.Initialize(uiCamera_.get());
-	handManager_.AddCard(CardDatabase::GetCardData(1)); // 初期カードを再追加
+	handManager_.AddCard(CardDatabase::GetCardData(1));
 
 	// フィールドカードを初期化
 	cardPickupManager_.Initialize(camera_.get());
 	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
 	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
-}
 
+	// 交換モードも戻しておくと安全
+	isCardSwapMode_ = false;
+	pendingCard_ = Card{};
+}
 void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 	// 手札の選択と見た目の更新
@@ -816,4 +840,52 @@ void GamePlayScene::Finalize() {
 
 	textures_.clear();
 	depthStencilResource_.Reset();
+}
+
+void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
+
+	enemies_.clear();
+	enemyObjs_.clear();
+	enemyDeadHandled_.clear();
+
+	if (!spawnManager_.HasLevelData()) {
+		return;
+	}
+
+	std::vector<std::pair<int, int>> candidates =
+		spawnManager_.FindEnemySpawnCandidates(margin);
+
+	if (candidates.empty()) {
+		return;
+	}
+
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::shuffle(candidates.begin(), candidates.end(), mt);
+
+	int spawnCount = std::min(enemyCount, static_cast<int>(candidates.size()));
+
+	for (int i = 0; i < spawnCount; ++i) {
+		int tileX = candidates[i].first;
+		int tileZ = candidates[i].second;
+
+		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
+
+		auto enemy = std::make_unique<Enemy>();
+		enemy->Initialize();
+		enemy->SetPosition(worldPos);
+		enemy->SetScale({ 1.0f, 1.0f, 1.0f });
+
+		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+		if (enemyObj) {
+			enemyObj->SetCamera(camera_.get());
+			enemyObj->SetTranslation(worldPos);
+			enemyObj->SetScale({ 1.0f, 1.0f, 1.0f });
+			enemyObj->Update();
+		}
+
+		enemies_.push_back(std::move(enemy));
+		enemyObjs_.push_back(std::move(enemyObj));
+		enemyDeadHandled_.push_back(false);
+	}
 }
