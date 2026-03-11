@@ -408,5 +408,6 @@
       <Filter>シェーダーファイル</Filter>
     </None>
     <None Include="engine\base\resources\shaders\Particle.hlsli" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
