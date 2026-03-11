@@ -7,6 +7,7 @@
 
 #include "game/card/HandManager.h"
 #include "game/card/CardPickupManager.h"
+#include "game/spawn/SpawnManager.h"
 
 // --- 標準ライブラリ ---
 #include <vector>
@@ -96,13 +97,16 @@ private: // メンバ変数
 
 	std::unique_ptr<CardUseSystem> cardUseSystem_ = nullptr; // カード使用システム
 
-	std::unique_ptr<Enemy> enemy_ = nullptr;
-	std::unique_ptr<Obj3d> enemyObj_ = nullptr;
+	// スポーンマネージャー
+	SpawnManager spawnManager_;
 
-	Vector3 enemyPos_ = { 5.0f, 0.0f, 5.0f };
-	Vector3 enemyScale_ = { 1.0f, 1.0f, 1.0f };
+	// 敵関連
+	std::vector<std::unique_ptr<Enemy>> enemies_;
+	std::vector<std::unique_ptr<Obj3d>> enemyObjs_;
+	std::vector<bool> enemyDeadHandled_;
 
-	bool enemyDeadHandled_ = false; // 敵死亡時の処理を1回だけにする
+	int enemySpawnCount_ = 5;   // 出したい敵の数
+	int enemySpawnMargin_ = 4;  // 壁から何マス離すか
 
 	void ResetBattleDebug(); // デバッグ用バトルリセット
 
@@ -121,5 +125,5 @@ private: // メンバ変数
 
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
-
+	void SpawnEnemiesRandom(int enemyCount, int margin);
 };
