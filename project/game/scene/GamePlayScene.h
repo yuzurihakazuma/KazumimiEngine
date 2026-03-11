@@ -82,7 +82,7 @@ private: // メンバ変数
 
 	std::unique_ptr<Obj3d> testObj_ = nullptr;
 
-	Vector3 playerPos_ = { 0.0f, 0.0f, 0.0f };
+	Vector3 playerPos_ = { 5.0f, 0.0f, 5.0f };
 	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
 	// マップエディタ
@@ -106,7 +106,7 @@ private: // メンバ変数
 	std::vector<bool> enemyDeadHandled_;
 
 	int enemySpawnCount_ = 5;   // 出したい敵の数
-	int enemySpawnMargin_ = 4;  // 壁から何マス離すか
+	int enemySpawnMargin_ = 2;  // 壁から何マス離すか
 
 	void ResetBattleDebug(); // デバッグ用バトルリセット
 

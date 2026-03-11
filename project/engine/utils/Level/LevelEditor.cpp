@@ -86,9 +86,15 @@ void LevelEditor::Draw(const Vector3& playerPos) {
 			}
 		}
 	}
-}void LevelEditor::DrawDebugUI() {
+}
+void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
 	if (isEditorActive) {
+
+		static int roomX = 1;
+		static int roomZ = 1;
+		static int roomWidth = 5;
+		static int roomHeight = 5;
 
 		ImGui::Begin("マップエディタ");
 
@@ -109,12 +115,11 @@ void LevelEditor::Draw(const Vector3& playerPos) {
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("マップをクリア")) {
-			for (int z = 0; z < levelData_.height; ++z) {
-				for (int x = 0; x < levelData_.width; ++x) {
-					levelData_.tiles[z][x] = 0;
-				}
-			}
-			RebuildMapObjects();
+			FillAllTiles(0);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("全部壁(1)で埋める")) {
+			FillAllTiles(1);
 		}
 
 		ImGui::Separator();
@@ -139,12 +144,39 @@ void LevelEditor::Draw(const Vector3& playerPos) {
 
 		ImGui::Separator();
 
+		ImGui::Text("部屋作成");
+
+		ImGui::InputInt("部屋開始X", &roomX);
+		ImGui::InputInt("部屋開始Z", &roomZ);
+		ImGui::InputInt("部屋幅", &roomWidth);
+		ImGui::InputInt("部屋高さ", &roomHeight);
+
+		if (roomWidth < 1) { roomWidth = 1; }
+		if (roomHeight < 1) { roomHeight = 1; }
+
+		if (ImGui::Button("部屋を作る")) {
+			CreateRoom(roomX, roomZ, roomWidth, roomHeight);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("中央に部屋を作る")) {
+			int autoRoomWidth = 6;
+			int autoRoomHeight = 6;
+
+			int startX = (levelData_.width - autoRoomWidth) / 2;
+			int startZ = (levelData_.height - autoRoomHeight) / 2;
+
+			CreateRoom(startX, startZ, autoRoomWidth, autoRoomHeight);
+		}
+
+		ImGui::Separator();
+
 		ImGui::Text("配置タイル");
 		ImGui::RadioButton("床(0)", &selectedTile_, 0);
 		ImGui::SameLine();
 		ImGui::RadioButton("壁(1)", &selectedTile_, 1);
 
 		ImGui::Separator();
+
 		if ((int)levelData_.tiles.size() != levelData_.height) {
 			levelData_.tiles.resize(levelData_.height);
 		}
@@ -153,14 +185,25 @@ void LevelEditor::Draw(const Vector3& playerPos) {
 				row.resize(levelData_.width, 0);
 			}
 		}
+
 		ImGui::Text("グリッド編集");
 
 		for (int viewZ = 0; viewZ < levelData_.height; ++viewZ) {
-			int dataZ = levelData_.height - 1 - viewZ; // 表示だけ上下反転
+			int dataZ = levelData_.height - 1 - viewZ;
 
 			for (int x = 0; x < levelData_.width; ++x) {
+
+				int tile = levelData_.tiles[dataZ][x];
+
+				// タイルの色を変更
+				if (tile == 0) {
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 1.0f, 1.0f)); // 青
+				} else if (tile == 1) {
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.3f, 1.0f)); // 赤
+				}
+
 				std::string label =
-					std::to_string(levelData_.tiles[dataZ][x]) +
+					std::to_string(tile) +
 					"##" + std::to_string(dataZ) + "_" + std::to_string(x);
 
 				if (ImGui::Button(label.c_str(), ImVec2(24, 24))) {
@@ -169,6 +212,9 @@ void LevelEditor::Draw(const Vector3& playerPos) {
 						UpdateTileObject(x, dataZ);
 					}
 				}
+
+				ImGui::PopStyleColor(); // 色戻す
+
 				if (x < levelData_.width - 1) {
 					ImGui::SameLine();
 				}
@@ -249,4 +295,35 @@ void LevelEditor::CreateFloorObject() {
 		});
 
 	floorObject_->Update();
+}
+
+void LevelEditor::FillAllTiles(int tileType) {
+	for (int z = 0; z < levelData_.height; ++z) {
+		for (int x = 0; x < levelData_.width; ++x) {
+			levelData_.tiles[z][x] = tileType;
+		}
+	}
+
+	RebuildMapObjects();
+}
+
+void LevelEditor::CreateRoom(int startX, int startZ, int roomWidth, int roomHeight) {
+	if (roomWidth <= 0 || roomHeight <= 0) {
+		return;
+	}
+
+	int endX = startX + roomWidth;
+	int endZ = startZ + roomHeight;
+
+	for (int z = startZ; z < endZ; ++z) {
+		for (int x = startX; x < endX; ++x) {
+			if (x < 0 || x >= levelData_.width || z < 0 || z >= levelData_.height) {
+				continue;
+			}
+
+			levelData_.tiles[z][x] = 0;
+		}
+	}
+
+	RebuildMapObjects();
 }

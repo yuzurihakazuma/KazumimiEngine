@@ -30,6 +30,9 @@ public:
     void UpdateTileObject(int x, int z);
     void CreateFloorObject();
     void ResizeObjectGrids();
+
+    void FillAllTiles(int tileType);
+    void CreateRoom(int startX, int startZ, int roomWidth, int roomHeight);
 private:
     const Camera* camera_ = nullptr;
 
