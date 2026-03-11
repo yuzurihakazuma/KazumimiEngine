@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <string>
 
-
 // 前方宣言
 class DebugCamera;
 class Camera;
@@ -28,7 +27,7 @@ class LevelEditor;
 class Enemy;
 class CardUseSystem;
 
-	// ゲームプレイシーン
+// ゲームプレイシーン
 class GamePlayScene : public IScene {
 public:
 	// 初期化
@@ -42,7 +41,6 @@ public:
 
 	// デバッグ用UIの描画
 	void DrawDebugUI() override;
-
 
 	GamePlayScene();
 
@@ -69,7 +67,6 @@ private: // メンバ変数
 
 	// デプスステンシル
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
-
 
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
@@ -107,6 +104,18 @@ private: // メンバ変数
 
 	void ResetBattleDebug(); // デバッグ用バトルリセット
 
+	//UI専用カメラ
+	std::unique_ptr<Camera> uiCamera_ = nullptr;
+
+	// カード交換モード用変数
+	bool isCardSwapMode_ = false; // 交換モード中かどうか
+	Card pendingCard_;            // 拾おうとしている（保留中の）カード
+
+	//カード交換モードの処理
+	void UpdateCardSwapMode(Input *input);
+
+	//カード使用の処理
+	void UpdateCardUse(Input *input);
 
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
