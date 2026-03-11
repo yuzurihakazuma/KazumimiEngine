@@ -136,10 +136,7 @@ void GamePlayScene::Initialize() {
 	handManager_.AddCard(CardDatabase::GetCardData(1));
 
 
-	cardPickupManager_.Initialize(camera_.get());
-
-	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
-	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
+	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 
 	//enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
 }
@@ -760,9 +757,7 @@ void GamePlayScene::ResetBattleDebug() {
 	handManager_.AddCard(CardDatabase::GetCardData(1));
 
 	// フィールドカードを初期化
-	cardPickupManager_.Initialize(camera_.get());
-	cardPickupManager_.AddPickup({ 3.0f, 0.0f, 3.0f }, CardDatabase::GetCardData(2));
-	cardPickupManager_.AddPickup({ -3.0f, 0.0f, 5.0f }, CardDatabase::GetCardData(3));
+	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 
 	// 交換モードも戻しておくと安全
 	isCardSwapMode_ = false;
@@ -890,5 +885,39 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		enemies_.push_back(std::move(enemy));
 		enemyObjs_.push_back(std::move(enemyObj));
 		enemyDeadHandled_.push_back(false);
+	}
+}
+
+void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
+
+	if (!spawnManager_.HasLevelData()) {
+		return;
+	}
+
+	cardPickupManager_.Initialize(camera_.get());
+
+	std::vector<std::pair<int, int>> candidates =
+		spawnManager_.FindCardSpawnCandidates(margin);
+
+	if (candidates.empty()) {
+		return;
+	}
+
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::shuffle(candidates.begin(), candidates.end(), mt);
+
+	int spawnCount = std::min(cardCount, static_cast<int>(candidates.size()));
+
+	for (int i = 0; i < spawnCount; ++i) {
+		int tileX = candidates[i].first;
+		int tileZ = candidates[i].second;
+
+		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
+
+		// 今は仮で ID:2 と ID:3 をランダムに出す
+		int cardId = (i % 2 == 0) ? 2 : 3;
+
+		cardPickupManager_.AddPickup(worldPos, CardDatabase::GetCardData(cardId));
 	}
 }
