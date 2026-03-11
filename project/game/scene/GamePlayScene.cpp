@@ -656,12 +656,15 @@ void GamePlayScene::DrawDebugUI() {
 	ImGui::Text("[Dungeon Floor]");
 
 	// ★修正：図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
-	if (ImGui::Button("Pick Up 'Fist'(ID: 1)")) {
-		handManager_.AddCard(CardDatabase::GetCardData(1));
-	}
 	ImGui::SameLine();
-	if (ImGui::Button("Pick Up 'Fireball'(ID: 2)")) {
+	if (ImGui::Button("Pick Up (ID: 2)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(2));
+	}
+	if (ImGui::Button("Pick Up (ID: 3)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(3));
+	}
+	if (ImGui::Button("Pick Up (ID: 4)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(4));
 	}
 
 	ImGui::Separator();

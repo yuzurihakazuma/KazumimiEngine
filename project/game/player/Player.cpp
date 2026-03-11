@@ -41,6 +41,10 @@ void Player::Initialize() {
     isKnockback_ = false;                          // ノックバック状態リセット
     knockbackTimer_ = 0;                           // ノックバック時間リセット
     knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };    // ノックバック速度リセット
+
+    //速度
+    speedMultiplier_ = 1.0f;
+    speedBuffTimer_ = 0;
 }
 
 void Player::Update() {
@@ -146,8 +150,17 @@ void Player::Update() {
     } else {
 
         if (Length(move) > 0.0f) {
-            pos_ += move * moveSpeed_;            // 通常移動
+            pos_ += move * (moveSpeed_*speedMultiplier_);            // 通常移動
             rot_.y = std::atan2f(move.x, move.z); // 移動方向へ向く
+        }
+    }
+
+    // スピードバフの更新
+    if (speedBuffTimer_ > 0) {
+        speedBuffTimer_--;
+        // タイマーが0になったら通常の速度に戻す
+        if (speedBuffTimer_ <= 0) {
+            speedMultiplier_ = 1.0f;
         }
     }
 }
@@ -180,6 +193,20 @@ void Player::UseCost(int value) {
 
     if (cost_ < 0) {
         cost_ = 0; // 下限補正
+    }
+}
+
+void Player::Heal(int amount) {
+    if (isDead_) {
+        return; // 死亡中は回復しない
+    }
+
+    // HP回復
+    hp_ += amount;
+
+    // 最大HPを超えないように修正
+    if (hp_ > maxHp_) {
+        hp_ = maxHp_;
     }
 }
 
@@ -264,6 +291,11 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
     if (hp_ <= 0) {
         isDead_ = true;
     }
+}
+
+void Player::ApplySpeedBuff(float multiplier, int durationFrames) {
+    speedMultiplier_ = multiplier;
+    speedBuffTimer_ = durationFrames;
 }
 
 // 描画するか判定

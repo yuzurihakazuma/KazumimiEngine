@@ -46,6 +46,12 @@ public:
 
 	void SetInputEnable(bool enable){ isInputEnabled_ = enable; } // 入力有効/無効切り替え
 
+    void ApplySpeedBuff(float multiplier, int durationFrames); // スピードバフ適用の関数
+
+    float GetSpeedMultiplier() const { return speedMultiplier_; } // 現在の速度倍率取得
+
+    void Heal(int amount); // HP回復処理
+
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
@@ -102,4 +108,8 @@ private:
 
 
 	bool isInputEnabled_ = true; // 入力有効フラグ
+
+    //速度
+    float speedMultiplier_ = 1.0f; //　移動速度倍率
+    int speedBuffTimer_ = 0; // スピードアップの残り時間
 };
