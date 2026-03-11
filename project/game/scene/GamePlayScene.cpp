@@ -497,6 +497,10 @@ void GamePlayScene::Update() {
 		testObj_->Update();
 	}
 
+	if ( sprite_ ) {
+		sprite_->Update();
+	}
+
 	levelEditor_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
 
@@ -599,18 +603,15 @@ void GamePlayScene::Draw() {
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
-
-
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList, dxCommon);
-
-	// スプライト描画の前準備
+	
 	SpriteCommon::GetInstance()->PreDraw(commandList);
-
-	if (sprite_) {
+	if ( sprite_ ) {
 		sprite_->Draw();
 	}
 
+
+	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->Draw(commandList,dxCommon);
 
 }
 

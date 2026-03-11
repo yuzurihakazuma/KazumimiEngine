@@ -188,16 +188,17 @@ void TitleScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 
-
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList,dxCommon);
-
 	// スプライト描画の前準備
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 
 	if ( sprite_ ) {
 		sprite_->Draw();
 	}
+
+	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->Draw(commandList,dxCommon);
+
+	
 
 }
 
