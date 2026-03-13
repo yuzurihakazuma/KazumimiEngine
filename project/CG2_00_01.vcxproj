@@ -161,6 +161,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="game\enemy\Boss.cpp" />
     <ClCompile Include="DungeonGenerator.cpp" />
     <ClCompile Include="game\card\CardUseSystem.cpp" />
     <ClCompile Include="game\card\CardDatabase.cpp" />
@@ -246,6 +247,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\enemy\Boss.h" />
     <ClInclude Include="DungeonGenerator.h" />
     <ClInclude Include="game\card\CardUseSystem.h" />
     <ClInclude Include="game\card\CardDatabase.h" />

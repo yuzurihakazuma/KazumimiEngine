@@ -61,6 +61,7 @@
     <ClCompile Include="game\player\Player.cpp" />
     <ClCompile Include="game\card\CardUseSystem.cpp" />
     <ClCompile Include="game\spawn\SpawnManager.cpp" />
+    <ClCompile Include="game\enemy\Boss.cpp" />
     <ClCompile Include="DungeonGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -128,6 +129,7 @@
     <ClInclude Include="game\player\Player.h" />
     <ClInclude Include="game\card\CardUseSystem.h" />
     <ClInclude Include="game\spawn\SpawnManager.h" />
+    <ClInclude Include="game\enemy\Boss.h" />
     <ClInclude Include="DungeonGenerator.h" />
   </ItemGroup>
   <ItemGroup>

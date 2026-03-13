@@ -29,6 +29,7 @@
 #include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "game/enemy/Enemy.h"
+#include "game/enemy/Boss.h"
 #include "game/card/CardUseSystem.h"
 
 
@@ -87,6 +88,21 @@ void GamePlayScene::Initialize() {
 	player_->SetPosition(playerPos_);
 	player_->SetScale(playerScale_);
 
+	boss_ = std::make_unique<Boss>();
+	boss_->Initialize();
+	boss_->SetPosition({ 12.0f, 0.0f, 12.0f });
+	boss_->SetScale({ 2.0f, 2.0f, 2.0f });
+
+	bossObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+	if (bossObj_) {
+		bossObj_->SetCamera(camera_.get());
+		bossObj_->SetTranslation(boss_->GetPosition());
+		bossObj_->SetScale(boss_->GetScale());
+		bossObj_->Update();
+	}
+
+	bossDeadHandled_ = false;
+
 	// カード使用システム初期化
 	cardUseSystem_ = std::make_unique<CardUseSystem>();
 	cardUseSystem_->Initialize(camera_.get());
@@ -106,8 +122,6 @@ void GamePlayScene::Initialize() {
 		testObj_->SetDissolveThreshold(0.0f);
 
 	}
-
-
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -289,22 +303,7 @@ void GamePlayScene::Update() {
 		}
 
 		enemy->SetCardTarget(foundCard, nearestCardPos);
-
 		enemy->Update();
-
-		for (size_t i = 0; i < enemies_.size(); ++i) {
-			auto& enemy = enemies_[i];
-			auto& enemyObj = enemyObjs_[i];
-
-			if (!enemy || !enemyObj || enemy->IsDead()) {
-				continue;
-			}
-
-			enemyObj->SetTranslation(enemy->GetPosition());
-			enemyObj->SetRotation(enemy->GetRotation());
-			enemyObj->SetScale(enemy->GetScale());
-			enemyObj->Update();
-		}
 
 		Vector3 enemyPos = enemy->GetPosition();
 
@@ -326,7 +325,6 @@ void GamePlayScene::Update() {
 
 		for (int z = eStartZ; z <= eEndZ && !isEnemyHit; z++) {
 			for (int x = eStartX; x <= eEndX; x++) {
-
 				if (level.tiles[z][x] != 1) {
 					continue;
 				}
@@ -344,6 +342,74 @@ void GamePlayScene::Update() {
 					break;
 				}
 			}
+		}
+	}
+
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto& enemy = enemies_[i];
+		auto& enemyObj = enemyObjs_[i];
+
+		if (!enemy || !enemyObj || enemy->IsDead()) {
+			continue;
+		}
+
+		enemyObj->SetTranslation(enemy->GetPosition());
+		enemyObj->SetRotation(enemy->GetRotation());
+		enemyObj->SetScale(enemy->GetScale());
+		enemyObj->Update();
+	}
+
+	if (boss_ && !boss_->IsDead()) {
+		Vector3 oldBossPos = boss_->GetPosition();
+
+		boss_->SetPlayerPosition(playerPos_);
+		boss_->Update();
+
+		Vector3 bossPos = boss_->GetPosition();
+
+		AABB bossAABB;
+		bossAABB.min = { bossPos.x - 1.0f, bossPos.y - 1.0f, bossPos.z - 1.0f };
+		bossAABB.max = { bossPos.x + 1.0f, bossPos.y + 1.0f, bossPos.z + 1.0f };
+
+		const LevelData& level = levelEditor_->GetLevelData();
+
+		int bossGridX = static_cast<int>(std::round(bossPos.x / level.tileSize));
+		int bossGridZ = static_cast<int>(std::round(bossPos.z / level.tileSize));
+
+		int bStartX = std::max(0, bossGridX - 1);
+		int bEndX = std::min(level.width - 1, bossGridX + 1);
+		int bStartZ = std::max(0, bossGridZ - 1);
+		int bEndZ = std::min(level.height - 1, bossGridZ + 1);
+
+		bool isBossHit = false;
+
+		for (int z = bStartZ; z <= bEndZ && !isBossHit; z++) {
+			for (int x = bStartX; x <= bEndX; x++) {
+
+				if (level.tiles[z][x] != 1) {
+					continue;
+				}
+
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY,        worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				if (Collision::IsCollision(bossAABB, blockAABB)) {
+					boss_->SetPosition(oldBossPos);
+					isBossHit = true;
+					break;
+				}
+			}
+		}
+
+		if (bossObj_) {
+			bossObj_->SetTranslation(boss_->GetPosition());
+			bossObj_->SetRotation(boss_->GetRotation());
+			bossObj_->SetScale(boss_->GetScale());
+			bossObj_->Update();
 		}
 	}
 
@@ -386,6 +452,41 @@ void GamePlayScene::Update() {
 		}
 	}
 
+	if (boss_ && player_ && !boss_->IsDead() && !player_->IsDead()) {
+		Vector3 bossPos = boss_->GetPosition();
+
+		// 通常攻撃
+		if (boss_->GetAttackRequest()) {
+			Vector3 diff = {
+				playerPos_.x - bossPos.x,
+				0.0f,
+				playerPos_.z - bossPos.z
+			};
+
+			if (Length(diff) <= 3.0f) {
+				player_->TakeDamage(2, bossPos);
+			}
+
+			boss_->ClearAttackRequest();
+		}
+
+		// スキル攻撃
+		if (boss_->GetSkillRequest()) {
+			Vector3 diff = {
+				playerPos_.x - bossPos.x,
+				0.0f,
+				playerPos_.z - bossPos.z
+			};
+
+			// とりあえず簡易版：少し広めの距離ならダメージ
+			if (Length(diff) <= 8.0f) {
+				player_->TakeDamage(3, bossPos);
+			}
+
+			boss_->ClearSkillRequest();
+		}
+	}
+
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		auto& enemy = enemies_[i];
 		if (!enemy) {
@@ -404,6 +505,14 @@ void GamePlayScene::Update() {
 
 			enemyDeadHandled_[i] = true;
 		}
+	}
+
+	if (boss_ && boss_->IsDead() && !bossDeadHandled_) {
+		if (player_) {
+			player_->AddExp(5);
+		}
+
+		bossDeadHandled_ = true;
 	}
 
 	cardPickupManager_.Update();
@@ -484,8 +593,6 @@ void GamePlayScene::Update() {
 	for (auto& obj : object3ds_) {
 		obj->Update();
 	}
-	// スプライト更新
-	sprite_->Update();
 
 
 	Sphere playerCollider;
@@ -503,9 +610,7 @@ void GamePlayScene::Update() {
 		testObj_->Update();
 	}
 
-	if ( sprite_ ) {
-		sprite_->Update();
-	}
+
 
 	levelEditor_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
@@ -575,6 +680,10 @@ void GamePlayScene::Draw() {
 	// プレイヤー描画
 	if (playerObj_ && player_ && !player_->IsDead() && player_->IsVisible()) {
 		playerObj_->Draw(); // 被弾中は点滅表示
+	}
+
+	if (bossObj_ && boss_ && !boss_->IsDead() && boss_->IsVisible()) {
+		bossObj_->Draw();
 	}
 
 	for (size_t i = 0; i < enemies_.size(); ++i) {
@@ -687,6 +796,13 @@ void GamePlayScene::DrawDebugUI() {
 		ImGui::Text("Player Invincible: %s", player_->IsInvincible() ? "true" : "false");   // 無敵状態表示
 	}
 
+	if (boss_) {
+		ImGui::Separator();
+		ImGui::Text("[Boss]");
+		ImGui::Text("Boss HP: %d / %d", boss_->GetHP(), boss_->GetMaxHP());
+		ImGui::Text("Boss Dead: %s", boss_->IsDead() ? "true" : "false");
+	}
+
 	// デバッグ用
 	if (ImGui::Button("Add EXP +1")) {
 		if (player_) {
@@ -746,6 +862,24 @@ void GamePlayScene::ResetBattleDebug() {
 		player_->Initialize();
 		playerScale_ = { 1.0f, 1.0f, 1.0f };
 	}
+
+	if (boss_) {
+		boss_->Initialize();
+		boss_->SetPosition({ 12.0f, 0.0f, 12.0f });
+		boss_->SetScale({ 2.0f, 2.0f, 2.0f });
+	}
+
+	if (bossObj_ && boss_) {
+		bossObj_->SetTranslation(boss_->GetPosition());
+		bossObj_->SetRotation(boss_->GetRotation());
+		bossObj_->SetScale(boss_->GetScale());
+		bossObj_->Update();
+	}
+
+	bossDeadHandled_ = false;
+
+	// 敵を再生成
+	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 
 	// カード使用システムの状態をリセット
 	if (cardUseSystem_) {
