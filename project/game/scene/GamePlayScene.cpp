@@ -927,7 +927,7 @@ void GamePlayScene::RespawnPlayerInRoom() {
 		return;
 	}
 
-	playerPos_ = levelEditor_->GetRandomPlayerSpawnPosition(2.0f);
+	playerPos_ = levelEditor_->GetRandomPlayerSpawnPosition(1.0f);
 	playerScale_ = { 1.0f, 1.0f, 1.0f };
 
 	player_->SetPosition(playerPos_);
