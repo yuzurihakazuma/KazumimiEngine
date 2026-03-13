@@ -28,6 +28,7 @@
 #include "engine/postEffect/PostEffect.h"
 #include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
+#include "engine/utils/TextManager.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -97,7 +98,8 @@ void GamePlayScene::Initialize(){
 	levelEditor_->Initialize();
 
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
-
+	
+	TextManager::GetInstance()->Initialize();
 }
 
 void GamePlayScene::Update(){
@@ -181,14 +183,20 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 	
+	
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	if ( sprite_ ) {
 		sprite_->Draw();
 	}
+	TextManager::GetInstance()->Draw();
+
 
 
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
 	PostEffect::GetInstance()->Draw(commandList,dxCommon);
+
+	
+
 
 }
 
@@ -203,6 +211,8 @@ void GamePlayScene::DrawDebugUI(){
 
 	
 	levelEditor_->DrawDebugUI();
+
+	TextManager::GetInstance()->DrawDebugUI();
 
 	ImGui::Begin("Block Dissolve Test");
 
@@ -246,6 +256,7 @@ void GamePlayScene::Finalize(){
 	
 
 	object3ds_.clear();
+	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();

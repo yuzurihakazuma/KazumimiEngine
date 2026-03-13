@@ -37,7 +37,7 @@ void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
     ImGui_ImplWin32_Init(windowProc->GetHwnd());
 
     // 3. DirectX12用初期化
-    // スライド通り: SrvManagerからSRVを確保してインデックスを得る
+    // SrvManagerからSRVを確保してインデックスを得る
     SrvManager* srvManager = dxCommon->GetSrvManager();
     uint32_t srvIndex = srvManager->Allocate();
 
