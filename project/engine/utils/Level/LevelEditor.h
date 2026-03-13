@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "engine/math/VectorMath.h"
+#include "DungeonGenerator.h"
 
 class Obj3d;
 class Camera;
@@ -33,6 +34,8 @@ public:
 
     void FillAllTiles(int tileType);
     void CreateRoom(int startX, int startZ, int roomWidth, int roomHeight);
+
+    void GenerateRandomRooms(int roomCount);
 private:
     const Camera* camera_ = nullptr;
 
@@ -50,4 +53,6 @@ private:
 
     int editWidth_ = 10;
     int editHeight_ = 10;
+
+    std::unique_ptr<DungeonGenerator> dungeonGenerator_;
 };

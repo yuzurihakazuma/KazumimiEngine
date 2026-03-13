@@ -17,6 +17,8 @@ void LevelEditor::Initialize() {
 
 	editWidth_ = levelData_.width;
 	editHeight_ = levelData_.height;
+
+	dungeonGenerator_ = std::make_unique<DungeonGenerator>();
 }
 
 void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
@@ -166,6 +168,19 @@ void LevelEditor::DrawDebugUI() {
 			int startZ = (levelData_.height - autoRoomHeight) / 2;
 
 			CreateRoom(startX, startZ, autoRoomWidth, autoRoomHeight);
+		}
+
+		static int randomRoomCount = 8;
+
+
+		ImGui::Separator();
+
+		ImGui::Text("ランダム部屋生成");
+		ImGui::InputInt("部屋数", &randomRoomCount);
+		if (randomRoomCount < 1) { randomRoomCount = 1; }
+
+		if (ImGui::Button("ランダムに部屋を生成")) {
+			GenerateRandomRooms(randomRoomCount);
 		}
 
 		ImGui::Separator();
@@ -325,5 +340,18 @@ void LevelEditor::CreateRoom(int startX, int startZ, int roomWidth, int roomHeig
 		}
 	}
 
+	RebuildMapObjects();
+}
+
+void LevelEditor::GenerateRandomRooms(int roomCount) {
+	if (!dungeonGenerator_) {
+		dungeonGenerator_ = std::make_unique<DungeonGenerator>();
+	}
+
+	if (levelData_.width < 1 || levelData_.height < 1) {
+		return;
+	}
+
+	dungeonGenerator_->GenerateRooms(levelData_, roomCount);
 	RebuildMapObjects();
 }

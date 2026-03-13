@@ -120,6 +120,8 @@ void GamePlayScene::Initialize() {
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
 
+	levelEditor_->GenerateRandomRooms(8);
+
 	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
 	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 
