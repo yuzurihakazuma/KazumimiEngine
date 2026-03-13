@@ -29,6 +29,7 @@ class Player;
 class LevelEditor;
 class Enemy;
 class CardUseSystem;
+class Boss;
 
 // ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -104,6 +105,11 @@ private: // メンバ変数
 	std::vector<std::unique_ptr<Enemy>> enemies_;
 	std::vector<std::unique_ptr<Obj3d>> enemyObjs_;
 	std::vector<bool> enemyDeadHandled_;
+
+	// ボス関連
+	std::unique_ptr<Boss> boss_ = nullptr;
+	std::unique_ptr<Obj3d> bossObj_ = nullptr;
+	bool bossDeadHandled_ = false;
 
 	int enemySpawnCount_ = 5;   // 出したい敵の数
 	int enemySpawnMargin_ = 2;  // 壁から何マス離すか
