@@ -10,6 +10,7 @@ class Camera;
 class Obj3d;
 class Player;
 class Enemy;
+class Boss;
 
 // カード使用システム
 class CardUseSystem {
@@ -18,7 +19,11 @@ public:
     void Initialize(Camera* camera);
 
     // 更新
-    void Update(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos, const LevelData& level);
+    void Update(Player* player, Enemy* enemy, Boss* boss,
+        const Vector3& playerPos,
+        const Vector3& enemyPos,
+        const Vector3& bossPos,
+        const LevelData& level);
 
     // 描画
     void Draw();
@@ -36,10 +41,13 @@ public:
 
 private:
     // パンチ更新
-    void UpdatePunch(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos);
+    void UpdatePunch(Player* player, Enemy* enemy, Boss* boss,
+        const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos);
 
     // 火球更新
-    void UpdateFireball(Player* player, Enemy* enemy, const Vector3& playerPos, const Vector3& enemyPos, const LevelData& level);
+    void UpdateFireball(Player* player, Enemy* enemy, Boss* boss,
+        const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos,
+        const LevelData& level);
 
     // ブロック衝突判定
     bool CheckBlockCollision(const Vector3& pos, float radius, const LevelData& level);
@@ -48,7 +56,9 @@ private:
     void UpdateShield(Player *player);
 
     //　氷の弾の更新関数
-    void UpdateIceBullet(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos, const LevelData &level);
+    void UpdateIceBullet(Player* player, Enemy* enemy, Boss* boss,
+        const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos,
+        const LevelData& level);
 
 private:
     // -----------------------------

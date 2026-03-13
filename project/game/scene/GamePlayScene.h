@@ -143,4 +143,7 @@ private: // メンバ変数
 	// ダンジョン再生成とプレイヤー再スポーンの処理
 	void RegenerateDungeonAndRespawnPlayer(int roomCount);
 	void RespawnPlayerInRoom();
+
+	// ボス再配置
+	void RespawnBossInRoom();
 };

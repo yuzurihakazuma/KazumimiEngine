@@ -1,14 +1,16 @@
 #pragma once
 #include "engine/math/VectorMath.h"
+#include "game/card/HandManager.h"
+#include <vector>
 
 class Boss {
 public:
     enum class State {
-        Idle,       // 待機
-        Chase,      // プレイヤー追跡
-        Attack,     // 通常攻撃
-        UseSkill,   // スキル使用
-        Dead        // 死亡
+        Idle,
+        Chase,
+        Attack,
+        UseSkill,
+        Dead
     };
 
 public:
@@ -44,13 +46,20 @@ public:
     void SetActionLock(int frame);
     bool IsActionLocked() const { return isActionLocked_; }
 
-    // 攻撃リクエスト
+    // 通常攻撃リクエスト
     bool GetAttackRequest() const { return attackRequest_; }
     void ClearAttackRequest() { attackRequest_ = false; }
 
-    // スキルリクエスト
-    bool GetSkillRequest() const { return skillRequest_; }
-    void ClearSkillRequest() { skillRequest_ = false; }
+    // カード使用リクエスト
+    bool GetCardUseRequest() const { return cardUseRequest_; }
+    void ClearCardUseRequest() { cardUseRequest_ = false; }
+
+    // 今回使うカード
+    const Card& GetSelectedCard() const { return selectedCard_; }
+
+    // ドロップ用
+    bool HasAnyCard() const { return !heldCards_.empty(); }
+    Card GetRandomDropCard() const;
 
 private:
     void DecideNextState();
@@ -59,6 +68,8 @@ private:
     void UpdateChase();
     void UpdateAttack();
     void UpdateUseSkill();
+
+    void InitializeBossCards();
 
 private:
     Vector3 pos_{ 10.0f, 0.0f, 10.0f };
@@ -73,10 +84,8 @@ private:
     int maxHP_ = 20;
     bool isDead_ = false;
 
-    // 移動
     float chaseSpeed_ = 0.06f;
 
-    // 距離
     float chaseRange_ = 20.0f;
     float attackEnterRange_ = 2.8f;
     float attackExitRange_ = 4.0f;
@@ -84,27 +93,26 @@ private:
     float skillEnterRange_ = 8.0f;
     float skillExitRange_ = 10.0f;
 
-    // 思考
     int thinkTimer_ = 0;
 
-    // 行動ロック
     bool isActionLocked_ = false;
     int actionLockTimer_ = 0;
 
-    // ヒット演出
     bool isHit_ = false;
     int hitTimer_ = 0;
     const int hitDuration_ = 10;
     Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f };
 
-    // 攻撃リクエスト
     bool attackRequest_ = false;
-    bool skillRequest_ = false;
+    bool cardUseRequest_ = false;
 
-    // クールダウン
     int attackCooldownTimer_ = 0;
     int skillCooldownTimer_ = 0;
 
     const int attackCooldown_ = 45;
     const int skillCooldown_ = 120;
+
+    // ボス固有カード
+    std::vector<Card> heldCards_;
+    Card selectedCard_{ -1, "", 0 };
 };

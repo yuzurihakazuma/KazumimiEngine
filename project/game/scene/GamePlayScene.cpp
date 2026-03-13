@@ -90,17 +90,13 @@ void GamePlayScene::Initialize() {
 
 	boss_ = std::make_unique<Boss>();
 	boss_->Initialize();
-	boss_->SetPosition({ 12.0f, 0.0f, 12.0f });
 	boss_->SetScale({ 2.0f, 2.0f, 2.0f });
 
 	bossObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
 	if (bossObj_) {
 		bossObj_->SetCamera(camera_.get());
-		bossObj_->SetTranslation(boss_->GetPosition());
 		bossObj_->SetScale(boss_->GetScale());
-		bossObj_->Update();
 	}
-
 	bossDeadHandled_ = false;
 
 	// カード使用システム初期化
@@ -135,9 +131,6 @@ void GamePlayScene::Initialize() {
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
 
-	// これだけでOK
-	RegenerateDungeonAndRespawnPlayer(8);
-
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
 	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
@@ -155,8 +148,8 @@ void GamePlayScene::Initialize() {
 	//最初から手札にID１を追加する
 	handManager_.AddCard(CardDatabase::GetCardData(1));
 
-
-	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
+	// これだけでOK
+	RegenerateDungeonAndRespawnPlayer(8);
 
 	//enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
 }
@@ -471,19 +464,17 @@ void GamePlayScene::Update() {
 		}
 
 		// スキル攻撃
-		if (boss_->GetSkillRequest()) {
-			Vector3 diff = {
-				playerPos_.x - bossPos.x,
-				0.0f,
-				playerPos_.z - bossPos.z
-			};
-
-			// とりあえず簡易版：少し広めの距離ならダメージ
-			if (Length(diff) <= 8.0f) {
-				player_->TakeDamage(3, bossPos);
+		if (boss_->GetCardUseRequest()) {
+			if (cardUseSystem_) {
+				cardUseSystem_->UseCard(
+					boss_->GetSelectedCard(),
+					bossPos,
+					boss_->GetRotation().y,
+					false
+				);
 			}
 
-			boss_->ClearSkillRequest();
+			boss_->ClearCardUseRequest();
 		}
 	}
 
@@ -510,6 +501,13 @@ void GamePlayScene::Update() {
 	if (boss_ && boss_->IsDead() && !bossDeadHandled_) {
 		if (player_) {
 			player_->AddExp(5);
+		}
+
+		if (boss_->HasAnyCard()) {
+			Card dropCard = boss_->GetRandomDropCard();
+			if (dropCard.id != -1) {
+				cardPickupManager_.AddPickup(boss_->GetPosition(), dropCard);
+			}
 		}
 
 		bossDeadHandled_ = true;
@@ -594,14 +592,6 @@ void GamePlayScene::Update() {
 		obj->Update();
 	}
 
-
-	Sphere playerCollider;
-	playerCollider.center = playerPos_;
-	playerCollider.radius = playerScale_.x;
-
-
-
-
 	if (sprite_) {
 		sprite_->SetPosition(spritePos_);
 		sprite_->Update();
@@ -622,7 +612,6 @@ void GamePlayScene::Update() {
 		handManager_.Update();
 	}
 
-	// カード使用システム更新
 	Enemy* nearestEnemy = nullptr;
 	Vector3 nearestEnemyPos{};
 	float nearestEnemyDist = 99999.0f;
@@ -647,12 +636,22 @@ void GamePlayScene::Update() {
 		}
 	}
 
+	Boss* targetBoss = nullptr;
+	Vector3 bossPos{};
+
+	if (boss_ && !boss_->IsDead()) {
+		targetBoss = boss_.get();
+		bossPos = boss_->GetPosition();
+	}
+
 	if (cardUseSystem_) {
 		cardUseSystem_->Update(
 			player_.get(),
 			nearestEnemy,
+			targetBoss,
 			playerPos_,
 			nearestEnemyPos,
+			bossPos,
 			levelEditor_->GetLevelData()
 		);
 	}
@@ -865,21 +864,10 @@ void GamePlayScene::ResetBattleDebug() {
 
 	if (boss_) {
 		boss_->Initialize();
-		boss_->SetPosition({ 12.0f, 0.0f, 12.0f });
 		boss_->SetScale({ 2.0f, 2.0f, 2.0f });
 	}
 
-	if (bossObj_ && boss_) {
-		bossObj_->SetTranslation(boss_->GetPosition());
-		bossObj_->SetRotation(boss_->GetRotation());
-		bossObj_->SetScale(boss_->GetScale());
-		bossObj_->Update();
-	}
-
 	bossDeadHandled_ = false;
-
-	// 敵を再生成
-	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 
 	// カード使用システムの状態をリセット
 	if (cardUseSystem_) {
@@ -890,13 +878,15 @@ void GamePlayScene::ResetBattleDebug() {
 	handManager_.Initialize(uiCamera_.get());
 	handManager_.AddCard(CardDatabase::GetCardData(1));
 
-	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成
+	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成 + ボス再配置
 	RegenerateDungeonAndRespawnPlayer(5);
 
 	// 交換モードも戻しておく
 	isCardSwapMode_ = false;
 	pendingCard_ = Card{};
 }
+
+
 void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 	// 手札の選択と見た目の更新
@@ -1100,7 +1090,41 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	// スポーンマネージャに新しいマップを渡し直す
 	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
 
-	// 敵やカードも新しいダンジョンに合わせて再配置したいならここで再生成
+	// 敵・カード再生成
 	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
+
+	// ボス再配置
+	RespawnBossInRoom();
+}
+
+void GamePlayScene::RespawnBossInRoom() {
+	if (!levelEditor_ || !boss_) {
+		return;
+	}
+
+	// 今はプレイヤーのスポーン関数を流用して、少し離して置く簡易版
+	Vector3 spawnPos = levelEditor_->GetRandomPlayerSpawnPosition(1.0f);
+
+	// プレイヤー位置と近すぎる場合は少しずらす
+	Vector3 diff = {
+		spawnPos.x - playerPos_.x,
+		0.0f,
+		spawnPos.z - playerPos_.z
+	};
+
+	if (Length(diff) < 6.0f) {
+		spawnPos.x += 4.0f;
+		spawnPos.z += 4.0f;
+	}
+
+	boss_->SetPosition(spawnPos);
+	boss_->SetScale({ 2.0f, 2.0f, 2.0f });
+
+	if (bossObj_) {
+		bossObj_->SetTranslation(boss_->GetPosition());
+		bossObj_->SetRotation(boss_->GetRotation());
+		bossObj_->SetScale(boss_->GetScale());
+		bossObj_->Update();
+	}
 }

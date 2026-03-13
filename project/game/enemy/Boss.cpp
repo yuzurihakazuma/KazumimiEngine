@@ -1,6 +1,8 @@
 #include "game/enemy/Boss.h"
 #include "engine/math/VectorMath.h"
+#include "game/card/CardDatabase.h"
 #include <cmath>
+#include <random>
 
 using namespace VectorMath;
 
@@ -25,10 +27,23 @@ void Boss::Initialize() {
     knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
 
     attackRequest_ = false;
-    skillRequest_ = false;
+    cardUseRequest_ = false;
 
     attackCooldownTimer_ = 0;
     skillCooldownTimer_ = 0;
+
+    selectedCard_ = { -1, "", 0 };
+
+    InitializeBossCards();
+}
+
+void Boss::InitializeBossCards() {
+    heldCards_.clear();
+
+    // 例：ボス固有カードを3枚持たせる
+    heldCards_.push_back(CardDatabase::GetCardData(2)); // Fireball
+    heldCards_.push_back(CardDatabase::GetCardData(3)); // 好きなカード
+    heldCards_.push_back(CardDatabase::GetCardData(4)); // 好きなカード
 }
 
 void Boss::Update() {
@@ -37,11 +52,9 @@ void Boss::Update() {
         return;
     }
 
-    // このフレームのリクエストを初期化
     attackRequest_ = false;
-    skillRequest_ = false;
+    cardUseRequest_ = false;
 
-    // クールダウン更新
     if (attackCooldownTimer_ > 0) {
         attackCooldownTimer_--;
     }
@@ -50,7 +63,6 @@ void Boss::Update() {
         skillCooldownTimer_--;
     }
 
-    // 被弾演出
     if (isHit_) {
         pos_ += knockbackVelocity_;
         knockbackVelocity_ *= 0.85f;
@@ -60,11 +72,9 @@ void Boss::Update() {
             isHit_ = false;
             knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
         }
-
         return;
     }
 
-    // 行動ロック中
     if (isActionLocked_) {
         actionLockTimer_--;
         if (actionLockTimer_ <= 0) {
@@ -73,7 +83,6 @@ void Boss::Update() {
         return;
     }
 
-    // 思考更新
     if (thinkTimer_ > 0) {
         thinkTimer_--;
     }
@@ -113,7 +122,6 @@ void Boss::DecideNextState() {
 
     float playerDist = Length(toPlayer);
 
-    // 攻撃中なら少し離れても維持
     if (state_ == State::Attack) {
         if (playerDist > attackExitRange_) {
             state_ = State::Chase;
@@ -121,7 +129,6 @@ void Boss::DecideNextState() {
         return;
     }
 
-    // スキル中なら少し離れても維持
     if (state_ == State::UseSkill) {
         if (playerDist > skillExitRange_) {
             state_ = State::Chase;
@@ -129,10 +136,9 @@ void Boss::DecideNextState() {
         return;
     }
 
-    // 優先度：近いなら通常攻撃、少し離れてたらスキル、それ以外追跡
     if (playerDist <= attackEnterRange_) {
         state_ = State::Attack;
-    } else if (playerDist <= skillEnterRange_) {
+    } else if (playerDist <= skillEnterRange_ && !heldCards_.empty()) {
         state_ = State::UseSkill;
     } else if (playerDist <= chaseRange_) {
         state_ = State::Chase;
@@ -171,7 +177,7 @@ void Boss::UpdateChase() {
         return;
     }
 
-    if (dist <= skillEnterRange_ && skillCooldownTimer_ <= 0) {
+    if (dist <= skillEnterRange_ && skillCooldownTimer_ <= 0 && !heldCards_.empty()) {
         state_ = State::UseSkill;
         thinkTimer_ = 0;
         return;
@@ -233,17 +239,34 @@ void Boss::UpdateUseSkill() {
         rot_.y = std::atan2f(dir.x, dir.z);
     }
 
-    if (skillCooldownTimer_ > 0) {
+    if (skillCooldownTimer_ > 0 || heldCards_.empty()) {
         state_ = State::Chase;
         thinkTimer_ = 0;
         return;
     }
 
-    skillRequest_ = true;
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> distCard(0, static_cast<int>(heldCards_.size()) - 1);
+
+    selectedCard_ = heldCards_[distCard(mt)];
+    cardUseRequest_ = true;
     skillCooldownTimer_ = skillCooldown_;
 
     SetActionLock(35);
     thinkTimer_ = 35;
+}
+
+Card Boss::GetRandomDropCard() const {
+    if (heldCards_.empty()) {
+        return Card{ -1, "", 0 };
+    }
+
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> distCard(0, static_cast<int>(heldCards_.size()) - 1);
+
+    return heldCards_[distCard(mt)];
 }
 
 void Boss::TakeDamage(int damage) {

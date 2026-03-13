@@ -6,6 +6,7 @@
 #include "Engine/3D/Obj/Obj3d.h"
 #include "game/player/Player.h"
 #include "game/enemy/Enemy.h"
+#include "game/enemy/Boss.h"
 #include "engine/math/VectorMath.h"
 
 using namespace VectorMath;
@@ -45,19 +46,20 @@ void CardUseSystem::Initialize(Camera *camera) {
 }
 
 // 更新
-void CardUseSystem::Update(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos, const LevelData &level) {
+void CardUseSystem::Update(Player* player, Enemy* enemy, Boss* boss,
+	const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
 
 	// パンチ更新
-	UpdatePunch(player, enemy, playerPos, enemyPos);
+	UpdatePunch(player, enemy, boss, playerPos, enemyPos, bossPos);
 
 	// 火球更新
-	UpdateFireball(player, enemy, playerPos, enemyPos, level);
+	UpdateFireball(player, enemy, boss, playerPos, enemyPos, bossPos, level);
 
-	//シールドの見た目更新
+	// シールドの見た目更新
 	UpdateShield(player);
 
 	// 氷の弾の更新
-	UpdateIceBullet(player, enemy, playerPos, enemyPos, level);
+	UpdateIceBullet(player, enemy, boss, playerPos, enemyPos, bossPos, level);
 }
 
 // 描画
@@ -281,72 +283,20 @@ void CardUseSystem::UpdateShield(Player *player) {
 	}
 }
 
-void CardUseSystem::UpdateIceBullet(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos, const LevelData &level) {
-	if (!isIceBulletActive_) {
-		return;
-	}
-
-	//弾を移動させる
-	iceBulletPos_ += iceBulletVelocity_;
-
-	//ブロックに当たったら消滅
-	if (CheckBlockCollision(iceBulletPos_, 0.5f, level)) {
-		isIceBulletActive_ = false;
-		return;
-	}
-
-	//見た目の位置を更新
-	if (iceBulletObj_){
-		iceBulletObj_->SetTranslation(iceBulletPos_);
-		iceBulletObj_->SetScale(iceBulletScale_);
-		iceBulletObj_->Update();
-	}
-
-	//プレイヤーが撃った弾の場合
-	if (isIceBulletPLayerCaster_) {
-		//敵との当たり判定
-		if (enemy && !enemy->IsDead()) {
-			Vector3 diff = {
-				enemyPos.x - iceBulletPos_.x,
-				enemyPos.y - iceBulletPos_.y,
-				enemyPos.z - iceBulletPos_.z
-			};
-
-			//敵に当たった
-			if (Length(diff) < 1.5f) {
-				enemy->TakeDamage(2);
-
-				//敵を5秒間凍結させる
-				enemy->Freeze(300);
-
-				isIceBulletActive_ = false; //当たった消滅
-				return;
-			}
-		}
-
-		//一定距離飛んだら消滅
-		if (Length(iceBulletPos_ - playerPos) > 20.0f) {
-			isIceBulletActive_ = false;
-		}
-	}
-}
-
-// パンチ更新
-void CardUseSystem::UpdatePunch(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos) {
+void CardUseSystem::UpdatePunch(Player* player, Enemy* enemy, Boss* boss,
+	const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos) {
 
 	if (!isPunchActive_) {
-		return; // パンチ演出中でなければ何もしない
+		return;
 	}
 
-	// 残り時間更新
 	punchTimer_--;
 
 	if (punchTimer_ <= 0) {
-		isPunchActive_ = false; // 時間切れで終了
+		isPunchActive_ = false;
 		return;
 	}
 
-	// パンチオブジェクト更新
 	if (punchObj_) {
 		punchObj_->SetTranslation(punchPos_);
 		punchObj_->SetScale(punchScale_);
@@ -356,54 +306,69 @@ void CardUseSystem::UpdatePunch(Player *player, Enemy *enemy, const Vector3 &pla
 	// プレイヤーが使ったパンチ
 	if (isPunchPlayerCaster_) {
 
+		// まずEnemy判定
 		if (enemy && !enemy->IsDead()) {
 			Vector3 diff = {
 				enemyPos.x - punchPos_.x,
 				enemyPos.y - punchPos_.y,
 				enemyPos.z - punchPos_.z
-			}; // 敵との距離
+			};
 
 			if (Length(diff) < 2.0f) {
-				enemy->TakeDamage(1);   // 敵にダメージ
-				isPunchActive_ = false; // ヒットしたら終了
+				enemy->TakeDamage(1);
+				isPunchActive_ = false;
+				return;
+			}
+		}
+
+		// 次にBoss判定
+		if (boss && !boss->IsDead()) {
+			Vector3 diff = {
+				bossPos.x - punchPos_.x,
+				bossPos.y - punchPos_.y,
+				bossPos.z - punchPos_.z
+			};
+
+			if (Length(diff) < 2.5f) { // ボスは少し大きめ
+				boss->TakeDamage(1);
+				isPunchActive_ = false;
+				return;
 			}
 		}
 	}
-	// 敵が使ったパンチ
+	// 敵やボスが使ったパンチ
 	else {
-
 		if (player && !player->IsDead()) {
 			Vector3 diff = {
 				playerPos.x - punchPos_.x,
 				playerPos.y - punchPos_.y,
 				playerPos.z - punchPos_.z
-			}; // プレイヤーとの距離
+			};
 
 			if (Length(diff) < 2.0f) {
-				player->TakeDamage(1, punchPos_); // プレイヤーにダメージ
-				isPunchActive_ = false;           // ヒットしたら終了
+				player->TakeDamage(1, punchPos_);
+				isPunchActive_ = false;
+				return;
 			}
 		}
 	}
 }
 
-// 火球更新
-void CardUseSystem::UpdateFireball(Player *player, Enemy *enemy, const Vector3 &playerPos, const Vector3 &enemyPos, const LevelData &level) {
+void CardUseSystem::UpdateFireball(Player* player, Enemy* enemy, Boss* boss,
+	const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos,
+	const LevelData& level) {
 
 	if (!isFireballActive_) {
-		return; // 火球演出中でなければ何もしない
-	}
-
-	// 火球移動
-	fireballPos_ += fireballVelocity_;
-
-	// ブロックに当たったら消す
-	if (CheckBlockCollision(fireballPos_, 0.5f, level)) {
-		isFireballActive_ = false; // 壁ヒットで火球消滅
 		return;
 	}
 
-	// 火球オブジェクト更新
+	fireballPos_ += fireballVelocity_;
+
+	if (CheckBlockCollision(fireballPos_, 0.5f, level)) {
+		isFireballActive_ = false;
+		return;
+	}
+
 	if (fireballObj_) {
 		fireballObj_->SetTranslation(fireballPos_);
 		fireballObj_->SetScale(fireballScale_);
@@ -413,45 +378,125 @@ void CardUseSystem::UpdateFireball(Player *player, Enemy *enemy, const Vector3 &
 	// プレイヤーが使った火球
 	if (isFireballPlayerCaster_) {
 
+		// Enemy判定
 		if (enemy && !enemy->IsDead()) {
 			Vector3 diff = {
 				enemyPos.x - fireballPos_.x,
 				enemyPos.y - fireballPos_.y,
 				enemyPos.z - fireballPos_.z
-			}; // 敵との距離
+			};
 
 			if (Length(diff) < 1.5f) {
-				enemy->TakeDamage(1);      // 敵にダメージ
-				isFireballActive_ = false; // ヒットしたら終了
+				enemy->TakeDamage(1);
+				isFireballActive_ = false;
 				return;
 			}
 		}
 
-		// プレイヤー位置から遠くまで飛んだら終了
+		// Boss判定
+		if (boss && !boss->IsDead()) {
+			Vector3 diff = {
+				bossPos.x - fireballPos_.x,
+				bossPos.y - fireballPos_.y,
+				bossPos.z - fireballPos_.z
+			};
+
+			if (Length(diff) < 2.0f) {
+				boss->TakeDamage(1);
+				isFireballActive_ = false;
+				return;
+			}
+		}
+
 		if (Length(fireballPos_ - playerPos) > 20.0f) {
 			isFireballActive_ = false;
 		}
 	}
-	// 敵が使った火球
+	// 敵やボスが使った火球
 	else {
-
 		if (player && !player->IsDead()) {
 			Vector3 diff = {
 				playerPos.x - fireballPos_.x,
 				playerPos.y - fireballPos_.y,
 				playerPos.z - fireballPos_.z
-			}; // プレイヤーとの距離
+			};
 
 			if (Length(diff) < 1.5f) {
-				player->TakeDamage(1, fireballPos_); // プレイヤーにダメージ
-				isFireballActive_ = false;           // ヒットしたら終了
+				player->TakeDamage(1, fireballPos_);
+				isFireballActive_ = false;
 				return;
 			}
 		}
 
-		// 敵位置から遠くまで飛んだら終了
-		if (Length(fireballPos_ - enemyPos) > 20.0f) {
+		// enemyPos は雑魚敵用だけど、ボスが撃った場合も距離制限として bossPos を使いたい
+		Vector3 originPos = enemyPos;
+		if (boss && !isFireballPlayerCaster_) {
+			originPos = bossPos;
+		}
+
+		if (Length(fireballPos_ - originPos) > 20.0f) {
 			isFireballActive_ = false;
+		}
+	}
+}
+
+void CardUseSystem::UpdateIceBullet(Player* player, Enemy* enemy, Boss* boss,
+	const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos,
+	const LevelData& level) {
+
+	if (!isIceBulletActive_) {
+		return;
+	}
+
+	iceBulletPos_ += iceBulletVelocity_;
+
+	if (CheckBlockCollision(iceBulletPos_, 0.5f, level)) {
+		isIceBulletActive_ = false;
+		return;
+	}
+
+	if (iceBulletObj_) {
+		iceBulletObj_->SetTranslation(iceBulletPos_);
+		iceBulletObj_->SetScale(iceBulletScale_);
+		iceBulletObj_->Update();
+	}
+
+	// プレイヤーが撃った氷弾
+	if (isIceBulletPLayerCaster_) {
+
+		// Enemy判定
+		if (enemy && !enemy->IsDead()) {
+			Vector3 diff = {
+				enemyPos.x - iceBulletPos_.x,
+				enemyPos.y - iceBulletPos_.y,
+				enemyPos.z - iceBulletPos_.z
+			};
+
+			if (Length(diff) < 1.5f) {
+				enemy->TakeDamage(2);
+				enemy->Freeze(300);
+				isIceBulletActive_ = false;
+				return;
+			}
+		}
+
+		// Boss判定
+		if (boss && !boss->IsDead()) {
+			Vector3 diff = {
+				bossPos.x - iceBulletPos_.x,
+				bossPos.y - iceBulletPos_.y,
+				bossPos.z - iceBulletPos_.z
+			};
+
+			if (Length(diff) < 2.0f) {
+				boss->TakeDamage(2);
+				isIceBulletActive_ = false;
+				return;
+			}
+		}
+
+		if (Length(iceBulletPos_ - playerPos) > 20.0f) {
+			isIceBulletActive_ = false;
 		}
 	}
 }
