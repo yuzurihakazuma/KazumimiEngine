@@ -13,12 +13,12 @@ void CardPickupManager::AddPickup(const Vector3& position, const Card& card) {
     newPickup.card = card;
     newPickup.isActive = true;
 
-    newPickup.obj = Obj3d::Create("plane");
+    newPickup.obj = Obj3d::Create("cardR");
     if (newPickup.obj) {
         newPickup.obj->SetCamera(camera_);
         newPickup.obj->SetTranslation(newPickup.position);
         newPickup.obj->SetScale({ 1.0f, 1.5f, 1.0f });
-        newPickup.obj->SetRotation({ -1.57f, 0.0f, 0.0f });
+        newPickup.obj->SetRotation({ 1.57f, 0.0f, 0.0f });
         newPickup.obj->Update();
     }
 
