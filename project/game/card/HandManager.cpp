@@ -62,7 +62,7 @@ void HandManager::Update() {
 	}
 
 	// カードとカードの間隔
-	float spacing = 0.2f;
+	float spacing = 0.3f;
 
 	// 手札が画面の「中央」に揃うように、最初のカードのX座標を計算する
 	float totalWidth = (hand_.size() - 1) * spacing;
@@ -70,8 +70,8 @@ void HandManager::Update() {
 
 	for (int i = 0; i < handModels_.size(); ++i) {
 
-		// 基本の位置：UIカメラ(0,0,0)から見て、前(Z)に6.0f、下(Y)に -2.5f
-		Vector3 pos = { startX + (i * spacing), -1.3f, 3.0f };
+		// 基本の位置
+		Vector3 pos = { startX + (i * spacing), -1.0f, 3.0f };
 
 		// 基本の角度：少しだけ上向き（顔に向けるように）傾ける
 		Vector3 rot = { -0.2f, 0.0f, 0.0f };

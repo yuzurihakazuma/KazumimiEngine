@@ -125,6 +125,11 @@ void GamePlayScene::Initialize() {
 
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
+	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
+	ModelManager::GetInstance()->LoadModel("cardF", "resources/card", "cardF.obj");
+	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");
+	ModelManager::GetInstance()->LoadModel("cardPotion", "resources/card", "CardPotion.obj");
+	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
 
 	// CSVからカードデータベースを初期化
 	CardDatabase::Initialize("Resources/CardData.csv");
