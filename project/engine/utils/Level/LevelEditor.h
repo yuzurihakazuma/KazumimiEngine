@@ -35,7 +35,11 @@ public:
     void FillAllTiles(int tileType);
     void CreateRoom(int startX, int startZ, int roomWidth, int roomHeight);
 
-    void GenerateRandomRooms(int roomCount);
+    //void GenerateRandomRooms(int roomCount);
+
+    void GenerateRandomDungeon(int roomCount);
+
+    Vector3 GetRandomPlayerSpawnPosition(float y = 0.0f);
 private:
     const Camera* camera_ = nullptr;
 

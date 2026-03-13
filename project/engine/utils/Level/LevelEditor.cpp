@@ -172,15 +172,22 @@ void LevelEditor::DrawDebugUI() {
 
 		static int randomRoomCount = 8;
 
-
 		ImGui::Separator();
-
-		ImGui::Text("ランダム部屋生成");
+		ImGui::Text("ランダムダンジョン生成");
 		ImGui::InputInt("部屋数", &randomRoomCount);
 		if (randomRoomCount < 1) { randomRoomCount = 1; }
 
-		if (ImGui::Button("ランダムに部屋を生成")) {
-			GenerateRandomRooms(randomRoomCount);
+		if (ImGui::Button("部屋だけ生成")) {
+			if (dungeonGenerator_) {
+				dungeonGenerator_->GenerateRooms(levelData_, randomRoomCount);
+				RebuildMapObjects();
+			}
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("部屋+通路生成")) {
+			GenerateRandomDungeon(randomRoomCount);
 		}
 
 		ImGui::Separator();
@@ -343,7 +350,7 @@ void LevelEditor::CreateRoom(int startX, int startZ, int roomWidth, int roomHeig
 	RebuildMapObjects();
 }
 
-void LevelEditor::GenerateRandomRooms(int roomCount) {
+void LevelEditor::GenerateRandomDungeon(int roomCount) {
 	if (!dungeonGenerator_) {
 		dungeonGenerator_ = std::make_unique<DungeonGenerator>();
 	}
@@ -352,6 +359,14 @@ void LevelEditor::GenerateRandomRooms(int roomCount) {
 		return;
 	}
 
-	dungeonGenerator_->GenerateRooms(levelData_, roomCount);
+	dungeonGenerator_->Generate(levelData_, roomCount);
 	RebuildMapObjects();
+}
+
+Vector3 LevelEditor::GetRandomPlayerSpawnPosition(float y) {
+	if (!dungeonGenerator_) {
+		return { 0.0f, levelData_.baseY + y, 0.0f };
+	}
+
+	return dungeonGenerator_->GetRandomRoomWorldPosition(levelData_, y);
 }

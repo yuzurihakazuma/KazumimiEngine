@@ -133,4 +133,8 @@ private: // メンバ変数
 	// カードスポーン関連
 	int cardSpawnCount_ = 5;
 	int cardSpawnMargin_ = 1;
+
+	// ダンジョン再生成とプレイヤー再スポーンの処理
+	void RegenerateDungeonAndRespawnPlayer(int roomCount);
+	void RespawnPlayerInRoom();
 };

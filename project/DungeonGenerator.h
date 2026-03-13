@@ -2,6 +2,7 @@
 #include <vector>
 #include <random>
 #include "engine/utils/Level/LevelData.h"
+#include "engine/math/VectorMath.h"
 
 class DungeonGenerator {
 public:
@@ -12,18 +13,34 @@ public:
 		int height;
 	};
 
+	struct CorridorPoint {
+		int x;
+		int z;
+	};
+
 public:
 	DungeonGenerator();
 
-	// 部屋だけ生成
+	// 外からは今まで通りこれを呼べばOK
+	void Generate(LevelData& levelData, int roomCount);
 	void GenerateRooms(LevelData& levelData, int roomCount);
 
 	const std::vector<Room>& GetRooms() const { return rooms_; }
 
+	Vector3 GetRandomRoomWorldPosition(const LevelData& levelData, float y = 0.0f);
+
 private:
 	void FillAll(LevelData& levelData, int tileType);
-	bool CanPlaceRoom(const LevelData& levelData, const Room& room, int padding) const;
 	void CarveRoom(LevelData& levelData, const Room& room);
+	void CarveHorizontalCorridor(LevelData& levelData, int x1, int x2, int z, int width);
+	void CarveVerticalCorridor(LevelData& levelData, int z1, int z2, int x, int width);
+
+	void GenerateGridRooms(LevelData& levelData, int roomCount);
+	void ConnectRooms(LevelData& levelData, const Room& a, const Room& b, int corridorWidth);
+	void ConnectAllRooms(LevelData& levelData, int corridorWidth);
+	void AddExtraConnections(LevelData& levelData, int corridorWidth, int count);
+
+	Vector2 GetRoomCenter(const Room& room) const;
 
 private:
 	std::vector<Room> rooms_;

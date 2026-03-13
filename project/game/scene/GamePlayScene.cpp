@@ -115,15 +115,14 @@ void GamePlayScene::Initialize() {
 	);
 
 
-
+	// マップエディタ生成・初期化
+	// マップエディタ生成・初期化
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
 
-	levelEditor_->GenerateRandomRooms(8);
-
-	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
-	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
+	// これだけでOK
+	RegenerateDungeonAndRespawnPlayer(8);
 
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
@@ -735,28 +734,13 @@ void GamePlayScene::DrawDebugUI() {
 
 }
 
-// デバッグ用バトルリセット
 void GamePlayScene::ResetBattleDebug() {
 
-	// プレイヤー初期化
+	// プレイヤーの状態だけ初期化
 	if (player_) {
 		player_->Initialize();
-		playerPos_ = { 0.0f, 0.0f, 0.0f };
 		playerScale_ = { 1.0f, 1.0f, 1.0f };
-		player_->SetPosition(playerPos_);
-		player_->SetScale(playerScale_);
 	}
-
-	// プレイヤーモデル更新
-	if (playerObj_ && player_) {
-		playerObj_->SetTranslation(player_->GetPosition());
-		playerObj_->SetRotation(player_->GetRotation());
-		playerObj_->SetScale(player_->GetScale());
-		playerObj_->Update();
-	}
-
-	// 敵を再生成
-	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 
 	// カード使用システムの状態をリセット
 	if (cardUseSystem_) {
@@ -767,10 +751,10 @@ void GamePlayScene::ResetBattleDebug() {
 	handManager_.Initialize(uiCamera_.get());
 	handManager_.AddCard(CardDatabase::GetCardData(1));
 
-	// フィールドカードを初期化
-	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
+	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成
+	RegenerateDungeonAndRespawnPlayer(5);
 
-	// 交換モードも戻しておくと安全
+	// 交換モードも戻しておく
 	isCardSwapMode_ = false;
 	pendingCard_ = Card{};
 }
@@ -931,4 +915,53 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 		cardPickupManager_.AddPickup(worldPos, CardDatabase::GetCardData(cardId));
 	}
+}
+
+void GamePlayScene::RespawnPlayerInRoom() {
+	if (!levelEditor_ || !player_) {
+		return;
+	}
+
+	playerPos_ = levelEditor_->GetRandomPlayerSpawnPosition(2.0f);
+	playerScale_ = { 1.0f, 1.0f, 1.0f };
+
+	player_->SetPosition(playerPos_);
+	player_->SetScale(playerScale_);
+
+	if (playerObj_) {
+		playerObj_->SetTranslation(playerPos_);
+		playerObj_->SetRotation({ 0.0f, 0.0f, 0.0f });
+		playerObj_->SetScale(playerScale_);
+		playerObj_->Update();
+	}
+
+	if (camera_) {
+		camera_->SetTranslation({
+			playerPos_.x,
+			playerPos_.y + 15.0f,
+			playerPos_.z - 15.0f
+			});
+		camera_->SetRotation({
+			0.9f, 0.0f, 0.0f
+			});
+		camera_->Update();
+	}
+}
+
+void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
+	if (!levelEditor_) {
+		return;
+	}
+
+	levelEditor_->GenerateRandomDungeon(roomCount);
+
+	// プレイヤー再配置
+	RespawnPlayerInRoom();
+
+	// スポーンマネージャに新しいマップを渡し直す
+	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
+
+	// 敵やカードも新しいダンジョンに合わせて再配置したいならここで再生成
+	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
+	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 }
