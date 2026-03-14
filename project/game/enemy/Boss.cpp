@@ -13,7 +13,7 @@ void Boss::Initialize() {
 
     state_ = State::Idle;
 
-    maxHP_ = 20;
+    maxHP_ = 30;
     hp_ = maxHP_;
     isDead_ = false;
 
@@ -40,10 +40,9 @@ void Boss::Initialize() {
 void Boss::InitializeBossCards() {
     heldCards_.clear();
 
-    // 例：ボス固有カードを3枚持たせる
     heldCards_.push_back(CardDatabase::GetCardData(2)); // Fireball
-    heldCards_.push_back(CardDatabase::GetCardData(3)); // 好きなカード
-    heldCards_.push_back(CardDatabase::GetCardData(4)); // 好きなカード
+    heldCards_.push_back(CardDatabase::GetCardData(6)); // IceBullet
+    heldCards_.push_back(CardDatabase::GetCardData(2)); // Fireball
 }
 
 void Boss::Update() {
