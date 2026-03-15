@@ -66,6 +66,9 @@ void CardUseSystem::Update(Player* player, Enemy* enemy, Boss* boss,
 
 	// 氷の弾の更新
 	UpdateIceBullet(player, enemy, boss, playerPos, enemyPos, bossPos, level);
+
+	// 地面からのトゲ攻撃更新
+	UpdateFangs(player, enemy, boss, enemyPos, bossPos, level);
 }
 
 // 描画
@@ -551,5 +554,83 @@ void CardUseSystem::UpdateIceBullet(Player* player, Enemy* enemy, Boss* boss,
 		if (Length(iceBulletPos_ - playerPos) > 20.0f) {
 			isIceBulletActive_ = false;
 		}
+	}
+}
+
+void CardUseSystem::UpdateFangs(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+
+	if (!isFangsAttackActive_) {
+		return;
+	}
+
+	bool allDone = true;
+
+	for (auto &fang : fangs_) {
+		// すでに寿命が尽きたトゲは完全に無視する
+		if (fang.activeTimer <= 0) {
+			continue;
+		}
+
+		allDone = false; // まだ出番が残っているトゲがある
+
+		// 待機時間があるなら減らす
+		if (fang.delayTimer > 0) {
+			fang.delayTimer--;
+		} else {
+			// 待機時間がゼロになったら地面から出す
+
+			//　壁の中かどうかチェックする
+			if (CheckBlockCollision(fang.pos, 0.5f, level)) {
+				fang.activeTimer = 0; // 寿命をセロにして
+				fang.isActive = false; // 非アクティブする
+				continue; // 壁の中には出さずに次のトゲへ
+			}
+
+			// 壁じゃなければトゲを出す
+			fang.isActive = true;
+			fang.activeTimer--; // 毎フレーム寿命を減らす
+
+			// 当たり判定 (プレイヤーｇあ使った場合)
+			if (isFangsPlayerCaster_ && !fang.hasHit) {
+
+				// 雑魚敵との当たり判定
+				if (enemy && !enemy->IsDead()) {
+					Vector3 diffEnemy = {
+						enemyPos.x - fang.pos.x,
+						0.0f,
+						enemyPos.z - fang.pos.z
+					};
+
+					if (Length(diffEnemy) < 1.2f) { //　雑魚敵の当たり判定の広さ
+						enemy->TakeDamage(2); // csvのダメージ
+						fang.hasHit = true; // 1回のトゲにつき１回だけ当たる
+					}
+				}
+
+				// ボスとの当たり判定
+				if (boss && !boss->IsDead() && !fang.hasHit) {
+					Vector3 diffBoss = {
+						bossPos.x - fang.pos.x,
+						0.0f,
+						bossPos.z - fang.pos.z
+					};
+
+					if (Length(diffBoss) < 2.0f) { // ボスは体が大きいので当たり判定を広めにする
+						boss->TakeDamage(2); // ボスにダメージ
+						fang.hasHit = true;
+					}
+				}
+			}
+
+			// 寿命がゼロになったら引っ込める
+			if (fang.activeTimer <= 0) {
+				fang.isActive = false;
+			}
+		}
+	}
+
+	// 全ての戸部の寿命がゼロになったら演出終了
+	if (allDone) {
+		isFangsAttackActive_ = false;
 	}
 }

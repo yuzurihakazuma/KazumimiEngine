@@ -62,7 +62,7 @@ private:
         const LevelData& level);
 
 	// 地面からトゲ攻撃の更新間数
-	void UpdateFangs(Player *player, Enemy *enemy, const Vector3 &enemyPos, const LevelData &level);
+	void UpdateFangs(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level);
 
 private:
 	// -----------------------------
