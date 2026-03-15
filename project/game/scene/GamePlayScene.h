@@ -96,7 +96,9 @@ private: // メンバ変数
 
 	CardPickupManager cardPickupManager_;
 
-	std::unique_ptr<CardUseSystem> cardUseSystem_ = nullptr; // カード使用システム
+	std::unique_ptr<CardUseSystem> playerCardSystem_ = nullptr;
+	std::vector<std::unique_ptr<CardUseSystem>> enemyCardSystems_;
+	std::unique_ptr<CardUseSystem> bossCardSystem_ = nullptr;
 
 	// スポーンマネージャー
 	SpawnManager spawnManager_;

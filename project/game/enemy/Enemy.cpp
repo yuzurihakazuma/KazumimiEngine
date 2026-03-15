@@ -405,6 +405,15 @@ void Enemy::TakeDamage(int damage) {
 
     if (isDead_) return; // 既に死亡していたら無視
 
+    // 被弾でカード詠唱キャンセル
+    if (state_ == State::UseCard) {
+        cardUseRequest_ = false;
+        isActionLocked_ = false;
+        actionLockTimer_ = 0;
+        state_ = State::ChasePlayer;
+        thinkTimer_ = 10; // 少しだけ立て直し時間
+    }
+
     hp_ -= damage; // HP減少
 
     isHit_ = true;               // ヒット状態開始

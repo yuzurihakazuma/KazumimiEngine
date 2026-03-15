@@ -55,6 +55,7 @@ public:
     void ActivateShield(int duration); // シールド展開
     bool IsShieldActive() const { return isShieldActive_; } // シールド状態の取得
 
+    bool IsActionLocked() const { return isActionLocked_; }
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
