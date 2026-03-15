@@ -273,6 +273,15 @@ void Boss::TakeDamage(int damage) {
         return;
     }
 
+    // 被弾でカード詠唱キャンセル
+    if (state_ == State::UseSkill) {
+        cardUseRequest_ = false;
+        isActionLocked_ = false;
+        actionLockTimer_ = 0;
+        state_ = State::Chase;
+        thinkTimer_ = 15; // ボスは少し長めに立て直し
+    }
+
     hp_ -= damage;
 
     isHit_ = true;

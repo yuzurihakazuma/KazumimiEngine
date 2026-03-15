@@ -101,8 +101,11 @@ void GamePlayScene::Initialize() {
 	bossDeadHandled_ = false;
 
 	// カード使用システム初期化
-	cardUseSystem_ = std::make_unique<CardUseSystem>();
-	cardUseSystem_->Initialize(camera_.get());
+	playerCardSystem_ = std::make_unique<CardUseSystem>();
+	playerCardSystem_->Initialize(camera_.get());
+
+	bossCardSystem_ = std::make_unique<CardUseSystem>();
+	bossCardSystem_->Initialize(camera_.get());
 
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
@@ -152,9 +155,6 @@ void GamePlayScene::Initialize() {
 	// これだけでOK
 	RegenerateDungeonAndRespawnPlayer(8);
 
-	//enemyDeadHandled_ = false; // 敵死亡処理フラグ初期化
-	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
-	
 	TextManager::GetInstance()->Initialize();
 }
 
@@ -174,64 +174,55 @@ void GamePlayScene::Update() {
 
 	// デバッグ用リセット
 	if (input->Triggerkey(DIK_R)) {
-		ResetBattleDebug(); // プレイヤー・敵・カードを初期状態に戻す
+		ResetBattleDebug();
 	}
 
-	// BGM再生 (シングルトン)
+	// BGM再生
 	if (input->Triggerkey(DIK_SPACE)) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
+
 	// タイトルシーンへ移動
 	if (input->Triggerkey(DIK_T)) {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
-	// パーティクル発生 (シングルトン)
+
+	// パーティクル発生
 	if (input->Triggerkey(DIK_P)) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
+
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
-
-
 	if (player_) {
-		// デバッグカメラが有効ならプレイヤーの入力を切る
 		if (debugCamera_ && debugCamera_->IsActive()) {
 			player_->SetInputEnable(false);
 		} else {
 			player_->SetInputEnable(true);
 		}
 
-
 		Vector3 oldPos = player_->GetPosition();
 
-		// プレイヤー更新
 		player_->Update();
 		playerPos_ = player_->GetPosition();
 
-		// プレイヤーのAABBを作成
 		AABB playerAABB;
 		playerAABB.min = { playerPos_.x - 0.5f, playerPos_.y - 0.5f, playerPos_.z - 0.5f };
 		playerAABB.max = { playerPos_.x + 0.5f, playerPos_.y + 0.5f, playerPos_.z + 0.5f };
 
-
 		const LevelData& level = levelEditor_->GetLevelData();
 
-		// --- ここからプレイヤーの当たり判定改良 ---
-		// プレイヤーの現在座標から、今いるマスの配列インデックス(x, z)を割り出す
 		int centerGridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
 		int centerGridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
 
-		// 調べる範囲を「周囲1マス（3x3 = 9マス）」に限定する
-		// （※マップ外のマイナスや、width以上にならないように std::max/min で制限）
 		int startX = std::max(0, centerGridX - 1);
 		int endX = std::min(level.width - 1, centerGridX + 1);
 		int startZ = std::max(0, centerGridZ - 1);
 		int endZ = std::min(level.height - 1, centerGridZ + 1);
 
-		bool isPlayerHit = false; // 当たったかどうかを判定するフラグ
+		bool isPlayerHit = false;
 
-		// 0からではなく、計算した範囲(start〜end)だけをループする！
 		for (int z = startZ; z <= endZ && !isPlayerHit; z++) {
 			for (int x = startX; x <= endX; x++) {
 
@@ -247,12 +238,11 @@ void GamePlayScene::Update() {
 				if (Collision::IsCollision(playerAABB, blockAABB)) {
 					player_->SetPosition(oldPos);
 					playerPos_ = oldPos;
-					isPlayerHit = true; // フラグを立てて二重ループをまとめて抜ける
+					isPlayerHit = true;
 					break;
 				}
 			}
 		}
-		// --- 改良ここまで ---
 
 		playerScale_ = player_->GetScale();
 	}
@@ -263,7 +253,6 @@ void GamePlayScene::Update() {
 		playerObj_->SetScale(playerScale_);
 		playerObj_->Update();
 	}
-
 
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		auto& enemy = enemies_[i];
@@ -410,6 +399,9 @@ void GamePlayScene::Update() {
 		}
 	}
 
+	// =========================
+// 敵 → プレイヤー
+// =========================
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		auto& enemy = enemies_[i];
 		if (!enemy || !player_ || enemy->IsDead() || player_->IsDead()) {
@@ -427,6 +419,11 @@ void GamePlayScene::Update() {
 
 			if (Length(diff) <= 2.0f) {
 				player_->TakeDamage(1, enemyPos);
+
+				// プレイヤー用の詠唱だけ止める
+				if (playerCardSystem_) {
+					playerCardSystem_->CancelCasting();
+				}
 			}
 
 			enemy->ClearAttackRequest();
@@ -434,25 +431,28 @@ void GamePlayScene::Update() {
 
 		if (enemy->GetCardUseRequest()) {
 			if (enemy->HasCard()) {
-				if (cardUseSystem_) {
-					cardUseSystem_->UseCard(
+				// この敵専用のカードシステムを使う
+				if (i < enemyCardSystems_.size() && enemyCardSystems_[i]) {
+					enemyCardSystems_[i]->UseCard(
 						enemy->GetHeldCard(),
 						enemyPos,
 						enemy->GetRotation().y,
 						false
 					);
 				}
+
 				enemy->ClearHeldCard();
 			}
 
 			enemy->ClearCardUseRequest();
 		}
 	}
-
+	// =========================
+	// ボス → プレイヤー
+	// =========================
 	if (boss_ && player_ && !boss_->IsDead() && !player_->IsDead()) {
 		Vector3 bossPos = boss_->GetPosition();
 
-		// 通常攻撃
 		if (boss_->GetAttackRequest()) {
 			Vector3 diff = {
 				playerPos_.x - bossPos.x,
@@ -462,15 +462,19 @@ void GamePlayScene::Update() {
 
 			if (Length(diff) <= 3.0f) {
 				player_->TakeDamage(2, bossPos);
+
+				// プレイヤー用の詠唱だけ止める
+				if (playerCardSystem_) {
+					playerCardSystem_->CancelCasting();
+				}
 			}
 
 			boss_->ClearAttackRequest();
 		}
 
-		// スキル攻撃
 		if (boss_->GetCardUseRequest()) {
-			if (cardUseSystem_) {
-				cardUseSystem_->UseCard(
+			if (bossCardSystem_) {
+				bossCardSystem_->UseCard(
 					boss_->GetSelectedCard(),
 					bossPos,
 					boss_->GetRotation().y,
@@ -524,7 +528,6 @@ void GamePlayScene::Update() {
 			continue;
 		}
 
-		// プレイヤーが拾う
 		Vector3 playerDiff = {
 			playerPos_.x - pickup.position.x,
 			playerPos_.y - pickup.position.y,
@@ -533,7 +536,6 @@ void GamePlayScene::Update() {
 
 		float playerDist = Length(playerDiff);
 
-		// プレイヤーが拾う
 		if (player_ && !player_->IsDead() && playerDist < 2.0f) {
 			bool success = handManager_.AddCard(pickup.card);
 			if (success) {
@@ -541,15 +543,12 @@ void GamePlayScene::Update() {
 				continue;
 			} else {
 				isCardSwapMode_ = true;
-				pendingCard_ = pickup.card; // 拾おうとしたカードを一時保存
-
-				// 一旦マップ上からは消しておく
+				pendingCard_ = pickup.card;
 				pickup.isActive = false;
 				continue;
 			}
 		}
 
-		// 敵が拾う
 		for (size_t i = 0; i < enemies_.size(); ++i) {
 			auto& enemy = enemies_[i];
 			if (!enemy || enemy->IsDead() || enemy->HasCard()) {
@@ -575,7 +574,6 @@ void GamePlayScene::Update() {
 	}
 
 	if (camera_) {
-		// デバッグカメラが非アクティブなときは、プレイヤーを追従する通常カメラ
 		if (debugCamera_ && !debugCamera_->IsActive()) {
 			camera_->SetTranslation({
 				playerPos_.x,
@@ -587,11 +585,9 @@ void GamePlayScene::Update() {
 				});
 		}
 
-		// 行列の更新自体は常に行う
 		camera_->Update();
 	}
 
-	// 全オブジェクト更新
 	for (auto& obj : object3ds_) {
 		obj->Update();
 	}
@@ -604,14 +600,9 @@ void GamePlayScene::Update() {
 		testObj_->Update();
 	}
 
-
-
 	levelEditor_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
 
-	//levelEditor_->Update();
-
-	// 手札（3Dモデル）の移動などの更新
 	if (player_ && !player_->IsDead()) {
 		handManager_.Update();
 	}
@@ -648,8 +639,9 @@ void GamePlayScene::Update() {
 		bossPos = boss_->GetPosition();
 	}
 
-	if (cardUseSystem_) {
-		cardUseSystem_->Update(
+	// プレイヤー用カードシステム更新
+	if (playerCardSystem_) {
+		playerCardSystem_->Update(
 			player_.get(),
 			nearestEnemy,
 			targetBoss,
@@ -660,9 +652,40 @@ void GamePlayScene::Update() {
 		);
 	}
 
-	// カード使用
-	UpdateCardUse(input);
+	// 敵それぞれのカードシステム更新
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto& enemy = enemies_[i];
+		if (!enemy || enemy->IsDead()) {
+			continue;
+		}
 
+		if (i < enemyCardSystems_.size() && enemyCardSystems_[i]) {
+			enemyCardSystems_[i]->Update(
+				player_.get(),
+				enemy.get(),
+				nullptr,
+				playerPos_,
+				enemy->GetPosition(),
+				Vector3{ 0.0f, 0.0f, 0.0f },
+				levelEditor_->GetLevelData()
+			);
+		}
+	}
+
+	// ボス用カードシステム更新
+	if (boss_ && !boss_->IsDead() && bossCardSystem_) {
+		bossCardSystem_->Update(
+			player_.get(),
+			nullptr,
+			boss_.get(),
+			playerPos_,
+			Vector3{ 0.0f, 0.0f, 0.0f },
+			boss_->GetPosition(),
+			levelEditor_->GetLevelData()
+		);
+	}
+
+	UpdateCardUse(input);
 }
 
 void GamePlayScene::Draw() {
@@ -700,9 +723,20 @@ void GamePlayScene::Draw() {
 		enemyObj->Draw();
 	}
 	// カード使用演出描画
-	if (cardUseSystem_) {
-		cardUseSystem_->Draw();
+	if (playerCardSystem_) {
+		playerCardSystem_->Draw();
 	}
+
+	for (auto& system : enemyCardSystems_) {
+		if (system) {
+			system->Draw();
+		}
+	}
+
+	if (bossCardSystem_) {
+		bossCardSystem_->Draw();
+	}
+
 	cardPickupManager_.Draw();
 
 
@@ -882,10 +916,19 @@ void GamePlayScene::ResetBattleDebug() {
 	bossDeadHandled_ = false;
 
 	// カード使用システムの状態をリセット
-	if (cardUseSystem_) {
-		cardUseSystem_->Reset();
+	if (playerCardSystem_) {
+		playerCardSystem_->Reset();
 	}
 
+	for (auto& system : enemyCardSystems_) {
+		if (system) {
+			system->Reset();
+		}
+	}
+
+	if (bossCardSystem_) {
+		bossCardSystem_->Reset();
+	}
 	// 手札を初期化
 	handManager_.Initialize(uiCamera_.get());
 	handManager_.AddCard(CardDatabase::GetCardData(1));
@@ -923,32 +966,31 @@ void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 void GamePlayScene::UpdateCardUse(Input* input) {
 
-	// プレイヤーが死んでいる、またはスペースキーが押されていなければ何もしない
 	if (!player_ || player_->IsDead() || !input->Triggerkey(DIK_SPACE)) {
 		return;
 	}
 
-	// 選んでいるカードを取得（エラーカードなら何もしない）
+	if (player_->IsDodging()) {
+		return;
+	}
+
+	if (player_->IsActionLocked()) {
+		return;
+	}
+
 	Card selectedCard = handManager_.GetSelectedCard();
 	if (selectedCard.id == -1) {
 		return;
 	}
 
-	// コストが足りなければ何もしない
 	if (!player_->CanUseCost(selectedCard.cost)) {
 		return;
 	}
 
-	// ----------------------------------------
-	// ここから下が実際の「使用処理」
-	// ----------------------------------------
-
-	// コスト消費
 	player_->UseCost(selectedCard.cost);
 
-	// カード効果発動
-	if (cardUseSystem_) {
-		cardUseSystem_->UseCard(
+	if (playerCardSystem_) {
+		playerCardSystem_->UseCard(
 			selectedCard,
 			playerPos_,
 			player_->GetRotation().y,
@@ -957,7 +999,6 @@ void GamePlayScene::UpdateCardUse(Input* input) {
 		);
 	}
 
-	// 使い切りカード（IDが1以外）なら手札から削除
 	if (selectedCard.id != 1) {
 		handManager_.RemoveSelectedCard();
 	}
@@ -969,8 +1010,12 @@ GamePlayScene::~GamePlayScene() {}
 // 終了
 void GamePlayScene::Finalize() {
 
-
 	object3ds_.clear();
+
+	playerCardSystem_.reset();
+	enemyCardSystems_.clear();
+	bossCardSystem_.reset();
+
 	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
@@ -982,6 +1027,7 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 	enemies_.clear();
 	enemyObjs_.clear();
 	enemyDeadHandled_.clear();
+	enemyCardSystems_.clear();
 
 	if (!spawnManager_.HasLevelData()) {
 		return;
@@ -1019,9 +1065,13 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 			enemyObj->Update();
 		}
 
+		auto enemyCardSystem = std::make_unique<CardUseSystem>();
+		enemyCardSystem->Initialize(camera_.get());
+
 		enemies_.push_back(std::move(enemy));
 		enemyObjs_.push_back(std::move(enemyObj));
 		enemyDeadHandled_.push_back(false);
+		enemyCardSystems_.push_back(std::move(enemyCardSystem));
 	}
 }
 

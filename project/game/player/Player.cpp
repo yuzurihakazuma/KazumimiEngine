@@ -274,9 +274,20 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
         return;
     }
 
+    // シールド展開中ならダメージもノックバックも無効、シールドだけ壊す
+    if (isShieldActive_) {
+        isShieldActive_ = false;
+        shieldTimer_ = 0;
+
+        // シールドが壊れた演出として最低限の被弾点滅だけ入れたいなら残してOK
+        isHit_ = true;
+        hitTimer_ = hitDuration_;
+
+        return;
+    }
+
     // HP減少
     hp_ -= damage;
-
     if (hp_ < 0) {
         hp_ = 0;
     }
@@ -299,7 +310,7 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
     // ノックバック開始
     if (Length(hitDir) > 0.01f) {
         hitDir = Normalize(hitDir);
-        knockbackVelocity_ = hitDir * 0.35f; // ノックバック速度
+        knockbackVelocity_ = hitDir * 0.35f;
         isKnockback_ = true;
         knockbackTimer_ = knockbackDuration_;
     }
@@ -307,13 +318,6 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
     // HPが0なら死亡
     if (hp_ <= 0) {
         isDead_ = true;
-    }
-
-    // シールド展開中ならダメージとノックバックを無効化し、シールドを壊す
-    if (isShieldActive_) {
-        isShieldActive_ = false;
-        shieldTimer_ = 0;
-        return;
     }
 }
 
