@@ -5,3 +5,4 @@ id,name,cost,effectType,sffectValue,desciption,modelName,effectName,seName
 4,speedUp,2,3,2,速度を2倍にする,cardSpeedUp,nullptr,nullptr
 5,shield,4,2,3,シールド展開,plane,nullptr,nullptr
 6,iceBullet,4,0,2,2ダメージ与えて敵は５秒間動けなくなる,plane,nullptr,nullptr
+7,EvokerFangs,3,0,2,直線上に地面からトゲを出す,plane,nullptr,nullptr

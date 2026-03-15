@@ -40,6 +40,12 @@ void CardUseSystem::Initialize(Camera *camera) {
 		iceBulletObj_->SetScale(iceBulletScale_);
 	}
 
+	fangObj_ = Obj3d::Create("sphere");
+	if (fangObj_) {
+		fangObj_->SetCamera(camera);
+		fangObj_->SetScale({ 0.5f,2.0f,0.5f });
+	}
+
 	// 演出状態をリセット
 	Reset();
 }
@@ -58,6 +64,8 @@ void CardUseSystem::Update(Player *player, Enemy *enemy, const Vector3 &playerPo
 
 	// 氷の弾の更新
 	UpdateIceBullet(player, enemy, playerPos, enemyPos, level);
+
+	UpdateFangs(player, enemy, enemyPos,level);
 }
 
 // 描画
@@ -81,6 +89,19 @@ void CardUseSystem::Draw() {
 	//　氷の描画
 	if (isIceBulletActive_ && iceBulletObj_) {
 		iceBulletObj_->Draw();
+	}
+
+	// 地面からのトゲ攻撃の描画
+	if (isFangsAttackActive_ && fangObj_) {
+		//全てのトゲの位置をチェック
+		for (const auto &fang : fangs_) {
+			// 今,地面に出ているトゲだけ描画
+			if (fang.isActive) {
+				fangObj_->SetTranslation(fang.pos); // 位置をセット
+				fangObj_->Update();                 // 行列を計算
+				fangObj_->Draw();                   // 描画
+			}
+		}
 	}
 }
 
@@ -206,6 +227,40 @@ void CardUseSystem::UseCard(const Card &card, const Vector3 &casterPos, float ca
 		}
 	}
 	break;
+
+	case 7: // 地面からトゲ攻撃
+	{
+		isFangsAttackActive_ = true;
+		isFangsPlayerCaster_ = isPlayerCaster;
+		fangs_.clear();
+
+		int fangCount = 5;    // トゲを出す数
+		float spacing = 2.0f; // 度下同士の間隔
+
+		// 向いている方向
+		Vector3 dir = {std::sinf(casterYaw),0.0f,std::cosf(casterYaw)};
+
+		for (int i = 0; i < fangCount; ++i) {
+			FangData fang;
+			fang.pos = casterPos;
+			fang.pos.x += dir.x * spacing * (i + 1);
+			fang.pos.z += dir.z * spacing * (i + 1);
+			fang.pos.y = 0.0f; // 足元から出す
+
+			fang.delayTimer = i * 8; // 前のトゲより8フレーム遅らせて出す
+			fang.activeTimer = 20; // 出現時間
+			fang.isActive = false;
+			fang.hasHit = false;
+
+			fangs_.push_back(fang);
+		}
+
+		if (player) {
+			player->LockAction(30);
+		}
+	}
+	break;
+
 	default:
 		// 未対応カードは何もしない
 		break;
@@ -328,6 +383,66 @@ void CardUseSystem::UpdateIceBullet(Player *player, Enemy *enemy, const Vector3 
 		if (Length(iceBulletPos_ - playerPos) > 20.0f) {
 			isIceBulletActive_ = false;
 		}
+	}
+}
+
+void CardUseSystem::UpdateFangs(Player *player, Enemy *enemy, const Vector3 &enemyPos, const LevelData &level) {
+
+	if (!isFangsAttackActive_) {
+		return;
+	}
+
+	bool allDone = true; // 全てのトゲが終わったらチェック
+
+	for (auto &fang : fangs_) {
+		if (fang.activeTimer <= 0) {
+			continue;  // すでに終わっているトゲは無視
+		}
+
+		allDone = false; // すでに引っ込んだトゲは無視
+
+		// 待機時間があるなら減らす
+		if (fang.delayTimer > 0) {
+			fang.delayTimer--;
+		} else {
+
+			// トゲが出る座標がブロック(壁)と被っていたら
+			if (CheckBlockCollision(fang.pos, 0.5f, level)) {
+				fang.activeTimer = 0;  // 寿命をゼロにして
+				fang.isActive = false; // 非アクティブにする
+				continue;              // 壁の中には出さずに次のトゲへ！
+			}
+
+			// 壁じゃなければトゲを出す
+			fang.isActive = true;
+			fang.activeTimer--;
+
+			// 当たり判定
+			if (isFangsPlayerCaster_ && enemy && !enemy->IsDead() && !fang.hasHit) {
+				// 高さは無視して,XとZの距離だけで判定する
+				Vector3 diff = { enemyPos.x - fang.pos.x,0.0f,enemyPos.z - fang.pos.z };
+
+				if (Length(diff) < 1.2f) { // 当たり判定の広さ
+					enemy->TakeDamage(2); // csvのダメージを与える
+					fang.hasHit = true;   // 1つのトゲにつき１回だけ当たるようにする
+				}
+			}
+
+			//時間切れで引っ込む
+			if (fang.activeTimer <= 0) {
+				fang.isActive = false;
+			}
+
+			// すべてのトゲの寿命がゼロ(allDone == true)になったら演出終了
+			if (allDone) {
+				isFangsAttackActive_ = false;
+			}
+		}
+	}
+
+	//全部終わったら演出終了
+	if (allDone) {
+		isFangsAttackActive_ = false;
 	}
 }
 
