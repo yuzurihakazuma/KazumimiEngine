@@ -21,87 +21,90 @@ void Enemy::Initialize() {
 
     isHit_ = false;                            // ヒット状態リセット
     hitTimer_ = 0;                             // ヒット時間リセット
+    hitStunTimer_ = 0;                         // 被弾硬直時間リセット
     knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック初期化
 
-    // 攻撃・カード使用リクエスト初期化
-    attackRequest_ = false; // 近接攻撃発生フラグ初期化
-    cardUseRequest_ = false; // カード使用発生フラグ初期化
+    attackRequest_ = false;   // 近接攻撃発生フラグ初期化
+    cardUseRequest_ = false;  // カード使用発生フラグ初期化
 
-    // クールダウン初期化
     attackCooldownTimer_ = 0; // 近接攻撃クールダウン初期化
     cardCooldownTimer_ = 0;   // カード使用クールダウン初期化
 
-    hasTargetCard_ = false;                 // 目標カード状態リセット
-    prevPos_ = pos_;                        // 前フレーム位置初期化
-    stuckTimer_ = 0;                        // 詰まりタイマー初期化
+    hasTargetCard_ = false;   // 目標カード状態リセット
+    prevPos_ = pos_;          // 前フレーム位置初期化
+    stuckTimer_ = 0;          // 詰まりタイマー初期化
+
+    isFrozen_ = false;        // 凍結状態リセット
+    freezeTimer_ = 0;         // 凍結時間リセット
 }
 
 void Enemy::Update() {
 
     if (isDead_) return; // 死亡していたら何もしない
 
-    // このフレームの攻撃・カード使用フラグをリセット
-    attackRequest_ = false;   // 毎フレーム初期化
-    cardUseRequest_ = false;  // 毎フレーム初期化
+    attackRequest_ = false;   // 毎フレーム攻撃フラグ初期化
+    cardUseRequest_ = false;  // 毎フレームカード使用フラグ初期化
 
-    // 近接攻撃クールダウン更新
     if (attackCooldownTimer_ > 0) {
-        attackCooldownTimer_--; // クールダウン減少
+        attackCooldownTimer_--; // 近接攻撃クールダウン減少
     }
 
-    // カード使用クールダウン更新
     if (cardCooldownTimer_ > 0) {
-        cardCooldownTimer_--; // クールダウン減少
+        cardCooldownTimer_--; // カード使用クールダウン減少
     }
 
-    // ヒット演出中
     if (isHit_) {
         pos_ += knockbackVelocity_;      // ノックバック移動
         knockbackVelocity_ *= 0.85f;     // 徐々に減速
 
-        hitTimer_--;                     // 残り時間減少
+        hitTimer_--;                     // ヒット演出時間減少
         if (hitTimer_ <= 0) {
             isHit_ = false;              // ヒット演出終了
-            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
         }
     }
 
-    // 詰まり判定更新
-    if (Length(pos_ - prevPos_) < stuckDistanceThreshold_) {
-        stuckTimer_++; // ほとんど動いていなければ加算
-    } else {
-        stuckTimer_ = 0; // 動いていればリセット
-    }
-    prevPos_ = pos_; // 現在位置を保存
+    if (hitStunTimer_ > 0) {
+        hitStunTimer_--;                 // 被弾硬直時間減少
 
-    // 行動ロック中はタイマーだけ進める
+        if (hitStunTimer_ <= 0) {
+            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // 硬直終了時に速度停止
+        }
+
+        prevPos_ = pos_;                 // 現在位置を保存
+        return;                          // 硬直中はAI行動しない
+    }
+
+    if (Length(pos_ - prevPos_) < stuckDistanceThreshold_) {
+        stuckTimer_++;                   // ほとんど動いていなければ加算
+    } else {
+        stuckTimer_ = 0;                 // 動いていればリセット
+    }
+    prevPos_ = pos_;                     // 現在位置を保存
+
     if (isActionLocked_) {
-        actionLockTimer_--; // ロック残り時間減少
+        actionLockTimer_--;              // ロック残り時間減少
 
         if (actionLockTimer_ <= 0) {
-            isActionLocked_ = false; // ロック解除
+            isActionLocked_ = false;     // ロック解除
         }
 
-        return; // ロック中は行動しない
+        return;                          // ロック中は行動しない
     }
 
-    // 思考タイマー更新
     if (thinkTimer_ > 0) {
-        thinkTimer_--; // 次の判断まで待つ
+        thinkTimer_--;                   // 次の判断まで待つ
     }
 
-    // 思考タイマーが切れていたら次の状態を決定
     if (thinkTimer_ <= 0) {
-        DecideNextState();
+        DecideNextState();               // 次の状態を決定
     }
 
-    //　凍結中の処理
     if (isFrozen_) {
-        freezeTimer_--; // 凍結残り時間減少
+        freezeTimer_--;                  // 凍結残り時間減少
         if (freezeTimer_ <= 0) {
-            isFrozen_ = false; // 時間切れで氷が溶ける
+            isFrozen_ = false;           // 時間切れで氷が溶ける
         }
-        return;
+        return;                          // 凍結中は行動しない
     }
 
     switch (state_) {
@@ -401,23 +404,27 @@ void Enemy::UpdateRetreat() {
         rot_.y = std::atan2f(dir.x, dir.z);
     }
 }
+
 void Enemy::TakeDamage(int damage) {
 
     if (isDead_) return; // 既に死亡していたら無視
 
-    // 被弾でカード詠唱キャンセル
     if (state_ == State::UseCard) {
-        cardUseRequest_ = false;
-        isActionLocked_ = false;
-        actionLockTimer_ = 0;
-        state_ = State::ChasePlayer;
-        thinkTimer_ = 10; // 少しだけ立て直し時間
+        cardUseRequest_ = false;         // カード使用要求をキャンセル
+        isActionLocked_ = false;         // 行動ロック解除
+        actionLockTimer_ = 0;            // ロック時間リセット
+        state_ = State::ChasePlayer;     // 追跡状態へ戻す
     }
 
-    hp_ -= damage; // HP減少
+    hp_ -= damage;                       // HP減少
 
-    isHit_ = true;               // ヒット状態開始
-    hitTimer_ = hitDuration_;    // ヒット時間セット
+    isHit_ = true;                       // ヒット状態開始
+    hitTimer_ = hitDuration_;            // ヒット演出時間セット
+    hitStunTimer_ = hitStunDuration_;    // 被弾硬直開始
+
+    thinkTimer_ = hitStunDuration_;      // 硬直中は再判断しない
+    attackCooldownTimer_ = 20;           // 被弾後すぐ攻撃しないようにする
+    cardCooldownTimer_ = 20;             // 被弾後すぐカードを使わないようにする
 
     Vector3 hitDir = {
         pos_.x - playerPos_.x,
@@ -427,12 +434,14 @@ void Enemy::TakeDamage(int damage) {
 
     if (Length(hitDir) > 0.01f) {
         hitDir = Normalize(hitDir);
-        knockbackVelocity_ = hitDir * 0.25f; // 後ろへ少し飛ばす
+        knockbackVelocity_ = hitDir * 0.18f; // 後ろへ少し飛ばす
+    } else {
+        knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // 方向が取れないときは停止
     }
 
     if (hp_ <= 0) {
-        hp_ = 0;         // HP下限
-        isDead_ = true;  // 死亡
+        hp_ = 0;                         // HP下限
+        isDead_ = true;                  // 死亡
     }
 }
 
