@@ -40,6 +40,14 @@ public:
     void GenerateRandomDungeon(int roomCount);
 
     Vector3 GetRandomPlayerSpawnPosition(float y = 0.0f);
+
+public:
+    bool IsBossMap() const { return mapType_ == 1; }
+    const std::string& GetCurrentMapFile() const { return currentMapFile_; }
+
+    bool ConsumeMapChanged();
+
+    Vector3 GetMapCenterPosition(float y = 0.0f) const;
 private:
     const Camera* camera_ = nullptr;
 
@@ -59,4 +67,9 @@ private:
     int editHeight_ = 10;
 
     std::unique_ptr<DungeonGenerator> dungeonGenerator_;
+
+    std::string currentMapFile_ = "resources/map/map01.json";
+    int mapType_ = 0; // 0 = map01.json, 1 = boss.json
+
+    bool mapChanged_ = false;
 };

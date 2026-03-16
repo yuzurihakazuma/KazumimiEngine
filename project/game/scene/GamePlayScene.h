@@ -148,4 +148,7 @@ private: // メンバ変数
 
 	// ボス再配置
 	void RespawnBossInRoom();
+
+	// 敵とカードのクリア
+	void ClearEnemiesAndCards();
 };

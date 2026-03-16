@@ -19,6 +19,11 @@ void LevelEditor::Initialize() {
 	editHeight_ = levelData_.height;
 
 	dungeonGenerator_ = std::make_unique<DungeonGenerator>();
+
+	currentMapFile_ = "resources/map/map01.json";
+	mapType_ = 0;
+	saveFileName_ = "map01.json";
+	LoadAndCreateMap(currentMapFile_);
 }
 
 void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
@@ -28,6 +33,10 @@ void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
 	editHeight_ = levelData_.height;
 
 	RebuildMapObjects();
+
+	mapChanged_ = true;
+
+	currentMapFile_ = fileName;
 }
 
 void LevelEditor::ResizeObjectGrids() {
@@ -99,6 +108,23 @@ void LevelEditor::DrawDebugUI() {
 		static int roomHeight = 5;
 
 		ImGui::Begin("マップエディタ");
+		ImGui::Text("マップ切り替え");
+
+		if (ImGui::RadioButton("通常マップ(map01.json)", mapType_ == 0)) {
+			mapType_ = 0;
+			saveFileName_ = "map01.json";
+			LoadAndCreateMap("resources/map/map01.json");
+		}
+		ImGui::SameLine();
+		if (ImGui::RadioButton("ボス部屋(boss.json)", mapType_ == 1)) {
+			mapType_ = 1;
+			saveFileName_ = "boss.json";
+			LoadAndCreateMap("resources/map/boss.json");
+
+		}
+
+		ImGui::Separator();
+
 
 		char buffer[256];
 		strcpy_s(buffer, saveFileName_.c_str());
@@ -122,6 +148,9 @@ void LevelEditor::DrawDebugUI() {
 		ImGui::SameLine();
 		if (ImGui::Button("全部壁(1)で埋める")) {
 			FillAllTiles(1);
+		}
+		if (ImGui::Button("全部壁(0)で埋める")) {
+			FillAllTiles(0);
 		}
 
 		ImGui::Separator();
@@ -369,4 +398,23 @@ Vector3 LevelEditor::GetRandomPlayerSpawnPosition(float y) {
 	}
 
 	return dungeonGenerator_->GetRandomRoomWorldPosition(levelData_, y);
+}
+
+Vector3 LevelEditor::GetMapCenterPosition(float y) const {
+	const float tileSize = levelData_.tileSize;
+
+	Vector3 pos;
+	pos.x = ((float)levelData_.width - 1.0f) * tileSize * 0.5f;
+	pos.y = levelData_.baseY + y;
+	pos.z = ((float)levelData_.height - 1.0f) * tileSize * 0.5f;
+
+	return pos;
+}
+
+bool LevelEditor::ConsumeMapChanged() {
+	if (mapChanged_) {
+		mapChanged_ = false;
+		return true;
+	}
+	return false;
 }

@@ -155,6 +155,11 @@ void GamePlayScene::Initialize() {
 	// これだけでOK
 	RegenerateDungeonAndRespawnPlayer(8);
 
+	// 初期ロード時のマップ変更通知を消す
+	if (levelEditor_) {
+		levelEditor_->ConsumeMapChanged();
+	}
+
 	TextManager::GetInstance()->Initialize();
 }
 
@@ -166,6 +171,12 @@ void GamePlayScene::Update() {
 	}
 
 	Input *input = Input::GetInstance();
+
+	// マップ切り替えがあったら戦闘ごとリセット
+	if (levelEditor_ && levelEditor_->ConsumeMapChanged()) {
+		ResetBattleDebug();
+		return;
+	}
 
 	if (isCardSwapMode_) {
 		UpdateCardSwapMode(input);
@@ -1185,7 +1196,14 @@ void GamePlayScene::RespawnPlayerInRoom() {
 		return;
 	}
 
-	playerPos_ = levelEditor_->GetRandomPlayerSpawnPosition(1.0f);
+	if (levelEditor_->IsBossMap()) {
+		Vector3 center = levelEditor_->GetMapCenterPosition(1.5f);
+		playerPos_ = center;
+		playerPos_.z -= 6.0f; // ボスより少し手前
+	} else {
+		playerPos_ = levelEditor_->GetRandomPlayerSpawnPosition(1.5f);
+	}
+
 	playerScale_ = { 1.0f, 1.0f, 1.0f };
 
 	player_->SetPosition(playerPos_);
@@ -1216,7 +1234,10 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 		return;
 	}
 
-	levelEditor_->GenerateRandomDungeon(roomCount);
+	// 通常マップのときだけランダム生成
+	if (!levelEditor_->IsBossMap()) {
+		levelEditor_->GenerateRandomDungeon(roomCount);
+	}
 
 	// プレイヤー再配置
 	RespawnPlayerInRoom();
@@ -1224,36 +1245,48 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	// スポーンマネージャに新しいマップを渡し直す
 	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
 
-	// 敵・カード再生成
-	SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
-	SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
+	if (levelEditor_->IsBossMap()) {
+		// bossマップでは雑魚敵とカードを消す
+		ClearEnemiesAndCards();
+	} else {
+		// 通常マップではいつも通り生成
+		SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
+		SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
+	}
 
 	// ボス再配置
 	RespawnBossInRoom();
 }
-
 void GamePlayScene::RespawnBossInRoom() {
 	if (!levelEditor_ || !boss_) {
 		return;
 	}
 
-	// 今はプレイヤーのスポーン関数を流用して、少し離して置く簡易版
-	Vector3 spawnPos = levelEditor_->GetRandomPlayerSpawnPosition(1.0f);
+	Vector3 spawnPos{};
 
-	// プレイヤー位置と近すぎる場合は少しずらす
-	Vector3 diff = {
-		spawnPos.x - playerPos_.x,
-		0.0f,
-		spawnPos.z - playerPos_.z
-	};
+	if (levelEditor_->IsBossMap()) {
+		// bossマップでは中央固定
+		spawnPos = levelEditor_->GetMapCenterPosition(2.0f);
+	} else {
+		// 通常マップでは今まで通りランダム配置
+		spawnPos = levelEditor_->GetRandomPlayerSpawnPosition(2.0f);
 
-	if (Length(diff) < 6.0f) {
-		spawnPos.x += 4.0f;
-		spawnPos.z += 4.0f;
+		Vector3 diff = {
+			spawnPos.x - playerPos_.x,
+			0.0f,
+			spawnPos.z - playerPos_.z
+		};
+
+		if (Length(diff) < 6.0f) {
+			spawnPos.x += 4.0f;
+			spawnPos.z += 4.0f;
+		}
 	}
 
+	boss_->Initialize();
 	boss_->SetPosition(spawnPos);
 	boss_->SetScale({ 2.0f, 2.0f, 2.0f });
+	bossDeadHandled_ = false;
 
 	if (bossObj_) {
 		bossObj_->SetTranslation(boss_->GetPosition());
@@ -1261,4 +1294,14 @@ void GamePlayScene::RespawnBossInRoom() {
 		bossObj_->SetScale(boss_->GetScale());
 		bossObj_->Update();
 	}
+}
+
+// 敵とカードを完全にクリアしてスポーンマネージャもリセット
+void GamePlayScene::ClearEnemiesAndCards() {
+	enemies_.clear();
+	enemyObjs_.clear();
+	enemyDeadHandled_.clear();
+	enemyCardSystems_.clear();
+
+	cardPickupManager_.Initialize(camera_.get());
 }
