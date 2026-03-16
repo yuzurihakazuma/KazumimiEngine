@@ -150,6 +150,9 @@ void TextManager::DrawDebugUI(){
 
 	// 2. 登録されているテキストのリストと編集
 	ImGui::Text("【登録済みのテキスト】");
+	// 削除用のキーを保持する変数
+	std::string keyToDelete = "";
+
 	for ( auto& pair : texts_ ) {
 		std::string key = pair.first;
 		TextData& data = pair.second;
@@ -163,9 +166,21 @@ void TextManager::DrawDebugUI(){
 			
 			// 色調整
 			ImGui::ColorEdit4("色", data.color);
+			
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+			if ( ImGui::Button("このテキストを削除") ) {
+				// ループ内で直接消すとクラッシュするので、名前だけ覚えておく
+				keyToDelete = key;
+			}
+			ImGui::PopStyleColor();
+
 
 			ImGui::TreePop();
 		}
+	}
+
+	if ( !keyToDelete.empty() ) {
+		texts_.erase(keyToDelete);
 	}
 
 	ImGui::Separator();
