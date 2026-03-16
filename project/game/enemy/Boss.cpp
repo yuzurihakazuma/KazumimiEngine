@@ -110,6 +110,14 @@ void Boss::Update() {
     case State::Dead:
         break;
     }
+
+    // デバフタイマーの更新
+    if (isAttackDebuffed_) {
+        attackDebuffTimer_--;
+        if (attackDebuffTimer_ <= 0) {
+            isAttackDebuffed_ = false; // 時間切れで元に戻る
+        }
+    }
 }
 
 void Boss::DecideNextState() {

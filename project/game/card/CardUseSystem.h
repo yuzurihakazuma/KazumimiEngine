@@ -76,6 +76,9 @@ private:
 	// 身代わりの更新関数
 	void UpdateDecoy();
 
+	// 攻撃力ダウンの更新関数
+	void UpdateAtkDown(Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos);
+
 private:
 	// -----------------------------
 	// 詠唱状態
@@ -151,4 +154,14 @@ private:
 	Vector3 decoyPos_ = { 0.0f,0.0f,0.0f }; // 身代わりの位置
 	Vector3 decoyScale_ = { 1.0f,1.0f,1.0f }; // 身代わりの大きさ
 	int decoyTimer_ = 0; // 身代わりの残り寿命タイマー
+
+	// -----------------------------
+	// 攻撃力ダウン演出
+	// -----------------------------
+	std::unique_ptr<Obj3d> atkDownObj_ = nullptr;
+	bool isAtkDownActive_ = false;
+	bool isAtkDownPlayerCaster_ = true;
+	Vector3 atkDownPos_ = { 0.0f, 0.0f, 0.0f };
+	int atkDownTimer_ = 0;
+
 };
