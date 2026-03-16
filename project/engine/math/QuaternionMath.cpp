@@ -99,7 +99,7 @@ namespace QuaternionMath{
 		float xy = x * y, xz = x * z, yz = y * z;
 		float wx = w * x, wy = w * y, wz = w * z;
 
-		Matrix4x4 M {}; // èâä˙âª
+		Matrix4x4 M {}; // ÂàùÊúüÂåñ
 		M.m[0][0] = 1.0f - 2.0f * ( yy + zz ); M.m[0][1] = 2.0f * ( xy + wz );        M.m[0][2] = 2.0f * ( xz - wy );        M.m[0][3] = 0.0f;
 		M.m[1][0] = 2.0f * ( xy - wz );        M.m[1][1] = 1.0f - 2.0f * ( xx + zz ); M.m[1][2] = 2.0f * ( yz + wx );        M.m[1][3] = 0.0f;
 		M.m[2][0] = 2.0f * ( xz + wy );        M.m[2][1] = 2.0f * ( yz - wx );        M.m[2][2] = 1.0f - 2.0f * ( xx + yy ); M.m[2][3] = 0.0f;
