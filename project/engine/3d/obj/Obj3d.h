@@ -8,13 +8,13 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 #include "engine/math/Matrix4x4.h"
+#include "Animation.h"
 
 // 前方宣言
 class Obj3dCommon;
 class Model;
 class Camera;
 class DirectXCommon;
-
 
 // モデル3Dクラス
 class Obj3d{
@@ -53,6 +53,9 @@ public:
 	/// 描画
 	/// </summary>
 	void Draw();
+
+	
+	void PlayAnimation(Animation* animation);
 
 public:
 	// -------------------------------------------------
@@ -102,4 +105,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> dissolveResource_;
 	DissolveData* dissolveData_ = nullptr;
 	uint32_t noiseTextureIndex_ = 0;
+
+	// 再生中のアニメーションデータ
+	Animation* currentAnimation_ = nullptr; 
+
+	// 現在の再生時間（秒）
+	float animationTime_ = 0.0f;            
 };

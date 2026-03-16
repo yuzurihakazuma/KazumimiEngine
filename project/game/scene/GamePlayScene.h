@@ -9,6 +9,7 @@
 #include "game/card/CardPickupManager.h"
 #include "game/spawn/SpawnManager.h"
 
+#include "Animation.h"
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -156,4 +157,5 @@ private: // メンバ変数
 	int currentFloor_ = 1;
 	// 次の階層へ進む処理
 	void AdvanceFloor();
+	Animation testAnimation_;
 };

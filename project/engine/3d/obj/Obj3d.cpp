@@ -2,6 +2,7 @@
 
 // --- 標準ライブラリ ---
 #include <cassert>
+#include <cmath>
 
 // --- エンジン側のファイル ---
 #include "Obj3dCommon.h" 
@@ -12,6 +13,8 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/graphics/SrvManager.h"
+#include "Animation.h" 
+#include "engine/math/QuaternionMath.h"
 
 using namespace MatrixMath;
 
@@ -95,6 +98,47 @@ void Obj3d::Update(){
 
 	// ワールド行列の計算 (SRT)
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	if ( currentAnimation_ && !currentAnimation_->nodeAnimations.empty() ) {
+		// 1. 時間を進める (60FPS固定として、毎フレーム 1/60秒 進める)
+		animationTime_ += 1.0f / 60.0f;
+
+		// 2. アニメーションをループさせる (全体の尺で割った余りを出す)
+		animationTime_ = std::fmod(animationTime_, currentAnimation_->duration);
+
+		// 3. 対象の骨（ノード）の動きを取得 (今回は一番最初の骨を強制的に使う)
+		NodeAnimation& rootNodeAnimation = currentAnimation_->nodeAnimations.begin()->second;
+
+		// 4. 今の時間の「位置・回転・スケール」を CalculateValue で計算！
+		Vector3 animTranslate = CalculateValue(rootNodeAnimation.translate.keyframes, animationTime_);
+		Quaternion animRotate = CalculateValue(rootNodeAnimation.rotate.keyframes, animationTime_);
+		Vector3 animScale = CalculateValue(rootNodeAnimation.scale.keyframes, animationTime_);
+
+		// 5. 計算した値から、それぞれ行列を作る
+		Matrix4x4 scaleMat = MakeIdentity4x4();
+		scaleMat.m[0][0] = animScale.x;
+		scaleMat.m[1][1] = animScale.y;
+		scaleMat.m[2][2] = animScale.z;
+
+		Matrix4x4 rotMat = QuaternionMath::MakeRotateMatrix(animRotate);
+
+		Matrix4x4 transMat = MakeIdentity4x4();
+		transMat.m[3][0] = animTranslate.x;
+		transMat.m[3][1] = animTranslate.y;
+		transMat.m[3][2] = animTranslate.z;
+
+		// 6. S × R × T を掛け合わせてワールド行列にする！
+		worldMatrix = Multiply(Multiply(scaleMat, rotMat), transMat);
+
+	} else {
+		// =======================================================
+		// アニメーションが無い場合は、今まで通りの変形を使う
+		// =======================================================
+		transform.translate = translate_;
+		transform.rotate = rotation_;
+		transform.scale = scale_;
+		worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	}
+
 	// ワールド × ビュー × プロジェクション行列
 	Matrix4x4 worldViewProjectionMatrix;
 
@@ -106,13 +150,12 @@ void Obj3d::Update(){
 		// ワールド行列 × (ビュー × プロジェクション)
 		worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
 	} else {
-		// カメラがないときは、とりあえずワールド行列だけ入れておく（描画は崩れるがエラー落ち防止）
+		// カメラがないときはとりあえずワールド行列だけ入れておく
 		worldViewProjectionMatrix = worldMatrix;
 	}
+
 	// ワールド行列の逆行列
 	Matrix4x4 worldInverse = Inverse(worldMatrix);
-
-	
 	// 逆行列の転置行列
 	Matrix4x4 worldInverseTranspose = Transpose(worldInverse);
 
@@ -167,4 +210,9 @@ void Obj3d::SetDissolveThreshold(float threshold) {
 
 void Obj3d::SetNoiseTexture(uint32_t textureIndex) {
 	noiseTextureIndex_ = textureIndex;
+}
+
+void Obj3d::PlayAnimation(Animation* animation){
+	currentAnimation_ = animation;
+	animationTime_ = 0.0f; // 再生時間をリセット
 }

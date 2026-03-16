@@ -64,6 +64,11 @@ void GamePlayScene::Initialize() {
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
+	
+	// モデル読み込み (シングルトン)
+	// アニメーション
+	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
+	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
@@ -121,6 +126,7 @@ void GamePlayScene::Initialize() {
 		testObj_->SetNoiseTexture(textures_["noise0"].srvIndex);
 		testObj_->SetDissolveThreshold(0.0f);
 
+		testObj_->PlayAnimation(&testAnimation_);
 	}
 
 	// デプスステンシル作成 (TextureManagerシングルトン)

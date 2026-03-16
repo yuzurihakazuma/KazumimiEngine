@@ -167,6 +167,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="game\card\CardDatabase.cpp" />
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\card\CardPickupManager.cpp" />
+    <ClCompile Include="engine\3d\Animation.cpp" />
     <ClCompile Include="engine\collision\Collision.cpp" />
     <ClCompile Include="engine\3d\model\Model.cpp" />
     <ClCompile Include="engine\3d\model\ModelCommon.cpp" />
@@ -218,6 +219,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="game\player\Player.cpp" />
     <ClCompile Include="engine\utils\TextManager.cpp" />
     <ClCompile Include="game\spawn\SpawnManager.cpp" />
+    <ClCompile Include="engine\math\QuaternionMath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -255,6 +257,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="game\enemy\Enemy.h" />
     <ClInclude Include="game\card\CardPickupManager.h" />
     <ClInclude Include="game\card\CardPickup.h" />
+    <ClInclude Include="engine\3d\Animation.h" />
     <ClInclude Include="engine\collision\Collision.h" />
     <ClInclude Include="engine\3d\model\Model.h" />
     <ClInclude Include="engine\3d\model\ModelCommon.h" />
@@ -315,6 +318,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="game\player\Player.h" />
     <ClInclude Include="engine\utils\TextManager.h" />
     <ClInclude Include="game\spawn\SpawnManager.h" />
+    <ClInclude Include="engine\math\QuaternionMath.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
