@@ -6,3 +6,4 @@ id,name,cost,effectType,sffectValue,desciption,modelName,effectName,seName
 5,shield,4,2,3,シールド展開,plane,nullptr,nullptr
 6,iceBullet,4,0,2,2ダメージ与えて敵は５秒間動けなくなる,plane,nullptr,nullptr
 7,EvokerFangs,3,0,2,直線上に地面からトゲを出す,plane,nullptr,nullptr
+8,decoy,6,4,0,身代わりを出現させて敵のターゲットをそらす,plane,nullptr,nullptr

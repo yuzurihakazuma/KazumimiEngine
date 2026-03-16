@@ -37,6 +37,12 @@ public:
 
 	void CancelCasting();
 
+	// 身代わりが出現中か
+	bool IsDecoyActive() const { return isDecoyActive_; }
+
+	// 身代わりの位置取得
+	const Vector3 &GetDecoyPosition() const { return decoyPos_; }
+
 private:
 	// 実際のカード発動処理
 	void ExecuteCard(const Card& card, const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Player* player);
@@ -66,6 +72,9 @@ private:
 
 	// 地面からトゲ攻撃の更新間数
 	void UpdateFangs(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level);
+
+	// 身代わりの更新関数
+	void UpdateDecoy();
 
 private:
 	// -----------------------------
@@ -132,4 +141,14 @@ private:
 	std::unique_ptr<Obj3d> fangObj_ = nullptr;
 	bool isFangsAttackActive_ = false;
 	bool isFangsPlayerCaster_ = true;
+
+	// -----------------------------
+	// 身代わり（デコイ）演出
+	// -----------------------------
+
+	std::unique_ptr<Obj3d> decoyObj_ = nullptr; // 身代わりのモデル
+	bool isDecoyActive_ = false; // 身代わりの出現中か
+	Vector3 decoyPos_ = { 0.0f,0.0f,0.0f }; // 身代わりの位置
+	Vector3 decoyScale_ = { 1.0f,1.0f,1.0f }; // 身代わりの大きさ
+	int decoyTimer_ = 0; // 身代わりの残り寿命タイマー
 };

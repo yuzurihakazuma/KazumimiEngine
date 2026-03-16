@@ -46,6 +46,12 @@ void CardUseSystem::Initialize(Camera* camera) {
 		fangObj_->SetScale({ 0.5f, 2.0f, 0.5f });
 	}
 
+	decoyObj_ = Obj3d::Create("sphere");
+	if (decoyObj_) {
+		decoyObj_->SetCamera(camera);
+		decoyObj_->SetScale(decoyScale_);
+	}
+
 	Reset();
 }
 
@@ -77,6 +83,9 @@ void CardUseSystem::Update(Player* player, Enemy* enemy, Boss* boss,
 
 	// 地面からのトゲ攻撃更新
 	UpdateFangs(player, enemy, boss, enemyPos, bossPos, level);
+
+	// 身代わり更新
+	UpdateDecoy();
 }
 
 // 描画
@@ -111,6 +120,11 @@ void CardUseSystem::Draw() {
 				fangObj_->Draw();
 			}
 		}
+	}
+
+	// 身代わり描画
+	if (isDecoyActive_ && decoyObj_) {
+		decoyObj_->Draw();
 	}
 }
 
@@ -265,6 +279,13 @@ void CardUseSystem::ExecuteCard(const Card& card, const Vector3& casterPos, floa
 
 			fangs_.push_back(fang);
 		}
+	}
+	break;
+	case 8: // 身代わり
+	{
+		isDecoyActive_ = true;
+		decoyPos_ = casterPos; // 使った場所におく
+		decoyTimer_ = 300; // 寿命設定
 	}
 	break;
 
@@ -693,4 +714,28 @@ void CardUseSystem::UpdateFangs(Player *player, Enemy *enemy, Boss *boss, const 
 	if (allDone) {
 		isFangsAttackActive_ = false;
 	}
+}
+
+void CardUseSystem::UpdateDecoy() {
+
+	if (!isDecoyActive_) {
+		return;
+	}
+
+	// タイマーを減らす
+	decoyTimer_--;
+
+	// 時間切れで消滅
+	if (decoyTimer_ <= 0) {
+		isDecoyActive_ = false;
+		return;
+	}
+
+	// モデルの更新
+	if (decoyObj_) {
+		decoyObj_->SetTranslation(decoyPos_);
+		decoyObj_->SetScale(decoyScale_);
+		decoyObj_->Update();
+	}
+
 }
