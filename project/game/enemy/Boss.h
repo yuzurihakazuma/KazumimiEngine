@@ -62,6 +62,15 @@ public:
     bool HasAnyCard() const { return !heldCards_.empty(); } // カードを1枚以上持っているか
     Card GetRandomDropCard() const;                         // ランダムなドロップカード取得
 
+    // 攻撃力ダウンのデバフを受ける関数
+    void ApplyAttackDebuff(int duration) {
+        isAttackDebuffed_ = true;
+        attackDebuffTimer_ = duration;
+    }
+
+    // 現在デバフ状態かどうかを返す関数
+    bool IsAttackDebuffed() const { return isAttackDebuffed_; }
+
 private:
     void DecideNextState(); // 次の状態を決める
 
@@ -115,4 +124,7 @@ private:
 
     std::vector<Card> heldCards_;     // ボス固有カード一覧
     Card selectedCard_{ -1, "", 0 };  // 今回使用するカード
+
+    bool isAttackDebuffed_ = false;         // 攻撃デバフ中か
+    int attackDebuffTimer_ = 0;             // 攻撃デバフ残り時間
 };

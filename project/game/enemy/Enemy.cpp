@@ -132,7 +132,17 @@ void Enemy::Update() {
         UpdateRetreat();
         break;
     }
+
+    // デバフタイマーの更新
+    if (isAttackDebuffed_) {
+        attackCooldownTimer_--;
+        if (attackCooldownTimer_ <= 0) {
+            isAttackDebuffed_ = false; // 時間切れで元に戻る
+        }
+    }
 }
+
+
 
 void Enemy::Freeze(int durationFrames) {
     isFrozen_ = true;

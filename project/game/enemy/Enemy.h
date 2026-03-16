@@ -71,6 +71,15 @@ public:
     // 敵を凍らせる関数
     void Freeze(int durationFrames);
 
+    // デバフを受ける関数
+    void ApplyAttackDebuff(int duration) {
+        isAttackDebuffed_ = true;
+        attackDebuffTimer_ = duration;
+    }
+
+    // 現在デバフ状態かどうかを返す関数
+    bool IsAttackDebuffed() const { return isAttackDebuffed_; }
+
 private:
     void DecideNextState();     // 次の状態を決める
     bool IsStuck() const;       // 詰まり判定
@@ -152,4 +161,7 @@ private:
 
     int hitStunTimer_ = 0;                  // 被弾硬直の残り時間
     const int hitStunDuration_ = 24;        // 被弾硬直時間
+
+    bool isAttackDebuffed_ = false;         // 攻撃デバフ中か
+    int attackDebuffTimer_ = 0;             // 攻撃デバフ残り時間
 };

@@ -86,6 +86,9 @@ void CardUseSystem::Update(Player* player, Enemy* enemy, Boss* boss,
 
 	// 身代わり更新
 	UpdateDecoy();
+
+	// 攻撃力ダウン更新
+	UpdateAtkDown(enemy, boss, enemyPos, bossPos);
 }
 
 // 描画
@@ -288,7 +291,14 @@ void CardUseSystem::ExecuteCard(const Card& card, const Vector3& casterPos, floa
 		decoyTimer_ = 300; // 寿命設定
 	}
 	break;
-
+	case 9: // 攻撃力ダウン（周囲の敵を弱体化）
+	{
+		isAtkDownActive_ = true;
+		isAtkDownPlayerCaster_ = isPlayerCaster;
+		atkDownPos_ = casterPos;
+		atkDownTimer_ = 20;
+	}
+	break;
 	default:
 		break;
 	}
@@ -422,9 +432,22 @@ void CardUseSystem::UpdatePunch(Player* player, Enemy* enemy, Boss* boss,
 			};
 
 			if (Length(diff) < 2.0f) {
-				enemy->TakeDamage(1);
-				isPunchActive_ = false;
+				// ここでダメージを計算する！
+				int damage = 1; // パンチの本来のダメージ
+
+				// もし使用した敵がデバフ状態ならダメージを減らす（例：0にする）
+				if (enemy && enemy->IsAttackDebuffed()) {
+					damage = 0; // 弱体化中のダメージ！
+				} else if (boss && boss->IsAttackDebuffed()) {
+					damage = 0; // ボスが弱体化中のダメージ！
+				}
+
+				// 第2引数でノックバックの方向(パンチの座標)を渡す
+				player->TakeDamage(damage, punchPos_);
+
+				isPunchActive_ = false; // 当たったらパンチの判定を消す
 				return;
+			
 			}
 		}
 
@@ -489,7 +512,19 @@ void CardUseSystem::UpdateFireball(Player* player, Enemy* enemy, Boss* boss,
 			};
 
 			if (Length(diff) < 1.5f) {
-				enemy->TakeDamage(1);
+				int damage = 3;
+
+				// もし使用した敵がデバフ状態ならダメージを減らす（例：半分にする、1にする等）
+				if (enemy && enemy->IsAttackDebuffed()) {
+					damage = 1; // 弱体化中のダメージ！
+				} else if (boss && boss->IsAttackDebuffed()) {
+					damage = 1; // ボスが弱体化中のダメージ！
+				}
+
+				player->TakeDamage(damage,fireballPos_); // 計算したダメージを与える
+				// ----------------------------------------------------
+
+				// 当たったら火球を消す
 				isFireballActive_ = false;
 				return;
 			}
@@ -617,7 +652,19 @@ void CardUseSystem::UpdateIceBullet(Player* player, Enemy* enemy, Boss* boss,
 			};
 
 			if (Length(diff) < 1.5f) {
-				player->TakeDamage(2, iceBulletPos_);
+				// ここでダメージを計算する！
+				int damage = 2; 
+
+				// もし使用した敵がデバフ状態ならダメージを減らす（例：0にする）
+				if (enemy && enemy->IsAttackDebuffed()) {
+					damage = 0; // 弱体化中のダメージ！
+				} else if (boss && boss->IsAttackDebuffed()) {
+					damage = 0; // ボスが弱体化中のダメージ！
+				}
+
+				// アイスボールの方向を渡す
+				player->TakeDamage(damage, iceBulletPos_);
+
 				isIceBulletActive_ = false;
 				return;
 			}
@@ -671,7 +718,7 @@ void CardUseSystem::UpdateFangs(Player *player, Enemy *enemy, Boss *boss, const 
 			fang.isActive = true;
 			fang.activeTimer--; // 毎フレーム寿命を減らす
 
-			// 当たり判定 (プレイヤーｇあ使った場合)
+			// 当たり判定 (プレイヤーが使った場合)
 			if (isFangsPlayerCaster_ && !fang.hasHit) {
 
 				// 雑魚敵との当たり判定
@@ -738,4 +785,32 @@ void CardUseSystem::UpdateDecoy() {
 		decoyObj_->Update();
 	}
 
+}
+
+void CardUseSystem::UpdateAtkDown(Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos) {
+	if (!isAtkDownActive_) return;
+
+	atkDownTimer_--;
+	if (atkDownTimer_ <= 0) {
+		isAtkDownActive_ = false;
+		return;
+	}
+
+	if (isAtkDownPlayerCaster_) {
+		// 雑魚敵への判定
+		if (enemy && !enemy->IsDead()) {
+			Vector3 diff = { enemyPos.x - atkDownPos_.x, 0.0f, enemyPos.z - atkDownPos_.z };
+			if (Length(diff) < 5.0f) {
+				enemy->ApplyAttackDebuff(300); // 300フレーム(約5秒) デバフ状態にする！
+			}
+		}
+
+		// ボスへの判定
+		if (boss && !boss->IsDead()) {
+			Vector3 diffBoss = { bossPos.x - atkDownPos_.x, 0.0f, bossPos.z - atkDownPos_.z };
+			if (Length(diffBoss) < 8.0f) {
+				boss->ApplyAttackDebuff(300);
+			}
+		}
+	}
 }
