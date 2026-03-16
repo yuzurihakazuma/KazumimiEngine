@@ -379,7 +379,7 @@ void GamePlayScene::Update() {
 	// ==========================================
 	// ボスの更新処理
 	// ==========================================
-	if (boss_ && !boss_->IsDead()) {
+	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
 		Vector3 oldBossPos = boss_->GetPosition();
 
 		// プレイヤーの位置をボスに教えてAIを更新
@@ -489,7 +489,7 @@ void GamePlayScene::Update() {
 	// =========================
 	// ボス → プレイヤー
 	// =========================
-	if (boss_ && player_ && !boss_->IsDead() && !player_->IsDead()) {
+	if (boss_ && player_ && !boss_->IsDead() && !player_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
 		Vector3 bossPos = boss_->GetPosition();
 
 		// ボスの近接攻撃要求がある場合
@@ -747,7 +747,7 @@ void GamePlayScene::Update() {
 	}
 
 	// ボス用カードシステム更新
-	if (boss_ && !boss_->IsDead() && bossCardSystem_) {
+	if (boss_ && !boss_->IsDead() && bossCardSystem_ && levelEditor_ && levelEditor_->IsBossMap()) {
 		bossCardSystem_->Update(
 			player_.get(),
 			nullptr,
@@ -782,7 +782,7 @@ void GamePlayScene::Draw() {
 		playerObj_->Draw(); // 被弾中は点滅表示
 	}
 
-	if (bossObj_ && boss_ && !boss_->IsDead() && boss_->IsVisible()) {
+	if (bossObj_ && boss_ && !boss_->IsDead() && boss_->IsVisible() && levelEditor_ && levelEditor_->IsBossMap()) {
 		bossObj_->Draw();
 	}
 
@@ -1261,31 +1261,29 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	// ボス再配置
 	RespawnBossInRoom();
 }
+
 void GamePlayScene::RespawnBossInRoom() {
 	if (!levelEditor_ || !boss_) {
 		return;
 	}
 
-	Vector3 spawnPos{};
+	// 通常マップではボスを出さない
+	if (!levelEditor_->IsBossMap()) {
+		boss_->Initialize();
+		bossDeadHandled_ = false;
 
-	if (levelEditor_->IsBossMap()) {
-		// bossマップでは中央固定
-		spawnPos = levelEditor_->GetMapCenterPosition(2.0f);
-	} else {
-		// 通常マップでは今まで通りランダム配置
-		spawnPos = levelEditor_->GetRandomPlayerSpawnPosition(2.0f);
+		// 画面外に逃がしておく
+		boss_->SetPosition({ 9999.0f, -9999.0f, 9999.0f });
 
-		Vector3 diff = {
-			spawnPos.x - playerPos_.x,
-			0.0f,
-			spawnPos.z - playerPos_.z
-		};
-
-		if (Length(diff) < 6.0f) {
-			spawnPos.x += 4.0f;
-			spawnPos.z += 4.0f;
+		if (bossObj_) {
+			bossObj_->SetTranslation({ 9999.0f, -9999.0f, 9999.0f });
+			bossObj_->Update();
 		}
+		return;
 	}
+
+	// bossマップでは中央固定
+	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(2.0f);
 
 	boss_->Initialize();
 	boss_->SetPosition(spawnPos);
