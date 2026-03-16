@@ -149,4 +149,7 @@ private:
     //凍結状態の管理
     bool isFrozen_ = false;                 // 凍結状態フラグ
     int freezeTimer_ = 0;                   // 凍結残り時間
+
+    int hitStunTimer_ = 0;                  // 被弾硬直の残り時間
+    const int hitStunDuration_ = 24;        // 被弾硬直時間
 };
