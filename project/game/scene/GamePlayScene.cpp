@@ -1163,14 +1163,18 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 	int spawnCount = std::min(cardCount, static_cast<int>(candidates.size()));
 
+	// CSVのカード種類数を取得して範囲に設定
+	int maxCardId = static_cast<int>(CardDatabase::GetCardCount());
+	std::uniform_int_distribution<int> cardDist(2, maxCardId);
+
 	for (int i = 0; i < spawnCount; ++i) {
 		int tileX = candidates[i].first;
 		int tileZ = candidates[i].second;
 
 		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
 
-		// 今は仮で ID:2 と ID:3 をランダムに出す
-		int cardId = (i % 2 == 0) ? 2 : 3;
+		// csvのID範囲からランダムにカードを選ぶ
+		int cardId = cardDist(mt);
 
 		cardPickupManager_.AddPickup(worldPos, CardDatabase::GetCardData(cardId));
 	}

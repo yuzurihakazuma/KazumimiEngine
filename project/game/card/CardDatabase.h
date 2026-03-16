@@ -37,6 +37,8 @@ public:
 	//IDを指定してカードデータを取得
 	static Card GetCardData(int id);
 
+	// 現在登録されているカードの総数を返す
+	static size_t GetCardCount() { return database_.size(); }
 
 
 };
