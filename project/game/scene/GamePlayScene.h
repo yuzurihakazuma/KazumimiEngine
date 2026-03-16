@@ -151,4 +151,9 @@ private: // メンバ変数
 
 	// 敵とカードのクリア
 	void ClearEnemiesAndCards();
+
+	// 階層管理
+	int currentFloor_ = 1;
+	// 次の階層へ進む処理
+	void AdvanceFloor();
 };

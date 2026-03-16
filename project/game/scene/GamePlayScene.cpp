@@ -128,7 +128,7 @@ void GamePlayScene::Initialize() {
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-
+	currentFloor_ = 1;
 	// マップエディタ生成・初期化
 	// マップエディタ生成・初期化
 	levelEditor_ = std::make_unique<LevelEditor>();
@@ -932,6 +932,11 @@ void GamePlayScene::DrawDebugUI() {
 	ImGui::Separator();
 	ImGui::Text("[Dungeon Floor]");
 
+	ImGui::Text("Current Floor: %d F", currentFloor_); // 現在の階層を表示
+	if (ImGui::Button("Go to Next Floor (Stairs)")) {
+		AdvanceFloor(); // ボタンを押したら次の階層へ
+	}
+
 	// ★修正：図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
 	ImGui::SameLine();
 	if (ImGui::Button("Pick Up (ID: 2)")) {
@@ -1238,9 +1243,11 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 		return;
 	}
 
-	// 通常マップのときだけランダム生成
-	if (!levelEditor_->IsBossMap()) {
-		levelEditor_->GenerateRandomDungeon(roomCount);
+	if (levelEditor_) {
+		// ★ボス部屋ではない（通常部屋の）時だけ、ランダムダンジョンを生成する
+		if (!levelEditor_->IsBossMap()) {
+			levelEditor_->GenerateRandomDungeon(roomCount);
+		}
 	}
 
 	// プレイヤー再配置
@@ -1306,4 +1313,20 @@ void GamePlayScene::ClearEnemiesAndCards() {
 	enemyCardSystems_.clear();
 
 	cardPickupManager_.Initialize(camera_.get());
+}
+void GamePlayScene::AdvanceFloor() {
+	currentFloor_++; // 階層を1つ進める
+
+	if (levelEditor_) {
+		// 5の倍数階ならボス部屋、それ以外は通常部屋
+		if (currentFloor_ % 5 == 0) {
+			levelEditor_->ChangeToBossMap();
+		} else {
+			levelEditor_->ChangeToNormalMap();
+		}
+	}
+
+	// 最後に、マップが変わったのでプレイヤーや敵をリセット・再配置する
+	// ※ 既存の ResetBattleDebug() が全てやってくれるはずです
+	ResetBattleDebug();
 }

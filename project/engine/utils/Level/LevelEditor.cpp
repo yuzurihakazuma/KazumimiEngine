@@ -418,3 +418,19 @@ bool LevelEditor::ConsumeMapChanged() {
 	}
 	return false;
 }
+
+// LevelEditor.h の public: 内に追加
+
+void LevelEditor::ChangeToNormalMap() {
+	mapType_ = 0;
+	currentMapFile_ = "resources/map/map01.json";
+	saveFileName_ = "map01.json";
+	LoadAndCreateMap(currentMapFile_);
+}
+
+void LevelEditor::ChangeToBossMap() {
+	mapType_ = 1;
+	currentMapFile_ = "resources/map/boss.json";
+	saveFileName_ = "boss.json";
+	LoadAndCreateMap(currentMapFile_);
+}

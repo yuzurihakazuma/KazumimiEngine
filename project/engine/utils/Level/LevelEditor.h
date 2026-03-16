@@ -41,6 +41,11 @@ public:
 
     Vector3 GetRandomPlayerSpawnPosition(float y = 0.0f);
 
+    void ChangeToNormalMap();
+
+    void ChangeToBossMap();
+
+
 public:
     bool IsBossMap() const { return mapType_ == 1; }
     const std::string& GetCurrentMapFile() const { return currentMapFile_; }
