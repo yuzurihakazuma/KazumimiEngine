@@ -42,6 +42,12 @@ struct Animation{
 	std::map<std::string, NodeAnimation> nodeAnimations;
 };
 
-// アニメーションのキーフレームを表す構造体
-class Animation{};
 
+Animation LoadAnimationFromFile(const std::string& directoryPath, const std::string& filename);
+
+
+// 指定した時刻（time）の Vector3 の値を計算する関数（移動・スケール用）
+Vector3 CalculateValue(const std::vector<KeyFrameVector3>& keyframes, float time);
+
+// 指定した時刻（time）の Quaternion の値を計算する関数（回転用）
+Quaternion CalculateValue(const std::vector<KeyFrameQuaternion>& keyframes, float time);
