@@ -14,17 +14,21 @@ private:
 	std::vector<Card> hand_;     //現在の手札
 	std::vector<std::unique_ptr<Obj3d>> handModels_; //カードの見た目
 
+	std::vector<bool> isDissolving_;         // ディゾルブ中か
+	std::vector<float> dissolveThresholds_;  // ディゾルブ進行度
+
 	int selectedCardIndex_ = 0;   //現在選んでいるカードの番号
 	const int maxHandSize_ = 10;  //最大手札枚数
 
-	Camera *camera_ = nullptr;
+	Camera* camera_ = nullptr;
+	uint32_t noiseTextureIndex_ = 0; // ノイズテクスチャ番号
 
 public:
 	//初期化
-	void Initialize(Camera *camera);
+	void Initialize(Camera* camera, uint32_t noiseTextureIndex);
 
 	//ダンジョンでカードを拾う
-	bool AddCard(const Card &newCard);
+	bool AddCard(const Card& newCard);
 
 	//更新
 	void Update();
@@ -42,14 +46,18 @@ public:
 	int GetHandSize() const;
 
 	//手札の全情報を取得
-	const std::vector<Card> &GetHandList();
+	const std::vector<Card>& GetHandList();
 
 	//今選んでいるカードを取得
 	Card GetSelectedCard() const;
 	void RemoveSelectedCard();//次のカードを選ぶ
 
 	// 現在選んでいるカードと、新しいカードを入れ替える
-	bool SwapSelectedCard(const Card &newCard);
+	bool SwapSelectedCard(const Card& newCard);
 
+	// 選択中カードのディゾルブ開始
+	void StartDissolveSelectedCard();
+
+	// 選択中カードがディゾルブ中か
+	bool IsSelectedCardDissolving() const;
 };
-

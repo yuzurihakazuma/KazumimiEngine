@@ -147,7 +147,7 @@ void GamePlayScene::Initialize() {
 	CardDatabase::Initialize("Resources/CardData.csv");
 
 	// 手札マネージャーの初期化
-	handManager_.Initialize(uiCamera_.get());
+	handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);
 
 	//最初から手札にID１を追加する
 	handManager_.AddCard(CardDatabase::GetCardData(1));
@@ -1008,7 +1008,7 @@ void GamePlayScene::ResetBattleDebug() {
 		bossCardSystem_->Reset();
 	}
 	// 手札を初期化
-	handManager_.Initialize(uiCamera_.get());
+	handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);
 	handManager_.AddCard(CardDatabase::GetCardData(1));
 
 	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成 + ボス再配置
@@ -1042,7 +1042,7 @@ void GamePlayScene::UpdateCardSwapMode(Input *input) {
 	}
 }
 
-void GamePlayScene::UpdateCardUse(Input *input) {
+void GamePlayScene::UpdateCardUse(Input* input) {
 
 	if (!player_ || player_->IsDead() || !input->Triggerkey(DIK_SPACE)) {
 		return;
@@ -1053,6 +1053,10 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 	}
 
 	if (player_->IsActionLocked()) {
+		return;
+	}
+
+	if (handManager_.IsSelectedCardDissolving()) {
 		return;
 	}
 
@@ -1078,7 +1082,7 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 	}
 
 	if (selectedCard.id != 1) {
-		handManager_.RemoveSelectedCard();
+		handManager_.StartDissolveSelectedCard();
 	}
 }
 
