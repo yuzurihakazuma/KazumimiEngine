@@ -165,7 +165,7 @@ void TitleScene::Draw(){
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
 	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->PreDrawScene(commandList);
 
 
 	// 3D描画の前準備
@@ -195,8 +195,8 @@ void TitleScene::Draw(){
 		sprite_->Draw();
 	}
 
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList,dxCommon);
+	PostEffect::GetInstance()->PostDrawScene(commandList);
+	PostEffect::GetInstance()->Draw(commandList);
 
 	
 

@@ -240,8 +240,8 @@ void PipelineManager::CreatePostEffectPipeline(){
 		L"resources/shaders/PostEffect/BoxFilter.PS.hlsl",      // 4: BoxFilter
 		L"resources/shaders/PostEffect/BoxFilter5x5.PS.hlsl",   // 5: BoxFilter5x5
 		L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl" , // 6: GaussianFilter
-		L"resources/shaders/PostEffect/LuminanceBasedOutline.PS.hlsl", // 7: LuminanceBasedOutline
-		L"resources/shaders/PostEffect/RadialBlur.PS.hlsl", // 8: RadialBlur
+		L"resources/shaders/PostEffect/RadialBlur.PS.hlsl", // 7: RadialBlur
+		L"resources/shaders/PostEffect/LuminanceBasedOutline.PS.hlsl", // 8: LuminanceBasedOutline
 		L"resources/shaders/PostEffect/RandomNoise.PS.hlsl" // 9: RandomNoise
 	};
 
