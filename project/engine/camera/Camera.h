@@ -40,6 +40,7 @@ public:
 	const Matrix4x4& GetProjectionMatrix() const{ return projectionMatrix; } // 射影行列のgetter
 	const Matrix4x4& GetViewProjectionMatrix() const{ return viewProjectionMatrix; } // ビュー射影行列のgetter
 	const Transform& GetTransform() const{ return transform; } // Transformのgetter
+	const Vector3& GetTranslation() const { return transform.translate; } // 位置のgetter
 	const Vector3& GetRotation() const{ return transform.rotate; } // 回転のgetter
 	const Vector3& GetWorldPosition() const{ return transform.translate; }
 	ID3D12Resource* GetCameraResource() const{return cameraResource_.Get();}// カメラ用リソースのgetter

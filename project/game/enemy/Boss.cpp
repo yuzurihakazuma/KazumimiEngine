@@ -7,11 +7,11 @@
 using namespace VectorMath;
 
 void Boss::Initialize() {
-    pos_ = { 10.0f, 0.0f, 10.0f };
+    pos_ = { 10.0f, -4.0f, 10.0f };
     rot_ = { 0.0f, 0.0f, 0.0f };
     scale_ = { 2.0f, 2.0f, 2.0f };
 
-    state_ = State::Idle;      // 初期状態は待機
+    state_ = State::Appear;    // 初期状態は登場演出
 
     maxHP_ = 30;               // 最大HP設定
     hp_ = maxHP_;              // HP全回復
@@ -33,6 +33,13 @@ void Boss::Initialize() {
     skillCooldownTimer_ = 0;   // スキルクールダウン初期化
 
     selectedCard_ = { -1, "", 0 }; // 選択カード初期化
+
+    isAttackDebuffed_ = false; // 攻撃デバフ状態リセット
+    attackDebuffTimer_ = 0;    // 攻撃デバフ時間リセット
+
+    appearStartY_ = -4.0f;     // 地面下から出現
+    appearTargetY_ = 2.0f;     // 最終位置
+    appearTimer_ = appearDuration_; // 登場演出時間セット
 
     InitializeBossCards(); // ボス専用カードを登録
 }
@@ -91,6 +98,10 @@ void Boss::Update() {
     }
 
     switch (state_) {
+    case State::Appear:
+        UpdateAppear();
+        break;
+
     case State::Idle:
         UpdateIdle();
         break;
@@ -120,7 +131,36 @@ void Boss::Update() {
     }
 }
 
+void Boss::UpdateAppear() {
+    if (appearTimer_ > 0) {
+        appearTimer_--; // 登場演出時間減少
+    }
+
+    // 0.0〜1.0に変換
+    float t = 1.0f - (static_cast<float>(appearTimer_) / static_cast<float>(appearDuration_));
+
+    // 少し自然に見える補間
+    float eased = t * t * (3.0f - 2.0f * t);
+
+    // 地面下からせり上がる
+    pos_.y = appearStartY_ + (appearTargetY_ - appearStartY_) * eased;
+
+    // 少し回して登場感を出す
+    rot_.y += 0.03f;
+
+    if (appearTimer_ <= 0) {
+        pos_.y = appearTargetY_; // 最終位置に固定
+        rot_.y = 0.0f;           // 回転を戻す
+        state_ = State::Idle;    // 待機へ移行
+        thinkTimer_ = 20;        // すぐ行動しないよう少し待つ
+    }
+}
+
 void Boss::DecideNextState() {
+    if (state_ == State::Appear) {
+        return; // 登場演出中は状態遷移しない
+    }
+
     Vector3 toPlayer = {
         playerPos_.x - pos_.x,
         0.0f,
@@ -128,6 +168,18 @@ void Boss::DecideNextState() {
     };
 
     float playerDist = Length(toPlayer); // プレイヤーとの距離
+    bool isPhase2 = (hp_ <= maxHP_ / 2); // HP半分以下で後半戦
+
+    float attackEnter = attackEnterRange_;
+    float skillEnter = skillEnterRange_;
+    float skillExit = skillExitRange_;
+
+    // 後半は少し強気にする
+    if (isPhase2) {
+        attackEnter = 3.5f; // 少し遠くでも近接に入る
+        skillEnter = 10.0f; // 少し遠くでもスキルを使う
+        skillExit = 12.0f;  // スキル維持距離も伸ばす
+    }
 
     if (state_ == State::Attack) {
         if (playerDist > attackExitRange_) {
@@ -137,15 +189,15 @@ void Boss::DecideNextState() {
     }
 
     if (state_ == State::UseSkill) {
-        if (playerDist > skillExitRange_) {
+        if (playerDist > skillExit) {
             state_ = State::Chase; // 離れたら追跡へ戻る
         }
         return;
     }
 
-    if (playerDist <= attackEnterRange_) {
+    if (playerDist <= attackEnter) {
         state_ = State::Attack; // 近ければ近接攻撃
-    } else if (playerDist <= skillEnterRange_ && !heldCards_.empty()) {
+    } else if (playerDist <= skillEnter && !heldCards_.empty()) {
         state_ = State::UseSkill; // 中距離ならスキル使用
     } else if (playerDist <= chaseRange_) {
         state_ = State::Chase; // 追跡範囲なら追いかける
@@ -177,14 +229,23 @@ void Boss::UpdateChase() {
     };
 
     float dist = Length(dir); // プレイヤーとの距離
+    bool isPhase2 = (hp_ <= maxHP_ / 2); // HP半分以下で後半戦
 
-    if (dist <= attackEnterRange_) {
+    float attackEnter = attackEnterRange_;
+    float skillEnter = skillEnterRange_;
+
+    if (isPhase2) {
+        attackEnter = 3.5f;
+        skillEnter = 10.0f;
+    }
+
+    if (dist <= attackEnter) {
         state_ = State::Attack; // 攻撃範囲なら近接攻撃へ
         thinkTimer_ = 0;        // すぐ再判断できるようにする
         return;
     }
 
-    if (dist <= skillEnterRange_ && skillCooldownTimer_ <= 0 && !heldCards_.empty()) {
+    if (dist <= skillEnter && skillCooldownTimer_ <= 0 && !heldCards_.empty()) {
         state_ = State::UseSkill; // スキル範囲ならスキルへ
         thinkTimer_ = 0;          // すぐ再判断できるようにする
         return;
@@ -220,7 +281,7 @@ void Boss::UpdateAttack() {
         return; // クールダウン中は攻撃しない
     }
 
-    attackRequest_ = true;              // 攻撃要求を出す
+    attackRequest_ = true;                 // 攻撃要求を出す
     attackCooldownTimer_ = attackCooldown_; // 近接攻撃クールダウン開始
 
     SetActionLock(20); // 攻撃後の硬直
@@ -235,8 +296,14 @@ void Boss::UpdateUseSkill() {
     };
 
     float dist = Length(dir); // プレイヤーとの距離
+    bool isPhase2 = (hp_ <= maxHP_ / 2); // HP半分以下で後半戦
 
-    if (dist > skillExitRange_) {
+    float skillExit = skillExitRange_;
+    if (isPhase2) {
+        skillExit = 12.0f;
+    }
+
+    if (dist > skillExit) {
         state_ = State::Chase; // 離れたら追跡へ戻る
         thinkTimer_ = 0;       // すぐ再判断できるようにする
         return;
@@ -291,8 +358,8 @@ void Boss::TakeDamage(int damage) {
 
     hp_ -= damage; // HP減少
 
-    isHit_ = true;                 // ヒット状態開始
-    hitTimer_ = hitDuration_;      // ヒット演出時間セット
+    isHit_ = true;            // ヒット状態開始
+    hitTimer_ = hitDuration_; // ヒット演出時間セット
 
     Vector3 hitDir = {
         pos_.x - playerPos_.x,
@@ -306,8 +373,8 @@ void Boss::TakeDamage(int damage) {
     }
 
     if (hp_ <= 0) {
-        hp_ = 0;             // HP下限
-        isDead_ = true;      // 死亡
+        hp_ = 0;              // HP下限
+        isDead_ = true;       // 死亡
         state_ = State::Dead; // 状態を死亡へ変更
     }
 }

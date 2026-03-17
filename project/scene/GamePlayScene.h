@@ -52,6 +52,14 @@ public:
 
 	~GamePlayScene();
 
+	// ボス部屋突入時のカメラ演出状態
+	enum class BossIntroCameraState {
+		None,         // 演出なし
+		PlayerFocus,  // 最初はプレイヤーを見る
+		BossFocus,    // 次にボスを見る
+		ToBattle      // 最後に戦闘カメラへ戻す
+	};
+
 private: // メンバ変数
 
 	// カメラ
@@ -167,4 +175,9 @@ private: // メンバ変数
 	// カードの説明文の後ろに敷く背景画像テクスチャ
 	uint32_t descBgTexture_ = 0;
 	std::unique_ptr<Sprite> descBgSprite_ = nullptr;
+
+	// ボス部屋突入時のカメラ演出管理
+	BossIntroCameraState bossIntroCameraState_ = BossIntroCameraState::None;
+	int bossIntroTimer_ = 0;
+	bool isBossIntroPlaying_ = false;
 };

@@ -191,6 +191,18 @@ void GamePlayScene::Update() {
 
 	// マップ切り替えがあったら戦闘ごとリセット
 	if (levelEditor_ && levelEditor_->ConsumeMapChanged()) {
+
+		// GUI切り替えでも、ボス部屋になったら登場演出を開始する
+		if (levelEditor_->IsBossMap()) {
+			isBossIntroPlaying_ = true;
+			bossIntroCameraState_ = BossIntroCameraState::PlayerFocus;
+			bossIntroTimer_ = 60;
+		} else {
+			isBossIntroPlaying_ = false;
+			bossIntroCameraState_ = BossIntroCameraState::None;
+			bossIntroTimer_ = 0;
+		}
+
 		ResetBattleDebug();
 		return;
 	}
@@ -228,7 +240,8 @@ void GamePlayScene::Update() {
 	// ==========================================
 
 	if (player_) {
-		if (debugCamera_ && debugCamera_->IsActive()) {
+		// デバッグカメラ中、またはボス部屋突入演出中は操作を止める
+		if ((debugCamera_ && debugCamera_->IsActive()) || isBossIntroPlaying_) {
 			player_->SetInputEnable(false);
 		} else {
 			player_->SetInputEnable(true);
@@ -675,14 +688,182 @@ void GamePlayScene::Update() {
 	// メインカメラの更新（プレイヤーに追従）
 	if (camera_) {
 		if (debugCamera_ && !debugCamera_->IsActive()) {
-			camera_->SetTranslation({
-				playerPos_.x,
-				playerPos_.y + 15.0f,
-				playerPos_.z - 15.0f
-				});
-			camera_->SetRotation({
-				0.9f, 0.0f, 0.0f
-				});
+
+			// 今のカメラ位置と回転を取得
+			Vector3 currentPos = camera_->GetTranslation();
+			Vector3 currentRot = camera_->GetRotation();
+
+			// 目標位置と目標回転
+			Vector3 targetPos = currentPos;
+			Vector3 targetRot = currentRot;
+
+			// ボス部屋突入時の演出カメラ
+			if (isBossIntroPlaying_ && levelEditor_ && levelEditor_->IsBossMap() && boss_) {
+
+				Vector3 bossPos = boss_->GetPosition();
+
+				// 最初はプレイヤー側を見る
+				if (bossIntroCameraState_ == BossIntroCameraState::PlayerFocus) {
+
+					targetPos = {
+						playerPos_.x,
+						playerPos_.y + 10.0f,
+						playerPos_.z - 8.0f
+					};
+
+					targetRot = {
+						0.75f, 0.0f, 0.0f
+					};
+
+					bossIntroTimer_--;
+					if (bossIntroTimer_ <= 0) {
+						bossIntroCameraState_ = BossIntroCameraState::BossFocus;
+						bossIntroTimer_ = 75;
+					}
+				}
+
+				// 次にボス側を見る
+				else if (bossIntroCameraState_ == BossIntroCameraState::BossFocus) {
+
+					targetPos = {
+						bossPos.x,
+						bossPos.y + 8.0f,
+						bossPos.z - 10.0f
+					};
+
+					targetRot = {
+						0.55f, 0.0f, 0.0f
+					};
+
+					bossIntroTimer_--;
+					if (bossIntroTimer_ <= 0) {
+						bossIntroCameraState_ = BossIntroCameraState::ToBattle;
+						bossIntroTimer_ = 30;
+					}
+				}
+
+				// 最後に通常のボス戦カメラへ戻す
+				else if (bossIntroCameraState_ == BossIntroCameraState::ToBattle) {
+
+					Vector3 center = {
+						(playerPos_.x + bossPos.x) * 0.5f,
+						(playerPos_.y + bossPos.y) * 0.5f,
+						(playerPos_.z + bossPos.z) * 0.5f
+					};
+
+					Vector3 diff = {
+						bossPos.x - playerPos_.x,
+						0.0f,
+						bossPos.z - playerPos_.z
+					};
+
+					float distance = Length(diff);
+
+					float t = distance / 20.0f;
+					if (t > 1.0f) t = 1.0f;
+					t = t * t;
+
+					float height = 8.0f + t * 14.0f;
+					float back = 6.0f + t * 22.0f;
+
+					if (height < 8.0f) height = 8.0f;
+					if (back < 6.0f) back = 6.0f;
+					if (height > 22.0f) height = 22.0f;
+					if (back > 28.0f) back = 28.0f;
+
+					targetPos = {
+						center.x,
+						center.y + height,
+						center.z - back
+					};
+
+					targetRot = {
+						0.85f, 0.0f, 0.0f
+					};
+
+					bossIntroTimer_--;
+					if (bossIntroTimer_ <= 0) {
+						isBossIntroPlaying_ = false;
+						bossIntroCameraState_ = BossIntroCameraState::None;
+					}
+				}
+			}
+
+			// 通常のボス戦カメラ
+			else if (levelEditor_ && levelEditor_->IsBossMap() && boss_ && !boss_->IsDead()) {
+
+				Vector3 bossPos = boss_->GetPosition();
+
+				Vector3 center = {
+					(playerPos_.x + bossPos.x) * 0.5f,
+					(playerPos_.y + bossPos.y) * 0.5f,
+					(playerPos_.z + bossPos.z) * 0.5f
+				};
+
+				Vector3 diff = {
+					bossPos.x - playerPos_.x,
+					0.0f,
+					bossPos.z - playerPos_.z
+				};
+
+				float distance = Length(diff);
+
+				float t = distance / 20.0f;
+				if (t > 1.0f) t = 1.0f;
+				t = t * t;
+
+				float height = 8.0f + t * 14.0f;
+				float back = 6.0f + t * 22.0f;
+
+				if (height < 8.0f) height = 8.0f;
+				if (back < 6.0f) back = 6.0f;
+				if (height > 22.0f) height = 22.0f;
+				if (back > 28.0f) back = 28.0f;
+
+				targetPos = {
+					center.x,
+					center.y + height,
+					center.z - back
+				};
+
+				targetRot = {
+					0.85f, 0.0f, 0.0f
+				};
+			}
+
+			// 通常時
+			else {
+				targetPos = {
+					playerPos_.x,
+					playerPos_.y + 15.0f,
+					playerPos_.z - 15.0f
+				};
+
+				targetRot = {
+					0.9f, 0.0f, 0.0f
+				};
+			}
+
+			// 補間率
+			float followRate = 0.08f;
+
+			// 演出中はちょっと速めに動かす
+			if (isBossIntroPlaying_) {
+				followRate = 0.12f;
+			}
+
+			// 位置をなめらかに移動
+			currentPos.x += (targetPos.x - currentPos.x) * followRate;
+			currentPos.y += (targetPos.y - currentPos.y) * followRate;
+			currentPos.z += (targetPos.z - currentPos.z) * followRate;
+
+			// 回転もなめらかに移動
+			currentRot.x += (targetRot.x - currentRot.x) * followRate;
+			currentRot.y += (targetRot.y - currentRot.y) * followRate;
+			currentRot.z += (targetRot.z - currentRot.z) * followRate;
+
+			camera_->SetTranslation(currentPos);
+			camera_->SetRotation(currentRot);
 		}
 
 		camera_->Update();
@@ -1442,7 +1623,7 @@ void GamePlayScene::RespawnBossInRoom() {
 	}
 
 	// bossマップでは中央固定
-	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(2.0f);
+	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(-4.0f);
 
 	boss_->Initialize();
 	boss_->SetPosition(spawnPos);
@@ -1474,8 +1655,18 @@ void GamePlayScene::AdvanceFloor() {
 		// 5の倍数階ならボス部屋、それ以外は通常部屋
 		if (currentFloor_ % 5 == 0) {
 			levelEditor_->ChangeToBossMap();
+
+			// ボス部屋突入時のカメラ演出開始
+			isBossIntroPlaying_ = true;
+			bossIntroCameraState_ = BossIntroCameraState::PlayerFocus;
+			bossIntroTimer_ = 60; // 最初はプレイヤーを見る時間
 		} else {
 			levelEditor_->ChangeToNormalMap();
+
+			// 通常マップでは演出を切る
+			isBossIntroPlaying_ = false;
+			bossIntroCameraState_ = BossIntroCameraState::None;
+			bossIntroTimer_ = 0;
 		}
 	}
 
