@@ -5,9 +5,7 @@
 
 class ShieldEffect : public ICardEffect {
 public:
-	// 持続時間をコンストラクタで受け取る
-	ShieldEffect(int duration) : duration_(duration) {}
-
+	
 	// 初期化
 	void Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera)override;
 
@@ -22,8 +20,7 @@ public:
 private:
 	std::unique_ptr<Obj3d> obj_ = nullptr;
 	Vector3 scale_ = { 1.5f,1.5f,1.5f }; // シールドの大きさ
-	int duration_ = 300; // シールドの持続時間
-	int timer_ = 0;
+	bool  isFirstFrame_ = false;
 	bool isPlayerCaster_ = true;
 	bool isFinished_ = false;
 };
