@@ -7,7 +7,7 @@
 
 #include "game/card/HandManager.h"
 #include "game/card/CardPickupManager.h"
-#include "game/spawn/SpawnManager.h"
+#include "spawn/SpawnManager.h"
 
 // --- 標準ライブラリ ---
 #include <vector>

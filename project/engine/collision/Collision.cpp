@@ -82,3 +82,32 @@ bool Collision::IsCollision(const Ray& ray, const Sphere& sphere) {
 
     return false; // 射程外
 }
+
+// 壁との当たり判定
+bool Collision::CheckBlockCollision(const Vector3 &pos, float radius, const LevelData &level) {
+    AABB projectileAABB;
+    projectileAABB.min = { pos.x - radius, pos.y - radius, pos.z - radius };
+    projectileAABB.max = { pos.x + radius, pos.y + radius, pos.z + radius };
+
+    for (int z = 0; z < level.height; z++) {
+        for (int x = 0; x < level.width; x++) {
+
+            if (level.tiles[z][x] != 1) {
+                continue;
+            }
+
+            float worldX = x * level.tileSize;
+            float worldZ = z * level.tileSize;
+
+            AABB blockAABB;
+            blockAABB.min = { worldX - 1.0f, level.baseY,        worldZ - 1.0f };
+            blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+            if (Collision::IsCollision(projectileAABB, blockAABB)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}

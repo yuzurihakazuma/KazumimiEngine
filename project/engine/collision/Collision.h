@@ -1,5 +1,6 @@
 #pragma once
 #include "Collider.h"
+#include "engine/utils/Level/LevelData.h"
 
 // 当たり判定の計算アルゴリズムをまとめたクラス
 class Collision {
@@ -16,5 +17,8 @@ public:
     static bool IsCollision(const Sphere& sphere, const AABB& aabb);
 	//  レイ と 球 の当たり判定
     static bool IsCollision(const Ray& ray, const Sphere& sphere);
+
+    // 壁との当たり判定
+    static bool CheckBlockCollision(const Vector3 &pos, float radius, const LevelData &level);
  
 };

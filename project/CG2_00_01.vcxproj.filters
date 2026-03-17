@@ -167,13 +167,13 @@
     <ClCompile Include="game\base\main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\GamePlayScene.cpp">
+    <ClCompile Include="scene\GamePlayScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\SceneFactory.cpp">
+    <ClCompile Include="scene\SceneFactory.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="game\scene\TitleScene.cpp">
+    <ClCompile Include="scene\TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\graphics\TextureManager.cpp">
@@ -206,13 +206,37 @@
     <ClCompile Include="engine\utils\Level\LevelEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="HandManager.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="game\player\Player.cpp">
+    <ClCompile Include="player\Player.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\utils\TextManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\FireballEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\FistEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\HealEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\SpeedBuffEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\ShieldEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\IceBulletEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\FangEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\DecoyEffect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\card\AttackDebuffEffect.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -228,7 +252,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game\card\CardDatabase.cpp" />
-    <ClCompile Include="game\enemy\Enemy.cpp" />
+    <ClCompile Include="enemy\Enemy.cpp" />
     <ClCompile Include="game\card\CardPickupManager.cpp" />
     <ClCompile Include="engine\collision\Collision.cpp" />
     <ClCompile Include="engine\3d\model\Model.cpp" />
@@ -267,9 +291,6 @@
     <ClCompile Include="engine\scene\SceneManager.cpp" />
     <ClCompile Include="game\base\Game.cpp" />
     <ClCompile Include="game\base\main.cpp" />
-    <ClCompile Include="game\scene\GamePlayScene.cpp" />
-    <ClCompile Include="game\scene\SceneFactory.cpp" />
-    <ClCompile Include="game\scene\TitleScene.cpp" />
     <ClCompile Include="engine\math\VectorMath.cpp" />
     <ClCompile Include="engine\graphics\RootSignatureBuilder.cpp" />
     <ClCompile Include="engine\graphics\RenderTexture.cpp" />
@@ -278,11 +299,10 @@
     <ClCompile Include="engine\utils\Level\LevelManager.cpp" />
     <ClCompile Include="engine\utils\Level\LevelEditor.cpp" />
     <ClCompile Include="game\card\HandManager.cpp" />
-    <ClCompile Include="game\player\Player.cpp" />
     <ClCompile Include="game\card\CardUseSystem.cpp" />
-    <ClCompile Include="game\spawn\SpawnManager.cpp" />
-    <ClCompile Include="game\enemy\Boss.cpp" />
-    <ClCompile Include="DungeonGenerator.cpp" />
+    <ClCompile Include="spawn\SpawnManager.cpp" />
+    <ClCompile Include="enemy\Boss.cpp" />
+    <ClCompile Include="game\card\DungeonGenerator.cpp" />
     <ClInclude Include="externals\imgui\imgui.h">
       <Filter>imgui</Filter>
     </ClInclude>
@@ -406,13 +426,13 @@
     <ClInclude Include="game\base\Game.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="game\scene\GamePlayScene.h">
+    <ClInclude Include="scene\GamePlayScene.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="game\scene\SceneFactory.h">
+    <ClInclude Include="scene\SceneFactory.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="game\scene\TitleScene.h">
+    <ClInclude Include="scene\TitleScene.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\graphics\TextureManager.h">
@@ -451,10 +471,7 @@
     <ClInclude Include="engine\utils\Level\LevelEditor.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="HandManager.h">
-      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="game\player\Player.h">
+    <ClInclude Include="player\Player.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\utils\TextManager.h">
@@ -463,7 +480,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game\card\CardDatabase.h" />
-    <ClInclude Include="game\enemy\Enemy.h" />
+    <ClInclude Include="enemy\Enemy.h" />
     <ClInclude Include="game\card\CardPickupManager.h" />
     <ClInclude Include="game\card\CardPickup.h" />
     <ClInclude Include="engine\collision\Collision.h" />
@@ -512,9 +529,6 @@
     <ClInclude Include="engine\scene\SceneManager.h" />
     <ClInclude Include="externals\nlohmann\json.hpp" />
     <ClInclude Include="game\base\Game.h" />
-    <ClInclude Include="game\scene\GamePlayScene.h" />
-    <ClInclude Include="game\scene\SceneFactory.h" />
-    <ClInclude Include="game\scene\TitleScene.h" />
     <ClInclude Include="engine\math\VectorMath.h" />
     <ClInclude Include="engine\graphics\RootSignatureBuilder.h" />
     <ClInclude Include="engine\graphics\RenderTexture.h" />
@@ -523,17 +537,46 @@
     <ClInclude Include="engine\utils\Level\LevelManager.h" />
     <ClInclude Include="engine\utils\Level\LevelEditor.h" />
     <ClInclude Include="game\card\HandManager.h" />
-    <ClInclude Include="game\player\Player.h" />
     <ClInclude Include="game\card\CardUseSystem.h" />
-    <ClInclude Include="game\spawn\SpawnManager.h" />
-    <ClInclude Include="game\enemy\Boss.h" />
+    <ClInclude Include="spawn\SpawnManager.h" />
+    <ClInclude Include="enemy\Boss.h" />
     <ClInclude Include="DungeonGenerator.h" />
+    <ClInclude Include="game\card\ICardEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\FireballEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\FistEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\HealEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\ShieldEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\IceBulletEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\SpeedBuffEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\FangEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\DecoyEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\AttackDebuffEffect.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj" />
     <None Include="engine\base\resources\shaders\Object3d.hlsli" />
     <None Include="engine\base\resources\shaders\Particle.hlsli" />
-    <None Include="packages.config" />
+    <None Include="game\card\packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
