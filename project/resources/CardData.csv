@@ -8,3 +8,4 @@ id,name,cost,effectType,sffectValue,desciption,modelName,effectName,seName
 7,EvokerFangs,3,0,2,直線上に地面からトゲを出す,plane,nullptr,nullptr
 8,decoy,6,3,0,身代わりを出現させて敵のターゲットをそらす,plane,nullptr,nullptr
 9,atkDown,6,3,0,5秒間敵の攻撃力を下げる,plane,nullptr,nullptr
+10,Claw,8,0,10,２回攻撃がでて１０ダメージ与える,plane,nullptr,nullptr

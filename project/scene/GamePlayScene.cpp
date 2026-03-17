@@ -989,6 +989,10 @@ void GamePlayScene::DrawDebugUI() {
 		handManager_.AddCard(CardDatabase::GetCardData(8));
 	}
 
+	if (ImGui::Button("Pick Up (ID: 10)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(10));
+	}
+
 	ImGui::Separator();
 	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
 

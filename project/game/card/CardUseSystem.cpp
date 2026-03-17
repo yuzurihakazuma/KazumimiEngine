@@ -17,6 +17,7 @@
 #include "game/card/FangEffect.h"
 #include "game/card/DecoyEffect.h"
 #include "game/card/AttackDebuffEffect.h"
+#include "game/card/ClawEffect.h"
 
 using namespace VectorMath;
 
@@ -37,6 +38,7 @@ void CardUseSystem::Initialize(Camera* camera) {
 	effectFactory_[7] = [](const Card &c) { return std::make_unique<FangEffect>(); };
 	effectFactory_[8] = [](const Card &c) { return std::make_unique<DecoyEffect>(300); };
 	effectFactory_[9] = [](const Card &c) { return std::make_unique<AttackDebuffEffect>(300); };
+	effectFactory_[10] = [](const Card &c) {return std::make_unique<ClawEffect>(c.effectValue); };
 
 	Reset();
 }

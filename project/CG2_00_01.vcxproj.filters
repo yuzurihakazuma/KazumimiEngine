@@ -75,6 +75,7 @@
     <ClCompile Include="game\card\IceBulletEffect.cpp" />
     <ClCompile Include="game\card\ShieldEffect.cpp" />
     <ClCompile Include="engine\math\QuaternionMath.cpp" />
+    <ClCompile Include="game\card\ClawEffect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game\card\AttackDebuffEffect.h" />
@@ -156,6 +157,7 @@
     <ClInclude Include="game\card\ShieldEffect.h" />
     <ClInclude Include="engine\math\QuaternionMath.h" />
     <ClInclude Include="engine\utils\HeapDebugger.h" />
+    <ClInclude Include="game\card\ClawEffect.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj" />
