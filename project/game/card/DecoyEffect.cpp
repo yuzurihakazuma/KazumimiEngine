@@ -10,7 +10,7 @@ void DecoyEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayer
 	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 	pos_ = { casterPos.x + forward.x * 2.0f, casterPos.y, casterPos.z + forward.z * 2.0f };
 
-	obj_ = Obj3d::Create("sphere"); // デコイ用モデルに変更
+	obj_ = Obj3d::Create("sphere"); 
 	if (obj_) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
@@ -28,6 +28,11 @@ void DecoyEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3
 	timer_--;
 	if (timer_ <= 0) {
 		isFinished_ = true;
+	}
+
+	if (obj_) {
+		obj_->SetTranslation(pos_);
+		obj_->Update();
 	}
 }
 
