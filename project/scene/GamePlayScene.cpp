@@ -26,11 +26,11 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-#include "player/Player.h"
+#include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
-#include "enemy/Enemy.h"
-#include "enemy/Boss.h"
+#include "game/enemy/Enemy.h"
+#include "game/enemy/Boss.h"
 #include "game/card/CardUseSystem.h"
 
 

@@ -4,9 +4,9 @@
 
 #include "Engine/Camera/Camera.h"
 #include "Engine/3D/Obj/Obj3d.h"
-#include "player/Player.h"
-#include "enemy/Enemy.h"
-#include "enemy/Boss.h"
+#include "game/player/Player.h"
+#include "game/enemy/Enemy.h"
+#include "game/enemy/Boss.h"
 #include "engine/math/VectorMath.h"
 #include "game/card/FireballEffect.h"
 #include "game/card/FistEffect.h"

@@ -1,6 +1,6 @@
 ﻿#include "AttackDebuffEffect.h"
-#include "enemy/Enemy.h"
-#include "enemy/Boss.h"
+#include "game/enemy/Enemy.h"
+#include "game/enemy/Boss.h"
 
 void AttackDebuffEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
 	isPlayerCaster_ = isPlayerCaster;

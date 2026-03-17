@@ -1,5 +1,5 @@
 ﻿#include "HealEffect.h"
-#include "player/Player.h"
+#include "game/player/Player.h"
 
 void HealEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
 	isPlayerCaster_ = isPlayerCaster;

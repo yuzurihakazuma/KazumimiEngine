@@ -1,5 +1,5 @@
 ﻿#include "SpeedBuffEffect.h"
-#include "player/Player.h"
+#include "game/player/Player.h"
 
 void SpeedBuffEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPLayerCaster, Camera *camera) {
 	isPlayerCaster_ = isPLayerCaster;

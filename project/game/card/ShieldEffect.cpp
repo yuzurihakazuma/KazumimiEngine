@@ -1,5 +1,5 @@
 ﻿#include "ShieldEffect.h"
-#include "player/Player.h"
+#include "game/player/Player.h"
 
 void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
 	isPlayerCaster_ = isPlayerCaster;
