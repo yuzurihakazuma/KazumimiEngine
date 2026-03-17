@@ -18,6 +18,11 @@ struct Vector3 {
 struct Vector4 {
 	float x, y, z, w;
 };
+// クォータニオン
+struct Quaternion{
+	float x, y, z, w;
+};
+
 
 // 3x3行列
 struct Matrix3x3 {
