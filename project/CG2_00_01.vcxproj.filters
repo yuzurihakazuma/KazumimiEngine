@@ -84,7 +84,6 @@
     <ClInclude Include="game\card\FireballEffect.h" />
     <ClInclude Include="game\card\ICardEffect.h" />
     <ClInclude Include="game\enemy\Boss.h" />
-    <ClInclude Include="DungeonGenerator.h" />
     <ClInclude Include="game\card\CardUseSystem.h" />
     <ClInclude Include="game\card\CardDatabase.h" />
     <ClInclude Include="game\enemy\Enemy.h" />
@@ -156,6 +155,7 @@
     <ClInclude Include="game\card\IceBulletEffect.h" />
     <ClInclude Include="game\card\ShieldEffect.h" />
     <ClInclude Include="engine\math\QuaternionMath.h" />
+    <ClInclude Include="engine\utils\HeapDebugger.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj" />

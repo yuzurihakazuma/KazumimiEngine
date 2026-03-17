@@ -1,4 +1,5 @@
 #include <Windows.h>
+
 #include "Game.h"
 #include "CrashDumper.h"
 #include <engine/scene/SceneManager.h>

@@ -1,8 +1,8 @@
 #include "Game.h"
 // ---  ゲーム固有のファイル ---
-#include "SceneFactory.h"      
-#include "GamePlayScene.h"     
-#include "TitleScene.h"
+#include "scene/SceneFactory.h"      
+#include "scene/GamePlayScene.h"     
+#include "scene/TitleScene.h"
 
 // ---  エンジン側のファイル ---
 #include "engine/scene/SceneManager.h"   
