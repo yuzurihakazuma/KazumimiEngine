@@ -7,6 +7,7 @@
 #include <string>
 #include "engine/math/VectorMath.h"
 #include "DungeonGenerator.h"
+#include <random>
 
 class Obj3d;
 class Camera;
@@ -44,8 +45,9 @@ public:
     void ChangeToNormalMap();
 
     void ChangeToBossMap();
-
-
+    void PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoidDistance = 6.0f);
+    Vector3 GetTileWorldPosition(int x, int z, float y = 0.0f) const;
+    std::pair<int, int> PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance = 6.0f);
 public:
     bool IsBossMap() const { return mapType_ == 1; }
     const std::string& GetCurrentMapFile() const { return currentMapFile_; }

@@ -225,6 +225,8 @@ void LevelEditor::DrawDebugUI() {
 		ImGui::RadioButton("床(0)", &selectedTile_, 0);
 		ImGui::SameLine();
 		ImGui::RadioButton("壁(1)", &selectedTile_, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("階段(3)", &selectedTile_, 3);
 
 		ImGui::Separator();
 
@@ -246,11 +248,12 @@ void LevelEditor::DrawDebugUI() {
 
 				int tile = levelData_.tiles[dataZ][x];
 
-				// タイルの色を変更
 				if (tile == 0) {
 					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 1.0f, 1.0f)); // 青
 				} else if (tile == 1) {
 					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.3f, 1.0f)); // 赤
+				} else if (tile == 3) {
+					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 1.0f, 1.0f, 1.0f)); // 水色
 				}
 
 				std::string label =
@@ -277,46 +280,7 @@ void LevelEditor::DrawDebugUI() {
 #endif
 }
 
-void LevelEditor::UpdateTileObject(int x, int z) {
-	if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) {
-		return;
-	}
 
-	Model* model = ModelManager::GetInstance()->FindModel("block");
-	if (model == nullptr) {
-		return;
-	}
-
-	// いったんそのマスの床・壁を消す
-	//floorObjects_[z][x].reset();
-	wallObjects_[z][x].reset();
-
-	const float tileSize = levelData_.tileSize;
-	const int tile = levelData_.tiles[z][x];
-
-	
-
-	// --------------------
-	// 壁タイルなら上に壁を置く
-	// --------------------
-	if (tile == 1) {
-		std::unique_ptr<Obj3d> wallObj = std::make_unique<Obj3d>();
-		wallObj->Initialize(model);
-		wallObj->SetCamera(camera_);
-
-		Vector3 pos;
-		pos.x = x * tileSize;
-		pos.y = levelData_.baseY + tileSize;
-		pos.z = z * tileSize;
-
-		wallObj->SetTranslation(pos);
-		wallObj->SetRotation({ 0.0f, 0.0f, 0.0f });
-		wallObj->SetScale({ 1.0f, 1.0f, 1.0f });
-		wallObj->Update();
-
-		wallObjects_[z][x] = std::move(wallObj);
-	}
-}
 
 void LevelEditor::CreateFloorObject() {
 	Model* model = ModelManager::GetInstance()->FindModel("block");
@@ -433,4 +397,181 @@ void LevelEditor::ChangeToBossMap() {
 	currentMapFile_ = "resources/map/boss.json";
 	saveFileName_ = "boss.json";
 	LoadAndCreateMap(currentMapFile_);
+}
+
+Vector3 LevelEditor::GetTileWorldPosition(int x, int z, float y) const {
+	Vector3 pos;
+	pos.x = x * levelData_.tileSize;
+	pos.y = levelData_.baseY + y;
+	pos.z = z * levelData_.tileSize;
+	return pos;
+}
+
+void LevelEditor::PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoidDistance) {
+	std::vector<std::pair<int, int>> candidates;
+
+	for (int z = 0; z < levelData_.height; ++z) {
+		for (int x = 0; x < levelData_.width; ++x) {
+			if (levelData_.tiles[z][x] != 0) {
+				continue;
+			}
+
+			Vector3 worldPos = GetTileWorldPosition(x, z, 0.0f);
+
+			float dx = worldPos.x - avoidWorldPos.x;
+			float dz = worldPos.z - avoidWorldPos.z;
+			float dist = std::sqrt(dx * dx + dz * dz);
+
+			if (dist < avoidDistance) {
+				continue;
+			}
+
+			candidates.push_back({ x, z });
+		}
+	}
+
+	// 候補がなければ距離条件なしで 0 タイルから選ぶ
+	if (candidates.empty()) {
+		for (int z = 0; z < levelData_.height; ++z) {
+			for (int x = 0; x < levelData_.width; ++x) {
+				if (levelData_.tiles[z][x] == 0) {
+					candidates.push_back({ x, z });
+				}
+			}
+		}
+	}
+
+	if (candidates.empty()) {
+		return;
+	}
+
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+
+	auto [tileX, tileZ] = candidates[dist(mt)];
+
+	levelData_.tiles[tileZ][tileX] = 3;
+	UpdateTileObject(tileX, tileZ);
+}
+
+void LevelEditor::UpdateTileObject(int x, int z) {
+	if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) {
+		return;
+	}
+
+	Model* model = ModelManager::GetInstance()->FindModel("block");
+	if (model == nullptr) {
+		return;
+	}
+
+	wallObjects_[z][x].reset();
+
+	const float tileSize = levelData_.tileSize;
+	const int tile = levelData_.tiles[z][x];
+
+	// 壁
+	if (tile == 1) {
+		std::unique_ptr<Obj3d> wallObj = std::make_unique<Obj3d>();
+		wallObj->Initialize(model);
+		wallObj->SetCamera(camera_);
+
+		Vector3 pos;
+		pos.x = x * tileSize;
+		pos.y = levelData_.baseY + tileSize;
+		pos.z = z * tileSize;
+
+		wallObj->SetTranslation(pos);
+		wallObj->SetRotation({ 0.0f, 0.0f, 0.0f });
+		wallObj->SetScale({ 1.0f, 1.0f, 1.0f });
+		wallObj->Update();
+
+		wallObjects_[z][x] = std::move(wallObj);
+	}
+	// 階段
+	else if (tile == 3) {
+		std::unique_ptr<Obj3d> stairsObj = std::make_unique<Obj3d>();
+		stairsObj->Initialize(model);
+		stairsObj->SetCamera(camera_);
+
+		Vector3 pos;
+		pos.x = x * tileSize;
+		pos.y = levelData_.baseY + 2.5f;
+		pos.z = z * tileSize;
+
+		stairsObj->SetTranslation(pos);
+		stairsObj->SetRotation({ 0.0f, 0.0f, 0.0f });
+		stairsObj->SetScale({ 1.0f, 2.0f, 1.0f });
+		stairsObj->Update();
+
+		wallObjects_[z][x] = std::move(stairsObj);
+	}
+}
+
+std::pair<int, int> LevelEditor::PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance) {
+	std::vector<std::pair<int, int>> candidates;
+
+	for (int z = 1; z < levelData_.height - 1; ++z) {
+		for (int x = 1; x < levelData_.width - 1; ++x) {
+			if (levelData_.tiles[z][x] != 0) {
+				continue;
+			}
+
+			// 周囲1マス(3x3)が全部床(0)の場所だけ候補にする
+			bool allFloor = true;
+			for (int oz = -1; oz <= 1; ++oz) {
+				for (int ox = -1; ox <= 1; ++ox) {
+					if (levelData_.tiles[z + oz][x + ox] != 0) {
+						allFloor = false;
+						break;
+					}
+				}
+				if (!allFloor) {
+					break;
+				}
+			}
+
+			if (!allFloor) {
+				continue;
+			}
+
+			Vector3 worldPos = GetTileWorldPosition(x, z, 0.0f);
+
+			float dx = worldPos.x - avoidWorldPos.x;
+			float dz = worldPos.z - avoidWorldPos.z;
+			float dist = std::sqrt(dx * dx + dz * dz);
+
+			if (dist < avoidDistance) {
+				continue;
+			}
+
+			candidates.push_back({ x, z });
+		}
+	}
+
+	// 条件が厳しすぎて候補がない時の保険
+	if (candidates.empty()) {
+		for (int z = 0; z < levelData_.height; ++z) {
+			for (int x = 0; x < levelData_.width; ++x) {
+				if (levelData_.tiles[z][x] == 0) {
+					candidates.push_back({ x, z });
+				}
+			}
+		}
+	}
+
+	if (candidates.empty()) {
+		return { -1, -1 };
+	}
+
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+
+	auto [tileX, tileZ] = candidates[dist(mt)];
+
+	levelData_.tiles[tileZ][tileX] = 3;
+	UpdateTileObject(tileX, tileZ);
+
+	return { tileX, tileZ };
 }

@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <string>
 #include <algorithm>
+#include <random>
 
 // 前方宣言
 class DebugCamera;
@@ -158,4 +159,9 @@ private: // メンバ変数
 	// 次の階層へ進む処理
 	void AdvanceFloor();
 	Animation testAnimation_;
+
+	// 階段タイルの位置（タイル座標）
+	std::pair<int, int> stairsTile_ = { -1, -1 };
+	bool IsNearStairsTile(int x, int z) const;
+
 };

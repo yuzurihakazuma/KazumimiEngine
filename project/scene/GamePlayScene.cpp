@@ -129,6 +129,7 @@ void GamePlayScene::Initialize() {
 		testObj_->PlayAnimation(&testAnimation_);
 	}
 
+
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
@@ -273,6 +274,25 @@ void GamePlayScene::Update() {
 		playerObj_->SetRotation(player_->GetRotation());
 		playerObj_->SetScale(playerScale_);
 		playerObj_->Update();
+	}
+
+	// ==========================================
+// 階段タイル(3)との判定
+// ==========================================
+	if (player_ && levelEditor_) {
+		const LevelData& level = levelEditor_->GetLevelData();
+
+		int gridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
+		int gridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
+
+		if (gridX >= 0 && gridX < level.width &&
+			gridZ >= 0 && gridZ < level.height) {
+
+			if (level.tiles[gridZ][gridX] == 3) {
+				AdvanceFloor();
+				return;
+			}
+		}
 	}
 
 	// ==========================================
@@ -788,6 +808,8 @@ void GamePlayScene::Draw() {
 		playerObj_->Draw(); // 被弾中は点滅表示
 	}
 
+
+
 	if (bossObj_ && boss_ && !boss_->IsDead() && boss_->IsVisible() && levelEditor_ && levelEditor_->IsBossMap()) {
 		bossObj_->Draw();
 	}
@@ -1126,6 +1148,8 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		return;
 	}
 
+	const LevelData& level = levelEditor_->GetLevelData();
+
 	std::vector<std::pair<int, int>> candidates =
 		spawnManager_.FindEnemySpawnCandidates(margin);
 
@@ -1133,15 +1157,40 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		return;
 	}
 
+	// 階段周囲3x3を除外
+	std::vector<std::pair<int, int>> filtered;
+	for (const auto& c : candidates) {
+		int x = c.first;
+		int z = c.second;
+
+		// 階段本体 + 周囲1マス禁止
+		if (IsNearStairsTile(x, z)) {
+			continue;
+		}
+
+		// 念のため階段タイルそのものも除外
+		if (x >= 0 && x < level.width && z >= 0 && z < level.height) {
+			if (level.tiles[z][x] == 3) {
+				continue;
+			}
+		}
+
+		filtered.push_back(c);
+	}
+
+	if (filtered.empty()) {
+		return;
+	}
+
 	std::random_device rd;
 	std::mt19937 mt(rd());
-	std::shuffle(candidates.begin(), candidates.end(), mt);
+	std::shuffle(filtered.begin(), filtered.end(), mt);
 
-	int spawnCount = std::min(enemyCount, static_cast<int>(candidates.size()));
+	int spawnCount = std::min(enemyCount, static_cast<int>(filtered.size()));
 
 	for (int i = 0; i < spawnCount; ++i) {
-		int tileX = candidates[i].first;
-		int tileZ = candidates[i].second;
+		int tileX = filtered[i].first;
+		int tileZ = filtered[i].second;
 
 		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
 
@@ -1167,7 +1216,6 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		enemyCardSystems_.push_back(std::move(enemyCardSystem));
 	}
 }
-
 void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 	if (!spawnManager_.HasLevelData()) {
@@ -1176,6 +1224,8 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 	cardPickupManager_.Initialize(camera_.get());
 
+	const LevelData& level = levelEditor_->GetLevelData();
+
 	std::vector<std::pair<int, int>> candidates =
 		spawnManager_.FindCardSpawnCandidates(margin);
 
@@ -1183,23 +1233,70 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 		return;
 	}
 
+	// まず敵のいるマスを記録
+	std::vector<std::pair<int, int>> enemyTiles;
+	for (const auto& enemy : enemies_) {
+		if (!enemy) {
+			continue;
+		}
+
+		Vector3 pos = enemy->GetPosition();
+		int tileX = static_cast<int>(std::round(pos.x / level.tileSize));
+		int tileZ = static_cast<int>(std::round(pos.z / level.tileSize));
+		enemyTiles.push_back({ tileX, tileZ });
+	}
+
+	std::vector<std::pair<int, int>> filtered;
+	for (const auto& c : candidates) {
+		int x = c.first;
+		int z = c.second;
+
+		// 階段周囲3x3禁止
+		if (IsNearStairsTile(x, z)) {
+			continue;
+		}
+
+		// 階段タイルそのもの禁止
+		if (x >= 0 && x < level.width && z >= 0 && z < level.height) {
+			if (level.tiles[z][x] == 3) {
+				continue;
+			}
+		}
+
+		// 敵と同じマス禁止
+		bool overlapsEnemy = false;
+		for (const auto& e : enemyTiles) {
+			if (e.first == x && e.second == z) {
+				overlapsEnemy = true;
+				break;
+			}
+		}
+		if (overlapsEnemy) {
+			continue;
+		}
+
+		filtered.push_back(c);
+	}
+
+	if (filtered.empty()) {
+		return;
+	}
+
 	std::random_device rd;
 	std::mt19937 mt(rd());
-	std::shuffle(candidates.begin(), candidates.end(), mt);
+	std::shuffle(filtered.begin(), filtered.end(), mt);
 
-	int spawnCount = std::min(cardCount, static_cast<int>(candidates.size()));
+	int spawnCount = std::min(cardCount, static_cast<int>(filtered.size()));
 
-	// CSVのカード種類数を取得して範囲に設定
 	int maxCardId = static_cast<int>(CardDatabase::GetCardCount());
 	std::uniform_int_distribution<int> cardDist(2, maxCardId);
 
 	for (int i = 0; i < spawnCount; ++i) {
-		int tileX = candidates[i].first;
-		int tileZ = candidates[i].second;
+		int tileX = filtered[i].first;
+		int tileZ = filtered[i].second;
 
 		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
 
-		// csvのID範囲からランダムにカードを選ぶ
 		int cardId = cardDist(mt);
 
 		cardPickupManager_.AddPickup(worldPos, CardDatabase::GetCardData(cardId));
@@ -1243,14 +1340,14 @@ void GamePlayScene::RespawnPlayerInRoom() {
 		camera_->Update();
 	}
 }
-
 void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	if (!levelEditor_) {
 		return;
 	}
 
+	stairsTile_ = { -1, -1 };
+
 	if (levelEditor_) {
-		// ★ボス部屋ではない（通常部屋の）時だけ、ランダムダンジョンを生成する
 		if (!levelEditor_->IsBossMap()) {
 			levelEditor_->GenerateRandomDungeon(roomCount);
 		}
@@ -1259,22 +1356,23 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	// プレイヤー再配置
 	RespawnPlayerInRoom();
 
+	// 通常マップなら階段を1個置く
+	if (levelEditor_ && !levelEditor_->IsBossMap()) {
+		stairsTile_ = levelEditor_->PlaceStairsTileRandomAndGetTile(playerPos_, 6.0f);
+	}
+
 	// スポーンマネージャに新しいマップを渡し直す
 	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
 
 	if (levelEditor_->IsBossMap()) {
-		// bossマップでは雑魚敵とカードを消す
 		ClearEnemiesAndCards();
 	} else {
-		// 通常マップではいつも通り生成
 		SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 		SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 	}
 
-	// ボス再配置
 	RespawnBossInRoom();
 }
-
 void GamePlayScene::RespawnBossInRoom() {
 	if (!levelEditor_ || !boss_) {
 		return;
@@ -1320,6 +1418,7 @@ void GamePlayScene::ClearEnemiesAndCards() {
 
 	cardPickupManager_.Initialize(camera_.get());
 }
+
 void GamePlayScene::AdvanceFloor() {
 	currentFloor_++; // 階層を1つ進める
 
@@ -1332,7 +1431,17 @@ void GamePlayScene::AdvanceFloor() {
 		}
 	}
 
-	// 最後に、マップが変わったのでプレイヤーや敵をリセット・再配置する
-	// ※ 既存の ResetBattleDebug() が全てやってくれるはずです
 	ResetBattleDebug();
+}
+
+bool GamePlayScene::IsNearStairsTile(int x, int z) const {
+	if (stairsTile_.first < 0 || stairsTile_.second < 0) {
+		return false;
+	}
+
+	int dx = x - stairsTile_.first;
+	int dz = z - stairsTile_.second;
+
+	// 周囲1マス以内 = 3x3禁止
+	return (std::abs(dx) <= 1 && std::abs(dz) <= 1);
 }
