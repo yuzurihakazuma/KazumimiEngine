@@ -48,7 +48,7 @@ void Player::Initialize() {
 
     //シールド
     isShieldActive_ = false;
-    shieldTimer_ = 0;
+   
 }
 
 void Player::Update() {
@@ -168,13 +168,7 @@ void Player::Update() {
         }
     }
 
-    // シールドのタイマー処理
-    if (isShieldActive_) {
-        shieldTimer_--;
-        if (shieldTimer_ <= 0) {
-            isShieldActive_ = false;
-        }
-    }
+    
 }
 
 // 指定フレームの間プレイヤー操作をロック
@@ -222,10 +216,6 @@ void Player::Heal(int amount) {
     }
 }
 
-void Player::ActivateShield(int duration) {
-    isShieldActive_ = true;
-    shieldTimer_ = duration;
-}
 
 void Player::LevelUp() {
 
@@ -274,16 +264,10 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
         return;
     }
 
-    // シールド展開中ならダメージもノックバックも無効、シールドだけ壊す
-    if (isShieldActive_) {
-        isShieldActive_ = false;
-        shieldTimer_ = 0;
-
-        // シールドが壊れた演出として最低限の被弾点滅だけ入れたいなら残してOK
-        isHit_ = true;
-        hitTimer_ = hitDuration_;
-
-        return;
+    // もしシールドが残っていたら、回数を減らしてダメージを無効化！
+    if (shieldHitCount_ > 0) {
+        shieldHitCount_--;
+        return; // ここで処理を抜けるのでダメージを受けない
     }
 
     // HP減少

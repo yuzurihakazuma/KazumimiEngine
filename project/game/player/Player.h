@@ -52,8 +52,12 @@ public:
 
     void Heal(int amount); // HP回復処理
 
-    void ActivateShield(int duration); // シールド展開
-    bool IsShieldActive() const { return isShieldActive_; } // シールド状態の取得
+
+    bool IsShieldActive() const { return isShieldActive_; }  // シールド状態の取得
+
+    void AddShieldHits(int hits) { shieldHitCount_ = hits; }  // シールドの回数をセットする関数
+   
+    int GetShieldHits() const { return shieldHitCount_; }  // 今のシールドの残り回数を取得する関数
 
     bool IsActionLocked() const { return isActionLocked_; }
 private:
@@ -119,5 +123,5 @@ private:
 
     //　シールド管理
     bool isShieldActive_ = false; // シールド展開中か
-    int shieldTimer_ = 0; // シールド残り時間
+    int shieldHitCount_ = 0;
 };

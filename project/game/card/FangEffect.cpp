@@ -16,7 +16,7 @@ void FangEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 	Vector3 forward = { std::sinf(casterYaw),0.0f,std::cosf(casterYaw) };
 
 	// 3本のトゲを均等間隔に配置
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 5; i++) {
 		FangData fang;
 		fang.pos = {
 			casterPos.x + forward.x * (2.0f + i * 2.0f),
@@ -24,7 +24,7 @@ void FangEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 			casterPos.z + forward.z * (2.0f + i * 2.0f)
 		};
 
-		fang.delayTimer = i * 10; // 10フレームずつ遅らせて出現
+		fang.delayTimer = i * 5; // 10フレームずつ遅らせて出現
 		fang.activeTimer = 20;    // 出現している時間
 		fang.isActive = false;
 		fang.hasHit = false;
