@@ -54,25 +54,46 @@ void ClawEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 
 
 	// 当たり判定処理
 	bool isAttacking = (timer_ > 1 && timer_ <= 10) || (timer_ >= 15 && timer_ <= 24);
-	if (isPlayerCaster_ && isAttacking && !hasHit_) {
-		// 敵への当たり判定
-		if (enemy && !enemy->IsDead()) {
-			Vector3 diff = { enemyPos.x - pos_.x, 0.0f, enemyPos.z - pos_.z };
-			if (Length(diff) < 2.0f) { // 当たり判定の広さ
-				enemy->TakeDamage(damage_); // 受け取ったダメージ量を与える
-				hasHit_ = true; // 1回の振りで何度も当たらないようにする
+
+	if (isAttacking && !hasHit_) {
+
+		// ==================================================
+		// プレイヤーが使った場合
+		// ==================================================
+		if (isPlayerCaster_) {
+			// 敵への当たり判定
+			if (enemy && !enemy->IsDead()) {
+				Vector3 diff = { enemyPos.x - pos_.x, 0.0f, enemyPos.z - pos_.z };
+				if (Length(diff) < 2.0f) { // 当たり判定の広さ
+					enemy->TakeDamage(damage_); // 受け取ったダメージ量を与える
+					hasHit_ = true; // 1回の振りで何度も当たらないようにする
+				}
 			}
-		}
-		// ボスへの当たり判定
-		if (boss && !boss->IsDead()) {
-			Vector3 diff = { bossPos.x - pos_.x, 0.0f, bossPos.z - pos_.z };
-			if (Length(diff) < 3.0f) {
-				boss->TakeDamage(damage_);
-				hasHit_ = true;
+			// ボスへの当たり判定
+			if (boss && !boss->IsDead()) {
+				Vector3 diff = { bossPos.x - pos_.x, 0.0f, bossPos.z - pos_.z };
+				if (Length(diff) < 3.0f) {
+					boss->TakeDamage(damage_);
+					hasHit_ = true;
+				}
 			}
+		} else {
+			// ==================================================
+			// 敵・ボスが使った場合
+			// ==================================================
+			if (player && !player->IsDead()) {
+				Vector3 playerPos = player->GetPosition();
+				Vector3 diff = { playerPos.x - pos_.x, 0.0f, playerPos.z - pos_.z };
+
+				if (Length(diff) < 2.0f) { // プレイヤーへの当たり判定の広さ
+					// プレイヤーのTakeDamageは「ダメージ量」と「攻撃元の座標(pos_)」を渡す！
+					player->TakeDamage(damage_, pos_);
+					hasHit_ = true;
+				}
+			}
+		
 		}
 	}
-
 	// 30フレーム経ったら演出終了
 	if (timer_ >= 30) {
 		isFinished_ = true;

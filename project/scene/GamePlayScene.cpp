@@ -168,6 +168,16 @@ void GamePlayScene::Initialize() {
 	}
 
 	TextManager::GetInstance()->Initialize();
+
+	
+	// スプライト作成（座標 X:100, Y:500）
+	descBgSprite_ = Sprite::Create("resources/white1x1.png", { 100.0f, 500.0f });
+
+	// 大きさを幅600, 高さ100の長方形にする
+	descBgSprite_->SetSize({ 600.0f, 100.0f });
+
+	// 色を半透明の黒にする（Vector4 で R, G, B, A）
+	descBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });
 }
 
 void GamePlayScene::Update() {
@@ -785,6 +795,37 @@ void GamePlayScene::Update() {
 		);
 	}
 
+	// 背景枠の更新
+	if (descBgSprite_) {
+		descBgSprite_->Update();
+	}
+
+	// 手札がある時だけ処理
+	if (handManager_.GetHandSize() > 0) {
+		// 1. 今選んでいるカードの番号を取得
+		int selectedIdx = handManager_.GetSelectedCardIndex();
+
+		// 2. その番号のカード情報（CSVのデータ）をごっそり取得
+		Card selectedCard = handManager_.GetCard(selectedIdx);
+
+		// 3. 説明文だけを変数に入れる
+		std::string displayText = selectedCard.description;
+
+		size_t pos = displayText.find("\\n");
+		while (pos != std::string::npos) {
+			displayText.replace(pos, 2, "\n");
+			pos = displayText.find("\\n", pos + 1);
+		}
+
+		// 4. テキストオブジェクトに文字を流し込む！
+		// ※ textObj_ の部分は、チームメンバーさんが作ったテキスト管理の変数名に直してください
+		TextManager::GetInstance()->SetText("CardT", displayText);
+
+	} else {
+		// 手札がない時は文字を消す
+		TextManager::GetInstance()->SetText("CardT", "");
+	}
+
 	UpdateCardUse(input);
 }
 
@@ -853,6 +894,9 @@ void GamePlayScene::Draw() {
 	// レベルエディタの描画 
 	levelEditor_->Draw(playerPos_);
 
+	if (handManager_.GetHandSize() > 0 && descBgSprite_) {
+		descBgSprite_->Draw();
+	}
 
 	// パーティクル描画 (パイプライン切り替え)
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
@@ -965,7 +1009,7 @@ void GamePlayScene::DrawDebugUI() {
 		AdvanceFloor(); // ボタンを押したら次の階層へ
 	}
 
-	// ★修正：図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
+	// 図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
 	ImGui::SameLine();
 	if (ImGui::Button("Pick Up (ID: 2)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(2));

@@ -164,4 +164,7 @@ private: // メンバ変数
 	std::pair<int, int> stairsTile_ = { -1, -1 };
 	bool IsNearStairsTile(int x, int z) const;
 
+	// カードの説明文の後ろに敷く背景画像テクスチャ
+	uint32_t descBgTexture_ = 0;
+	std::unique_ptr<Sprite> descBgSprite_ = nullptr;
 };

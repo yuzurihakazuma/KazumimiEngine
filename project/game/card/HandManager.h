@@ -60,4 +60,7 @@ public:
 
 	// 選択中カードがディゾルブ中か
 	bool IsSelectedCardDissolving() const;
+
+	// 今選んでいるカードのインデックスを取得する関数
+	int GetSelectedCardIndex()const { return selectedCardIndex_; }
 };
