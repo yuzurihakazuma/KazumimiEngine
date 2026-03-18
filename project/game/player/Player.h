@@ -60,6 +60,10 @@ public:
     int GetShieldHits() const { return shieldHitCount_; }  // 今のシールドの残り回数を取得する関数
 
     bool IsActionLocked() const { return isActionLocked_; }
+
+    void SetMaxCost(int cost) { maxCost_ = cost; }
+    void SetCost(int cost) { cost_ = cost; }
+    void SetHP(int hp) { hp_ = hp; }
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
