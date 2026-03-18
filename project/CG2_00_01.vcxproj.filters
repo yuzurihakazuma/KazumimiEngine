@@ -56,9 +56,9 @@
     <ClCompile Include="engine\scene\SceneManager.cpp" />
     <ClCompile Include="game\base\Game.cpp" />
     <ClCompile Include="game\base\main.cpp" />
-    <ClCompile Include="scene\GamePlayScene.cpp" />
-    <ClCompile Include="scene\SceneFactory.cpp" />
-    <ClCompile Include="scene\TitleScene.cpp" />
+    <ClCompile Include="game\scene\GamePlayScene.cpp" />
+    <ClCompile Include="game\scene\SceneFactory.cpp" />
+    <ClCompile Include="game\scene\TitleScene.cpp" />
     <ClCompile Include="engine\math\VectorMath.cpp" />
     <ClCompile Include="engine\graphics\RootSignatureBuilder.cpp" />
     <ClCompile Include="engine\graphics\RenderTexture.cpp" />
@@ -138,9 +138,9 @@
     <ClInclude Include="externals\nlohmann\json.hpp" />
     <ClInclude Include="game\base\Game.h" />
     <ClInclude Include="game\card\SpeedBuffEffect.h" />
-    <ClInclude Include="scene\GamePlayScene.h" />
-    <ClInclude Include="scene\SceneFactory.h" />
-    <ClInclude Include="scene\TitleScene.h" />
+    <ClInclude Include="game\scene\GamePlayScene.h" />
+    <ClInclude Include="game\scene\SceneFactory.h" />
+    <ClInclude Include="game\scene\TitleScene.h" />
     <ClInclude Include="engine\math\VectorMath.h" />
     <ClInclude Include="engine\graphics\RootSignatureBuilder.h" />
     <ClInclude Include="engine\graphics\RenderTexture.h" />
