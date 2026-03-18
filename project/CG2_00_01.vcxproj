@@ -161,6 +161,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="game\scene\GameClearScene.cpp" />
+    <ClCompile Include="game\scene\GameOverScene.cpp" />
     <ClCompile Include="game\card\ClawEffect.cpp" />
     <ClCompile Include="game\card\AttackDebuffEffect.cpp" />
     <ClCompile Include="game\card\DecoyEffect.cpp" />
@@ -260,6 +262,8 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\scene\GameClearScene.h" />
+    <ClInclude Include="game\scene\GameOverScene.h" />
     <ClInclude Include="game\card\ClawEffect.h" />
     <ClInclude Include="engine\utils\HeapDebugger.h" />
     <ClInclude Include="game\card\AttackDebuffEffect.h" />

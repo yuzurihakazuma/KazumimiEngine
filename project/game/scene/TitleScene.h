@@ -1,29 +1,27 @@
 #pragma once
+
 // --- エンジン側のファイル ---
 #include "Engine/Scene/IScene.h"
 #include "Engine/Math/Matrix4x4.h"
-#include "Engine/graphics/TextureManager.h"
+#include "Engine/Graphics/TextureManager.h"
+#include "Engine/2D/Sprite.h"
 
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
+#include <unordered_map>
+#include <string>
 
 // 前方宣言
 class DebugCamera;
 class Camera;
-class Sprite;
 class Obj3d;
-class DirectXCommon;
-class Input;
 class RenderTexture;
 class PostEffect;
 class LevelEditor;
 
-
-
-
-	// ゲームプレイシーン
-class TitleScene : public IScene{
+// タイトルシーン
+class TitleScene : public IScene {
 public:
 	// 初期化
 	void Initialize() override;
@@ -37,11 +35,9 @@ public:
 	void DrawDebugUI() override;
 
 	TitleScene();
-
 	~TitleScene();
 
-private: // メンバ変数
-
+private:
 	// カメラ
 	std::unique_ptr<Camera> camera_ = nullptr;
 	// デバッグカメラ
@@ -62,19 +58,13 @@ private: // メンバ変数
 	// デプスステンシル
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
 
-
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
-
 	// マップエディタ
-	std::unique_ptr<LevelEditor> levelEditor_;
+	std::unique_ptr<LevelEditor> levelEditor_ = nullptr;
 
 	bool isEditorActive_ = true;
-
-	
-
-
 };

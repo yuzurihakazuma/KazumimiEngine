@@ -311,6 +311,11 @@ void GamePlayScene::Update() {
 		playerObj_->Update();
 	}
 
+	if (player_ && player_->IsDead()) {
+		SceneManager::GetInstance()->ChangeScene("GAMEOVER");
+		return;
+	}
+
 	// ==========================================
 // 階段タイル(3)との判定
 // ==========================================
@@ -620,7 +625,6 @@ void GamePlayScene::Update() {
 			player_->AddExp(5);
 		}
 
-		// ボスがカードを持っていればランダムでドロップ
 		if (boss_->HasAnyCard()) {
 			Card dropCard = boss_->GetRandomDropCard();
 			if (dropCard.id != -1) {
@@ -629,6 +633,11 @@ void GamePlayScene::Update() {
 		}
 
 		bossDeadHandled_ = true;
+
+		if (levelEditor_ && levelEditor_->IsBossMap()) {
+			SceneManager::GetInstance()->ChangeScene("CLEAR");
+			return;
+		}
 	}
 
 	// ==========================================
