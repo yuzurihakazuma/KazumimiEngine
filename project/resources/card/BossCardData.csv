@@ -1,0 +1,4 @@
+id,name,cost,effectType,sffectValue,description,modelName,effectName,seName
+101,BossClaw,0,0,20,ボスの近接攻撃,bossClaw,nullptr,nullptr
+102,BossFier,0,0,30,ボスの火攻撃,bossFier,nullptr,nullptr
+103,BossSummon,0,0,5,雑魚敵を5体償還,bossSummon,nullptr,nullptr

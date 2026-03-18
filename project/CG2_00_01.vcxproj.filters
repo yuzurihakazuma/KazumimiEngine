@@ -76,6 +76,9 @@
     <ClCompile Include="game\card\ShieldEffect.cpp" />
     <ClCompile Include="engine\math\QuaternionMath.cpp" />
     <ClCompile Include="game\card\ClawEffect.cpp" />
+    <ClCompile Include="game\card\BossClawEffect.cpp" />
+    <ClCompile Include="game\card\BossFierEffect.cpp" />
+    <ClCompile Include="game\card\BossSummonEffect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game\card\AttackDebuffEffect.h" />
@@ -158,6 +161,9 @@
     <ClInclude Include="engine\math\QuaternionMath.h" />
     <ClInclude Include="engine\utils\HeapDebugger.h" />
     <ClInclude Include="game\card\ClawEffect.h" />
+    <ClInclude Include="game\card\BossClawEffect.h" />
+    <ClInclude Include="game\card\BossFierEffect.h" />
+    <ClInclude Include="game\card\BossSummonEffect.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj" />

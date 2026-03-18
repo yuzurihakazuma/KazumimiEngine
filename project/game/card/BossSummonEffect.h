@@ -1,0 +1,24 @@
+﻿#pragma once
+#include "game/card/ICardEffect.h"
+#include "engine/3d/obj/Obj3d.h"
+#include <memory>
+
+class BossSummonEffect : public ICardEffect {
+public:
+    BossSummonEffect(int spawnCount) : spawnCount_(spawnCount) {}
+
+    void Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) override;
+    void Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) override;
+    void Draw() override;
+    bool IsFinished() const override { return isFinished_; }
+
+private:
+    std::unique_ptr<Obj3d> obj_ = nullptr;
+    Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
+    Vector3 scale_ = { 0.1f, 0.1f, 0.1f }; // 最初は小さく
+
+    int spawnCount_ = 5;
+    int timer_ = 60; // 魔法陣が表示される時間（1秒）
+    bool isFinished_ = false;
+};
+

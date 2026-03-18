@@ -47,9 +47,9 @@ void Boss::Initialize() {
 void Boss::InitializeBossCards() {
     heldCards_.clear(); // 既存カードをクリア
 
-    heldCards_.push_back(CardDatabase::GetCardData(2)); // Fireball追加
-    heldCards_.push_back(CardDatabase::GetCardData(6)); // IceBullet追加
-    heldCards_.push_back(CardDatabase::GetCardData(2)); // Fireball追加
+    heldCards_.push_back(CardDatabase::GetCardData(101)); // BossClaw
+    heldCards_.push_back(CardDatabase::GetCardData(102)); // BossFier
+    heldCards_.push_back(CardDatabase::GetCardData(103)); // BossSummon
 }
 
 void Boss::Update() {
@@ -239,16 +239,21 @@ void Boss::UpdateChase() {
         skillEnter = 10.0f;
     }
 
-    if (dist <= attackEnter) {
-        state_ = State::Attack; // 攻撃範囲なら近接攻撃へ
-        thinkTimer_ = 0;        // すぐ再判断できるようにする
-        return;
-    }
+    //if (dist <= attackEnter) {
+    //    state_ = State::Attack; // 攻撃範囲なら近接攻撃へ
+    //    thinkTimer_ = 0;        // すぐ再判断できるようにする
+    //    return;
+    //}
 
-    if (dist <= skillEnter && skillCooldownTimer_ <= 0 && !heldCards_.empty()) {
-        state_ = State::UseSkill; // スキル範囲ならスキルへ
-        thinkTimer_ = 0;          // すぐ再判断できるようにする
-        return;
+    //if (dist <= skillEnter && skillCooldownTimer_ <= 0 && !heldCards_.empty()) {
+    //    state_ = State::UseSkill; // スキル範囲ならスキルへ
+    //    thinkTimer_ = 0;          // すぐ再判断できるようにする
+    //    return;
+    //}
+
+    if (dist < skillEnterRange_) {
+        state_ = State::UseSkill; // 近接攻撃を廃止して、すべてUseSkillに統一！
+        thinkTimer_ = 0;
     }
 
     if (dist > 0.01f) {
@@ -317,6 +322,26 @@ void Boss::UpdateUseSkill() {
         state_ = State::Chase; // 使えないなら追跡へ戻る
         thinkTimer_ = 0;       // すぐ再判断できるようにする
         return;
+    }
+
+    std::vector<Card> candidates;
+    float closeRange = 6.0f; // 近距離と判定する基準（好みで調整してください）
+
+    if (dist < closeRange) {
+        // --- 近距離なら ID:101(BossClaw) を候補に入れる ---
+        for (const auto &card : heldCards_) {
+            if (card.id == 101) candidates.push_back(card);
+        }
+    } else {
+        // --- 中・遠距離なら ID:102(BossFier) と 103(BossSummon) を候補に入れる ---
+        for (const auto &card : heldCards_) {
+            if (card.id == 102 || card.id == 103) candidates.push_back(card);
+        }
+    }
+
+    // もし候補が見つからなかった場合の保険（すべてから選ぶ）
+    if (candidates.empty()) {
+        candidates = heldCards_;
     }
 
     static std::random_device rd;
