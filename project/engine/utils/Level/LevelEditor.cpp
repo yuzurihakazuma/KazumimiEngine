@@ -13,7 +13,6 @@ LevelEditor::LevelEditor() = default;
 LevelEditor::~LevelEditor() = default;
 
 void LevelEditor::Initialize() {
-	LoadAndCreateMap("resources/map/map01.json");
 
 	editWidth_ = levelData_.width;
 	editHeight_ = levelData_.height;
