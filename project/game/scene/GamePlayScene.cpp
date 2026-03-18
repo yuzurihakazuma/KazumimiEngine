@@ -240,6 +240,18 @@ void GamePlayScene::Update() {
 	// ==========================================
 
 	if (player_) {
+
+		if (input->Triggerkey(DIK_F1)) {
+			isInfiniteMode_ = !isInfiniteMode_;
+		}
+
+		if (isInfiniteMode_) {
+			player_->SetMaxCost(999);
+			player_->SetCost(player_->GetMaxCost());
+			player_->SetHP(player_->GetMaxHP());
+		}
+
+
 		// デバッグカメラ中、またはボス部屋突入演出中は操作を止める
 		if ((debugCamera_ && debugCamera_->IsActive()) || isBossIntroPlaying_) {
 			player_->SetInputEnable(false);
