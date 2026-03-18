@@ -180,4 +180,7 @@ private: // メンバ変数
 	BossIntroCameraState bossIntroCameraState_ = BossIntroCameraState::None;
 	int bossIntroTimer_ = 0;
 	bool isBossIntroPlaying_ = false;
+
+	// ステータス無限モード(デバッグ用)
+	bool isInfiniteMode_ = false;
 };
