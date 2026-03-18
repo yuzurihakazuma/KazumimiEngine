@@ -1,0 +1,33 @@
+﻿#pragma once
+#include "game/card/ICardEffect.h"
+#include "engine/3d/obj/Obj3d.h"
+#include <memory>
+
+class BossFierEffect : public ICardEffect {
+public:
+    // コンストラクタでCSVのダメージ量を受け取る
+    BossFierEffect(int damage) : damage_(damage) {}
+
+    // 初期化
+    void Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) override;
+
+    // 更新
+    void Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) override;
+
+    // 描画
+    void Draw() override;
+
+    // 終了判定
+    bool IsFinished() const override { return isFinished_; }
+private:
+
+    std::unique_ptr<Obj3d> obj_ = nullptr;
+    Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
+    Vector3 velocity_ = { 0.0f, 0.0f, 0.0f };
+    Vector3 scale_ = { 1.0f, 1.0f, 1.0f }; // ボス用なので超巨大（3倍）に！
+
+    int damage_ = 30;
+    int lifeTimer_ = 600; // 画面外まで飛んでいく前に消えるタイマー（約2秒）
+    bool isFinished_ = false;
+};
+

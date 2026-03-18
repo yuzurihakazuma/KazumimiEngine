@@ -34,6 +34,9 @@ public:
 	//初期化
 	static void Initialize(const std::string& filePath);
 
+	// データを消さずに別のcsvを追加で読み込み
+	static void LoadAdditionalCards(const std::string &filePath);
+
 	//IDを指定してカードデータを取得
 	static Card GetCardData(int id);
 

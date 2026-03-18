@@ -151,7 +151,9 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
 
 	// CSVからカードデータベースを初期化
-	CardDatabase::Initialize("Resources/CardData.csv");
+	CardDatabase::Initialize("resources/card/CardData.csv");
+
+	CardDatabase::LoadAdditionalCards("resources/card/BossCardData.csv");
 
 	// 手札マネージャーの初期化
 	handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);
@@ -499,6 +501,7 @@ void GamePlayScene::Update() {
 			bossObj_->SetScale(boss_->GetScale());
 			bossObj_->Update();
 		}
+
 	}
 
 	// =========================
@@ -582,6 +585,17 @@ void GamePlayScene::Update() {
 		// ボスのカード使用要求がある場合
 		if (boss_->GetCardUseRequest()) {
 			if (bossCardSystem_) {
+				if (boss_->GetCardUseRequest()) {
+					// ボスが選んだカード（BossSummonなど）を取得
+					Card useCard = boss_->GetSelectedCard();
+
+					// 103番（BossSummon）なら、CSVで設定した数だけ敵をスポーン！
+					if (useCard.id == 103) {
+						SpawnEnemiesRandom(useCard.effectValue, 2);
+					}
+				}
+
+
 				bossCardSystem_->UseCard(
 					boss_->GetSelectedCard(),
 					bossPos,
@@ -591,6 +605,8 @@ void GamePlayScene::Update() {
 			}
 
 			boss_->ClearCardUseRequest();
+
+			
 		}
 	}
 	// ==========================================
