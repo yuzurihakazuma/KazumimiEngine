@@ -1,8 +1,9 @@
 #pragma once
 enum class PipelineType{
-    Sprite,
-    Object3D,
-	Object3D_CullNone, // 地面用
-    Particle,
-    PostEffect
+	Sprite, // スプライト用
+	Object3D, // 3Dオブジェクト用
+	Object3D_CullNone, // 3Dオブジェクト用（カリングなし）
+	InstancedObject3D, // インスタンシング専用
+	Particle, // パーティクル用
+	PostEffect, // ポストエフェクト用
 };
