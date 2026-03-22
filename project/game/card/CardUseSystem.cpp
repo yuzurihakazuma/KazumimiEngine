@@ -131,10 +131,17 @@ int CardUseSystem::GetCastTime(const Card& card) const {
 
 // リセット
 void CardUseSystem::Reset() {
-	// 現在発動中のすべてのカードを一気に消去する！
+	// 発動中の効果を全削除
 	activeEffects_.clear();
 
-	
+	// 詠唱状態を初期化
+	isCasting_ = false;
+	castingCard_ = { -1, "", 0 };
+	castPos_ = { 0.0f, 0.0f, 0.0f };
+	castYaw_ = 0.0f;
+	isPlayerCasting_ = true;
+	castTimer_ = 0;
+	castingPlayer_ = nullptr;
 }
 
 void CardUseSystem::CancelCasting() {
