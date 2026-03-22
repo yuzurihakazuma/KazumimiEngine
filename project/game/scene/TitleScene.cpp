@@ -1,11 +1,12 @@
 #include "TitleScene.h"
-// --- ゲーム固有のファイル ---
+
+// ゲーム固有のファイル
 #include "GamePlayScene.h"
 
-// --- エンジン側のファイル ---
-#include "Engine/Math/Matrix4x4.h"
+// エンジン側のファイル
 #include "Engine/Utils/ImGuiManager.h"
 #include "Engine/Utils/Color.h"
+#include "Engine/Utils/TextManager.h"
 #include "Engine/Audio/AudioManager.h"
 #include "Engine/3D/Model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
@@ -14,49 +15,41 @@
 #include "Engine/Scene/SceneManager.h"
 #include "Engine/Camera/Camera.h"
 #include "Engine/Camera/DebugCamera.h"
-#include "Engine/2D/Sprite.h"
 #include "Engine/3D/Obj/Obj3d.h"
 #include "Engine/Base/Input.h"
-#include "Engine/2D/SpriteCommon.h"
 #include "Engine/3D/Obj/Obj3dCommon.h"
 #include "Engine/Base/DirectXCommon.h"
 #include "Engine/Base/WindowProc.h"
 #include "engine/math/VectorMath.h"
-#include "engine/collision/Collision.h"
-#include "engine/graphics/RenderTexture.h"
-#include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-#include"engine/utils/Level/LevelEditor.h"
+#include "engine/utils/Level/LevelEditor.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
 
-TitleScene::TitleScene(){}
+TitleScene::TitleScene() {}
 
-TitleScene::~TitleScene(){}
+TitleScene::~TitleScene() {}
 
-
-// 初期化
-void TitleScene::Initialize(){
+void TitleScene::Initialize() {
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	WindowProc* windowProc = WindowProc::GetInstance();
-
-
 
 	// コマンドリスト取得
 	auto commandList = dxCommon->GetCommandList();
 
-	// BGMロード (シングルトン)
+	// BGMロード
 	AudioManager::GetInstance()->LoadWave(bgmFile_);
-	// モデル読み込み (シングルトン)
-	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
 
+	// モデル読み込み
+	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
 
-	// 球モデル作成 (シングルトン)
+	// 球モデル作成
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
-	// パーティクルグループ作成 (シングルトン)
+
+	// パーティクルグループ作成
 	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 
 	// テクスチャ読み込み
@@ -65,145 +58,138 @@ void TitleScene::Initialize(){
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 
-
 	// カメラ生成
-	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
+	camera_ = std::make_unique<Camera>(
+		windowProc->GetClientWidth(),
+		windowProc->GetClientHeight(),
+		dxCommon
+	);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
 
-	// ファイル名を指定するだけで、読み込み・生成・配置
-	// 引数: (ファイルパス, 座標)
-	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
-
-	
-
-	// デプスステンシル作成 (TextureManagerシングルトン)
+	// デプスステンシル作成
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
-		windowProc->GetClientWidth(), windowProc->GetClientHeight()
+		windowProc->GetClientWidth(),
+		windowProc->GetClientHeight()
 	);
 
-	
+	// 必要ならマップエディタ初期化
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
+
+	// タイトル用テキストを設定
+	TextManager::GetInstance()->Initialize();
+	TextManager::GetInstance()->SetText("SceneMessage", "TITLE\n\nPRESS SPACE TO START");
 }
 
-void TitleScene::Update(){
+void TitleScene::Update() {
 	// デバッグカメラ更新
-	if ( debugCamera_ ) {
+	if (debugCamera_) {
 		debugCamera_->Update(camera_.get());
 	}
+
 	// カメラ更新
-	camera_->Update();
+	if (camera_) {
+		camera_->Update();
+	}
 
 	Input* input = Input::GetInstance();
 
-	// BGM再生 (シングルトン)
-	if ( input->Triggerkey(DIK_SPACE) ) {
+	// BGM再生はBキーに分ける
+	if (input->Triggerkey(DIK_B)) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
-	// タイトルシーンへ移動
-	if ( input->Triggerkey(DIK_T) ) {
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<GamePlayScene>());
+
+	// SPACEでゲーム開始
+	if (input->Triggerkey(DIK_SPACE)) {
+		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+		return;
 	}
-	// パーティクル発生 (シングルトン)
-	if ( input->Triggerkey(DIK_P) ) {
+
+	// パーティクル発生
+	if (input->Triggerkey(DIK_P)) {
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
+
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
-
-	// 全オブジェクト更新
-	for ( auto& obj : object3ds_ ) {
-		obj->Update();
+	// 3Dオブジェクト更新
+	for (auto& obj : object3ds_) {
+		if (obj) {
+			obj->Update();
+		}
 	}
-	// スプライト更新
-	sprite_->Update();
-
-
-
-	if ( sprite_ ) {
-		sprite_->SetPosition(spritePos_);
-		sprite_->Update();
-	}
-
-
-	//levelEditor_->Update();
-
-
 }
 
-void TitleScene::DrawDebugUI(){
+void TitleScene::DrawDebugUI() {
 #ifdef USE_IMGUI
-	// 3Dオブジェクト、カメラ、パーティクルのUI
 	Obj3dCommon::GetInstance()->DrawDebugUI();
-	if ( camera_ ) { camera_->DrawDebugUI(); }
-	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
+
+	if (camera_) {
+		camera_->DrawDebugUI();
+	}
+	if (debugCamera_) {
+		debugCamera_->DrawDebugUI();
+	}
+
 	ParticleManager::GetInstance()->DrawDebugUI();
 
-	
-	levelEditor_->DrawDebugUI();
-	
-	// スプライト調整用UI
-	ImGui::SetNextWindowSize(ImVec2(500, 100));
-	ImGui::Begin("Sprite Setup");
-	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "% 06.1f");
-	ImGui::End();
-#endif
-
-}
-
-
-void TitleScene::Draw(){
-
-
-	auto dxCommon = DirectXCommon::GetInstance();
-	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
-
-	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
-
-
-	// 3D描画の前準備
-	Obj3dCommon::GetInstance()->PreDraw(commandList);
-
-
-
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-
-
-	// 3Dオブジェクト描画
-	for ( auto& obj : object3ds_ ) {
-		obj->Draw();
+	if (levelEditor_) {
+		levelEditor_->DrawDebugUI();
 	}
 
-	//levelEditor_->Draw();
+	ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_FirstUseEver);
+	ImGui::Begin("TitleScene Debug");
+	ImGui::Text("Enter : Start Game");
+	ImGui::Text("B : Play BGM");
+	ImGui::End();
+#endif
+}
 
+void TitleScene::Draw() {
+	auto dxCommon = DirectXCommon::GetInstance();
+	auto commandList = dxCommon->GetCommandList();
 
-	// パーティクル描画 (パイプライン切り替え)
+	// 画用紙への切り替え
+	PostEffect::GetInstance()->PreDrawScene(commandList);
+
+	// 3D描画前準備
+	Obj3dCommon::GetInstance()->PreDraw(commandList);
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+
+	// 3Dオブジェクト描画
+	for (auto& obj : object3ds_) {
+		if (obj) {
+			obj->Draw();
+		}
+	}
+
+	// パーティクル描画
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 
-	// スプライト描画の前準備
-	SpriteCommon::GetInstance()->PreDraw(commandList);
+	// テキスト描画
+	TextManager::GetInstance()->Draw();
 
-	if ( sprite_ ) {
-		sprite_->Draw();
-	}
-
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList,dxCommon);
+	PostEffect::GetInstance()->PostDrawScene(commandList);
+	PostEffect::GetInstance()->Draw(commandList);
 
 	
 
 }
 
-void TitleScene::Finalize(){
+void TitleScene::Finalize() {
 	object3ds_.clear();
+	levelEditor_.reset();
+
+	// タイトル用テキストを消す
+	TextManager::GetInstance()->SetText("SceneMessage", "");
+	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();

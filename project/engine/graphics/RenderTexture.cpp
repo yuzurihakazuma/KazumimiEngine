@@ -78,30 +78,8 @@ void RenderTexture::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectX
 
 // 描画先を Swapchain（メイン画面）に戻す処理
 void RenderTexture::PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon){
-	
-	
-	
-	
-// ハンドル取得
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_Swapchain = dxCommon->GetBackBufferRtvHandle();
-
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
-
-	// 1. 描画先を Swapchain に戻す（Depth は使わないので nullptr）
-	commandList->OMSetRenderTargets(1, &rtvHandle_Swapchain, FALSE, &dsvHandle);
-
-	// 2. メイン画面のクリア
-	const float clearColor[4] = { 0.0f, 0.25f, 0.5f, 1.0f }; // メイン画面の背景色
-	commandList->ClearRenderTargetView(rtvHandle_Swapchain, clearColor, 0, nullptr);
-
-	// 3. ビューポートとシザー矩形の設定
-	D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast< float >( dxCommon->GetClientWidth() ), static_cast< float >( dxCommon->GetClientHeight() ), 0.0f, 1.0f };
-	D3D12_RECT scissorRect = { 0, 0, static_cast< LONG >( dxCommon->GetClientWidth() ), static_cast< LONG >( dxCommon->GetClientHeight() ) };
-	commandList->RSSetViewports(1, &viewport);
-	commandList->RSSetScissorRects(1, &scissorRect);
-
-	// 4. RenderTexture を「描画用 → 読み込み用」に戻すバリア
-	D3D12_RESOURCE_BARRIER barrier {};
+	// RenderTexture を「描画用(RT) → 読み込み用(SRV)」に戻すバリアのみ行う
+	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = resource_.Get();

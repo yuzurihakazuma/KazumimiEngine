@@ -8,14 +8,16 @@
 
 using namespace VectorMath;
 
-void FangEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
-
+void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Camera* camera) {
+	// 使用者情報を保存
 	isPlayerCaster_ = isPlayerCaster;
 	isFinished_ = false;
+	fangs_.clear();
 
-	Vector3 forward = { std::sinf(casterYaw),0.0f,std::cosf(casterYaw) };
+	// 正面方向を計算
+	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 
-	// 3本のトゲを均等間隔に配置
+	// 前方に順番に5本並べる
 	for (int i = 0; i < 5; i++) {
 		FangData fang;
 		fang.pos = {
@@ -24,80 +26,136 @@ void FangEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 			casterPos.z + forward.z * (2.0f + i * 2.0f)
 		};
 
-		fang.delayTimer = i * 5; // 10フレームずつ遅らせて出現
-		fang.activeTimer = 20;    // 出現している時間
+		// 1本ずつ少し遅れて出るようにする
+		fang.delayTimer = i * 5;
+		fang.activeTimer = 20;
 		fang.isActive = false;
 		fang.hasHit = false;
 		fangs_.push_back(fang);
 	}
-	obj_ = Obj3d::Create("sphere"); 
+
+	// 表示用オブジェクトを生成
+	obj_ = Obj3d::Create("sphere");
 	if (obj_) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 	}
 }
 
-void FangEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void FangEffect::Update(Player* player, Enemy* enemy, Boss* boss,
+	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
+
+	// 終了済みなら何もしない
 	if (isFinished_) {
 		return;
 	}
 
 	bool allDone = true;
 
-	for (auto &fang : fangs_) {
+	for (auto& fang : fangs_) {
+		// 出現待機中
 		if (fang.delayTimer > 0) {
 			fang.delayTimer--;
+
+			// 待機が終わったら有効化
 			if (fang.delayTimer <= 0) {
-				fang.isActive = true; // 時間が来たら出現
+				fang.isActive = true;
 			}
+
 			allDone = false;
-		} else if (fang.isActive) {
+		}
+		// 出現中
+		else if (fang.isActive) {
 			fang.activeTimer--;
 
-			// 壁の中なら当たり判定を行わずすぐ消す
+			// 壁の中に出た場合は即終了
 			if (Collision::CheckBlockCollision(fang.pos, 0.5f, level)) {
 				fang.isActive = false;
 				fang.activeTimer = 0;
 				continue;
 			}
 
-			// 当たり判定
+			// プレイヤーが使った場合
 			if (isPlayerCaster_) {
+				// 雑魚敵への判定
 				if (!fang.hasHit && enemy && !enemy->IsDead()) {
-					Vector3 diff = { enemyPos.x - fang.pos.x, 0.0f, enemyPos.z - fang.pos.z };
+					Vector3 diff = {
+						enemyPos.x - fang.pos.x,
+						0.0f,
+						enemyPos.z - fang.pos.z
+					};
+
 					if (Length(diff) < 1.5f) {
 						enemy->TakeDamage(2);
 						fang.hasHit = true;
 					}
 				}
+
+				// ボスへの判定
 				if (!fang.hasHit && boss && !boss->IsDead()) {
-					Vector3 diff = { bossPos.x - fang.pos.x, 0.0f, bossPos.z - fang.pos.z };
-					if (Length(diff) < 2.0f) {
+					Vector3 diff = {
+						bossPos.x - fang.pos.x,
+						0.0f,
+						bossPos.z - fang.pos.z
+					};
+
+					if (Length(diff) < 2.5f) {
 						boss->TakeDamage(2);
 						fang.hasHit = true;
 					}
 				}
 			}
+			// 敵またはボスが使った場合
+			else {
+				if (!fang.hasHit && player && !player->IsDead()) {
+					Vector3 playerPos = player->GetPosition();
 
+					// Y軸は無視してXZ平面で判定
+					Vector3 diff = {
+						playerPos.x - fang.pos.x,
+						0.0f,
+						playerPos.z - fang.pos.z
+					};
+
+					if (Length(diff) < 1.5f) {
+						int damage = 2;
+
+						// 攻撃力低下中ならダメージを下げる
+						if (enemy && enemy->IsAttackDebuffed()) {
+							damage = 1;
+						} else if (boss && boss->IsAttackDebuffed()) {
+							damage = 1;
+						}
+
+						player->TakeDamage(damage, fang.pos);
+						fang.hasHit = true;
+					}
+				}
+			}
+
+			// 表示時間が終わったら非アクティブ化
 			if (fang.activeTimer <= 0) {
 				fang.isActive = false;
 			}
+
 			allDone = false;
 		}
 	}
 
+	// 全てのトゲが終わったら効果終了
 	if (allDone) {
 		isFinished_ = true;
 	}
-
 }
 
 void FangEffect::Draw() {
+	// 終了済みまたは描画オブジェクトが無ければ何もしない
 	if (isFinished_ || !obj_) {
 		return;
 	}
 
-	for (const auto &fang : fangs_) {
+	// 有効なトゲだけ描画する
+	for (const auto& fang : fangs_) {
 		if (fang.isActive) {
 			obj_->SetTranslation(fang.pos);
 			obj_->Update();

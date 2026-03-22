@@ -22,6 +22,12 @@ void LevelEditor::Initialize() {
 	currentMapFile_ = "resources/map/map01.json";
 	mapType_ = 0;
 	saveFileName_ = "map01.json";
+
+	wallGroup_ = std::make_unique<InstancedGroup>();
+	wallGroup_->Initialize("block", 10000);
+
+	stairsGroup_ = std::make_unique<InstancedGroup>();
+	stairsGroup_->Initialize("block", 10000);
 	LoadAndCreateMap(currentMapFile_);
 }
 
@@ -62,6 +68,9 @@ void LevelEditor::Update(const Vector3& playerPos) {
 		floorObject_->Update();
 	}
 
+	if (wallGroup_) wallGroup_->PreUpdate();
+	if (stairsGroup_) stairsGroup_->PreUpdate();
+
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
 			if (wallObjects_[z][x]) {
@@ -70,8 +79,17 @@ void LevelEditor::Update(const Vector3& playerPos) {
 				float diffZ = objPos.z - playerPos.z;
 				float distSq = (diffX * diffX) + (diffZ * diffZ);
 
+				// 距離が近いものだけ更新してグループに追加
 				if (distSq < 800.0f) {
 					wallObjects_[z][x]->Update();
+
+					int tile = levelData_.tiles[z][x];
+					if (tile == 1) { // 壁
+						wallGroup_->AddObject(wallObjects_[z][x].get());
+					}
+					else if (tile == 3) { // 階段
+						stairsGroup_->AddObject(wallObjects_[z][x].get());
+					}
 				}
 			}
 		}
@@ -82,20 +100,8 @@ void LevelEditor::Draw(const Vector3& playerPos) {
 		floorObject_->Draw();
 	}
 
-	for (int z = 0; z < levelData_.height; ++z) {
-		for (int x = 0; x < levelData_.width; ++x) {
-			if (wallObjects_[z][x]) {
-				Vector3 objPos = wallObjects_[z][x]->GetTranslation();
-				float diffX = objPos.x - playerPos.x;
-				float diffZ = objPos.z - playerPos.z;
-				float distSq = diffX * diffX + diffZ * diffZ;
-
-				if (distSq < 800.0f) {
-					wallObjects_[z][x]->Draw();
-				}
-			}
-		}
-	}
+	if (wallGroup_) wallGroup_->Draw(camera_);
+	if (stairsGroup_) stairsGroup_->Draw(camera_);
 }
 void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
@@ -573,4 +579,10 @@ std::pair<int, int> LevelEditor::PlaceStairsTileRandomAndGetTile(const Vector3& 
 	UpdateTileObject(tileX, tileZ);
 
 	return { tileX, tileZ };
+}
+
+void LevelEditor::SetNoiseTexture(uint32_t index) {
+	noiseTextureIndex_ = index;
+	if (wallGroup_) wallGroup_->SetNoiseTexture(index);
+	if (stairsGroup_) stairsGroup_->SetNoiseTexture(index);
 }

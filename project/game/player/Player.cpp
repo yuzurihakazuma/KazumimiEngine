@@ -27,8 +27,8 @@ void Player::Initialize() {
     costRecoveryTimer_ = 0;   // コスト回復タイマー初期化
     costRecoveryInterval_ = 180; // コスト回復速度初期化
 
-    hp_ = 5;                // 現在HP初期化
-    maxHp_ = 5;             // 最大HP初期化
+    hp_ = 8;                // 現在HP初期化
+    maxHp_ = 8;             // 最大HP初期化
     isDead_ = false;        // 死亡状態リセット
 
     isInvincible_ = false;  // 無敵状態リセット
@@ -222,11 +222,21 @@ void Player::LevelUp() {
     level_++;            // レベル上昇
     nextLevelExp_ += 2;  // 次に必要な経験値を増やす
 
-    maxCost_ += 1;       // 最大コスト増加
-    cost_ = maxCost_;    // レベルアップ時に全回復
+    // 最大HPを増やす
+    maxHp_ += 2;
 
+    // レベルアップ時にHPを全回復する
+    hp_ = maxHp_;
+
+    // 最大コストを増やす
+    maxCost_ += 1;
+
+    // レベルアップ時にコストも全回復する
+    cost_ = maxCost_;
+
+    // コスト回復速度を少し上げる
     if (costRecoveryInterval_ > 60) {
-        costRecoveryInterval_ -= 15; // 回復速度アップ
+        costRecoveryInterval_ -= 15;
     }
 }
 

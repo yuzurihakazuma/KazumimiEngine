@@ -105,7 +105,7 @@ void Model::InitializeSphere(ModelCommon* modelCommon, int subdivision){
 }
 
 
-void Model::Draw(){
+void Model::Draw(uint32_t instanceCount) {
 	// 1. コマンドリストを取得する
 	// ModelCommon経由でDirectXCommonから取得
 	ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
@@ -133,7 +133,7 @@ void Model::Draw(){
 
 	// 6. 描画コマンドの発行
 	// インデックスを使って描画
-	commandList->DrawIndexedInstanced(static_cast< UINT >( modelData_.indices.size() ), 1, 0, 0, 0);
+	commandList->DrawIndexedInstanced(static_cast< UINT >( modelData_.indices.size() ), instanceCount, 0, 0, 0);
 
 
 }

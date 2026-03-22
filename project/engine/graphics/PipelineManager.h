@@ -42,6 +42,11 @@ private:
 	// OBJ用の初期化
 	void CreateObject3DRootSignature();
 	void CreateObject3DGraphicsPipeline();
+
+	// インスタンシング専用の初期化関数
+	void CreateInstancedObject3DRootSignature();
+	void CreateInstancedObject3DGraphicsPipeline();
+
 	// パーティクル用の初期化
 	void CreateParticleRootSignature();
 	void CreateParticleGraphicsPipeline();
@@ -78,6 +83,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineState_; // カリングあり用
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineStateNone_; // カリングなし用
 
+	// インスタンシング専用の変数
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancedObject3DRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancedObject3DPipelineState_;
 
 	// パーティクル用変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;

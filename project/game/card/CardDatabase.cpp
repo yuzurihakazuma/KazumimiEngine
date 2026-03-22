@@ -64,6 +64,48 @@ void CardDatabase::Initialize(const std::string &filePath) {
 
 }
 
+void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        return;
+    }
+
+    std::string line;
+    bool isFirstLine = true;
+
+    while (std::getline(file, line)) {
+        if (isFirstLine) {
+            isFirstLine = false;
+            continue;
+        }
+        if (line.empty()) continue;
+
+        std::stringstream ss(line);
+        std::string token;
+        std::vector<std::string> columns;
+
+        while (std::getline(ss, token, ',')) {
+            columns.push_back(token);
+        }
+
+        if (columns.size() >= 9) {
+            Card card;
+            card.id = std::stoi(columns[0]);
+            card.name = columns[1];
+            card.cost = std::stoi(columns[2]);
+            card.effectType = static_cast<CardEffectType>(std::stoi(columns[3]));
+            card.effectValue = std::stoi(columns[4]);
+            card.description = columns[5];
+            card.modelName = columns[6];
+            card.effectName = columns[7];
+            card.seName = columns[8];
+
+            // 辞書に追加！（ID101などがここに入ります）
+            database_[card.id] = card;
+        }
+    }
+}
+
 
 Card CardDatabase::GetCardData(int id) {
     if (database_.find(id) != database_.end()) {

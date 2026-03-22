@@ -12,6 +12,17 @@ void RootSignatureBuilder::AddCBV(UINT shaderRegister, D3D12_SHADER_VISIBILITY v
 	parameters_.push_back(param); // ルートパラメータのリストに追加
 }
 
+void RootSignatureBuilder::AddSRV(UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility){
+
+	D3D12_ROOT_PARAMETER param = {};
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV; // 直接SRV(配列)を受け取る
+	param.ShaderVisibility = visibility;
+	param.Descriptor.ShaderRegister = shaderRegister;
+	param.Descriptor.RegisterSpace = 0;
+	parameters_.push_back(param);
+
+}
+
 // SRVはDescriptorTableで追加
 void RootSignatureBuilder::AddDescriptorTableSRV(UINT baseShaderRegister, D3D12_SHADER_VISIBILITY visibility) {
 	auto range = std::make_unique<D3D12_DESCRIPTOR_RANGE>(); // ディスクリプトレンジを作成

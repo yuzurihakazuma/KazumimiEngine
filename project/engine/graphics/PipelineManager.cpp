@@ -11,20 +11,27 @@
 
 // 終了処理
 void PipelineManager::Finalize(){
-
+	// スマートポインタをリセットして、GPUのメモリリークを防ぐ
 	spriteRootSignature_.Reset();
 	spritePipelineState_.Reset();
+	// 3Dオブジェクト用のリソースも忘れずに解放
 	object3DRootSignature_.Reset();
 	object3DPipelineState_.Reset();
 	object3DPipelineStateNone_.Reset();
+
+	// インスタンシング専用のリソースも忘れずに解放
+	instancedObject3DRootSignature_.Reset();
+	instancedObject3DPipelineState_.Reset();
+	// パーティクル用のリソースも忘れずに解放
 	particleRootSignature_.Reset();
 	particlePipelineState_.Reset();
+	// ポストエフェクト用のリソースも忘れずに解放
 	postEffectPipelineState_.Reset();
 	postEffectRootSignature_.Reset();
 	
 
 
-
+	// ポストエフェクトの種類ごとのパイプラインステートも忘れずに解放
 	for (int i = 0; i < 10; ++i) {
 		if (postEffectPipelineStates_[i] != nullptr) {
 			postEffectPipelineStates_[i].Reset();
@@ -33,7 +40,7 @@ void PipelineManager::Finalize(){
 
 }
 
-
+// 初期化
 void PipelineManager::Initialize(DirectXCommon* dxCommon){
 		
 	assert(dxCommon);
@@ -52,7 +59,12 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateObject3DRootSignature();
 	// 3Dオブジェクト用グラフィックスパイプラインの作成
 	CreateObject3DGraphicsPipeline();
-
+	
+	// インスタンシング専用のルートシグネチャの作成
+	CreateInstancedObject3DRootSignature();
+	// インスタンシング専用のグラフィックスパイプラインの作成
+	CreateInstancedObject3DGraphicsPipeline();
+	
 	// パーティクル用ルートシグネチャの作成
 	CreateParticleRootSignature();
 	// パーティクル用グラフィックスパイプラインの作成
@@ -78,20 +90,24 @@ void PipelineManager::SetPipeline(
             D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
         );
         break;
-	case PipelineType::Object3D:
+	case PipelineType::Object3D: // カリングあり
 		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
 		commandList->SetPipelineState(object3DPipelineState_.Get());
 		break;
-	case PipelineType::Object3D_CullNone:
+	case PipelineType::Object3D_CullNone: // カリングなし
 		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
 		commandList->SetPipelineState(object3DPipelineStateNone_.Get());
 		break;
-	case PipelineType::Particle:
+	case PipelineType::InstancedObject3D: // インスタンシング専用
+		commandList->SetGraphicsRootSignature(instancedObject3DRootSignature_.Get());
+		commandList->SetPipelineState(instancedObject3DPipelineState_.Get());
+		break;
+	case PipelineType::Particle: // パーティクル用
 		commandList->SetGraphicsRootSignature(particleRootSignature_.Get());
 		commandList->SetPipelineState(particlePipelineState_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		break;
-	case PipelineType::PostEffect:
+	case PipelineType::PostEffect: // ポストエフェクト用
 		commandList->SetGraphicsRootSignature(postEffectRootSignature_.Get());
 		commandList->SetPipelineState(postEffectPipelineState_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -175,6 +191,59 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 	);
 
 }
+// ルートシグネチャの生成 インスタンシング専用
+void PipelineManager::CreateInstancedObject3DRootSignature(){
+
+
+	RootSignatureBuilder builder;
+
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
+
+	builder.AddSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標の配列 (t0)
+
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: 平行光源 (b1)
+	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
+	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: 点光源 (b3)
+	builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
+
+	// ディゾルブ用
+	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
+	builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ進行度 (b5)
+
+	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
+	builder.Build(dxCommon_->GetDevice(), instancedObject3DRootSignature_);
+
+
+}
+
+// グラフィックスパイプラインの生成 インスタンシング専用
+void PipelineManager::CreateInstancedObject3DGraphicsPipeline(){
+	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d/InstancedObject.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d/Object3d.PS.hlsl", L"ps_6_0");
+
+	// 頂点レイアウト (Object3Dと同じ)
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	GraphicsPipelineBuilder builder;
+	builder.SetRootSignature(instancedObject3DRootSignature_.Get())
+		.SetShaders(vsBlob.Get(), psBlob.Get())
+		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
+		.SetBlendMode(BlendMode::kNormal)
+		.SetCullMode(D3D12_CULL_MODE_BACK)
+		.SetDepthStencil(true, true); // 深度書き込みON
+
+	builder.Build(dxCommon_->GetDevice(), instancedObject3DPipelineState_);
+
+
+}
+
+
+
 // ルートシグネチャの生成 Particle用
 void PipelineManager::CreateParticleRootSignature(){
 
@@ -240,8 +309,8 @@ void PipelineManager::CreatePostEffectPipeline(){
 		L"resources/shaders/PostEffect/BoxFilter.PS.hlsl",      // 4: BoxFilter
 		L"resources/shaders/PostEffect/BoxFilter5x5.PS.hlsl",   // 5: BoxFilter5x5
 		L"resources/shaders/PostEffect/GaussianFilter.PS.hlsl" , // 6: GaussianFilter
-		L"resources/shaders/PostEffect/LuminanceBasedOutline.PS.hlsl", // 7: LuminanceBasedOutline
-		L"resources/shaders/PostEffect/RadialBlur.PS.hlsl", // 8: RadialBlur
+		L"resources/shaders/PostEffect/RadialBlur.PS.hlsl", // 7: RadialBlur
+		L"resources/shaders/PostEffect/LuminanceBasedOutline.PS.hlsl", // 8: LuminanceBasedOutline
 		L"resources/shaders/PostEffect/RandomNoise.PS.hlsl" // 9: RandomNoise
 	};
 

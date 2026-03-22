@@ -8,7 +8,7 @@
 #include "engine/math/VectorMath.h"
 #include "DungeonGenerator.h"
 #include <random>
-
+#include "InstancedGroup.h"
 class Obj3d;
 class Camera;
 
@@ -21,6 +21,8 @@ public:
     void Initialize();
     void Update(const Vector3& playerPos);
     void Draw(const Vector3& playerPos);
+
+
 
     void LoadAndCreateMap(const std::string& fileName);
     void RebuildMapObjects();
@@ -55,6 +57,9 @@ public:
     bool ConsumeMapChanged();
 
     Vector3 GetMapCenterPosition(float y = 0.0f) const;
+
+    void SetNoiseTexture(uint32_t index);
+
 private:
     const Camera* camera_ = nullptr;
 
@@ -79,4 +84,9 @@ private:
     int mapType_ = 0; // 0 = map01.json, 1 = boss.json
 
     bool mapChanged_ = false;
+
+
+    std::unique_ptr<InstancedGroup> wallGroup_;
+    std::unique_ptr<InstancedGroup> stairsGroup_;
+    uint32_t noiseTextureIndex_ = 0;
 };

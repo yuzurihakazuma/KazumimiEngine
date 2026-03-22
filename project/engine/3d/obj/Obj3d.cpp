@@ -163,6 +163,10 @@ void Obj3d::Update(){
 	transformationMatrixData_->World = worldMatrix;
 	transformationMatrixData_->WVP = worldViewProjectionMatrix;
 	transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
+
+	matrixData_.World = worldMatrix;
+	matrixData_.WVP = worldViewProjectionMatrix;
+	matrixData_.WorldInverseTranspose = worldInverseTranspose;
 }
 
 void Obj3d::Draw(){

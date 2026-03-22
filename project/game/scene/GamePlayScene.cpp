@@ -36,6 +36,7 @@
 
 using namespace VectorMath;
 using namespace MatrixMath;
+
 // 初期化
 void GamePlayScene::Initialize() {
 	DirectXCommon *dxCommon = DirectXCommon::GetInstance();
@@ -51,6 +52,15 @@ void GamePlayScene::Initialize() {
 
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
+
+	// プレイヤーモデル読み込み
+	ModelManager::GetInstance()->LoadModel("player", "resources/player", "player.obj");
+
+	// 敵モデル読み込み
+	ModelManager::GetInstance()->LoadModel("enemy", "resources/enemy", "enemy.obj");
+
+	// ボスモデル読み込み
+	ModelManager::GetInstance()->LoadModel("boss", "resources/boss", "boss.obj");
 
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
@@ -82,7 +92,7 @@ void GamePlayScene::Initialize() {
 	debugCamera_->Initialize();
 
 
-	playerObj_ = Obj3d::Create("sphere");
+	playerObj_ = Obj3d::Create("player");
 	if (playerObj_) {
 		playerObj_->SetCamera(camera_.get());
 		playerObj_->SetTranslation(playerPos_);
@@ -98,7 +108,7 @@ void GamePlayScene::Initialize() {
 	boss_->Initialize();
 	boss_->SetScale({ 2.0f, 2.0f, 2.0f });
 
-	bossObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+	bossObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("boss"));
 	if (bossObj_) {
 		bossObj_->SetCamera(camera_.get());
 		bossObj_->SetScale(boss_->GetScale());
@@ -141,6 +151,7 @@ void GamePlayScene::Initialize() {
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
+	levelEditor_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
@@ -149,9 +160,17 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");
 	ModelManager::GetInstance()->LoadModel("cardPotion", "resources/card", "CardPotion.obj");
 	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
+	ModelManager::GetInstance()->LoadModel("CardShield", "resources/card", "CardShield.obj");
+	ModelManager::GetInstance()->LoadModel("CardIce", "resources/card", "CardIce.obj");
+	ModelManager::GetInstance()->LoadModel("CardFang", "resources/card", "CardFang.obj");
+	ModelManager::GetInstance()->LoadModel("CardDecoy", "resources/card", "CardDecoy.obj");
+	ModelManager::GetInstance()->LoadModel("CardAtkDown", "resources/card", "CardAtkDown.obj");
+	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
 
 	// CSVからカードデータベースを初期化
-	CardDatabase::Initialize("Resources/CardData.csv");
+	CardDatabase::Initialize("resources/card/CardData.csv");
+
+	CardDatabase::LoadAdditionalCards("resources/card/BossCardData.csv");
 
 	// 手札マネージャーの初期化
 	handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);
@@ -169,6 +188,15 @@ void GamePlayScene::Initialize() {
 
 	TextManager::GetInstance()->Initialize();
 
+	// ボスHPバー背景
+	bossHpBackSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	bossHpBackSprite_->SetSize({ 160.0f, 16.0f });
+	bossHpBackSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });
+
+	// ボスHPバー本体
+	bossHpFillSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	bossHpFillSprite_->SetSize({ 152.0f, 10.0f });
+	bossHpFillSprite_->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
 	
 	// スプライト作成（座標 X:100, Y:500）
 	descBgSprite_ = Sprite::Create("resources/white1x1.png", { 100.0f, 500.0f });
@@ -177,7 +205,13 @@ void GamePlayScene::Initialize() {
 	descBgSprite_->SetSize({ 600.0f, 100.0f });
 
 	// 色を半透明の黒にする（Vector4 で R, G, B, A）
-	descBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });
+	descBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });// 画面全体を覆うフェード用スプライトの作成 (座標0,0)
+
+	fadeSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	// 画面サイズに合わせる (ウィンドウサイズに合わせて変更してください)
+	fadeSprite_->SetSize({ 4000.0f, 4000.0f });
+	// 初期状態は透明の黒
+	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
 }
 
 void GamePlayScene::Update() {
@@ -311,21 +345,28 @@ void GamePlayScene::Update() {
 		playerObj_->Update();
 	}
 
+	if (player_ && player_->IsDead()) {
+		SceneManager::GetInstance()->ChangeScene("GAMEOVER");
+		return;
+	}
+
 	// ==========================================
 // 階段タイル(3)との判定
 // ==========================================
+	// ==========================================
+	// 階段タイル(3)との判定
+	// ==========================================
 	if (player_ && levelEditor_) {
 		const LevelData& level = levelEditor_->GetLevelData();
-
 		int gridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
 		int gridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
 
-		if (gridX >= 0 && gridX < level.width &&
-			gridZ >= 0 && gridZ < level.height) {
-
+		if (gridX >= 0 && gridX < level.width && gridZ >= 0 && gridZ < level.height) {
 			if (level.tiles[gridZ][gridX] == 3) {
-				AdvanceFloor();
-				return;
+				// ★マップ移動フラグの代わりに、フェードアウトを開始する！
+				if (transitionState_ == TransitionState::None) {
+					transitionState_ = TransitionState::FadeOut;
+				}
 			}
 		}
 	}
@@ -494,6 +535,7 @@ void GamePlayScene::Update() {
 			bossObj_->SetScale(boss_->GetScale());
 			bossObj_->Update();
 		}
+
 	}
 
 	// =========================
@@ -550,7 +592,11 @@ void GamePlayScene::Update() {
 	// =========================
 	// ボス → プレイヤー
 	// =========================
-	if (boss_ && player_ && !boss_->IsDead() && !player_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
+	if (boss_ && player_ && !boss_->IsDead() &&
+		!player_->IsDead() &&
+		levelEditor_ && levelEditor_->IsBossMap() &&
+		!isBossIntroPlaying_ &&
+		!boss_->IsAppearing()) {
 		Vector3 bossPos = boss_->GetPosition();
 
 		// ボスの近接攻撃要求がある場合
@@ -577,6 +623,17 @@ void GamePlayScene::Update() {
 		// ボスのカード使用要求がある場合
 		if (boss_->GetCardUseRequest()) {
 			if (bossCardSystem_) {
+				if (boss_->GetCardUseRequest()) {
+					// ボスが選んだカード（BossSummonなど）を取得
+					Card useCard = boss_->GetSelectedCard();
+
+					// 103番（BossSummon）なら、CSVで設定した数だけ敵をスポーン！
+					if (useCard.id == 103) {
+						SpawnEnemiesRandom(useCard.effectValue, 2);
+					}
+				}
+
+
 				bossCardSystem_->UseCard(
 					boss_->GetSelectedCard(),
 					bossPos,
@@ -586,6 +643,8 @@ void GamePlayScene::Update() {
 			}
 
 			boss_->ClearCardUseRequest();
+
+			
 		}
 	}
 	// ==========================================
@@ -620,17 +679,32 @@ void GamePlayScene::Update() {
 			player_->AddExp(5);
 		}
 
-		// ボスがカードを持っていればランダムでドロップ
+		// ボスドロップは地面の高さに補正して落とす
 		if (boss_->HasAnyCard()) {
 			Card dropCard = boss_->GetRandomDropCard();
 			if (dropCard.id != -1) {
-				cardPickupManager_.AddPickup(boss_->GetPosition(), dropCard);
+				Vector3 dropPos = boss_->GetPosition();
+
+				// 地面付近に補正する
+				if (levelEditor_) {
+					const LevelData& level = levelEditor_->GetLevelData();
+					dropPos.y = level.baseY + 1.5f;
+				} else {
+					dropPos.y = 1.5f;
+				}
+
+				cardPickupManager_.AddPickup(dropPos, dropCard);
 			}
 		}
 
 		bossDeadHandled_ = true;
-	}
 
+		// ボス部屋で倒したら即クリア
+		if (levelEditor_ && levelEditor_->IsBossMap()) {
+			SceneManager::GetInstance()->ChangeScene("GAMECLEAR");
+			return;
+		}
+	}
 	// ==========================================
 	// ドロップアイテム(カード)の取得判定
 	// ==========================================
@@ -881,6 +955,63 @@ void GamePlayScene::Update() {
 		camera_->Update();
 	}
 
+	// ボス頭上HPバー更新
+	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap() &&
+		bossHpBackSprite_ && bossHpFillSprite_ && camera_) {
+
+		Vector3 bossHeadPos = boss_->GetPosition();
+		bossHeadPos.y += 2.8f; // 高すぎたので少し下げる
+
+		Vector2 screenPos = WorldToScreen(bossHeadPos);
+
+		// バーサイズ
+		const float backWidth = 160.0f;
+		const float backHeight = 16.0f;
+		const float fillMaxWidth = 152.0f;
+		const float fillHeight = 10.0f;
+
+		// HP割合
+		float hpRate = 0.0f;
+		if (boss_->GetMaxHP() > 0) {
+			hpRate = static_cast<float>(boss_->GetHP()) / static_cast<float>(boss_->GetMaxHP());
+		}
+		if (hpRate < 0.0f) hpRate = 0.0f;
+		if (hpRate > 1.0f) hpRate = 1.0f;
+
+		// 背景バーは中央基準でそのまま配置
+		bossHpBackSprite_->SetPosition(screenPos);
+		bossHpBackSprite_->SetSize({ backWidth, backHeight });
+		bossHpBackSprite_->Update();
+
+		// HP割合で色変更
+		Vector4 hpColor{};
+		if (hpRate > 0.6f) {
+			hpColor = { 0.2f, 1.0f, 0.2f, 1.0f }; // 緑
+		} else if (hpRate > 0.3f) {
+			hpColor = { 1.0f, 0.9f, 0.2f, 1.0f }; // 黄
+		} else {
+			hpColor = { 1.0f, 0.2f, 0.2f, 1.0f }; // 赤
+		}
+
+		// 本体バーの現在幅
+		float fillWidth = fillMaxWidth * hpRate;
+
+		// 背景バーの左端を基準に、本体バーの中心を計算
+		float backLeft = screenPos.x - backWidth * 0.5f;
+		float fillLeft = backLeft + 4.0f;
+		float fillCenterX = fillLeft + fillWidth * 0.5f;
+
+		// 背景の中央から少し下に本体バーを置く
+		Vector2 fillPos = {
+			fillCenterX,
+			screenPos.y + 1.0f
+		};
+
+		bossHpFillSprite_->SetPosition(fillPos);
+		bossHpFillSprite_->SetSize({ fillWidth, fillHeight });
+		bossHpFillSprite_->SetColor(hpColor);
+		bossHpFillSprite_->Update();
+	}
 	// その他3Dオブジェクトの更新
 	for (auto &obj : object3ds_) {
 		obj->Update();
@@ -942,6 +1073,8 @@ void GamePlayScene::Update() {
 		bossPos = boss_->GetPosition();
 	}
 
+	UpdateCardUse(input);
+
 	// プレイヤー用カードシステム更新
 	if (playerCardSystem_) {
 		playerCardSystem_->Update(
@@ -976,7 +1109,11 @@ void GamePlayScene::Update() {
 	}
 
 	// ボス用カードシステム更新
-	if (boss_ && !boss_->IsDead() && bossCardSystem_ && levelEditor_ && levelEditor_->IsBossMap()) {
+	if (boss_ && !boss_->IsDead() &&
+		bossCardSystem_ &&
+		levelEditor_ && levelEditor_->IsBossMap() &&
+		!isBossIntroPlaying_ &&
+		!boss_->IsAppearing()) {
 		bossCardSystem_->Update(
 			player_.get(),
 			nullptr,
@@ -1019,7 +1156,36 @@ void GamePlayScene::Update() {
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
 
-	UpdateCardUse(input);
+	// ==========================================
+	// ★最優先：フェード演出 ＆ マップ切り替え処理
+	// ==========================================
+	if (transitionState_ == TransitionState::FadeOut) {
+		fadeAlpha_ += kFadeSpeed; // 画面を暗くしていく
+
+		if (fadeAlpha_ >= 1.0f) {
+			fadeAlpha_ = 1.0f;
+
+			// 画面が完全に真っ黒になった瞬間に、裏でマップを切り替える
+			AdvanceFloor();
+
+			// 切り替えが終わったらフェードインへ移行
+			transitionState_ = TransitionState::FadeIn;
+		}
+	} else if (transitionState_ == TransitionState::FadeIn) {
+		fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
+
+		if (fadeAlpha_ <= 0.0f) {
+			fadeAlpha_ = 0.0f;
+			transitionState_ = TransitionState::None; // 演出終了
+		}
+	}
+
+	// フェード用スプライトの色と透明度を更新
+	if (fadeSprite_) {
+		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
+		fadeSprite_->Update();
+	}
+	
 }
 
 void GamePlayScene::Draw() {
@@ -1029,7 +1195,7 @@ void GamePlayScene::Draw() {
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
 	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->PreDrawScene(commandList);
 
 
 	// 3D描画の前準備
@@ -1081,6 +1247,10 @@ void GamePlayScene::Draw() {
 		obj->Draw();
 	}
 
+	if (blockGroup_) {
+		blockGroup_->Draw(camera_.get());
+	}
+
 	//手札カード
 	handManager_.Draw();
 
@@ -1100,16 +1270,25 @@ void GamePlayScene::Draw() {
 	if (sprite_) {
 		sprite_->Draw();
 	}
+
+	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
+		if (bossHpBackSprite_) {
+			bossHpBackSprite_->Draw();
+		}
+		if (bossHpFillSprite_) {
+			bossHpFillSprite_->Draw();
+		}
+	}
+
 	TextManager::GetInstance()->Draw();
 
-
-
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList, dxCommon);
-
-
-
-
+	PostEffect::GetInstance()->PostDrawScene(commandList);
+	PostEffect::GetInstance()->Draw(commandList);
+	// ★一番最後にフェード用スプライトを描画（UIよりも手前に表示するため）
+	if (fadeSprite_ && transitionState_ != TransitionState::None) {
+		SpriteCommon::GetInstance()->PreDraw(commandList); // 必要に応じて
+		fadeSprite_->Draw();
+	}
 }
 
 void GamePlayScene::DrawDebugUI() {
@@ -1291,6 +1470,7 @@ void GamePlayScene::ResetBattleDebug() {
 	// 交換モードも戻しておく
 	isCardSwapMode_ = false;
 	pendingCard_ = Card{};
+
 }
 
 
@@ -1371,11 +1551,40 @@ void GamePlayScene::Finalize() {
 	playerCardSystem_.reset();
 	enemyCardSystems_.clear();
 	bossCardSystem_.reset();
+	bossHpBackSprite_.reset();
+	bossHpFillSprite_.reset();
 
 	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();
+}
+
+Vector2 GamePlayScene::WorldToScreen(const Vector3& worldPos) const {
+	if (!camera_) {
+		return { -10000.0f, -10000.0f };
+	}
+
+	Matrix4x4 viewProjection = camera_->GetViewProjectionMatrix();
+
+	Vector4 clip{};
+	clip.x = worldPos.x * viewProjection.m[0][0] + worldPos.y * viewProjection.m[1][0] + worldPos.z * viewProjection.m[2][0] + 1.0f * viewProjection.m[3][0];
+	clip.y = worldPos.x * viewProjection.m[0][1] + worldPos.y * viewProjection.m[1][1] + worldPos.z * viewProjection.m[2][1] + 1.0f * viewProjection.m[3][1];
+	clip.z = worldPos.x * viewProjection.m[0][2] + worldPos.y * viewProjection.m[1][2] + worldPos.z * viewProjection.m[2][2] + 1.0f * viewProjection.m[3][2];
+	clip.w = worldPos.x * viewProjection.m[0][3] + worldPos.y * viewProjection.m[1][3] + worldPos.z * viewProjection.m[2][3] + 1.0f * viewProjection.m[3][3];
+
+	if (clip.w == 0.0f) {
+		return { -10000.0f, -10000.0f };
+	}
+
+	float invW = 1.0f / clip.w;
+	float ndcX = clip.x * invW;
+	float ndcY = clip.y * invW;
+
+	Vector2 screen{};
+	screen.x = (ndcX * 0.5f + 0.5f) * static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	screen.y = (-ndcY * 0.5f + 0.5f) * static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+	return screen;
 }
 
 void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
@@ -1398,7 +1607,14 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		return;
 	}
 
-	// 階段周囲3x3を除外
+	// ==========================================
+	// ★ 追加：プレイヤーの現在位置をタイル座標に変換しておく
+	// ==========================================
+	int playerTileX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
+	int playerTileZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
+
+
+	// 階段周囲とプレイヤー周囲を除外
 	std::vector<std::pair<int, int>> filtered;
 	for (const auto& c : candidates) {
 		int x = c.first;
@@ -1415,6 +1631,21 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 				continue;
 			}
 		}
+
+		// ==========================================
+		// ★ 追加：プレイヤーから近すぎるマスを除外する
+		// ==========================================
+		int dx = x - playerTileX;
+		int dz = z - playerTileZ;
+		// タイル単位での距離を計算
+		float distanceToPlayer = std::sqrt(static_cast<float>(dx * dx + dz * dz));
+
+		// プレイヤーから「5マス」以内ならスポーン候補から外す！
+		// ※ 5.0f の部分は、ゲームの部屋の広さに合わせて 3.0f ～ 8.0f くらいで調整してください
+		if (distanceToPlayer < 5.0f) {
+			continue;
+		}
+		// ==========================================
 
 		filtered.push_back(c);
 	}
@@ -1440,7 +1671,7 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		enemy->SetPosition(worldPos);
 		enemy->SetScale({ 1.0f, 1.0f, 1.0f });
 
-		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));
 		if (enemyObj) {
 			enemyObj->SetCamera(camera_.get());
 			enemyObj->SetTranslation(worldPos);
@@ -1635,7 +1866,7 @@ void GamePlayScene::RespawnBossInRoom() {
 	}
 
 	// bossマップでは中央固定
-	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(-4.0f);
+	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(1.5f);
 
 	boss_->Initialize();
 	boss_->SetPosition(spawnPos);

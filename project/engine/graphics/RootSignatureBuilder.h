@@ -11,6 +11,8 @@ class RootSignatureBuilder {
 public:
 	// CBV（定数バッファ: b0, b1
     void AddCBV(UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility);
+	// SRV（テクスチャなど: t0, t1
+	void AddSRV(UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility);
 
     // SRV（テクスチャなど: t0, t1
     void AddDescriptorTableSRV(UINT baseShaderRegister, D3D12_SHADER_VISIBILITY visibility);

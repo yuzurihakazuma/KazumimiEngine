@@ -18,6 +18,10 @@
 #include "game/card/DecoyEffect.h"
 #include "game/card/AttackDebuffEffect.h"
 #include "game/card/ClawEffect.h"
+#include "game/card/BossClawEffect.h"
+#include "game/card/BossFierEffect.h"
+#include "game/card/BossSummonEffect.h"
+
 
 using namespace VectorMath;
 
@@ -39,6 +43,15 @@ void CardUseSystem::Initialize(Camera* camera) {
 	effectFactory_[8] = [](const Card &c) { return std::make_unique<DecoyEffect>(300); };
 	effectFactory_[9] = [](const Card &c) { return std::make_unique<AttackDebuffEffect>(300); };
 	effectFactory_[10] = [](const Card &c) {return std::make_unique<ClawEffect>(c.effectValue); };
+
+	// ID:101 ボスクロー（前回作ったもの）
+	effectFactory_[101] = [](const Card &c) { return std::make_unique<BossClawEffect>(c.effectValue); };
+
+	// ID:102 ボスファイヤー（今回作ったもの）★これを追加！
+	effectFactory_[102] = [](const Card &c) { return std::make_unique<BossFierEffect>(c.effectValue); };
+
+	// ボス召喚エフェクトの引数（召喚数）もCSVから受け取る想定
+	effectFactory_[103] = [](const Card &c) { return std::make_unique<BossSummonEffect>(c.effectValue); };
 
 	Reset();
 }
@@ -131,10 +144,17 @@ int CardUseSystem::GetCastTime(const Card& card) const {
 
 // リセット
 void CardUseSystem::Reset() {
-	// 現在発動中のすべてのカードを一気に消去する！
+	// 発動中の効果を全削除
 	activeEffects_.clear();
 
-	
+	// 詠唱状態を初期化
+	isCasting_ = false;
+	castingCard_ = { -1, "", 0 };
+	castPos_ = { 0.0f, 0.0f, 0.0f };
+	castYaw_ = 0.0f;
+	isPlayerCasting_ = true;
+	castTimer_ = 0;
+	castingPlayer_ = nullptr;
 }
 
 void CardUseSystem::CancelCasting() {

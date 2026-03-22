@@ -98,8 +98,8 @@ private:
     int costRecoveryTimer_ = 0;           // コスト回復タイマー
     int costRecoveryInterval_ = 180;      // コスト回復間隔
 
-    int hp_ = 5;                          // 現在HP
-    int maxHp_ = 5;                       // 最大HP
+    int hp_ = 8;                          // 現在HP
+    int maxHp_ = 8;                       // 最大HP
 
     bool isDead_ = false;                 // 死亡フラグ
 

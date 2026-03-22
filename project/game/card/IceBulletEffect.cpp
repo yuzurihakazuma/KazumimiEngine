@@ -8,25 +8,30 @@
 
 using namespace VectorMath;
 
-void IceBulletEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
+void IceBulletEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Camera* camera) {
+	// 使用者情報を保存
 	isPlayerCaster_ = isPlayerCaster;
 	isFinished_ = false;
-	
-	Vector3 forward = { std::sinf(casterYaw),0.0f,std::cosf(casterYaw) };
 
+	// 正面方向を計算
+	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
+
+	// 使用者の少し前から発射
 	pos_ = {
 		casterPos.x + forward.x * 1.5f,
 		casterPos.y,
 		casterPos.z + forward.z * 1.5f
 	};
 
+	// 弾速を設定
 	velocity_ = {
 		forward.x * 0.4f,
 		0.0f,
 		forward.z * 0.4f
 	};
 
-	obj_ = Obj3d::Create("sphere"); // 氷用のモデル名があれば変更
+	// 表示用オブジェクトを生成
+	obj_ = Obj3d::Create("sphere");
 	if (obj_) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
@@ -35,58 +40,82 @@ void IceBulletEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPl
 	}
 }
 
-void IceBulletEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void IceBulletEffect::Update(Player* player, Enemy* enemy, Boss* boss,
+	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
 
+	// 終了済みなら何もしない
 	if (isFinished_) {
 		return;
 	}
 
+	// 弾を進める
 	pos_ += velocity_;
 
-	// 壁にあったら消滅
-	if (Collision::CheckBlockCollision(pos_, 0.5f, level)) {
-		isFinished_ = true;
-		return;
-	}
-
+	// 表示位置を更新
 	if (obj_) {
 		obj_->SetTranslation(pos_);
 		obj_->Update();
 	}
 
+	// プレイヤーが使った場合
 	if (isPlayerCaster_) {
-		// 敵への当たり判定
+		// 雑魚敵への判定
 		if (enemy && !enemy->IsDead()) {
-			Vector3 diff = { enemyPos.x - pos_.x,enemyPos.y - pos_.y,enemyPos.z - pos_.z };
+			Vector3 diff = {
+				enemyPos.x - pos_.x,
+				0.0f,
+				enemyPos.z - pos_.z
+			};
+
 			if (Length(diff) < 1.5f) {
-				enemy->TakeDamage(1); // 氷の弾のダメージ
+				enemy->TakeDamage(1);
 				isFinished_ = true;
 				return;
 			}
 		}
 
-		// ボスへの当たり判定
+		// ボスへの判定
 		if (boss && !boss->IsDead()) {
-			Vector3 diff = { bossPos.x - pos_.x, bossPos.y - pos_.y, bossPos.z - pos_.z };
-			if (Length(diff) < 2.0f) {
+			Vector3 diff = {
+				bossPos.x - pos_.x,
+				0.0f,
+				bossPos.z - pos_.z
+			};
+
+			if (Length(diff) < 2.5f) {
 				boss->TakeDamage(1);
 				isFinished_ = true;
 				return;
 			}
 		}
 
-		// 画面外（遠く）に行ったら消す
+		// 遠くまで飛んだら消す
 		if (pos_.x > 100.0f || pos_.x < -100.0f || pos_.z > 100.0f || pos_.z < -100.0f) {
 			isFinished_ = true;
+			return;
 		}
-	} else {
-		// 敵が使った場合
+	}
+	// 敵またはボスが使った場合
+	else {
 		if (player && !player->IsDead()) {
-			Vector3 diff = { player->GetPosition().x - pos_.x, player->GetPosition().y - pos_.y, player->GetPosition().z - pos_.z };
+			Vector3 playerPos = player->GetPosition();
+
+			// Y軸を無視してXZ平面で判定
+			Vector3 diff = {
+				playerPos.x - pos_.x,
+				0.0f,
+				playerPos.z - pos_.z
+			};
+
 			if (Length(diff) < 1.5f) {
-				int damage = 2; // 氷の弾の基本ダメージ
-				if (enemy && enemy->IsAttackDebuffed()) damage = 1;
-				else if (boss && boss->IsAttackDebuffed()) damage = 1;
+				int damage = 2;
+
+				// 攻撃力低下中ならダメージを下げる
+				if (enemy && enemy->IsAttackDebuffed()) {
+					damage = 1;
+				} else if (boss && boss->IsAttackDebuffed()) {
+					damage = 1;
+				}
 
 				player->TakeDamage(damage, pos_);
 				isFinished_ = true;
@@ -95,9 +124,15 @@ void IceBulletEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vec
 		}
 	}
 
+	// 当たり判定の後で壁との衝突を確認する
+	if (Collision::CheckBlockCollision(pos_, 0.5f, level)) {
+		isFinished_ = true;
+		return;
+	}
 }
 
 void IceBulletEffect::Draw() {
+	// 有効中だけ描画
 	if (!isFinished_ && obj_) {
 		obj_->Draw();
 	}
