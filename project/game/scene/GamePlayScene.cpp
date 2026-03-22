@@ -106,6 +106,20 @@ void GamePlayScene::Initialize(){
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	
 	TextManager::GetInstance()->Initialize();
+
+	blockGroup_ = std::make_unique<InstancedGroup>();
+	blockGroup_->Initialize("block", 10000); // 最大1万個まで対応！
+	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
+
+	// 試しに20x20 = 400個のブロックを床のように敷き詰めてみます
+	for (int x = -100; x < 100; ++x) {
+		for (int z = 0; z < 20; ++z) {
+			auto block = Obj3d::Create("block");
+			block->SetTranslation({ x * 2.0f, -2.0f, z * 2.0f });
+			block->SetCamera(camera_.get());
+			blocks_.push_back(std::move(block));
+		}
+	}
 }
 
 void GamePlayScene::Update(){
@@ -151,6 +165,15 @@ void GamePlayScene::Update(){
 	PostEffect::GetInstance()->Update();
 
 	levelEditor_->Update();
+
+	for (auto& block : blocks_) {
+		block->Update();
+	}
+	// InstancedGroup に「最新のデータをお願い！」と渡すだけ
+	if (blockGroup_) {
+		blockGroup_->Update(blocks_);
+	}
+
 }
 
 void GamePlayScene::Draw(){
@@ -165,7 +188,7 @@ void GamePlayScene::Draw(){
 
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
-
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
 	
 	if (playerObj_) {
 		playerObj_->Draw();
@@ -181,6 +204,12 @@ void GamePlayScene::Draw(){
 	for ( auto& obj : object3ds_ ) {
 		obj->Draw();
 	}
+
+	if (blockGroup_) {
+		blockGroup_->Draw(camera_.get());
+	}
+
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
 
 	levelEditor_->Draw();
 

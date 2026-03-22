@@ -78,6 +78,9 @@ public:
 	void SetDissolveThreshold(float threshold);
 	void SetNoiseTexture(uint32_t textureIndex);
 
+	// 座標変換行列を取得する関数
+	const TransformationMatrix& GetMatrixData() const { return matrixData_; }
+
 private:
 
 	// -------------------------------------------------
@@ -111,4 +114,7 @@ private:
 
 	// 現在の再生時間（秒）
 	float animationTime_ = 0.0f;            
+
+	// 座標
+	TransformationMatrix matrixData_;
 };

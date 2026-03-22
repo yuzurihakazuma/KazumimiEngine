@@ -4,6 +4,7 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/graphics/TextureManager.h"
 #include "Animation.h"
+#include "InstancedGroup.h"
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -89,4 +90,7 @@ private: // メンバ変数
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
 	Animation testAnimation_;
+	// ブロックの一括描画用グループ
+	std::unique_ptr<InstancedGroup> blockGroup_ = nullptr;
+	std::vector<std::unique_ptr<Obj3d>> blocks_;
 };

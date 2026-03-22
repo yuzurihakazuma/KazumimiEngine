@@ -220,7 +220,7 @@ void PipelineManager::CreateInstancedObject3DRootSignature(){
 // グラフィックスパイプラインの生成 インスタンシング専用
 void PipelineManager::CreateInstancedObject3DGraphicsPipeline(){
 	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d/InstancedObject.VS.hlsl", L"vs_6_0");
-	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d.PS.hlsl", L"ps_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Object3d/Object3d.PS.hlsl", L"ps_6_0");
 
 	// 頂点レイアウト (Object3Dと同じ)
 	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
