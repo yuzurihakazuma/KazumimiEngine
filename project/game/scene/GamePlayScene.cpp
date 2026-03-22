@@ -53,6 +53,15 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
 
+	// プレイヤーモデル読み込み
+	ModelManager::GetInstance()->LoadModel("player", "resources/player", "player.obj");
+
+	// 敵モデル読み込み
+	ModelManager::GetInstance()->LoadModel("enemy", "resources/enemy", "enemy.obj");
+
+	// ボスモデル読み込み
+	ModelManager::GetInstance()->LoadModel("boss", "resources/boss", "boss.obj");
+
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 	// パーティクルグループ作成 (シングルトン)
@@ -83,7 +92,7 @@ void GamePlayScene::Initialize() {
 	debugCamera_->Initialize();
 
 
-	playerObj_ = Obj3d::Create("sphere");
+	playerObj_ = Obj3d::Create("player");
 	if (playerObj_) {
 		playerObj_->SetCamera(camera_.get());
 		playerObj_->SetTranslation(playerPos_);
@@ -99,7 +108,7 @@ void GamePlayScene::Initialize() {
 	boss_->Initialize();
 	boss_->SetScale({ 2.0f, 2.0f, 2.0f });
 
-	bossObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+	bossObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("boss"));
 	if (bossObj_) {
 		bossObj_->SetCamera(camera_.get());
 		bossObj_->SetScale(boss_->GetScale());
@@ -576,7 +585,11 @@ void GamePlayScene::Update() {
 	// =========================
 	// ボス → プレイヤー
 	// =========================
-	if (boss_ && player_ && !boss_->IsDead() && !player_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
+	if (boss_ && player_ && !boss_->IsDead() &&
+		!player_->IsDead() &&
+		levelEditor_ && levelEditor_->IsBossMap() &&
+		!isBossIntroPlaying_ &&
+		!boss_->IsAppearing()) {
 		Vector3 bossPos = boss_->GetPosition();
 
 		// ボスの近接攻撃要求がある場合
@@ -1089,7 +1102,11 @@ void GamePlayScene::Update() {
 	}
 
 	// ボス用カードシステム更新
-	if (boss_ && !boss_->IsDead() && bossCardSystem_ && levelEditor_ && levelEditor_->IsBossMap()) {
+	if (boss_ && !boss_->IsDead() &&
+		bossCardSystem_ &&
+		levelEditor_ && levelEditor_->IsBossMap() &&
+		!isBossIntroPlaying_ &&
+		!boss_->IsAppearing()) {
 		bossCardSystem_->Update(
 			player_.get(),
 			nullptr,
@@ -1643,7 +1660,7 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		enemy->SetPosition(worldPos);
 		enemy->SetScale({ 1.0f, 1.0f, 1.0f });
 
-		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));
 		if (enemyObj) {
 			enemyObj->SetCamera(camera_.get());
 			enemyObj->SetTranslation(worldPos);

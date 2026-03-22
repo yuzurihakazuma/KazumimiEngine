@@ -38,7 +38,7 @@ void Boss::Initialize() {
     attackDebuffTimer_ = 0;    // 攻撃デバフ時間リセット
 
     appearStartY_ = -4.0f;     // 地面下から出現
-    appearTargetY_ = 2.0f;     // 最終位置
+    appearTargetY_ = 1.5f;     // 最終位置
     appearTimer_ = appearDuration_; // 登場演出時間セット
 
     InitializeBossCards(); // ボス専用カードを登録
@@ -54,54 +54,57 @@ void Boss::InitializeBossCards() {
 
 void Boss::Update() {
     if (isDead_) {
-        state_ = State::Dead; // 死亡状態に固定
+        state_ = State::Dead;
         return;
     }
 
-    attackRequest_ = false;   // 毎フレーム攻撃フラグ初期化
-    cardUseRequest_ = false;  // 毎フレームスキル使用フラグ初期化
+    // 毎フレーム要求を初期化
+    attackRequest_ = false;
+    cardUseRequest_ = false;
+
+    // 登場演出中は他の思考・攻撃・スキル処理を一切しない
+    if (state_ == State::Appear) {
+        UpdateAppear();
+        return;
+    }
 
     if (attackCooldownTimer_ > 0) {
-        attackCooldownTimer_--; // 近接攻撃クールダウン減少
+        attackCooldownTimer_--;
     }
 
     if (skillCooldownTimer_ > 0) {
-        skillCooldownTimer_--; // スキルクールダウン減少
+        skillCooldownTimer_--;
     }
 
     if (isHit_) {
-        pos_ += knockbackVelocity_;      // ノックバック移動
-        knockbackVelocity_ *= 0.85f;     // 徐々に減速
+        pos_ += knockbackVelocity_;
+        knockbackVelocity_ *= 0.85f;
 
-        hitTimer_--;                     // ヒット時間減少
+        hitTimer_--;
         if (hitTimer_ <= 0) {
-            isHit_ = false;              // ヒット演出終了
-            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック停止
+            isHit_ = false;
+            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
         }
-        return; // ヒット中は他の行動をしない
+        return;
     }
 
     if (isActionLocked_) {
-        actionLockTimer_--; // ロック残り時間減少
+        actionLockTimer_--;
         if (actionLockTimer_ <= 0) {
-            isActionLocked_ = false; // ロック解除
+            isActionLocked_ = false;
         }
-        return; // ロック中は行動しない
+        return;
     }
 
     if (thinkTimer_ > 0) {
-        thinkTimer_--; // 次の判断まで待つ
+        thinkTimer_--;
     }
 
     if (thinkTimer_ <= 0) {
-        DecideNextState(); // 次の状態を決定
+        DecideNextState();
     }
 
     switch (state_) {
-    case State::Appear:
-        UpdateAppear();
-        break;
-
     case State::Idle:
         UpdateIdle();
         break;
@@ -118,15 +121,15 @@ void Boss::Update() {
         UpdateUseSkill();
         break;
 
+    case State::Appear:
     case State::Dead:
         break;
     }
 
-    // デバフタイマーの更新
     if (isAttackDebuffed_) {
         attackDebuffTimer_--;
         if (attackDebuffTimer_ <= 0) {
-            isAttackDebuffed_ = false; // 時間切れで元に戻る
+            isAttackDebuffed_ = false;
         }
     }
 }
