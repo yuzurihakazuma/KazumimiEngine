@@ -188,6 +188,19 @@ private: // メンバ変数
 
 	// ステータス無限モード(デバッグ用)
 	bool isInfiniteMode_ = false;
+	// --- フェード演出用の状態 ---
+	enum class TransitionState {
+		None,       // 通常時
+		FadeOut,    // 暗くなっている途中
+		FadeIn      // 明るくなっている途中
+	};
 
+	// private メンバ変数に追加
+	TransitionState transitionState_ = TransitionState::None;
+	float fadeAlpha_ = 0.0f;           // 0.0f(透明) ～ 1.0f(真っ黒)
+	const float kFadeSpeed = 0.02f;   // フェードの速さ（調整してください）
+
+	// 画面全体を覆う黒スプライト
+	std::unique_ptr<Sprite> fadeSprite_ = nullptr; // または std::unique_ptr<Sprite> fadeSprite_;
 
 };

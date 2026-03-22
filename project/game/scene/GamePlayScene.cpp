@@ -189,7 +189,13 @@ void GamePlayScene::Initialize() {
 	descBgSprite_->SetSize({ 600.0f, 100.0f });
 
 	// 色を半透明の黒にする（Vector4 で R, G, B, A）
-	descBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });
+	descBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });// 画面全体を覆うフェード用スプライトの作成 (座標0,0)
+
+	fadeSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	// 画面サイズに合わせる (ウィンドウサイズに合わせて変更してください)
+	fadeSprite_->SetSize({ 4000.0f, 4000.0f });
+	// 初期状態は透明の黒
+	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
 }
 
 void GamePlayScene::Update() {
@@ -331,18 +337,20 @@ void GamePlayScene::Update() {
 	// ==========================================
 // 階段タイル(3)との判定
 // ==========================================
+	// ==========================================
+	// 階段タイル(3)との判定
+	// ==========================================
 	if (player_ && levelEditor_) {
 		const LevelData& level = levelEditor_->GetLevelData();
-
 		int gridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
 		int gridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
 
-		if (gridX >= 0 && gridX < level.width &&
-			gridZ >= 0 && gridZ < level.height) {
-
+		if (gridX >= 0 && gridX < level.width && gridZ >= 0 && gridZ < level.height) {
 			if (level.tiles[gridZ][gridX] == 3) {
-				AdvanceFloor();
-				return;
+				// ★マップ移動フラグの代わりに、フェードアウトを開始する！
+				if (transitionState_ == TransitionState::None) {
+					transitionState_ = TransitionState::FadeOut;
+				}
 			}
 		}
 	}
@@ -1124,7 +1132,36 @@ void GamePlayScene::Update() {
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
 
+	// ==========================================
+	// ★最優先：フェード演出 ＆ マップ切り替え処理
+	// ==========================================
+	if (transitionState_ == TransitionState::FadeOut) {
+		fadeAlpha_ += kFadeSpeed; // 画面を暗くしていく
 
+		if (fadeAlpha_ >= 1.0f) {
+			fadeAlpha_ = 1.0f;
+
+			// 画面が完全に真っ黒になった瞬間に、裏でマップを切り替える
+			AdvanceFloor();
+
+			// 切り替えが終わったらフェードインへ移行
+			transitionState_ = TransitionState::FadeIn;
+		}
+	} else if (transitionState_ == TransitionState::FadeIn) {
+		fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
+
+		if (fadeAlpha_ <= 0.0f) {
+			fadeAlpha_ = 0.0f;
+			transitionState_ = TransitionState::None; // 演出終了
+		}
+	}
+
+	// フェード用スプライトの色と透明度を更新
+	if (fadeSprite_) {
+		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
+		fadeSprite_->Update();
+	}
+	
 }
 
 void GamePlayScene::Draw() {
@@ -1219,7 +1256,11 @@ void GamePlayScene::Draw() {
 
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
 	PostEffect::GetInstance()->Draw(commandList, dxCommon);
-
+	// ★一番最後にフェード用スプライトを描画（UIよりも手前に表示するため）
+	if (fadeSprite_ && transitionState_ != TransitionState::None) {
+		SpriteCommon::GetInstance()->PreDraw(commandList); // 必要に応じて
+		fadeSprite_->Draw();
+	}
 }
 
 void GamePlayScene::DrawDebugUI() {
