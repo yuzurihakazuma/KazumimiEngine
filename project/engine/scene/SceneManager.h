@@ -86,7 +86,6 @@ private:
 	};
 
 	FadeState fadeState_ = FadeState::None;
-};
 	float cpuUpdateTimeMs_ = 0.0f;
 	float cpuDrawTimeMs_ = 0.0f;
 };
