@@ -150,6 +150,12 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");
 	ModelManager::GetInstance()->LoadModel("cardPotion", "resources/card", "CardPotion.obj");
 	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
+	ModelManager::GetInstance()->LoadModel("CardShield", "resources/card", "CardShield.obj");
+	ModelManager::GetInstance()->LoadModel("CardIce", "resources/card", "CardIce.obj");
+	ModelManager::GetInstance()->LoadModel("CardFang", "resources/card", "CardFang.obj");
+	ModelManager::GetInstance()->LoadModel("CardDecoy", "resources/card", "CardDecoy.obj");
+	ModelManager::GetInstance()->LoadModel("CardAtkDown", "resources/card", "CardAtkDown.obj");
+	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
 
 	// CSVからカードデータベースを初期化
 	CardDatabase::Initialize("resources/card/CardData.csv");
