@@ -219,6 +219,28 @@ void SceneManager::ChangeScene(std::unique_ptr<IScene> nextScene) {
 	fadeWaitTimer_ = 0;
 }
 
+void SceneManager::SetFirstScene(std::unique_ptr<IScene> scene) {
+	// 既にシーンがある場合は何もしない
+	if (currentScene_) {
+		return;
+	}
+
+	currentScene_ = std::move(scene);
+
+	if (currentScene_) {
+		DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+		dxCommon->BeginCommandRecording();
+		currentScene_->Initialize();
+		dxCommon->EndCommandRecording();
+	}
+
+	// 最初のシーンなのでフェードは使わない
+	nextScene_.reset();
+	fadeAlpha_ = 0.0f;
+	fadeWaitTimer_ = 0;
+	fadeState_ = FadeState::None;
+}
+
 void SceneManager::Finalize() {
 	// 現在のシーンを破棄する
 	if (currentScene_) {

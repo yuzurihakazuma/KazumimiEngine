@@ -20,7 +20,7 @@ void Game::Initialize(){
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory_.get());
 
 	// 3. 最初のシーンを文字列でリクエストする
-	SceneManager::GetInstance()->ChangeScene(std::make_unique<GamePlayScene>());
+	SceneManager::GetInstance()->SetFirstScene(std::make_unique<GamePlayScene>());
 
 
 }

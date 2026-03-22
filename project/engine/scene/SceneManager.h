@@ -35,6 +35,8 @@ public:
 	// エディタのアクティブ状態を管理
 	bool IsEditorActive() const { return isEditorActive_; }
 
+	// 最初のシーンを設定（ゲーム開始時に一度だけ呼び出す）
+	void SetFirstScene(std::unique_ptr<IScene> scene);
 private:
 	// コンストラクタを private にして外部からの生成を禁止
 	SceneManager() = default;
