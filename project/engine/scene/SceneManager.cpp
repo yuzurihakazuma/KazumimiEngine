@@ -116,7 +116,14 @@ void SceneManager::Update() {
 
 	// 現在のシーンを更新
 	if (currentScene_) {
+
+		auto updateStartTime = std::chrono::steady_clock::now();
 		currentScene_->Update();
+
+		auto updateEndTime = std::chrono::steady_clock::now();
+		cpuUpdateTimeMs_ = std::chrono::duration<float, std::milli>(updateEndTime - updateStartTime).count();
+		
+
 	}
 
 #ifdef USE_IMGUI
@@ -171,15 +178,50 @@ void SceneManager::Update() {
 		if (currentScene_) {
 			currentScene_->DrawDebugUI();
 		}
+		ImGui::Begin("パフォーマンスモニター");
+
+		float fps = ImGui::GetIO().Framerate;
+		ImGui::Text("FPS: %.1f", fps);
+		ImGui::Text("フレーム時間: %.3f ms", 1000.0f / fps);
+
+		ImGui::Separator();
+
+		ImGui::Text("[CPU] 更新処理(Update) : %.3f ms", cpuUpdateTimeMs_);
+		ImGui::Text("[CPU] 描画準備(Draw)   : %.3f ms", cpuDrawTimeMs_);
+
+		ImGui::Separator();
+
+		// ボトルネック（重い原因）の自動診断
+		float totalCpuTime = cpuUpdateTimeMs_ + cpuDrawTimeMs_;
+		if (fps < 55.0f) {
+			ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), " 警告: 処理落ちが発生しています！");
+			if (totalCpuTime > 16.0f) {
+				ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), " 原因: CPUの処理が重いです\n（計算やループ処理が多すぎます）");
+			}
+			else {
+				ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), " 原因: GPUの処理が重いです\n（描画する量が多すぎるか、シェーダーが重いです）");
+			}
+		}
+		else {
+			ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), " 快適に動作しています！ (60 FPS維持)");
+		}
+
+		ImGui::End();
+
 	}
 #endif
 }
 
 // シーンマネージャーの描画
-void SceneManager::Draw() {
-	if (currentScene_) {
+void SceneManager::Draw(){
+	if ( currentScene_ ) {
+
+		auto drawStartTime = std::chrono::steady_clock::now();
 		// 現在のシーンを描画
 		currentScene_->Draw();
+
+		auto drawEndTime = std::chrono::steady_clock::now();
+		cpuDrawTimeMs_ = std::chrono::duration<float, std::milli>(drawEndTime - drawStartTime).count();
 	}
 
 	// 最後にフェードを上から重ねる

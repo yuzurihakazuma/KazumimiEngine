@@ -2,7 +2,7 @@
 // --- 標準ライブラリ ---
 #include <memory>
 #include <string>
-
+#include <chrono>
 // 前方宣言
 class IScene;
 class AbstractSceneFactory;
@@ -86,4 +86,7 @@ private:
 	};
 
 	FadeState fadeState_ = FadeState::None;
+};
+	float cpuUpdateTimeMs_ = 0.0f;
+	float cpuDrawTimeMs_ = 0.0f;
 };
