@@ -151,6 +151,7 @@ void GamePlayScene::Initialize() {
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
+	levelEditor_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
@@ -1281,8 +1282,8 @@ void GamePlayScene::Draw() {
 
 	TextManager::GetInstance()->Draw();
 
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList, dxCommon);
+	PostEffect::GetInstance()->PostDrawScene(commandList);
+	PostEffect::GetInstance()->Draw(commandList);
 	// ★一番最後にフェード用スプライトを描画（UIよりも手前に表示するため）
 	if (fadeSprite_ && transitionState_ != TransitionState::None) {
 		SpriteCommon::GetInstance()->PreDraw(commandList); // 必要に応じて

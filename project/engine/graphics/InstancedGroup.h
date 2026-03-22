@@ -20,6 +20,9 @@ public:
 	// 更新（ブロックたちの最新の座標データを集める）
 	void Update(const std::vector<std::unique_ptr<Obj3d>>& objects);
 
+	void PreUpdate(); // 追加前のリセット
+	void AddObject(const Obj3d* obj); // 1つだけ追加
+
 	// 一括描画！
 	void Draw(const Camera* camera);
 

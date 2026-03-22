@@ -65,3 +65,17 @@ void InstancedGroup::Draw(const Camera* camera) {
 	// 4. いざ、一括描画！！ (集めた個数だけ一気に描く！)
 	model_->Draw(currentInstanceCount_);
 }
+
+
+void InstancedGroup::PreUpdate() {
+	// 追加前にカウントを0に戻す
+	currentInstanceCount_ = 0;
+}
+
+void InstancedGroup::AddObject(const Obj3d* obj) {
+	// 配列の最大数を超えない範囲で、データを配列に書き写す
+	if (obj && currentInstanceCount_ < maxInstanceCount_) {
+		instancingData_[currentInstanceCount_] = obj->GetMatrixData();
+		currentInstanceCount_++;
+	}
+}
