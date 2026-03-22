@@ -13,7 +13,7 @@ void Boss::Initialize() {
 
     state_ = State::Appear;    // 初期状態は登場演出
 
-    maxHP_ = 30;               // 最大HP設定
+    maxHP_ = 25;               // 最大HP設定
     hp_ = maxHP_;              // HP全回復
     isDead_ = false;           // 死亡状態リセット
 

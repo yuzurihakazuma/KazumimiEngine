@@ -122,11 +122,16 @@ private: // メンバ変数
 	std::unique_ptr<Boss> boss_ = nullptr;
 	std::unique_ptr<Obj3d> bossObj_ = nullptr;
 	bool bossDeadHandled_ = false;
+	// ボスHPバー
+	std::unique_ptr<Sprite> bossHpBackSprite_ = nullptr;
+	std::unique_ptr<Sprite> bossHpFillSprite_ = nullptr;
 
 	int enemySpawnCount_ = 5;   // 出したい敵の数
 	int enemySpawnMargin_ = 2;  // 壁から何マス離すか
 
 	void ResetBattleDebug(); // デバッグ用バトルリセット
+
+	Vector2 WorldToScreen(const Vector3& worldPos) const; // ワールド座標をスクリーン座標に変換する関数
 
 	//UI専用カメラ
 	std::unique_ptr<Camera> uiCamera_ = nullptr;
@@ -183,4 +188,6 @@ private: // メンバ変数
 
 	// ステータス無限モード(デバッグ用)
 	bool isInfiniteMode_ = false;
+
+
 };

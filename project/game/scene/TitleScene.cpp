@@ -1,11 +1,12 @@
 #include "TitleScene.h"
 
-// --- ゲーム固有のファイル ---
+// ゲーム固有のファイル
 #include "GamePlayScene.h"
 
-// --- エンジン側のファイル ---
+// エンジン側のファイル
 #include "Engine/Utils/ImGuiManager.h"
 #include "Engine/Utils/Color.h"
+#include "Engine/Utils/TextManager.h"
 #include "Engine/Audio/AudioManager.h"
 #include "Engine/3D/Model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
@@ -16,13 +17,10 @@
 #include "Engine/Camera/DebugCamera.h"
 #include "Engine/3D/Obj/Obj3d.h"
 #include "Engine/Base/Input.h"
-#include "Engine/2D/SpriteCommon.h"
 #include "Engine/3D/Obj/Obj3dCommon.h"
 #include "Engine/Base/DirectXCommon.h"
 #include "Engine/Base/WindowProc.h"
 #include "engine/math/VectorMath.h"
-#include "engine/graphics/RenderTexture.h"
-#include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
 #include "engine/utils/Level/LevelEditor.h"
 
@@ -72,9 +70,6 @@ void TitleScene::Initialize() {
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
 
-	// スプライト生成
-	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
-
 	// デプスステンシル作成
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
 		windowProc->GetClientWidth(),
@@ -85,6 +80,10 @@ void TitleScene::Initialize() {
 	levelEditor_ = std::make_unique<LevelEditor>();
 	levelEditor_->SetCamera(camera_.get());
 	levelEditor_->Initialize();
+
+	// タイトル用テキストを設定
+	TextManager::GetInstance()->Initialize();
+	TextManager::GetInstance()->SetText("SceneMessage", "TITLE\n\nPRESS SPACE TO START");
 }
 
 void TitleScene::Update() {
@@ -100,13 +99,13 @@ void TitleScene::Update() {
 
 	Input* input = Input::GetInstance();
 
-	// BGM再生
-	if (input->Triggerkey(DIK_SPACE)) {
+	// BGM再生はBキーに分ける
+	if (input->Triggerkey(DIK_B)) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 
-	// ゲーム開始
-	if (input->Triggerkey(DIK_RETURN) || input->Triggerkey(DIK_SPACE)) {
+	// SPACEでゲーム開始
+	if (input->Triggerkey(DIK_SPACE)) {
 		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
 		return;
 	}
@@ -124,12 +123,6 @@ void TitleScene::Update() {
 		if (obj) {
 			obj->Update();
 		}
-	}
-
-	// スプライト更新
-	if (sprite_) {
-		sprite_->SetPosition(spritePos_);
-		sprite_->Update();
 	}
 }
 
@@ -152,9 +145,8 @@ void TitleScene::DrawDebugUI() {
 
 	ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_FirstUseEver);
 	ImGui::Begin("TitleScene Debug");
-	ImGui::DragFloat2("Sprite Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "%.1f");
-	ImGui::Text("Enter or T : Start Game");
-	ImGui::Text("Space : Play BGM");
+	ImGui::Text("Enter : Start Game");
+	ImGui::Text("B : Play BGM");
 	ImGui::End();
 #endif
 }
@@ -181,11 +173,8 @@ void TitleScene::Draw() {
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 
-	// スプライト描画
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-	if (sprite_) {
-		sprite_->Draw();
-	}
+	// テキスト描画
+	TextManager::GetInstance()->Draw();
 
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
 	PostEffect::GetInstance()->Draw(commandList, dxCommon);
@@ -193,9 +182,11 @@ void TitleScene::Draw() {
 
 void TitleScene::Finalize() {
 	object3ds_.clear();
-	sprites_.clear();
-	sprite_.reset();
 	levelEditor_.reset();
+
+	// タイトル用テキストを消す
+	TextManager::GetInstance()->SetText("SceneMessage", "");
+	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();

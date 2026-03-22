@@ -36,6 +36,7 @@
 
 using namespace VectorMath;
 using namespace MatrixMath;
+
 // 初期化
 void GamePlayScene::Initialize() {
 	DirectXCommon *dxCommon = DirectXCommon::GetInstance();
@@ -171,6 +172,15 @@ void GamePlayScene::Initialize() {
 
 	TextManager::GetInstance()->Initialize();
 
+	// ボスHPバー背景
+	bossHpBackSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	bossHpBackSprite_->SetSize({ 160.0f, 16.0f });
+	bossHpBackSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });
+
+	// ボスHPバー本体
+	bossHpFillSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	bossHpFillSprite_->SetSize({ 152.0f, 10.0f });
+	bossHpFillSprite_->SetColor({ 0.2f, 1.0f, 0.2f, 1.0f });
 	
 	// スプライト作成（座標 X:100, Y:500）
 	descBgSprite_ = Sprite::Create("resources/white1x1.png", { 100.0f, 500.0f });
@@ -641,21 +651,32 @@ void GamePlayScene::Update() {
 			player_->AddExp(5);
 		}
 
+		// ボスドロップは地面の高さに補正して落とす
 		if (boss_->HasAnyCard()) {
 			Card dropCard = boss_->GetRandomDropCard();
 			if (dropCard.id != -1) {
-				cardPickupManager_.AddPickup(boss_->GetPosition(), dropCard);
+				Vector3 dropPos = boss_->GetPosition();
+
+				// 地面付近に補正する
+				if (levelEditor_) {
+					const LevelData& level = levelEditor_->GetLevelData();
+					dropPos.y = level.baseY + 1.5f;
+				} else {
+					dropPos.y = 1.5f;
+				}
+
+				cardPickupManager_.AddPickup(dropPos, dropCard);
 			}
 		}
 
 		bossDeadHandled_ = true;
 
+		// ボス部屋で倒したら即クリア
 		if (levelEditor_ && levelEditor_->IsBossMap()) {
-			SceneManager::GetInstance()->ChangeScene("CLEAR");
+			SceneManager::GetInstance()->ChangeScene("GAMECLEAR");
 			return;
 		}
 	}
-
 	// ==========================================
 	// ドロップアイテム(カード)の取得判定
 	// ==========================================
@@ -906,6 +927,63 @@ void GamePlayScene::Update() {
 		camera_->Update();
 	}
 
+	// ボス頭上HPバー更新
+	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap() &&
+		bossHpBackSprite_ && bossHpFillSprite_ && camera_) {
+
+		Vector3 bossHeadPos = boss_->GetPosition();
+		bossHeadPos.y += 2.8f; // 高すぎたので少し下げる
+
+		Vector2 screenPos = WorldToScreen(bossHeadPos);
+
+		// バーサイズ
+		const float backWidth = 160.0f;
+		const float backHeight = 16.0f;
+		const float fillMaxWidth = 152.0f;
+		const float fillHeight = 10.0f;
+
+		// HP割合
+		float hpRate = 0.0f;
+		if (boss_->GetMaxHP() > 0) {
+			hpRate = static_cast<float>(boss_->GetHP()) / static_cast<float>(boss_->GetMaxHP());
+		}
+		if (hpRate < 0.0f) hpRate = 0.0f;
+		if (hpRate > 1.0f) hpRate = 1.0f;
+
+		// 背景バーは中央基準でそのまま配置
+		bossHpBackSprite_->SetPosition(screenPos);
+		bossHpBackSprite_->SetSize({ backWidth, backHeight });
+		bossHpBackSprite_->Update();
+
+		// HP割合で色変更
+		Vector4 hpColor{};
+		if (hpRate > 0.6f) {
+			hpColor = { 0.2f, 1.0f, 0.2f, 1.0f }; // 緑
+		} else if (hpRate > 0.3f) {
+			hpColor = { 1.0f, 0.9f, 0.2f, 1.0f }; // 黄
+		} else {
+			hpColor = { 1.0f, 0.2f, 0.2f, 1.0f }; // 赤
+		}
+
+		// 本体バーの現在幅
+		float fillWidth = fillMaxWidth * hpRate;
+
+		// 背景バーの左端を基準に、本体バーの中心を計算
+		float backLeft = screenPos.x - backWidth * 0.5f;
+		float fillLeft = backLeft + 4.0f;
+		float fillCenterX = fillLeft + fillWidth * 0.5f;
+
+		// 背景の中央から少し下に本体バーを置く
+		Vector2 fillPos = {
+			fillCenterX,
+			screenPos.y + 1.0f
+		};
+
+		bossHpFillSprite_->SetPosition(fillPos);
+		bossHpFillSprite_->SetSize({ fillWidth, fillHeight });
+		bossHpFillSprite_->SetColor(hpColor);
+		bossHpFillSprite_->Update();
+	}
 	// その他3Dオブジェクトの更新
 	for (auto &obj : object3ds_) {
 		obj->Update();
@@ -966,6 +1044,8 @@ void GamePlayScene::Update() {
 		targetBoss = boss_.get();
 		bossPos = boss_->GetPosition();
 	}
+
+	UpdateCardUse(input);
 
 	// プレイヤー用カードシステム更新
 	if (playerCardSystem_) {
@@ -1044,7 +1124,7 @@ void GamePlayScene::Update() {
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
 
-	UpdateCardUse(input);
+
 }
 
 void GamePlayScene::Draw() {
@@ -1125,15 +1205,20 @@ void GamePlayScene::Draw() {
 	if (sprite_) {
 		sprite_->Draw();
 	}
+
+	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
+		if (bossHpBackSprite_) {
+			bossHpBackSprite_->Draw();
+		}
+		if (bossHpFillSprite_) {
+			bossHpFillSprite_->Draw();
+		}
+	}
+
 	TextManager::GetInstance()->Draw();
-
-
 
 	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
 	PostEffect::GetInstance()->Draw(commandList, dxCommon);
-
-
-
 
 }
 
@@ -1316,6 +1401,7 @@ void GamePlayScene::ResetBattleDebug() {
 	// 交換モードも戻しておく
 	isCardSwapMode_ = false;
 	pendingCard_ = Card{};
+
 }
 
 
@@ -1396,11 +1482,40 @@ void GamePlayScene::Finalize() {
 	playerCardSystem_.reset();
 	enemyCardSystems_.clear();
 	bossCardSystem_.reset();
+	bossHpBackSprite_.reset();
+	bossHpFillSprite_.reset();
 
 	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();
+}
+
+Vector2 GamePlayScene::WorldToScreen(const Vector3& worldPos) const {
+	if (!camera_) {
+		return { -10000.0f, -10000.0f };
+	}
+
+	Matrix4x4 viewProjection = camera_->GetViewProjectionMatrix();
+
+	Vector4 clip{};
+	clip.x = worldPos.x * viewProjection.m[0][0] + worldPos.y * viewProjection.m[1][0] + worldPos.z * viewProjection.m[2][0] + 1.0f * viewProjection.m[3][0];
+	clip.y = worldPos.x * viewProjection.m[0][1] + worldPos.y * viewProjection.m[1][1] + worldPos.z * viewProjection.m[2][1] + 1.0f * viewProjection.m[3][1];
+	clip.z = worldPos.x * viewProjection.m[0][2] + worldPos.y * viewProjection.m[1][2] + worldPos.z * viewProjection.m[2][2] + 1.0f * viewProjection.m[3][2];
+	clip.w = worldPos.x * viewProjection.m[0][3] + worldPos.y * viewProjection.m[1][3] + worldPos.z * viewProjection.m[2][3] + 1.0f * viewProjection.m[3][3];
+
+	if (clip.w == 0.0f) {
+		return { -10000.0f, -10000.0f };
+	}
+
+	float invW = 1.0f / clip.w;
+	float ndcX = clip.x * invW;
+	float ndcY = clip.y * invW;
+
+	Vector2 screen{};
+	screen.x = (ndcX * 0.5f + 0.5f) * static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	screen.y = (-ndcY * 0.5f + 0.5f) * static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+	return screen;
 }
 
 void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
@@ -1660,7 +1775,7 @@ void GamePlayScene::RespawnBossInRoom() {
 	}
 
 	// bossマップでは中央固定
-	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(-4.0f);
+	Vector3 spawnPos = levelEditor_->GetMapCenterPosition(1.5f);
 
 	boss_->Initialize();
 	boss_->SetPosition(spawnPos);
