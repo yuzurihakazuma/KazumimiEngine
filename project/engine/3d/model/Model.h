@@ -61,7 +61,7 @@ public: // メンバ関数
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw();
+	void Draw(uint32_t instanceCount = 1);
 
 private: // 内部関数
 

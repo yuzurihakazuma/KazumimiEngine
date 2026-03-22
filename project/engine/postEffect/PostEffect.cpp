@@ -3,6 +3,7 @@
 #include "externals/nlohmann/json.hpp"
 #include <fstream>
 #include <iostream>
+#include <utility> 
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -12,167 +13,226 @@
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/ResourceFactory.h"
+#include "engine/base/DirectXCommon.h"
 
 
 using json = nlohmann::json;
 
 void PostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height) {
-	// RenderTextureの生成と初期化
-	renderTexture_ = std::make_unique<RenderTexture>();
-	renderTexture_->Initialize(dxCommon, srvManager, width, height);
+	
+	dxCommon_ = dxCommon;
 
-	resultTexture_ = std::make_unique<RenderTexture>();
-	resultTexture_->Initialize(dxCommon, srvManager, width, height);
-	// 時間管理用のバッファを生成してマッピングする
+	// 配列にした2枚の画用紙を初期化
+	for (int i = 0; i < 2; ++i) {
+		renderTextures_[i] = std::make_unique<RenderTexture>();
+		renderTextures_[i]->Initialize(dxCommon, srvManager, width, height);
+	}
+	// 1枚目を「エフェクト前」、2枚目を「エフェクト後」としてわかりやすく変数に入れる
 	timeResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(float));
-	timeResource_->Map(0, nullptr, reinterpret_cast< void** >( &timeData_ ));
+	timeResource_->Map(0, nullptr, reinterpret_cast<void**>(&timeData_));
 	*timeData_ = 0.0f;
 }
 
-void PostEffect::Update(){
-	if ( isActive_ ) {
+
+void PostEffect::Update() {
+	if (isActive_) {
 		time_ += timeSpeed_; // 自分の持っているスピード分だけ進める
-		if ( timeData_ ) {
+		if (timeData_) {
 			*timeData_ = time_;
 		}
 	}
 }
 
 
-uint32_t PostEffect::GetSrvIndex() const{
-	if ( isActive_ ) {
-		return resultTexture_->GetSrvIndex(); // ONなら2枚目(エフェクト後)を渡す
-	} else {
-		return renderTexture_->GetSrvIndex(); // OFFなら1枚目(エフェクト前)を渡す
-	}
+uint32_t PostEffect::GetSrvIndex() const {
+	return renderTextures_[finalResultIndex_]->GetSrvIndex();
 }
 
 void PostEffect::Finalize() {
 	// スマートポインタを明示的にリセットして、GPUのメモリリークを防ぐ
-	if (renderTexture_) {
-		renderTexture_.reset();
+	for (int i = 0; i < 2; ++i) {
+		if (renderTextures_[i]) {
+			renderTextures_[i].reset();
+		}
 	}
-	if ( resultTexture_ ) { resultTexture_.reset(); }
-
-	if ( timeResource_ ) {
+	if (timeResource_) {
 		timeResource_.Reset();
 	}
 }
 
-void PostEffect::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
-	
-	
-	renderTexture_->PreDrawScene(commandList, dxCommon);
+void PostEffect::PreDrawScene(ID3D12GraphicsCommandList* commandList) {
+
+
+	renderTextures_[0]->PreDrawScene(commandList, dxCommon_);
 }
 
-void PostEffect::PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
-	
-	
-	renderTexture_->PostDrawScene(commandList, dxCommon);
+void PostEffect::PostDrawScene(ID3D12GraphicsCommandList* commandList) {
+
+
+	renderTextures_[0]->PostDrawScene(commandList, dxCommon_);
 }
 
-void PostEffect::Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon) {
-	// -----------------------------------------------------------------
-	// 【ステップ①】1枚目（素の絵）にエフェクトをかけて、2枚目（結果用）に保存する
-	// -----------------------------------------------------------------
+void PostEffect::Draw(ID3D12GraphicsCommandList* commandList) {
+	
+	auto SetRenderTargetToSwapchain = [&]() {
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon_->GetBackBufferRtvHandle();
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon_->GetDsvHandle();
+		commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+		D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(dxCommon_->GetClientWidth()), static_cast<float>(dxCommon_->GetClientHeight()), 0.0f, 1.0f };
+		D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(dxCommon_->GetClientWidth()), static_cast<LONG>(dxCommon_->GetClientHeight()) };
+		commandList->RSSetViewports(1, &viewport);
+		commandList->RSSetScissorRects(1, &scissorRect);
+		};
+	
+	
+	// エフェクト全体がOFFなら、そのまま画面に出して終了
+	if (!isActive_) {
+		SetRenderTargetToSwapchain();
 
-	// 描画先を「2枚目の画用紙」に切り替える（2枚目を書き込みモードにする）
-	resultTexture_->PreDrawScene(commandList, dxCommon);
+		PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTextures_[0]->GetSrvIndex());
+		commandList->DrawInstanced(3, 1, 0, 0);
+		return;
+	}
 
-	// かけるエフェクトを決定する（OFFの場合はエフェクトなしのパイプラインにする）
-	PostEffectType applyType = isActive_ ? currentType_ : PostEffectType::None;
-	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, applyType);
+	uint32_t src = 0;  // 最初の読み込み元は、ゲームが描かれた 0番
+	uint32_t dest = 1; // 最初の書き込み先は 1番
 
-	// 三角形を描画する設定
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 1枚目（読み込みモードになっているはずの画用紙）をシェーダーに渡す
-	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTexture_->GetSrvIndex());
+	// -------------------------------------------------------------
+	// ここにかけたいエフェクトを書き出す
+	// -------------------------------------------------------------
+	for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+		// ON/OFFも指定できるバージョン
+		ApplyEffect(commandList, dxCommon_, static_cast<PostEffectType>(i), activeEffects_[i], src, dest);
+	}
 
+	// -------------------------------------------------------------
+	// 最終出力（すべてのバケツリレーが終わった最新の絵「src」を画面に出す）
+	// -------------------------------------------------------------
+	SetRenderTargetToSwapchain();
+	// もしエフェクトが1つもかかっていないなら、最初から画面に出す（ピンポン描画をしない）
+	finalResultIndex_ = src;
+
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTextures_[src]->GetSrvIndex());
+	commandList->DrawInstanced(3, 1, 0, 0);
+}
+
+
+// ポストエフェクトの描画（巨大な三角形を描く）※エフェクトの種類を指定して、ON/OFFも指定できるバージョン
+void PostEffect::ApplyEffect(
+	ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon,
+	PostEffectType type, bool isEffectActive, uint32_t& src, uint32_t& dest)
+{
+	// チェックボックスがOFFなら何もしないで次へ！
+	if (!isEffectActive) {
+		return;
+	}
+
+	// 1. 書き込み先の画用紙をセット
+	renderTextures_[dest]->PreDrawScene(commandList, dxCommon);
+
+	// 2. パイプライン（シェーダー）をセット
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, type);
+
+	// 3. 読み込み元の絵（前までの結果）をセット
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTextures_[src]->GetSrvIndex());
+
+	// 4. 特殊なパラメータ渡し（ノイズの時間など）
 	commandList->SetGraphicsRootConstantBufferView(1, timeResource_->GetGPUVirtualAddress());
 
-
-	// エフェクトをかけながら2枚目に描き込む！
+	// 5. 描画！
 	commandList->DrawInstanced(3, 1, 0, 0);
 
-	// 2枚目の画用紙のお絵かきを終了する（2枚目を読み込みモードにする）
-	resultTexture_->PostDrawScene(commandList, dxCommon);
+	// 6. 書き込み終了
+	renderTextures_[dest]->PostDrawScene(commandList, dxCommon);
 
-
-	// -----------------------------------------------------------------
-	// 【ステップ②】出来上がった2枚目の絵を、メイン画面（スワップチェーン）に直接描画する
-	// -----------------------------------------------------------------
-
-	// エフェクトなし（ただ画像を表示するだけ）のパイプラインをセット
-	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// 完成した2枚目の画用紙をシェーダーに渡す
-	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, resultTexture_->GetSrvIndex());
-	
-	// メイン画面に描画する
-	commandList->DrawInstanced(3, 1, 0, 0);
+	// 7. ピンポン！（次に向けて、読み書きの番号を入れ替える）
+	std::swap(src, dest);
 }
 
-void PostEffect::DrawDebugUI(){
+// デバッグ用UIの描画
+void PostEffect::DrawDebugUI() {
 #ifdef USE_IMGUI
-	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
-		if ( ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen) ) {
-			// エフェクトの有効/無効を切り替えるチェックボックス
-			ImGui::Checkbox("エフェクトを有効化", &isActive_);
+	if (ImGui::Begin("インスペクター (詳細設定)")) {
+
+		static const char* effectNames[] = {
+			"None (使わない)",
+			"グレースケール (Grayscale)",
+			"セピア (Sepia)",
+			"ビネット・周辺減光 (Vignetting)",
+			"ぼかし弱 (Box Filter)",
+			"ぼかし強 (Box Filter 5x5)",
+			"綺麗にぼかす (Gaussian Filter)",
+			"アウトライン・輪郭抽出 (Outline)",
+			"放射状ブラー (Radial Blur)",
+			"ノイズ・砂嵐 (Random Noise)"
+		};
+		// --- ポストエフェクトのON/OFF設定 ---
+		if (ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+			ImGui::Checkbox("エフェクト全体を有効化", &isActive_);
 			ImGui::Separator();
 
-			// エフェクト名のリスト（enumの順番と合わせる）
-			// コンボボックスの中身も分かりやすく日本語化！
-			const char* effectNames[] = {
-				"なし (None)",
-				"グレースケール (Grayscale)",
-				"セピア (Sepia)",
-				"ビネット・周辺減光 (Vignetting)",
-				"ぼかし弱 (Box Filter)",
-				"ぼかし強 (Box Filter 5x5)",
-				"綺麗にぼかす (Gaussian Filter)",
-				"アウトライン・輪郭抽出 (Outline)",
-				"放射状ブラー (Radial Blur)",
-				"ノイズ・砂嵐 (Random Noise)"
-			};
+			if (isActive_) {
+				// それぞれのエフェクトのON/OFFを切り替えるチェックボックスを出す
+				for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+					ImGui::Checkbox(effectNames[i], &activeEffects_[i]);
 
-			int currentItem = static_cast< int >( currentType_ );
-
-			// コンボボックスで切り替え
-			if ( ImGui::Combo("エフェクトの種類", &currentItem, effectNames, IM_ARRAYSIZE(effectNames)) ) {
-				currentType_ = static_cast< PostEffectType >( currentItem );
-			}
-			// ノイズエフェクトのときだけ、時間の進む速さを調整するスライダーを表示
-			if ( currentType_ == PostEffectType::RandomNoise ) {
-				ImGui::SliderFloat("ノイズの速度 (Time Speed)", &timeSpeed_, 0.0f, 0.5f);
-				if ( ImGui::Button("速度リセット") ) {
-					timeSpeed_ = 0.05f;
+					// ノイズ(RandomNoise)がONの時だけ、スピード調整スライダーを出す
+					if (i == static_cast<int>(PostEffectType::RandomNoise) && activeEffects_[i]) {
+						ImGui::Indent(); // ちょっと右にずらす
+						ImGui::SliderFloat("ノイズの速度", &timeSpeed_, 0.0f, 0.5f);
+						if (ImGui::Button("速度リセット")) { timeSpeed_ = 0.05f; }
+						ImGui::Unindent();
+					}
 				}
 			}
 
 			ImGui::Separator();
 
-			// セーブ＆ロードボタン
-			if ( ImGui::Button("設定を保存") ) {
-				Save();
-			}
+			if (ImGui::Button("設定を保存")) { Save(); }
 			ImGui::SameLine();
-			if ( ImGui::Button("設定を読み込む") ) {
-				Load();
+			if (ImGui::Button("設定を読み込む")) { Load(); }
+		}
+
+		// --- 現在適用中のエフェクト表示 ---
+		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[現在適用中のエフェクト]"); // 緑色で文字を表示
+		bool hasActiveEffect = false;
+		if (isActive_) {
+			for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+				if (activeEffects_[i]) {
+					// ★一番上で作っているので、ここからも無事にアクセスできる！
+					ImGui::BulletText("%s", effectNames[i]);
+					hasActiveEffect = true;
+				}
 			}
 		}
+
+		// 1つもかかっていない場合の表示
+		if (!isActive_ || !hasActiveEffect) {
+			ImGui::Text("  (なし)");
+		}
+
 	}
 	ImGui::End();
 #endif
 }
-
-
+// 設定をJSONファイルに保存する関数
 void PostEffect::Save(const std::string& filePath) {
 	json j;
-	j["effectType"] = static_cast<int>(currentType_);
 
+	// 大元スイッチと時間スピードを保存
 	j["isActive"] = isActive_;
+	j["timeSpeed"] = timeSpeed_;
+
+	// ★ 配列の中身をすべて保存 (例: "1": true, "2": false ...)
+	for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+		j["activeEffects"][std::to_string(i)] = activeEffects_[i];
+	}
 
 	std::ofstream file(filePath);
 	if (file.is_open()) {
@@ -180,7 +240,7 @@ void PostEffect::Save(const std::string& filePath) {
 		file.close();
 	}
 }
-
+// JSONファイルから設定を読み込む関数
 void PostEffect::Load(const std::string& filePath) {
 	std::ifstream file(filePath);
 	if (!file.is_open()) {
@@ -190,15 +250,20 @@ void PostEffect::Load(const std::string& filePath) {
 	json j;
 	file >> j;
 
-	if (j.contains("effectType")) {
-		int typeNum = j["effectType"];
-		// 範囲外の数値が入らないように安全対策
-		if (typeNum >= 0 && typeNum < static_cast<int>(PostEffectType::Count)) {
-			currentType_ = static_cast<PostEffectType>(typeNum);
-		}
-	}
 	if (j.contains("isActive")) {
 		isActive_ = j["isActive"];
 	}
+	if (j.contains("timeSpeed")) {
+		timeSpeed_ = j["timeSpeed"];
+	}
 
+	// ★ JSONから配列にON/OFFの設定を復元する
+	if (j.contains("activeEffects")) {
+		for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+			std::string key = std::to_string(i);
+			if (j["activeEffects"].contains(key)) {
+				activeEffects_[i] = j["activeEffects"][key];
+			}
+		}
+	}
 }

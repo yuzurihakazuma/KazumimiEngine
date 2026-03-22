@@ -156,7 +156,7 @@ void TitleScene::Draw() {
 	auto commandList = dxCommon->GetCommandList();
 
 	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->PreDrawScene(commandList);
 
 	// 3D描画前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
@@ -176,8 +176,11 @@ void TitleScene::Draw() {
 	// テキスト描画
 	TextManager::GetInstance()->Draw();
 
-	PostEffect::GetInstance()->PostDrawScene(commandList, dxCommon);
-	PostEffect::GetInstance()->Draw(commandList, dxCommon);
+	PostEffect::GetInstance()->PostDrawScene(commandList);
+	PostEffect::GetInstance()->Draw(commandList);
+
+	
+
 }
 
 void TitleScene::Finalize() {

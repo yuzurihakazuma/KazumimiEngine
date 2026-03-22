@@ -18,6 +18,7 @@ enum class PostEffectType {
 	BoxFilter,      // ボックスフィルター（ぼかし）
 	BoxFilter5x5,   // ボックスフィルター 5x5（強めのぼかし）
 	GaussianFilter, // ガウシアンフィルター（綺麗なぼかし）
+	RadialBlur,     // 放射状ブラー
 	Outline,        // アウトライン
 	RandomNoise,    // ランダムノイズ
 	Count           // 種類の数
@@ -44,30 +45,57 @@ public:
 	void Finalize();
 
 	// お絵かき開始（画用紙への切り替え）
-	void PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
+	void PreDrawScene(ID3D12GraphicsCommandList* commandList);
 
 	// お絵かき終了（メイン画面への切り替え）
-	void PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
+	void PostDrawScene(ID3D12GraphicsCommandList* commandList);
 
 	// ポストエフェクトの描画（巨大な三角形を描く）
-	void Draw(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
+	void Draw(ID3D12GraphicsCommandList* commandList);
+
+	
+
 	// デバッグ用UIの描画
 	void DrawDebugUI();
+
+
+	// 外から時間を進めるための関数
+	void AddTime(float addValue) {
+		time_ += addValue;
+		if (timeData_) {
+			*timeData_ = time_;
+		}
+	}
 
 	// エフェクトの有効化・無効化
 	void Save(const std::string& filePath = "resources/data/postEffect.json"); // 現在のエフェクト設定をJSONファイルに保存
 	void Load(const std::string& filePath = "resources/data/postEffect.json"); // JSONファイルからエフェクト設定を読み込む
+public: // ゲームプレイシーンなどから、描画に必要なSRVインデックスを取得するための関数
 
 	uint32_t GetSrvIndex() const;
 
+	//  特定のエフェクトだけを狙ってON/OFFする
+	void SetEffectActive(PostEffectType type, bool isActive) {
+		activeEffects_[static_cast<int>(type)] = isActive;
+	}
 
-	// 外から時間を進めるための関数
-	void AddTime(float addValue){
-		time_ += addValue;
-		if ( timeData_ ) {
-			*timeData_ = time_;
+	//  特定のエフェクトが今ONになっているか確認する
+	bool GetEffectActive(PostEffectType type) const {
+		return activeEffects_[static_cast<int>(type)];
+	}
+
+	//  大元（マスター）のスイッチをON/OFFする
+	void SetMasterActive(bool isActive) {
+		isActive_ = isActive;
+	}
+
+	//  全てのエフェクトを一括でOFFにする（シーン切り替え時などに便利！）
+	void ClearAllEffects() {
+		for (int i = 0; i < static_cast<int>(PostEffectType::Count); ++i) {
+			activeEffects_[i] = false;
 		}
 	}
+
 private:
 
 	PostEffect() = default;
@@ -75,19 +103,27 @@ private:
 	PostEffect& operator=(const PostEffect&) = delete;
 
 private:
-	// 内部でRenderTexture（画用紙）を所有する
-	std::unique_ptr<RenderTexture> renderTexture_ = nullptr;
-	std::unique_ptr<RenderTexture> resultTexture_ = nullptr;
+
+	// ポストエフェクトの描画（巨大な三角形を描く）※エフェクトの種類を指定して、ON/OFFも指定できるバージョン
+	void ApplyEffect(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon, PostEffectType type, bool isEffectActive, uint32_t& src, uint32_t& dest);
 
 
-	// 現在のエフェクトの種類
-	PostEffectType currentType_ = PostEffectType::None;
+private:
+	// 2枚の画用紙を配列にして、交互に使い回す（ピンポン描画）
+	std::unique_ptr<RenderTexture> renderTextures_[2];
+	
+	uint32_t finalResultIndex_ = 0; // 最終的な結果がどちらの画用紙にあるかを示すインデックス（0か1）
 
-	bool isActive_ = true;
+	bool isActive_ = true; // エフェクト全体の大元スイッチ
+	// Enumの要素数(Count)の分だけ bool の配列を作る
+	bool activeEffects_[static_cast<int>(PostEffectType::Count)] = { false };
+
 	// 時間経過で変化するエフェクトのための時間管理
 	Microsoft::WRL::ComPtr<ID3D12Resource> timeResource_;
-	float* timeData_ = nullptr; // GPUに送る用の時間データ
-	float time_ = 0.0f;         // C++側でカウントアップする時間
-
+	float* timeData_ = nullptr;
+	float time_ = 0.0f;
 	float timeSpeed_ = 0.05f;
+
+	DirectXCommon* dxCommon_ = nullptr;
+
 };

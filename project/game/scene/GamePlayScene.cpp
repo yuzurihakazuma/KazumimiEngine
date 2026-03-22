@@ -1194,7 +1194,7 @@ void GamePlayScene::Draw() {
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
 	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList, dxCommon);
+	PostEffect::GetInstance()->PreDrawScene(commandList);
 
 
 	// 3D描画の前準備
@@ -1244,6 +1244,10 @@ void GamePlayScene::Draw() {
 	// 3Dオブジェクト描画
 	for (auto &obj : object3ds_) {
 		obj->Draw();
+	}
+
+	if (blockGroup_) {
+		blockGroup_->Draw(camera_.get());
 	}
 
 	//手札カード

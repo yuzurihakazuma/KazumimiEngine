@@ -19,13 +19,13 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{fb42f275-57c5-46fb-b152-21faa1ce5a91}</ProjectGuid>
     <RootNamespace>CG20001</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -235,6 +235,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="game\card\IceBulletEffect.cpp" />
     <ClCompile Include="game\card\ShieldEffect.cpp" />
     <ClCompile Include="engine\math\QuaternionMath.cpp" />
+    <ClCompile Include="engine\graphics\InstancedGroup.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -350,6 +351,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="game\card\IceBulletEffect.h" />
     <ClInclude Include="game\card\ShieldEffect.h" />
     <ClInclude Include="engine\math\QuaternionMath.h" />
+    <ClInclude Include="engine\graphics\InstancedGroup.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
