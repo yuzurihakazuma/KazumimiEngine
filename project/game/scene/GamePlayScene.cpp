@@ -1579,7 +1579,14 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 		return;
 	}
 
-	// 階段周囲3x3を除外
+	// ==========================================
+	// ★ 追加：プレイヤーの現在位置をタイル座標に変換しておく
+	// ==========================================
+	int playerTileX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
+	int playerTileZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
+
+
+	// 階段周囲とプレイヤー周囲を除外
 	std::vector<std::pair<int, int>> filtered;
 	for (const auto& c : candidates) {
 		int x = c.first;
@@ -1596,6 +1603,21 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 				continue;
 			}
 		}
+
+		// ==========================================
+		// ★ 追加：プレイヤーから近すぎるマスを除外する
+		// ==========================================
+		int dx = x - playerTileX;
+		int dz = z - playerTileZ;
+		// タイル単位での距離を計算
+		float distanceToPlayer = std::sqrt(static_cast<float>(dx * dx + dz * dz));
+
+		// プレイヤーから「5マス」以内ならスポーン候補から外す！
+		// ※ 5.0f の部分は、ゲームの部屋の広さに合わせて 3.0f ～ 8.0f くらいで調整してください
+		if (distanceToPlayer < 5.0f) {
+			continue;
+		}
+		// ==========================================
 
 		filtered.push_back(c);
 	}
