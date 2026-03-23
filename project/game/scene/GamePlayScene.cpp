@@ -1461,8 +1461,8 @@ void GamePlayScene::ResetBattleDebug() {
 		bossCardSystem_->Reset();
 	}
 	// 手札を初期化
-	handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);
-	handManager_.AddCard(CardDatabase::GetCardData(1));
+	/*handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);
+	handManager_.AddCard(CardDatabase::GetCardData(1));*/
 
 	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成 + ボス再配置
 	RegenerateDungeonAndRespawnPlayer(5);
