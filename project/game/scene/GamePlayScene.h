@@ -207,6 +207,10 @@ private: // メンバ変数
 	// プレイヤーステータスの背景
 	std::unique_ptr<Sprite> playerStatusBgSprite_ = nullptr;
 
+	// コスト不足メッセージ表示用
+	int costLackMessageTimer_ = 0;
+
+
 	// ブロックの一括描画用グループ
 	std::unique_ptr<InstancedGroup> blockGroup_ = nullptr;
 	std::vector<std::unique_ptr<Obj3d>> blocks_;
