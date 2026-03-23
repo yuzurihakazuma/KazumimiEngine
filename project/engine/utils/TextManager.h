@@ -50,6 +50,9 @@ public:
 	// プログラム側からテキストを直接書き換える用
 	void SetText(const std::string& key, const std::string& text);
 
+	// 座標変更
+	void SetPosition(const std::string& key, float x, float y);
+
 private:
 	// 外部からのインスタンス生成を禁止
 	TextManager() = default;
