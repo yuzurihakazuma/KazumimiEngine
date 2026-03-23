@@ -785,6 +785,8 @@ void GamePlayScene::Update() {
 				continue;
 			}
 
+			Card changedCard = CardDatabase::GetCardData(1); // 1番のカードデータを引っ張ってくる
+
 			Vector3 enemyPos = enemy->GetPosition();
 
 			Vector3 enemyDiff = {
