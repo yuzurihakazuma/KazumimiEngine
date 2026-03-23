@@ -33,6 +33,7 @@ class LevelEditor;
 class Enemy;
 class CardUseSystem;
 class Boss;
+class Minimap;
 
 // ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -214,4 +215,6 @@ private: // メンバ変数
 	// ブロックの一括描画用グループ
 	std::unique_ptr<InstancedGroup> blockGroup_ = nullptr;
 	std::vector<std::unique_ptr<Obj3d>> blocks_;
+
+	std::unique_ptr<Minimap> minimap_;
 };

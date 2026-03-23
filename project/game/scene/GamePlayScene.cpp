@@ -32,7 +32,7 @@
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
 #include "game/card/CardUseSystem.h"
-
+#include "Minimap.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -153,6 +153,8 @@ void GamePlayScene::Initialize() {
 	levelEditor_->Initialize();
 	levelEditor_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
+	
+
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
 	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
@@ -180,6 +182,10 @@ void GamePlayScene::Initialize() {
 
 	// これだけでOK
 	RegenerateDungeonAndRespawnPlayer(8);
+
+	minimap_ = std::make_unique<Minimap>();
+	minimap_->Initialize();
+	minimap_->SetLevelData(&levelEditor_->GetLevelData());
 
 	// 初期ロード時のマップ変更通知を消す
 	if (levelEditor_) {
@@ -1082,6 +1088,24 @@ void GamePlayScene::Update() {
 	levelEditor_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
 
+	// ミニマップ更新
+	if (minimap_) {
+		minimap_->SetPlayerPosition(playerPos_);
+
+		std::vector<Vector3> enemyPositions;
+		enemyPositions.reserve(enemies_.size());
+
+		for (const auto& enemy : enemies_) {
+			if (!enemy || enemy->IsDead()) {
+				continue;
+			}
+			enemyPositions.push_back(enemy->GetPosition());
+		}
+
+		minimap_->SetEnemyPositions(enemyPositions);
+		minimap_->Update();
+	}
+
 	// 手札(UIなど)の更新
 	if (player_ && !player_->IsDead()) {
 		handManager_.Update();
@@ -1362,9 +1386,9 @@ void GamePlayScene::Draw() {
 
 
 	SpriteCommon::GetInstance()->PreDraw(commandList);
-	if (sprite_) {
+	/*if (sprite_) {
 		sprite_->Draw();
-	}
+	}*/
 
 	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap()) {
 		if (bossHpBackSprite_) {
@@ -1379,7 +1403,9 @@ void GamePlayScene::Draw() {
 	if (playerStatusBgSprite_) {
 		playerStatusBgSprite_->Draw();
 	}
-
+	if (minimap_) {
+		minimap_->Draw();
+	}
 	TextManager::GetInstance()->Draw();
 
 	PostEffect::GetInstance()->PostDrawScene(commandList);
@@ -1566,6 +1592,10 @@ void GamePlayScene::ResetBattleDebug() {
 
 	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成 + ボス再配置
 	RegenerateDungeonAndRespawnPlayer(5);
+
+	if (minimap_ && levelEditor_) {
+		minimap_->SetLevelData(&levelEditor_->GetLevelData());
+	}
 
 	// 交換モードも戻しておく
 	isCardSwapMode_ = false;
@@ -2017,6 +2047,10 @@ void GamePlayScene::AdvanceFloor() {
 	}
 
 	ResetBattleDebug();
+
+	if (minimap_ && levelEditor_) {
+		minimap_->SetLevelData(&levelEditor_->GetLevelData());
+	}
 }
 
 bool GamePlayScene::IsNearStairsTile(int x, int z) const {
