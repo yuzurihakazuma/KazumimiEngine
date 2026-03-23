@@ -44,6 +44,8 @@ public:
 	// 現在登録されているカードの総数を返す
 	static size_t GetCardCount() { return database_.size(); }
 
+	// 敵が使えるカードの中からランダムに1枚取得する
+	static Card GetRandomEnemyUsableCard();
 
 };
 

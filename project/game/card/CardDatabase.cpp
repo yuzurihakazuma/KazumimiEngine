@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <iostream>
+#include <random>
 
 std::unordered_map<int, Card> CardDatabase::database_;
 
@@ -119,4 +120,27 @@ Card CardDatabase::GetCardData(int id) {
         return database_[id];
     }
     return { -1, "Unknwon",0,CardEffectType::Special,0,"Error","None","None","None" };
+}
+
+Card CardDatabase::GetRandomEnemyUsableCard() {
+    std::vector<Card> usableCards;
+
+    // データベース内の全カードをチェックして、敵が使えるやつだけリストに入れる
+    for (const auto &pair : database_) {
+        if (pair.second.canEnemyUse) {
+            usableCards.push_back(pair.second);
+        }
+    }
+
+    // 万が一、使えるカードが1枚も設定されていなかった時の保険（ID:1を返す）
+    if (usableCards.empty()) {
+        return GetCardData(1);
+    }
+
+    // リストの中からランダムに1つ選ぶ
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dist(0, (int)usableCards.size() - 1);
+
+    return usableCards[dist(gen)];
 }

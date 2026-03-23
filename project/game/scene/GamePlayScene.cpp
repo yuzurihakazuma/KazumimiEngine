@@ -792,7 +792,6 @@ void GamePlayScene::Update() {
 				continue;
 			}
 
-			Card changedCard = CardDatabase::GetCardData(1); // 1番のカードデータを引っ張ってくる
 
 			Vector3 enemyPos = enemy->GetPosition();
 
@@ -806,7 +805,13 @@ void GamePlayScene::Update() {
 
 			// 敵が拾う
 			if (enemyDist < 2.0f) {
-				enemy->SetHeldCard(pickup.card);
+				Card pickedCard = pickup.card;
+
+				// もし拾ったカードが「敵は使えないカード(canEnemyUseが0)」だったら、敵が使えるカードの中からランダムに選んですり替える！
+				if (!pickedCard.canEnemyUse) {
+					pickedCard = CardDatabase::GetRandomEnemyUsableCard();
+				}
+				enemy->SetHeldCard(pickedCard);
 				pickup.isActive = false;
 				break;
 			}

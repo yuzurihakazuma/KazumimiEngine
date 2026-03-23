@@ -129,6 +129,11 @@ void FistEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 }
 
 void FistEffect::Draw() {
+
+	if (isFinished_) {
+		return;
+	}
+
 	// 有効中だけ描画
 	if (!isFinished_ && obj_) {
 		obj_->Draw();
