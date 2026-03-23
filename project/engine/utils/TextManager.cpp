@@ -125,6 +125,10 @@ void TextManager::Draw(){
 
 	// お絵かき終了！
 	spriteBatch_->End();
+
+	// 描画に使ったグラフィックメモリをGPUに送る
+	graphicsMemory_->Commit(dxCommon->GetCommandQueue());
+
 	//	描画後の状態をリセット（SRVのバインド解除など）
 	SrvManager::GetInstance()->PreDraw();
 

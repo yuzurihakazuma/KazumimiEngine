@@ -65,7 +65,7 @@ void GamePlayScene::Initialize() {
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 	// パーティクルグループ作成 (シングルトン)
-	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
+	//ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 
 	// テクスチャ読み込み
 	textures_["uvChecker"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/uvChecker.png", commandList);
@@ -304,13 +304,13 @@ void GamePlayScene::Update() {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 
-	// パーティクル発生
-	if (input->Triggerkey(DIK_P)) {
-		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
-	}
+	//// パーティクル発生
+	//if (input->Triggerkey(DIK_P)) {
+	//	ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
+	//}
 
-	// パーティクル更新
-	ParticleManager::GetInstance()->Update(camera_.get());
+	//// パーティクル更新
+	//ParticleManager::GetInstance()->Update(camera_.get());
 
 	// ==========================================
 	// プレイヤーの更新処理
@@ -1357,8 +1357,8 @@ void GamePlayScene::Draw() {
 	}
 
 	// パーティクル描画 (パイプライン切り替え)
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
+	/*PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
+	ParticleManager::GetInstance()->Draw(commandList);*/
 
 
 	SpriteCommon::GetInstance()->PreDraw(commandList);
@@ -1398,7 +1398,7 @@ void GamePlayScene::DrawDebugUI() {
 	Obj3dCommon::GetInstance()->DrawDebugUI();
 	if (camera_) { camera_->DrawDebugUI(); }
 	if (debugCamera_) { debugCamera_->DrawDebugUI(); }
-	ParticleManager::GetInstance()->DrawDebugUI();
+	//ParticleManager::GetInstance()->DrawDebugUI();
 
 
 	levelEditor_->DrawDebugUI();
