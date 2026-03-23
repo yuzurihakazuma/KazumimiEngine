@@ -188,6 +188,16 @@ void GamePlayScene::Initialize() {
 
 	TextManager::GetInstance()->Initialize();
 
+	TextManager::GetInstance()->SetPosition("PlayerHP", 40, 560);
+	TextManager::GetInstance()->SetPosition("PlayerCost", 40, 600);
+	TextManager::GetInstance()->SetPosition("PlayerLevel", 40, 640);
+	TextManager::GetInstance()->SetPosition("PlayerEXP", 40, 680);
+
+	// 左下のステータス背景
+	playerStatusBgSprite_ = Sprite::Create("resources/white1x1.png", { 170.0f, 625.0f });
+	playerStatusBgSprite_->SetSize({ 340.0f, 190.0f });
+	playerStatusBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.65f });
+
 	// ボスHPバー背景
 	bossHpBackSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
 	bossHpBackSprite_->SetSize({ 160.0f, 16.0f });
@@ -1023,6 +1033,11 @@ void GamePlayScene::Update() {
 		sprite_->Update();
 	}
 
+	// ステータス背景更新
+	if (playerStatusBgSprite_) {
+		playerStatusBgSprite_->Update();
+	}
+
 	// テストオブジェクトの更新
 	if (testObj_) {
 		testObj_->Update();
@@ -1035,6 +1050,26 @@ void GamePlayScene::Update() {
 	// 手札(UIなど)の更新
 	if (player_ && !player_->IsDead()) {
 		handManager_.Update();
+	}
+
+	// プレイヤーステータス表示更新
+	if (player_) {
+		std::string hpText =
+			"HP : " + std::to_string(player_->GetHP()) + " / " + std::to_string(player_->GetMaxHP());
+
+		std::string costText =
+			"COST : " + std::to_string(player_->GetCost()) + " / " + std::to_string(player_->GetMaxCost());
+
+		std::string levelText =
+			"LV : " + std::to_string(player_->GetLevel());
+
+		std::string expText =
+			"EXP : " + std::to_string(player_->GetExp()) + " / " + std::to_string(player_->GetNextLevelExp());
+
+		TextManager::GetInstance()->SetText("PlayerHP", hpText);
+		TextManager::GetInstance()->SetText("PlayerCost", costText);
+		TextManager::GetInstance()->SetText("PlayerLevel", levelText);
+		TextManager::GetInstance()->SetText("PlayerEXP", expText);
 	}
 
 	// ==========================================
@@ -1150,6 +1185,7 @@ void GamePlayScene::Update() {
 		// 4. テキストオブジェクトに文字を流し込む！
 		// ※ textObj_ の部分は、チームメンバーさんが作ったテキスト管理の変数名に直してください
 		TextManager::GetInstance()->SetText("CardT", displayText);
+
 
 	} else {
 		// 手札がない時は文字を消す
@@ -1278,6 +1314,11 @@ void GamePlayScene::Draw() {
 		if (bossHpFillSprite_) {
 			bossHpFillSprite_->Draw();
 		}
+	}
+
+	// ステータス背景描画
+	if (playerStatusBgSprite_) {
+		playerStatusBgSprite_->Draw();
 	}
 
 	TextManager::GetInstance()->Draw();

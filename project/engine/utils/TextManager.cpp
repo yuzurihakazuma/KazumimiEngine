@@ -255,6 +255,11 @@ void TextManager::SetText(const std::string& key, const std::string& text){
 	texts_[key].text = text;
 }
 
+void TextManager::SetPosition(const std::string& key, float x, float y) {
+	texts_[key].x = x;
+	texts_[key].y = y;
+}
+
 void TextManager::Finalize(){
 	spriteFont_.reset();
 	spriteBatch_.reset();
