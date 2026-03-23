@@ -42,7 +42,7 @@ void CardDatabase::Initialize(const std::string &filePath) {
         }
 
         //正しく分離できたかチェック
-        if (columns.size() >= 9) {
+        if (columns.size() >= 10) {
             Card card;
             card.id = std::stoi(columns[0]);
             card.name = columns[1];
@@ -53,6 +53,10 @@ void CardDatabase::Initialize(const std::string &filePath) {
             card.modelName = columns[6];
             card.effectName = columns[7];
             card.seName = columns[8];
+
+
+            // CSVの10番目のデータ(インデックス9)が "0" じゃなければ true にする！
+            card.canEnemyUse = (std::stoi(columns[9]) != 0);
 
             //辞典に登録
             database_[card.id] = card;
@@ -88,7 +92,7 @@ void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
             columns.push_back(token);
         }
 
-        if (columns.size() >= 9) {
+        if (columns.size() >= 10) {
             Card card;
             card.id = std::stoi(columns[0]);
             card.name = columns[1];
@@ -99,6 +103,9 @@ void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
             card.modelName = columns[6];
             card.effectName = columns[7];
             card.seName = columns[8];
+
+            // CSVの10番目のデータ(インデックス9)が "0" じゃなければ true にする！
+            card.canEnemyUse = (std::stoi(columns[9]) != 0);
 
             // 辞書に追加！（ID101などがここに入ります）
             database_[card.id] = card;

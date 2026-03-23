@@ -21,6 +21,7 @@ struct Card {
 	std::string modelName;     // 3Dモデルやテクスチャの名前
 	std::string effectName;    // エフェクト名
 	std::string seName;        // 効果音名
+	bool canEnemyUse;          // 敵も使用可能か
 };
 
 class CardDatabase {
