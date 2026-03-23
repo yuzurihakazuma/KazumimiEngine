@@ -13,7 +13,7 @@
 #include "engine/postEffect/PostEffect.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/base/Input.h"
-
+#include "Bloom.h"
 
 
 // シングルトンクラスの実装

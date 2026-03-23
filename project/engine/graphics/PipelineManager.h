@@ -53,7 +53,6 @@ private:
 	// ポストエフェクト用の初期化
 	void CreatePostEffectRootSignature();
 	void CreatePostEffectPipeline();
-
 	
 
 	// 汎用グラフィックスパイプライン生成
@@ -98,6 +97,7 @@ private:
 
 	// ポストエフェクトの種類ごとのパイプラインステートを格納する配列
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineStates_[10];
+
 
 };
 

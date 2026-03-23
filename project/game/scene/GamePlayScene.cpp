@@ -29,6 +29,7 @@
 #include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
+#include "Bloom.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -120,6 +121,8 @@ void GamePlayScene::Initialize(){
 			blocks_.push_back(std::move(block));
 		}
 	}
+
+	Bloom::GetInstance()->Initialize(dxCommon, , windowProc->GetClientWidth(), windowProc->GetClientHeight());
 }
 
 void GamePlayScene::Update(){
@@ -230,9 +233,10 @@ void GamePlayScene::Draw(){
 	PostEffect::GetInstance()->PostDrawScene(commandList);
 	PostEffect::GetInstance()->Draw(commandList);
 
-	
+	// 描画先を切り替えるためのRenderTexture（シングルトン）からSRVインデックスを取得して、スプライトや3Dオブジェクトのテクスチャとして使うこともできます
+	uint32_t postEffectSrv = PostEffect::GetInstance()->GetSrvIndex();
 
-
+	Bloom::GetInstance()->Render(commandList, postEffectSrv);
 }
 
 void GamePlayScene::DrawDebugUI(){
