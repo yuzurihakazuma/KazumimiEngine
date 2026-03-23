@@ -122,7 +122,7 @@ void GamePlayScene::Initialize(){
 		}
 	}
 
-	Bloom::GetInstance()->Initialize(dxCommon, , windowProc->GetClientWidth(), windowProc->GetClientHeight());
+	Bloom::GetInstance()->Initialize(dxCommon, SrvManager::GetInstance(), windowProc->GetClientWidth(), windowProc->GetClientHeight());
 }
 
 void GamePlayScene::Update(){

@@ -29,7 +29,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	rsBuilder.Build(dxCommon->GetDevice(), rootSignature_);
 
 	auto vsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto psBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/BloomExtract.PS.hlsl", L"ps_6_0");
+	auto psBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/bloom/BloomExtract.PS.hlsl", L"ps_6_0");
 
 	GraphicsPipelineBuilder psoBuilder;
 	psoBuilder.SetRootSignature(rootSignature_.Get())
@@ -63,7 +63,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 
 	// ★ここがポイント！ VSは「Fullscreen」を使い回し、PSは「GaussianBlur」を使う！
 	auto blurVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto blurPsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/GaussianBlur.PS.hlsl", L"ps_6_0");
+	auto blurPsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/bloom/GaussianBlur.PS.hlsl", L"ps_6_0");
 
 	GraphicsPipelineBuilder blurPsoBuilder;
 	blurPsoBuilder.SetRootSignature(blurRootSignature_.Get())
@@ -85,7 +85,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	combineRsBuilder.Build(dxCommon->GetDevice(), combineRootSignature_);
 
 	auto combineVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto combinePsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/BloomCombine.PS.hlsl", L"ps_6_0");
+	auto combinePsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/bloom/BloomCombine.PS.hlsl", L"ps_6_0");
 
 	GraphicsPipelineBuilder combinePsoBuilder;
 	combinePsoBuilder.SetRootSignature(combineRootSignature_.Get())
