@@ -72,6 +72,11 @@ public:
         attackDebuffTimer_ = duration;
     }
 
+    void Freeze(int durationFrames) {
+        isActionLocked_ = true;
+        actionLockTimer_ = durationFrames;
+    }
+
     bool IsAttackDebuffed() const { return isAttackDebuffed_; }
 
 private:

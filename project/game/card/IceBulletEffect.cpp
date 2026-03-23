@@ -68,7 +68,8 @@ void IceBulletEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 			};
 
 			if (Length(diff) < 1.5f) {
-				enemy->TakeDamage(1);
+				enemy->TakeDamage(2);
+				enemy->Freeze(300);
 				isFinished_ = true;
 				return;
 			}
@@ -83,7 +84,8 @@ void IceBulletEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 			};
 
 			if (Length(diff) < 2.5f) {
-				boss->TakeDamage(1);
+				boss->TakeDamage(2);
+				boss->Freeze(300);
 				isFinished_ = true;
 				return;
 			}

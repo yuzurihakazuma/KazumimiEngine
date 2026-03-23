@@ -1498,8 +1498,8 @@ void GamePlayScene::DrawDebugUI() {
 		handManager_.AddCard(CardDatabase::GetCardData(4));
 	}
 
-	if (ImGui::Button("Pick Up (ID: 5)")) {
-		handManager_.AddCard(CardDatabase::GetCardData(5));
+	if (ImGui::Button("Pick Up (ID: 6)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(6));
 	}
 
 	if (ImGui::Button("Pick Up (ID: 7)")) {

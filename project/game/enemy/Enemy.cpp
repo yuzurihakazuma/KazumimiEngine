@@ -45,6 +45,17 @@ void Enemy::Update() {
     attackRequest_ = false;   // 毎フレーム攻撃フラグ初期化
     cardUseRequest_ = false;  // 毎フレームカード使用フラグ初期化
 
+    if (isActionLocked_) {
+        actionLockTimer_--;          // 残り時間を減らす
+        if (actionLockTimer_ <= 0) {
+            isActionLocked_ = false; // 0になったらロック解除（動けるようになる）
+        }
+
+        // 🌟超重要🌟
+        // ロック中はこの下の「移動」や「攻撃」の処理を一切やらずにここで終わる！
+        return;
+    }
+
     if (attackCooldownTimer_ > 0) {
         attackCooldownTimer_--; // 近接攻撃クールダウン減少
     }
