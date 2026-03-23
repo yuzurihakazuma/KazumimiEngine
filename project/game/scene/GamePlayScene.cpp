@@ -193,6 +193,13 @@ void GamePlayScene::Initialize() {
 	TextManager::GetInstance()->SetPosition("PlayerLevel", 40, 640);
 	TextManager::GetInstance()->SetPosition("PlayerEXP", 40, 680);
 
+	// 画面サイズ取得
+	float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+
+	// 中央に配置（少し上に出すなら -50 くらい）
+	TextManager::GetInstance()->SetPosition("CostLack", screenW * 0.5f - 100.0f, screenH * 0.5f - 50.0f);
+
 	// 左下のステータス背景
 	playerStatusBgSprite_ = Sprite::Create("resources/white1x1.png", { 170.0f, 625.0f });
 	playerStatusBgSprite_->SetSize({ 340.0f, 190.0f });
@@ -1080,6 +1087,15 @@ void GamePlayScene::Update() {
 		handManager_.Update();
 	}
 
+	// コスト不足メッセージ更新 ←ここ追加
+	if (costLackMessageTimer_ > 0) {
+		costLackMessageTimer_--;
+
+		TextManager::GetInstance()->SetText("CostLack", "コスト不足です");
+	} else {
+		TextManager::GetInstance()->SetText("CostLack", "");
+	}
+
 	// プレイヤーステータス表示更新
 	if (player_) {
 		std::string hpText =
@@ -1604,6 +1620,9 @@ void GamePlayScene::UpdateCardUse(Input* input) {
 	}
 
 	if (!player_->CanUseCost(selectedCard.cost)) {
+		// コスト不足メッセージを出す
+		costLackMessageTimer_ = 60; // 約1秒表示
+
 		return;
 	}
 
