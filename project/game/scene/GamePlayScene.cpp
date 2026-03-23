@@ -1535,7 +1535,7 @@ void GamePlayScene::ResetBattleDebug() {
 
 	// プレイヤーの状態だけ初期化
 	if (player_) {
-		player_->Initialize();
+		//player_->Initialize();
 		playerScale_ = { 1.0f, 1.0f, 1.0f };
 	}
 
