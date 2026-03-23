@@ -223,6 +223,32 @@ void GamePlayScene::Update() {
 
 	Input *input = Input::GetInstance();
 
+	// ==========================================
+// FadeOut中だけゲーム更新を止める
+// 真っ黒になったら階層切り替えして、FadeInから更新再開
+// ==========================================
+	if (transitionState_ == TransitionState::FadeOut) {
+		fadeAlpha_ += kFadeSpeed;
+
+		if (fadeAlpha_ >= 1.0f) {
+			fadeAlpha_ = 1.0f;
+
+			// 真っ黒になった瞬間に階層切り替え
+			AdvanceFloor();
+
+			// ここからは新しい階層を更新しながら見せる
+			transitionState_ = TransitionState::FadeIn;
+		}
+
+		if (fadeSprite_) {
+			fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
+			fadeSprite_->Update();
+		}
+
+		// FadeOut中はここで止める
+		return;
+	}
+
 	// マップ切り替えがあったら戦闘ごとリセット
 	if (levelEditor_ && levelEditor_->ConsumeMapChanged()) {
 
@@ -363,9 +389,9 @@ void GamePlayScene::Update() {
 
 		if (gridX >= 0 && gridX < level.width && gridZ >= 0 && gridZ < level.height) {
 			if (level.tiles[gridZ][gridX] == 3) {
-				// ★マップ移動フラグの代わりに、フェードアウトを開始する！
 				if (transitionState_ == TransitionState::None) {
 					transitionState_ = TransitionState::FadeOut;
+					fadeAlpha_ = 0.0f;
 				}
 			}
 		}
@@ -1185,7 +1211,22 @@ void GamePlayScene::Update() {
 		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
 		fadeSprite_->Update();
 	}
-	
+	// ==========================================
+// FadeIn中はゲームを動かしたまま明るく戻す
+// ==========================================
+	if (transitionState_ == TransitionState::FadeIn) {
+		fadeAlpha_ -= kFadeSpeed;
+
+		if (fadeAlpha_ <= 0.0f) {
+			fadeAlpha_ = 0.0f;
+			transitionState_ = TransitionState::None;
+		}
+	}
+
+	if (fadeSprite_) {
+		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
+		fadeSprite_->Update();
+	}
 }
 
 void GamePlayScene::Draw() {
