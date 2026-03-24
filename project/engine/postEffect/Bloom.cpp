@@ -28,8 +28,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	rsBuilder.AddDefaultSampler(0);
 	rsBuilder.Build(dxCommon->GetDevice(), rootSignature_);
 
-	auto vsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto psBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/bloom/BloomExtract.PS.hlsl", L"ps_6_0");
+	auto vsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/bloom/BloomExtract.PS.hlsl", L"ps_6_0");
 
 	GraphicsPipelineBuilder psoBuilder;
 	psoBuilder.SetRootSignature(rootSignature_.Get())
@@ -62,8 +62,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	blurRsBuilder.Build(dxCommon->GetDevice(), blurRootSignature_);
 
 	// ★ここがポイント！ VSは「Fullscreen」を使い回し、PSは「GaussianBlur」を使う！
-	auto blurVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto blurPsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/bloom/GaussianBlur.PS.hlsl", L"ps_6_0");
+	auto blurVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
+	auto blurPsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/bloom/GaussianBlur.PS.hlsl", L"ps_6_0");
 
 	GraphicsPipelineBuilder blurPsoBuilder;
 	blurPsoBuilder.SetRootSignature(blurRootSignature_.Get())
@@ -84,8 +84,8 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	combineRsBuilder.AddDefaultSampler(0); // s0: サンプラー
 	combineRsBuilder.Build(dxCommon->GetDevice(), combineRootSignature_);
 
-	auto combineVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/Fullscreen.VS.hlsl", L"vs_6_0");
-	auto combinePsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/bloom/BloomCombine.PS.hlsl", L"ps_6_0");
+	auto combineVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
+	auto combinePsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/bloom/BloomCombine.PS.hlsl", L"ps_6_0");
 
 	GraphicsPipelineBuilder combinePsoBuilder;
 	combinePsoBuilder.SetRootSignature(combineRootSignature_.Get())
@@ -114,6 +114,8 @@ void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, extractTexture_->GetSrvIndex());
 	commandList->DrawInstanced(3, 1, 0, 0);
 
+	blurTextures_[0]->PostDrawScene(commandList, DirectXCommon::GetInstance());
+
 	// --- 2パス目：縦方向にぼかす (blurTextures_[0]  blurTextures_[1]) ---
 	blurTextures_[1]->PreDrawScene(commandList, DirectXCommon::GetInstance());
 	blurData_->direction[0] = 0.0f;
@@ -121,6 +123,8 @@ void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
 	commandList->SetGraphicsRootConstantBufferView(0, blurDataResource_->GetGPUVirtualAddress());
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, blurTextures_[0]->GetSrvIndex());
 	commandList->DrawInstanced(3, 1, 0, 0);
+
+	blurTextures_[1]->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
 
@@ -139,6 +143,8 @@ void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvI
 
 	// 4. 全画面描画
 	commandList->DrawInstanced(3, 1, 0, 0);
+
+	extractTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 // 工程③ 元の画像と光を合成する！
 void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex) {
@@ -158,6 +164,8 @@ void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrv
 
 	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
+
+	combineTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
 void Bloom::DrawDebugUI() {
@@ -220,4 +228,25 @@ void Bloom::Load(const std::string& filePath) {
 		isEnabled_ = j.value("isEnabled", true);
 		bloomData_->threshold = j.value("threshold", 1.0f);
 	}
+}
+
+
+void Bloom::Finalize() {
+	// 抽出用のリソース解放
+	if (extractTexture_) { extractTexture_.reset(); }
+	bloomDataResource_.Reset();
+	rootSignature_.Reset();
+	pipelineState_.Reset();
+
+	// ブラー用のリソース解放
+	if (blurTextures_[0]) { blurTextures_[0].reset(); }
+	if (blurTextures_[1]) { blurTextures_[1].reset(); }
+	blurDataResource_.Reset();
+	blurRootSignature_.Reset();
+	blurPipelineState_.Reset();
+
+	// 合成用のリソース解放
+	if (combineTexture_) { combineTexture_.reset(); }
+	combineRootSignature_.Reset();
+	combinePipelineState_.Reset();
 }

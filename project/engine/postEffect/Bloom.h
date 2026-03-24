@@ -37,6 +37,8 @@ public:
 
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
 
+	void Finalize();
+
 	// 工程①：高輝度抽出を描画する
 	void DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvIndex);
 

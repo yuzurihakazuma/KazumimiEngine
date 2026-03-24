@@ -1,4 +1,4 @@
-#include "Fullscreen.hlsli"
+#include "../Fullscreen.hlsli"
 
 // C++から送られてくる2枚の画像を受け取る！
 Texture2D<float32_t4> gTextureMain : register(t0); // 元の画面 (PostEffectの結果)

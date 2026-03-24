@@ -14,7 +14,7 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/base/DirectXCommon.h"
-
+#include "Bloom.h"
 
 using json = nlohmann::json;
 
@@ -31,6 +31,9 @@ void PostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uin
 	timeResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(float));
 	timeResource_->Map(0, nullptr, reinterpret_cast<void**>(&timeData_));
 	*timeData_ = 0.0f;
+
+	Bloom::GetInstance()->Initialize(dxCommon, SrvManager::GetInstance(), width, height);
+	Bloom::GetInstance()->Load("resources/bloom.json");
 }
 
 
@@ -58,6 +61,8 @@ void PostEffect::Finalize() {
 	if (timeResource_) {
 		timeResource_.Reset();
 	}
+	
+	Bloom::GetInstance()->Finalize();
 }
 
 void PostEffect::PreDrawScene(ID3D12GraphicsCommandList* commandList) {

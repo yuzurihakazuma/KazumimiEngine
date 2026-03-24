@@ -122,7 +122,7 @@ void GamePlayScene::Initialize(){
 		}
 	}
 
-	Bloom::GetInstance()->Initialize(dxCommon, SrvManager::GetInstance(), windowProc->GetClientWidth(), windowProc->GetClientHeight());
+
 }
 
 void GamePlayScene::Update(){
@@ -233,10 +233,16 @@ void GamePlayScene::Draw(){
 	PostEffect::GetInstance()->PostDrawScene(commandList);
 	PostEffect::GetInstance()->Draw(commandList);
 
-	// 描画先を切り替えるためのRenderTexture（シングルトン）からSRVインデックスを取得して、スプライトや3Dオブジェクトのテクスチャとして使うこともできます
+	// 2. 「いつものPostEffectがかかった後」の画像番号をもらう
 	uint32_t postEffectSrv = PostEffect::GetInstance()->GetSrvIndex();
 
+	// 3. その画像をBloomに渡して、光を乗せる！（ON/OFFの判断も全自動）
 	Bloom::GetInstance()->Render(commandList, postEffectSrv);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
+	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
 }
 
 void GamePlayScene::DrawDebugUI(){

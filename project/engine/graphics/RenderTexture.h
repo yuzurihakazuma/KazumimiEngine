@@ -43,5 +43,6 @@ private:
 
 	Vector4 clearColor_ = { 0.0f, 0.47f, 0.84f, 1.0f };
 
+
 };
 
