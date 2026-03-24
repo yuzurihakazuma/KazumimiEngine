@@ -15,7 +15,7 @@ void BossClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
 	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 	pos_ = {
 		casterPos.x + forward.x * offset,
-		casterPos.y + 0.5f,
+		casterPos.y - 1.5f,
 		casterPos.z + forward.z * offset
 	};
 

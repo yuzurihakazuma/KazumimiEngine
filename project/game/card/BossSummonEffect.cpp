@@ -1,5 +1,6 @@
 ﻿#include "BossSummonEffect.h"
 #include "engine/math/VectorMath.h"
+#include "game/enemy/Boss.h"
 
 void BossSummonEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
 
@@ -33,6 +34,14 @@ void BossSummonEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Ve
         rot.y += 0.1f;
         obj_->SetRotation(rot);
         obj_->Update();
+    }
+
+    // ★演出終了時にボスへ召喚をリクエスト！
+    if (timer_ <= 0) {
+        if (boss && !boss->IsDead()) {
+            boss->RequestSummon(spawnCount_); // Boss.hに追加した関数を呼ぶ
+        }
+        isFinished_ = true;
     }
 
     if (timer_ <= 0) {

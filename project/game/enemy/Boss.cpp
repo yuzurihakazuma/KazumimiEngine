@@ -122,6 +122,7 @@ void Boss::Update() {
         break;
 
     case State::Appear:
+        break;
     case State::Dead:
         break;
     }
@@ -240,39 +241,62 @@ void Boss::UpdateChase() {
     float skillEnter = skillEnterRange_;
 
     if (isPhase2) {
-        attackEnter = 3.5f;
-        skillEnter = 10.0f;
+        attackEnter = 6.0f;
+        skillEnter = 15.0f;
     }
 
-    //if (dist <= attackEnter) {
-    //    state_ = State::Attack; // 攻撃範囲なら近接攻撃へ
-    //    thinkTimer_ = 0;        // すぐ再判断できるようにする
-    //    return;
-    //}
-
-    //if (dist <= skillEnter && skillCooldownTimer_ <= 0 && !heldCards_.empty()) {
-    //    state_ = State::UseSkill; // スキル範囲ならスキルへ
-    //    thinkTimer_ = 0;          // すぐ再判断できるようにする
-    //    return;
-    //}
-
-   // ※スキル連発を防ぐため、クールダウン(skillCooldownTimer_)のチェックも入れます
-    if (dist <= skillEnter && skillCooldownTimer_ <= 0) {
-        state_ = State::UseSkill; // すべてUseSkillに統一！
-        thinkTimer_ = 0;
-
-        
-
-        return; 
+    // まずは常にプレイヤーの方向を向かせる
+    if (dist > 0.01f) {
+        Vector3 normDir = Normalize(dir);
+        rot_.y = std::atan2f(normDir.x, normDir.z);
     }
 
     // =========================================================
+    // 攻撃の判定
+    // =========================================================
+   // ① 近接攻撃（一番優先！）
+    if (dist <= attackEnter) {
+        // クールダウンが少し残っていても、近距離なら強引に攻撃させる
+        if (skillCooldownTimer_ <= 15) {
+            state_ = State::UseSkill;
+            thinkTimer_ = 0;
+            skillCooldownTimer_ = 45; // 次の攻撃までの間隔
+            selectedCard_ = CardDatabase::GetCardData(101); // 爪攻撃
+            return;
+        }
+    }
+    // ② 中・遠距離の魔法攻撃
+    else if (skillCooldownTimer_ <= 0) {
 
-    // まだ攻撃射程に入っていない、またはクールダウン中ならプレイヤーに近づく
-    if (dist > 0.01f) {
-        dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_;           // プレイヤーへ移動
-        rot_.y = std::atan2f(dir.x, dir.z);  // プレイヤー方向を向く
+        if (dist <= skillEnter) {
+            // 中距離：ランダムなスキル
+            state_ = State::UseSkill;
+            thinkTimer_ = 0;
+            skillCooldownTimer_ = 60;
+            selectedCard_ = CardDatabase::GetCardData(102);
+            return;
+        } else {
+            
+            state_ = State::UseSkill;
+            thinkTimer_ = 0;
+
+            // 次の魔法を撃つまでの間隔（連発しすぎると避けれなくなるので、ここで調整します）
+            // 60なら約1秒に1回、90なら約1.5秒に1回撃ってきます。
+            skillCooldownTimer_ = 60;
+
+            // 102(火) と 103(召喚) のどちらかを選ばせる
+            int longRangeCardIds[] = { 102, 103 };
+            int randId = longRangeCardIds[rand() % 2];
+            selectedCard_ = CardDatabase::GetCardData(randId);
+            return;
+        }
+    }
+
+    // 移動処理（近づきすぎたら止まる）
+  
+    if (dist > attackEnter - 1.5f) {
+        Vector3 normDir = Normalize(dir);
+        pos_ += normDir * chaseSpeed_; // プレイヤーへ移動
     }
 }
 

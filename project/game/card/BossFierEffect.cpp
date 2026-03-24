@@ -18,12 +18,12 @@ void BossFierEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
     // ボスの少し前から発射する
     pos_ = {
         casterPos.x + forward.x * 2.0f,
-        casterPos.y + 1.0f, // 地面スレスレではなく少し浮かす
+        casterPos.y - 2.0f, // 地面スレスレではなく少し浮かす
         casterPos.z + forward.z * 2.0f
     };
 
     // 弾のスピード（避けられるように少し遅めに設定。速くしたい場合は数字を大きく！）
-    float speed = 2.0f;
+    float speed = 0.5f;
     velocity_ = {
         forward.x * speed,
         0.0f,

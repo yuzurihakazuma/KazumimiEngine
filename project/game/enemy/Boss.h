@@ -81,6 +81,15 @@ public:
 
     bool cardUseRequest_ = false;
 
+    // 雑魚敵召喚リクエスト
+    void RequestSummon(int count) {
+        summonRequest_ = true;
+        summonCount_ = count;
+    }
+    bool GetSummonRequest() const { return summonRequest_; }
+    int GetSummonCount() const { return summonCount_; }
+    void ClearSummonRequest() { summonRequest_ = false; summonCount_ = 0; }
+
 private:
     void DecideNextState();
 
@@ -113,9 +122,9 @@ private:
     float chaseSpeed_ = 0.06f;
 
     // 距離設定
-    float chaseRange_ = 20.0f;
-    float attackEnterRange_ = 2.8f;
-    float attackExitRange_ = 4.0f;
+    float chaseRange_ = 100.0f;
+    float attackEnterRange_ = 4.8f;
+    float attackExitRange_ = 10.0f;
 
     float skillEnterRange_ = 8.0f;
     float skillExitRange_ = 10.0f;
@@ -159,4 +168,7 @@ private:
 
     // 距離によって決めたカードを保持する変数
     Card currentCard_{ -1, "", 0 };
+
+    bool summonRequest_ = false;
+    int summonCount_ = 0;
 };
