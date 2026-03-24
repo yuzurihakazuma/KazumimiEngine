@@ -21,9 +21,16 @@ public:
 	bool IsFinished() const override { return isFinished_; }
 
 private:
+
+	// エフェクトの状態（フェーズ）
+	enum class Phase {
+		Horizontal, // 横
+		Vertical    // 縦
+	};
+
 	std::unique_ptr<Obj3d> obj_ = nullptr;
 	Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 scale_ = { 2.0f, 2.0f, 2.0f }; // プレイヤーの爪と同じサイズ
+	Vector3 scale_ = { 1.5f,0.2f,1.5f }; // プレイヤーの爪と同じサイズ
 
 	int damage_ = 20;     // ダメージ量
 	int timer_ = 0;       // 演出の進行タイマー

@@ -124,6 +124,7 @@ private: // メンバ変数
 	std::unique_ptr<Boss> boss_ = nullptr;
 	std::unique_ptr<Obj3d> bossObj_ = nullptr;
 	bool bossDeadHandled_ = false;
+
 	// ボスHPバー
 	std::unique_ptr<Sprite> bossHpBackSprite_ = nullptr;
 	std::unique_ptr<Sprite> bossHpFillSprite_ = nullptr;

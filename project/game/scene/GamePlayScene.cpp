@@ -122,6 +122,7 @@ void GamePlayScene::Initialize() {
 	bossCardSystem_ = std::make_unique<CardUseSystem>();
 	bossCardSystem_->Initialize(camera_.get());
 
+
 	// ファイル名を指定するだけで、読み込み・生成・配置
 	// 引数: (ファイルパス, 座標)
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
@@ -537,6 +538,18 @@ void GamePlayScene::Update() {
 		boss_->SetPlayerPosition(targetPos);
 		boss_->Update();
 
+		// ボスの魔法発動のお願いを受け取る
+		if (boss_->cardUseRequest_) {
+			// ボスが選んだカードを取得（※ご自身の関数名に合わせてください）
+			Card selectedCard = boss_->GetSelectedCard(); // または GetCardToUse()
+
+			// ボス用のカードシステムで発動 (isPlayerCaster = false にする)
+			bossCardSystem_->UseCard(selectedCard, boss_->GetPosition(), boss_->GetRotation().y, false);
+
+			// 要求をリセット（これを忘れると毎フレーム発動しちゃいます）
+			boss_->cardUseRequest_ = false;
+		}
+
 		Vector3 bossPos = boss_->GetPosition();
 
 		// --- ボスと地形(マップブロック)の衝突判定 ---
@@ -583,6 +596,18 @@ void GamePlayScene::Update() {
 			bossObj_->SetRotation(boss_->GetRotation());
 			bossObj_->SetScale(boss_->GetScale());
 			bossObj_->Update();
+		}
+
+		if (bossCardSystem_) {
+			bossCardSystem_->Update(
+				player_.get(),
+				nullptr,            // 雑魚敵への判定はしないのでnullptr
+				boss_.get(),
+				player_->GetPosition(),
+				{ 0.0f, 0.0f, 0.0f }, // enemyPos (使わないので適当な値)
+				boss_->GetPosition(),
+				level // すでに上で定義している level を渡す
+			);
 		}
 
 	}

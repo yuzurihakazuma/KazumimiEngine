@@ -59,8 +59,8 @@ public:
     bool GetCardUseRequest() const { return cardUseRequest_; }
     void ClearCardUseRequest() { cardUseRequest_ = false; }
 
-    // 使用カード
-    const Card& GetSelectedCard() const { return selectedCard_; }
+    // 使用するカードを取得
+    const Card &GetSelectedCard() const { return selectedCard_; }
 
     // ドロップ用
     bool HasAnyCard() const { return !heldCards_.empty(); }
@@ -78,6 +78,8 @@ public:
     }
 
     bool IsAttackDebuffed() const { return isAttackDebuffed_; }
+
+    bool cardUseRequest_ = false;
 
 private:
     void DecideNextState();
@@ -133,7 +135,7 @@ private:
 
     // 攻撃・スキル
     bool attackRequest_ = false;
-    bool cardUseRequest_ = false;
+    
 
     int attackCooldownTimer_ = 0;
     int skillCooldownTimer_ = 0;
@@ -154,4 +156,7 @@ private:
     float appearTargetY_ = 2.0f;     // 最終位置
     int appearTimer_ = 0;            // 残り時間
     const int appearDuration_ = 60;  // 演出フレーム数
+
+    // 距離によって決めたカードを保持する変数
+    Card currentCard_{ -1, "", 0 };
 };

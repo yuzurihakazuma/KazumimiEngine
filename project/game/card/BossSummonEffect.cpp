@@ -8,7 +8,7 @@ void BossSummonEffect::Start(const Vector3 &casterPos, float casterYaw, bool isP
 
     // ボスの足元にエフェクトを出す
     pos_ = casterPos;
-    pos_.y += 0.1f; // 地面に埋まらないように少し浮かせる
+    pos_.y -= 2.0f; // 地面に埋まらないように少し浮かせる
 
     // 魔法陣の代わりに平べったい球体を出す
     obj_ = Obj3d::Create("sphere");
