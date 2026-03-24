@@ -132,6 +132,8 @@ void Boss::Update() {
             isAttackDebuffed_ = false;
         }
     }
+
+    
 }
 
 void Boss::UpdateAppear() {
@@ -254,11 +256,19 @@ void Boss::UpdateChase() {
     //    return;
     //}
 
-    if (dist < skillEnterRange_) {
-        state_ = State::UseSkill; // 近接攻撃を廃止して、すべてUseSkillに統一！
+   // ※スキル連発を防ぐため、クールダウン(skillCooldownTimer_)のチェックも入れます
+    if (dist <= skillEnter && skillCooldownTimer_ <= 0) {
+        state_ = State::UseSkill; // すべてUseSkillに統一！
         thinkTimer_ = 0;
+
+        
+
+        return; 
     }
 
+    // =========================================================
+
+    // まだ攻撃射程に入っていない、またはクールダウン中ならプレイヤーに近づく
     if (dist > 0.01f) {
         dir = Normalize(dir);
         pos_ += dir * chaseSpeed_;           // プレイヤーへ移動
@@ -297,66 +307,65 @@ void Boss::UpdateAttack() {
 }
 
 void Boss::UpdateUseSkill() {
+    // ---------------------------------------------------
+    // 1. プレイヤーの方を向く
+    // ---------------------------------------------------
     Vector3 dir = {
         playerPos_.x - pos_.x,
         0.0f,
         playerPos_.z - pos_.z
     };
-
-    float dist = Length(dir); // プレイヤーとの距離
-    bool isPhase2 = (hp_ <= maxHP_ / 2); // HP半分以下で後半戦
-
-    float skillExit = skillExitRange_;
-    if (isPhase2) {
-        skillExit = 12.0f;
+    if (Length(dir) > 0.01f) {
+        rot_.y = std::atan2f(dir.x, dir.z);
     }
 
-    if (dist > skillExit) {
-        state_ = State::Chase; // 離れたら追跡へ戻る
-        thinkTimer_ = 0;       // すぐ再判断できるようにする
-        return;
-    }
-
-    if (dist > 0.01f) {
-        rot_.y = std::atan2f(dir.x, dir.z); // プレイヤー方向を向く
-    }
-
-    if (skillCooldownTimer_ > 0 || heldCards_.empty()) {
-        state_ = State::Chase; // 使えないなら追跡へ戻る
-        thinkTimer_ = 0;       // すぐ再判断できるようにする
-        return;
-    }
-
+    // ---------------------------------------------------
+    // 2. 距離に合わせてカードを選ぶ
+    // ---------------------------------------------------
     std::vector<Card> candidates;
-    float closeRange = 6.0f; // 近距離と判定する基準（好みで調整してください）
+    float dist = Length(dir);
+    float closeRange = 6.0f; // 近距離の基準
 
     if (dist < closeRange) {
-        // --- 近距離なら ID:101(BossClaw) を候補に入れる ---
+        // 近距離なら ID:101(BossClaw)
         for (const auto &card : heldCards_) {
             if (card.id == 101) candidates.push_back(card);
         }
     } else {
-        // --- 中・遠距離なら ID:102(BossFier) と 103(BossSummon) を候補に入れる ---
+        // 中・遠距離なら ID:102(BossFier) と 103(BossSummon)
         for (const auto &card : heldCards_) {
             if (card.id == 102 || card.id == 103) candidates.push_back(card);
         }
     }
 
-    // もし候補が見つからなかった場合の保険（すべてから選ぶ）
+    // 候補がない場合の保険
     if (candidates.empty()) {
         candidates = heldCards_;
     }
 
-    static std::random_device rd;
-    static std::mt19937 mt(rd());
-    std::uniform_int_distribution<int> distCard(0, static_cast<int>(heldCards_.size()) - 1);
+    // ---------------------------------------------------
+    // 3. カードを決定して発動の合図を出す！
+    // ---------------------------------------------------
+    if (!candidates.empty()) {
+        static std::random_device rd;
+        static std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> distCard(0, static_cast<int>(candidates.size()) - 1);
 
-    selectedCard_ = heldCards_[distCard(mt)]; // 使用カードをランダム選択
-    cardUseRequest_ = true;                   // スキル使用要求を出す
-    skillCooldownTimer_ = skillCooldown_;     // スキルクールダウン開始
+        selectedCard_ = candidates[distCard(mt)];
 
-    SetActionLock(35); // スキル使用後の硬直
-    thinkTimer_ = 35;  // スキル後すぐ再判断しない
+        cardUseRequest_ = true;               // ★ 発動のお願い！
+        skillCooldownTimer_ = 60;             // ★ クールダウン開始（※skillCooldown_に変えてもOK）
+    }
+
+    // ---------------------------------------------------
+    // 4. 撃ち終わったら追跡状態に戻り、硬直を入れる
+    // ---------------------------------------------------
+    state_ = State::Chase; // 魔法を撃ったらすぐChaseに戻す（ただし下のロックがかかるので動かない）
+    thinkTimer_ = 60;      // 次の行動までの待機時間
+
+    // ※Enemyと同じように、Updateの最初で isActionLocked_ なら return する処理がある前提です
+    isActionLocked_ = true;
+    actionLockTimer_ = 35; // 35フレーム（約0.5秒）硬直して動かなくなる
 }
 
 Card Boss::GetRandomDropCard() const {
@@ -419,3 +428,4 @@ bool Boss::IsVisible() const {
 
     return (hitTimer_ % 2) == 0; // ヒット中は点滅表示
 }
+

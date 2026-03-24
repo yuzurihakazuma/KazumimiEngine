@@ -14,7 +14,7 @@ public:
 
 private:
     std::unique_ptr<Obj3d> obj_ = nullptr;
-    Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
+    Vector3 pos_ = { 0.0f, -20.0f, 0.0f };
     Vector3 scale_ = { 0.1f, 0.1f, 0.1f }; // 最初は小さく
 
     int spawnCount_ = 5;

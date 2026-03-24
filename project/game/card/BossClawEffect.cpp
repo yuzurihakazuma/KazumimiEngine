@@ -9,12 +9,14 @@ void BossClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
 	timer_ = 24; // 例：24フレーム（約0.4秒）で攻撃の判定が消える
 	hasHit_ = false;
 
+	float offset = 3.0f;
+
 	// ボスの目の前に斬撃を出す
 	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 	pos_ = {
-		casterPos.x + forward.x * 1.5f,
+		casterPos.x + forward.x * offset,
 		casterPos.y + 0.5f,
-		casterPos.z + forward.z * 1.5f
+		casterPos.z + forward.z * offset
 	};
 
 	// プレイヤーのClawと同じモデル（sphere）を生成
@@ -32,26 +34,39 @@ void BossClawEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vect
 		return;
 	}
 
-	timer_--;
+	timer_++;
 
-	// 攻撃がまだ当たっていなければ判定を行う
-	if (!hasHit_) {
-		// プレイヤーへの当たり判定
+	// 15フレーム目に「２発目の攻撃（縦）」を発生させる
+	
+	if (timer_ == 15) {
+		hasHit_ = false; // 2発目も当たるようにフラグをリセット
+
+		// スケールを縦長に変更
+		scale_ = { 0.2f, 1.5f, 1.5f };
+		if (obj_) {
+			obj_->SetScale(scale_);
+			obj_->Update();
+		}
+	}
+
+	// 当たり判定処理（1〜10フレーム目と、15〜24フレーム目のみ当たり判定を出す）
+	bool isAttacking = (timer_ > 1 && timer_ <= 10) || (timer_ >= 15 && timer_ <= 24);
+
+	if (isAttacking && !hasHit_) {
+		// ボス専用の魔法なので、プレイヤーへの当たり判定のみ行う
 		if (player && !player->IsDead()) {
 			Vector3 playerPos = player->GetPosition();
-
-			// 高さ(Y)は無視して、XとZの平面上の距離で当たり判定を取る
 			Vector3 diff = { playerPos.x - pos_.x, 0.0f, playerPos.z - pos_.z };
 
-			if (Length(diff) < 2.0f) { // 当たり判定の広さ
-				// ここが超重要！プレイヤーにダメージと「攻撃元の位置」を渡す
+			if (Length(diff) < 2.0f) { // プレイヤーへの当たり判定の広さ
+				// プレイヤーにダメージと「攻撃元の座標(pos_)」を渡す！
 				player->TakeDamage(damage_, pos_);
 				hasHit_ = true; // 1回の振りで何度も当たらないようにする
 			}
 		}
 	}
 
-	if (timer_ <= 0) {
+	if (timer_ >= 30) {
 		isFinished_ = true;
 	}
 }
