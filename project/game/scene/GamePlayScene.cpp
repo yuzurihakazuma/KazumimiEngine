@@ -30,7 +30,7 @@
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
 #include "Bloom.h"
-
+#include "engine/3d/model/Model.h"
 using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
@@ -287,7 +287,11 @@ void GamePlayScene::DrawDebugUI(){
 	}
 
 	ImGui::End();
-
+	ImGui::Begin("Material Settings");
+	if (testObj_ && testObj_->GetModel()) {
+		ImGui::SliderFloat("発光パワー (Emissive)", &testObj_->GetModel()->GetMaterial()->emissive, 1.0f, 10.0f);
+	}
+	ImGui::End();
 
 #endif
 

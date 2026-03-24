@@ -75,6 +75,8 @@ private: // 内部関数
 	// / バッファの作成
 	void CreateBuffers();
 
+	Material* GetMaterial() { return materialData_; }
+
 private: // メンバ変数
 
 	ModelCommon* modelCommon_ = nullptr;

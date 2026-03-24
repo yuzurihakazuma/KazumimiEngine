@@ -146,10 +146,19 @@ void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvI
 
 	extractTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
+
+
 // 工程③ 元の画像と光を合成する！
 void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex) {
-	// 1. 描画先を「最終キャンバス」に切り替え
-	combineTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = DirectXCommon::GetInstance()->GetBackBufferRtvHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = DirectXCommon::GetInstance()->GetDsvHandle();
+	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
+	// 画面サイズに合わせてビューポートとシザーをセット
+	D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(DirectXCommon::GetInstance()->GetClientWidth()), static_cast<float>(DirectXCommon::GetInstance()->GetClientHeight()), 0.0f, 1.0f };
+	D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(DirectXCommon::GetInstance()->GetClientWidth()), static_cast<LONG>(DirectXCommon::GetInstance()->GetClientHeight()) };
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
 
 	// 2. パイプライン設定
 	commandList->SetGraphicsRootSignature(combineRootSignature_.Get());
@@ -164,8 +173,6 @@ void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrv
 
 	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
-
-	combineTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
 void Bloom::DrawDebugUI() {
