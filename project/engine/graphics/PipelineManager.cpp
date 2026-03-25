@@ -238,7 +238,8 @@ void PipelineManager::CreateInstancedObject3DGraphicsPipeline(){
 		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
 		.SetBlendMode(BlendMode::kNormal)
 		.SetCullMode(D3D12_CULL_MODE_BACK)
-		.SetDepthStencil(true, true); // 深度書き込みON
+		.SetDepthStencil(true, true) // 深度書き込みON
+		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // RTVフォーマットを指定
 
 	builder.Build(dxCommon_->GetDevice(), instancedObject3DPipelineState_);
 

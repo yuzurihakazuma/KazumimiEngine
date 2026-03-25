@@ -13,7 +13,8 @@ ConstantBuffer<DissolveData> gDissolve : register(b5); // ディゾルブ用の定数バッ
 
 struct PixelShaderOutput
 {
-    float4 color : SV_TARGET0;
+    float4 color : SV_TARGET0; // 0枚目のキャンバス（色）
+    float4 mask : SV_TARGET1; // 1枚目のキャンバス（エフェクトをかけるかどうかのフラグ！）
 };
 
 PixelShaderOutput main(VertexShaderOutput input)
@@ -105,6 +106,18 @@ PixelShaderOutput main(VertexShaderOutput input)
     else
     {
         output.color = gMaterial.color * textureColor;
+    }
+    
+    if (gMaterial.emissive > 1.0f)
+    {
+        // もし「光らせる設定(emissive > 1)」なら、描いた色をそのまま2枚目にも書き込む
+        // （これが「Bloom対象だよ！」というフラグ兼、光る色の情報になります）
+        output.mask = float4(output.color.rgb, 1.0f);
+    }
+    else
+    {
+        // 対象じゃないなら真っ黒（フラグOFF）にする
+        output.mask = float4(0.0f, 0.0f, 0.0f, 0.0f);
     }
     
     return output;
