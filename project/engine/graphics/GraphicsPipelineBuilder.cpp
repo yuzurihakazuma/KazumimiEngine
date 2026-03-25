@@ -87,3 +87,14 @@ D3D12_BLEND_DESC GraphicsPipelineBuilder::GetBlendDesc(BlendMode blendMode){
 	// 必要に応じて blendMode で分岐
 	return blendDesc;
 }
+
+// レンダーターゲットのフォーマットを指定（複数も可）
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetRenderTargets(const std::vector<DXGI_FORMAT>& rtvFormats){
+	psoDesc_.NumRenderTargets = static_cast< UINT >( rtvFormats.size() );
+	for ( UINT i = 0; i < rtvFormats.size(); ++i ) {
+		psoDesc_.RTVFormats[i] = rtvFormats[i];
+		// 複数のキャンバスすべてに「色を書き込む」許可を出す
+		psoDesc_.BlendState.RenderTarget[i].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	}
+	return *this;
+}

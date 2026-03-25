@@ -24,8 +24,13 @@ public:
 	GraphicsPipelineBuilder& SetCullMode(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID);
 	GraphicsPipelineBuilder& SetDepthStencil(bool isDepthEnable, bool isDepthWrite = true);
 
+	// レンダーターゲットのフォーマットを指定（複数も可）
+	GraphicsPipelineBuilder& SetRenderTargets(const std::vector<DXGI_FORMAT>& rtvFormats);
+
 	// 最後にPSOを生成する
 	void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState);
+
+
 
 private:
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc_ {}; // 構築中の設定データ
