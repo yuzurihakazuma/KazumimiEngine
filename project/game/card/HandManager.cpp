@@ -108,11 +108,11 @@ void HandManager::Update() {
 		// 選択中のカードだけ特別扱い（上に浮いて、手前に来て、まっすぐ向く）
 		if (i == selectedCardIndex_) {
 			pos.y += 0.3f;  // 上に浮かせる
-			pos.z -= 0.5f;  // 手前に出す
+			pos.z -= 0.3f;  // 手前に出す
 			rot.x = 0.0f;   // 角度をまっすぐ正面に向ける
 		}
 
-		handModels_[i]->SetScale({ 0.5f,0.5f,0.5f });
+		handModels_[i]->SetScale({ 0.3f,0.3f,0.3f });
 
 		// モデルに座標と角度をセットして更新
 		handModels_[i]->SetTranslation(pos);
