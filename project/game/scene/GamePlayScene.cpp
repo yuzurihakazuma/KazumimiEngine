@@ -538,18 +538,6 @@ void GamePlayScene::Update() {
 		boss_->SetPlayerPosition(targetPos);
 		boss_->Update();
 
-		// ボスの魔法発動のお願いを受け取る
-		if (boss_->cardUseRequest_) {
-			// ボスが選んだカードを取得（※ご自身の関数名に合わせてください）
-			Card selectedCard = boss_->GetSelectedCard(); // または GetCardToUse()
-
-			// ボス用のカードシステムで発動 (isPlayerCaster = false にする)
-			bossCardSystem_->UseCard(selectedCard, boss_->GetPosition(), boss_->GetRotation().y, false);
-
-			// 要求をリセット（これを忘れると毎フレーム発動しちゃいます）
-			boss_->cardUseRequest_ = false;
-		}
-
 		Vector3 bossPos = boss_->GetPosition();
 
 		// --- ボスと地形(マップブロック)の衝突判定 ---
@@ -557,7 +545,7 @@ void GamePlayScene::Update() {
 		bossAABB.min = { bossPos.x - 1.0f, bossPos.y - 1.0f, bossPos.z - 1.0f };
 		bossAABB.max = { bossPos.x + 1.0f, bossPos.y + 1.0f, bossPos.z + 1.0f };
 
-		const LevelData &level = levelEditor_->GetLevelData();
+		const LevelData& level = levelEditor_->GetLevelData();
 
 		int bossGridX = static_cast<int>(std::round(bossPos.x / level.tileSize));
 		int bossGridZ = static_cast<int>(std::round(bossPos.z / level.tileSize));
@@ -571,7 +559,6 @@ void GamePlayScene::Update() {
 
 		for (int z = bStartZ; z <= bEndZ && !isBossHit; z++) {
 			for (int x = bStartX; x <= bEndX; x++) {
-
 				if (level.tiles[z][x] != 1) {
 					continue;
 				}
@@ -598,18 +585,18 @@ void GamePlayScene::Update() {
 			bossObj_->Update();
 		}
 
-		if (bossCardSystem_) {
+		// ボスカード演出のUpdateも、登場演出中は止める
+		if (bossCardSystem_ && !isBossIntroPlaying_ && !boss_->IsAppearing()) {
 			bossCardSystem_->Update(
 				player_.get(),
-				nullptr,            // 雑魚敵への判定はしないのでnullptr
+				nullptr,
 				boss_.get(),
 				player_->GetPosition(),
-				{ 0.0f, 0.0f, 0.0f }, // enemyPos (使わないので適当な値)
+				{ 0.0f, 0.0f, 0.0f },
 				boss_->GetPosition(),
-				level // すでに上で定義している level を渡す
+				level
 			);
 		}
-
 	}
 
 	// ボスからの召喚リクエストを受け取って敵を生成する処理
@@ -718,45 +705,21 @@ void GamePlayScene::Update() {
 		levelEditor_ && levelEditor_->IsBossMap() &&
 		!isBossIntroPlaying_ &&
 		!boss_->IsAppearing()) {
+
 		Vector3 bossPos = boss_->GetPosition();
 
-		// ボスの近接攻撃要求がある場合
-		if (boss_->GetAttackRequest()) {
-			Vector3 diff = {
-				playerPos_.x - bossPos.x,
-				0.0f,
-				playerPos_.z - bossPos.z
-			};
-
-			// 攻撃範囲内ならプレイヤーにダメージを与える
-			if (Length(diff) <= 3.0f) {
-				player_->TakeDamage(2, bossPos);
-
-				// プレイヤー用の詠唱だけ止める
-				if (playerCardSystem_) {
-					playerCardSystem_->CancelCasting();
-				}
-			}
-
-			boss_->ClearAttackRequest();
-		}
-
-		// ボスのカード使用要求がある場合
 		if (boss_->GetCardUseRequest()) {
+
 			if (bossCardSystem_) {
-				if (boss_->GetCardUseRequest()) {
-					// ボスが選んだカード（BossSummonなど）を取得
-					Card useCard = boss_->GetSelectedCard();
+				Card useCard = boss_->GetSelectedCard();
 
-					// 103番（BossSummon）なら、CSVで設定した数だけ敵をスポーン！
-					if (useCard.id == 103) {
-						SpawnEnemiesRandom(useCard.effectValue, 2);
-					}
+				// 召喚カード
+				if (useCard.id == 103) {
+					SpawnEnemiesRandom(useCard.effectValue, 2);
 				}
-
 
 				bossCardSystem_->UseCard(
-					boss_->GetSelectedCard(),
+					useCard,
 					bossPos,
 					boss_->GetRotation().y,
 					false
@@ -764,11 +727,8 @@ void GamePlayScene::Update() {
 			}
 
 			boss_->ClearCardUseRequest();
-
-
 		}
 	}
-
 
    // =========================================================
    // ★ ボスと雑魚敵、雑魚敵同士の「めり込み防止（押し出し）」処理
@@ -1473,8 +1433,6 @@ void GamePlayScene::Draw() {
 	if (playerObj_ && player_ && !player_->IsDead() && player_->IsVisible()) {
 		playerObj_->Draw(); // 被弾中は点滅表示
 	}
-
-
 
 	if (bossObj_ && boss_ && !boss_->IsDead() && boss_->IsVisible() && levelEditor_ && levelEditor_->IsBossMap()) {
 		bossObj_->Draw();
