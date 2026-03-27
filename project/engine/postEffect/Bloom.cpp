@@ -128,7 +128,7 @@ void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
 }
 
 
-void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvIndex) {
+void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex) {
 	// 1. 描画先を「Bloomの抽出用キャンバス」に切り替え
 	extractTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
 
@@ -137,13 +137,13 @@ void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvI
 	commandList->SetPipelineState(pipelineState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 3. データを渡す (パラメータ0番: CBV, 1番: SRV)
-	commandList->SetGraphicsRootConstantBufferView(0, bloomDataResource_->GetGPUVirtualAddress()); // b0: しきい値
-	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, srcSrvIndex); // t0: 元の画面画像
+	// [0]番のポスト(CBV) に、Thresholdなどの「設定データ」を送る！
+	commandList->SetGraphicsRootConstantBufferView(0, bloomDataResource_->GetGPUVirtualAddress());
 
-	// 4. 全画面描画
+	// [1]番のポスト(SRV) に、受け取った「マスク画像」を送る！
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, maskSrvIndex);
+	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
-
 	extractTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
@@ -199,19 +199,18 @@ void Bloom::DrawDebugUI() {
 }
 
 
-void Bloom::Render(ID3D12GraphicsCommandList* commandList, uint32_t baseSrvIndex) {
-	// もしBloomがOFFなら、計算は一切せず「元の画像」をそのまま結果として返す！
-	if (!isEnabled_) {
-		resultSrvIndex_ = baseSrvIndex;
+void Bloom::Render(ID3D12GraphicsCommandList* commandList, uint32_t colorSrvIndex, uint32_t maskSrvIndex){
+	if ( !isEnabled_ ) {
+		resultSrvIndex_ = colorSrvIndex; // OFFなら色をそのまま返す
 		return;
 	}
 
-	// BloomがONなら、3つの工程を順番に実行する！
-	DrawExtract(commandList, baseSrvIndex);
+	//  「マスク画像(フラグ)」から光を抽出する！
+	DrawExtract(commandList, maskSrvIndex);
 	DrawBlur(commandList);
-	DrawCombine(commandList, baseSrvIndex);
+	//  「色画像」に光を合成する！
+	DrawCombine(commandList, colorSrvIndex);
 
-	// 合成まで終わった「最終結果」を結果として返す！
 	resultSrvIndex_ = combineTexture_->GetSrvIndex();
 }
 

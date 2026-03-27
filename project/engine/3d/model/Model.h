@@ -44,6 +44,8 @@ public: // サブクラス定義
 		float padding[3];       // 4 bytes * 3 = 12 bytes (行列を16バイト境界に合わせるための詰め物)
 		Matrix4x4 uvTransform;
 		float shininess;       
+		float padding2[2];
+		float emissive;         // 発光パワー (4 bytes)
 	};
 
 public: // メンバ関数
@@ -63,6 +65,8 @@ public: // メンバ関数
 	/// </summary>
 	void Draw(uint32_t instanceCount = 1);
 
+	Material* GetMaterial(){ return materialData_; }
+
 private: // 内部関数
 
 	
@@ -75,8 +79,7 @@ private: // 内部関数
 	// / バッファの作成
 	void CreateBuffers();
 
-	Material* GetMaterial() { return materialData_; }
-
+	
 private: // メンバ変数
 
 	ModelCommon* modelCommon_ = nullptr;

@@ -180,69 +180,65 @@ void GamePlayScene::Update(){
 }
 
 void GamePlayScene::Draw(){
-
-
 	auto dxCommon = DirectXCommon::GetInstance();
-	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
-	
-	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList);
+	auto commandList = dxCommon->GetCommandList();
 
+	// =========================================================
+	// 1. 【MRT開始】キャンバスを2枚(色用とマスク用)セットする！
+	// =========================================================
+	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
 
-	// 3D描画の前準備
+	// --- 3D描画の前準備 ---
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
+
+	// --- カリングありの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
-	
-	if (playerObj_) {
-		playerObj_->Draw();
-	}
-	
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-	
-	if ( testObj_ ){
-		testObj_->Draw();
-	}
-	
-	// 3Dオブジェクト描画
-	for ( auto& obj : object3ds_ ) {
-		obj->Draw();
-	}
-
-	if (blockGroup_) {
-		blockGroup_->Draw(camera_.get());
-	}
-
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
-
+	if ( playerObj_ ) { playerObj_->Draw(); }
+	for ( auto& obj : object3ds_ ) { obj->Draw(); }
 	levelEditor_->Draw();
 
+	// --- カリングなしの3D描画 ---
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+	if ( testObj_ ){ testObj_->Draw(); }
 
-	// パーティクル描画 (パイプライン切り替え)
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
-	
-	
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-	if ( sprite_ ) {
-		sprite_->Draw();
-	}
-	TextManager::GetInstance()->Draw();
+	// --- インスタンシングの3D描画 ---
+	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
+
+	// =========================================================
+	// 2. 【MRT終了】3Dの描画が終わったので、2枚のキャンバスを読み込みモードに戻す
+	// =========================================================
+	PostEffect::GetInstance()->PostDrawSceneMRT(commandList);
 
 
+	// 3. いつものPostEffect（色用のキャンバスだけに処理がかかります）
+	// PostEffect::GetInstance()->Draw(commandList); // ※もしこの関数を作っていれば
 
-	PostEffect::GetInstance()->PostDrawScene(commandList);
-	PostEffect::GetInstance()->Draw(commandList);
+	// 4. エフェクト後の「色画像」と「マスク画像」の番号(SRV)をもらう
+	uint32_t colorSrv = PostEffect::GetInstance()->GetSrvIndex();
+	uint32_t maskSrv = PostEffect::GetInstance()->GetMaskSrvIndex();
 
-	// 2. 「いつものPostEffectがかかった後」の画像番号をもらう
-	uint32_t postEffectSrv = PostEffect::GetInstance()->GetSrvIndex();
+	// =========================================================
+	// 5. Bloomに「色」と「マスク」を両方渡す！
+	// =========================================================
+	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
 
-	// 3. その画像をBloomに渡して、光を乗せる！（ON/OFFの判断も全自動）
-	Bloom::GetInstance()->Render(commandList, postEffectSrv);
 
+	// =========================================================
+	// 6. メイン画面（バックバッファ）への直接描画！
+	// パーティクルやUIはMRT非対応なので、Bloom合成後のメイン画面に直接描きます。
+	// =========================================================
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
 	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
+	// --- パーティクル描画 ---
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
+	ParticleManager::GetInstance()->Draw(commandList);
+
+	// --- スプライト・UI描画 ---
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+	if ( sprite_ ) { sprite_->Draw(); }
+	TextManager::GetInstance()->Draw();
 }
 
 void GamePlayScene::DrawDebugUI(){

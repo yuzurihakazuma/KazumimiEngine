@@ -19,6 +19,8 @@ struct Material
     float4x4 uvTransform;
     float shininess;
     float2 padding;
+    float emissive;
+    float padding2;
 };
 
 struct DirectionalLight

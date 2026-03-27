@@ -55,6 +55,12 @@ public:
 
 	
 
+	// MRT（2枚同時書き込み）を開始する関数
+	void PreDrawSceneMRT(ID3D12GraphicsCommandList* commandList);
+	void PostDrawSceneMRT(ID3D12GraphicsCommandList* commandList);
+
+
+
 	// デバッグ用UIの描画
 	void DrawDebugUI();
 
@@ -96,6 +102,9 @@ public: // ゲームプレイシーンなどから、描画に必要なSRVイン
 		}
 	}
 
+	// いつでも最終的な結果のSRVインデックスを取得できる関数
+	uint32_t GetMaskSrvIndex() const{ return maskTexture_->GetSrvIndex(); }
+
 private:
 
 	PostEffect() = default;
@@ -113,6 +122,9 @@ private:
 	std::unique_ptr<RenderTexture> renderTextures_[2];
 	
 	uint32_t finalResultIndex_ = 0; // 最終的な結果がどちらの画用紙にあるかを示すインデックス（0か1）
+
+	// もしエフェクトの中で、時間経過で変化させたいものがあれば、そこに必要なリソースをここで用意しておく
+	std::unique_ptr<RenderTexture> maskTexture_;
 
 	bool isActive_ = true; // エフェクト全体の大元スイッチ
 	// Enumの要素数(Count)の分だけ bool の配列を作る

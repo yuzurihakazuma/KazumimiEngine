@@ -27,13 +27,21 @@ public:
 	// 描画先をメイン画面（スワップチェーン）に戻す
 	void PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
 
-public:
+public: // ゲッター・セッター
 
 	// 解放
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetResource() const{ return resource_; }
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const{ return rtvHandle_; }
 	uint32_t GetSrvIndex() const{ return srvIndex_; }
 
+	const Vector4& GetClearColor() const{ return clearColor_; }
+
+	void SetClearColor(float r, float g, float b, float a){
+		clearColor_.x = r;
+		clearColor_.y = g;
+		clearColor_.z = b;
+		clearColor_.w = a;
+	}
 
 private:
 

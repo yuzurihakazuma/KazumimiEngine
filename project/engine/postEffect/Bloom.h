@@ -39,9 +39,10 @@ public:
 
 	void Finalize();
 
-	// 工程①：高輝度抽出を描画する
-	void DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvIndex);
+	void Render(ID3D12GraphicsCommandList* commandList, uint32_t colorSrvIndex, uint32_t maskSrvIndex);
+	void DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex);
 
+	
 	// 抽出した画像（SRV）の番号を取得
 	uint32_t GetExtractSrvIndex() const { return extractTexture_->GetSrvIndex(); }
 
@@ -59,9 +60,6 @@ public:
 	void SetEnabled(bool enabled) { isEnabled_ = enabled; }
 	uint32_t GetResultSrvIndex() const { return resultSrvIndex_; }
 
-	// ★追加：3つの工程を全自動でやってくれる便利関数
-	void Render(ID3D12GraphicsCommandList* commandList, uint32_t baseSrvIndex);
-
 	// ★追加：JSONへの保存と読み込み
 	void Save(const std::string& filePath);
 	void Load(const std::string& filePath);
@@ -70,7 +68,7 @@ private:
 	~Bloom() = default;
 
 
-	// ★追加：ON/OFFを管理するフラグと、最終的に画面に映す画像の番号
+	// ON/OFFを管理するフラグと、最終的に画面に映す画像の番号
 	bool isEnabled_ = true;
 	uint32_t resultSrvIndex_ = 0;
 

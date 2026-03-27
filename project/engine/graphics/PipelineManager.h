@@ -3,6 +3,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include <string>
+#include <vector>
 
 // --- エンジン側のファイル ---
 #include "engine/graphics/PipelineType.h"
