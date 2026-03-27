@@ -44,8 +44,9 @@ public: // サブクラス定義
 		float padding[3];       // 4 bytes * 3 = 12 bytes (行列を16バイト境界に合わせるための詰め物)
 		Matrix4x4 uvTransform;
 		float shininess;       
-		float padding2[2];
-		float emissive;         // 発光パワー (4 bytes)
+		float padding2[2];      // 8バイト (HLSLの float2 padding と一致)
+		float emissive;         // 4バイト (HLSLの emissive と一致)
+		float padding3;         // 4バイト (全体を16の倍数にするための詰め物)
 	};
 
 public: // メンバ関数
