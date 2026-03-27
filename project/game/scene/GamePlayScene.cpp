@@ -88,7 +88,9 @@ void GamePlayScene::Initialize(){
 		testObj_->SetNoiseTexture(textures_["noise0"].srvIndex);
 		testObj_->SetDissolveThreshold(0.0f);
 
-		testObj_->PlayAnimation(&testAnimation_);
+		//testObj_->PlayAnimation(&testAnimation_);
+
+		Bloom::GetInstance()->SetTargetEmissivePower(&testObj_->GetModel()->GetMaterial()->emissive);
 	}
 
 
@@ -211,7 +213,7 @@ void GamePlayScene::Draw(){
 
 
 	// 3. いつものPostEffect（色用のキャンバスだけに処理がかかります）
-	// PostEffect::GetInstance()->Draw(commandList); // ※もしこの関数を作っていれば
+	 PostEffect::GetInstance()->Draw(commandList); // ※もしこの関数を作っていれば
 
 	// 4. エフェクト後の「色画像」と「マスク画像」の番号(SRV)をもらう
 	uint32_t colorSrv = PostEffect::GetInstance()->GetSrvIndex();
@@ -283,12 +285,7 @@ void GamePlayScene::DrawDebugUI(){
 	}
 
 	ImGui::End();
-	ImGui::Begin("Material Settings");
-	if (testObj_ && testObj_->GetModel()) {
-		ImGui::SliderFloat("発光パワー (Emissive)", &testObj_->GetModel()->GetMaterial()->emissive, 1.0f, 10.0f);
-	}
-	ImGui::End();
-
+	
 #endif
 
 }

@@ -147,54 +147,50 @@ void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrv
 	extractTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
+// 修正後の Bloom.cpp (DrawCombine)
+void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex){
+	//  バックバッファではなく、combineTexture_ をお絵かき先にセットする！
+	combineTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
 
-// 工程③ 元の画像と光を合成する！
-void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex) {
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = DirectXCommon::GetInstance()->GetBackBufferRtvHandle();
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = DirectXCommon::GetInstance()->GetDsvHandle();
-	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-
-	// 画面サイズに合わせてビューポートとシザーをセット
-	D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(DirectXCommon::GetInstance()->GetClientWidth()), static_cast<float>(DirectXCommon::GetInstance()->GetClientHeight()), 0.0f, 1.0f };
-	D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(DirectXCommon::GetInstance()->GetClientWidth()), static_cast<LONG>(DirectXCommon::GetInstance()->GetClientHeight()) };
-	commandList->RSSetViewports(1, &viewport);
-	commandList->RSSetScissorRects(1, &scissorRect);
-
-	// 2. パイプライン設定
+	// パイプラインなどの設定
 	commandList->SetGraphicsRootSignature(combineRootSignature_.Get());
 	commandList->SetPipelineState(combinePipelineState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 3. テクスチャを2枚渡す！
-	// t0: 元の画面 (PostEffectの結果)
+	// テクスチャを渡す
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, mainSrvIndex);
-	// t1: ぼかした光 (Blurの結果)
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, blurTextures_[1]->GetSrvIndex());
 
-	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
+
+	//  お絵かき終了（読み込みモードに戻す）
+	combineTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
 void Bloom::DrawDebugUI() {
 #ifdef USE_IMGUI
-	ImGui::Begin("Bloom Settings");
 
-	// ★ ON/OFFのチェックボックス
-	ImGui::Checkbox("Enable Bloom", &isEnabled_);
+	ImGui::Checkbox("発光 (Bloom)", &isEnabled_);
 
 	// ONの時だけ設定をいじれるようにする
-	if (isEnabled_) {
-		ImGui::DragFloat("Threshold (光る基準値)", &bloomData_->threshold, 0.01f, 0.0f, 5.0f);
+	if ( isEnabled_ ) {
+		ImGui::Indent(); // 階層を見やすくするために少し右にずらす
+
+		// 🚨変更箇所：ラベルを「光る基準値 (Threshold)」に変更
+		// 閾値（どれだけ明るいと光るか）を調整
+		ImGui::DragFloat("光る基準値 (Threshold)", &bloomData_->threshold, 0.01f, 0.0f, 10.0f);
+
+		// 🚨追加箇所：マテリアルの発光パワー（どれだけ光るか）を調整するスライダー
+		// 対象のマテリアルがセットされている場合のみ描画
+		if ( targetEmissivePower_ ) {
+			ImGui::DragFloat("光る強さ (Emissive Power)", targetEmissivePower_, 0.01f, 0.0f, 10.0f);
+		} else {
+			// セットされていない場合は赤文字で注意喚起
+			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "※対象マテリアルが設定されていません");
+		}
+
+		ImGui::Unindent();
 	}
-
-	ImGui::Separator();
-
-	// ★ セーブボタン
-	if (ImGui::Button("Save Settings")) {
-		Save("resources/bloom.json");
-	}
-
-	ImGui::End();
 #endif
 }
 

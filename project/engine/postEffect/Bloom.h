@@ -53,6 +53,8 @@ public:
 	// すべての処理が終わった「最終結果」のSRVを取得
 	uint32_t GetCombineSrvIndex() const { return combineTexture_->GetSrvIndex(); }
 
+	void SetTargetEmissivePower(float* emissivePower){ targetEmissivePower_ = emissivePower; }
+
 	void DrawDebugUI();
 public:
 	// ★追加：ON/OFFスイッチと、結果のSRV番号
@@ -99,5 +101,7 @@ private:
 	std::unique_ptr<RenderTexture> combineTexture_; // 最終結果を保存するキャンバス
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> combineRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> combinePipelineState_;
+
+	float* targetEmissivePower_ = nullptr; // 初期値はNULL
 
 };

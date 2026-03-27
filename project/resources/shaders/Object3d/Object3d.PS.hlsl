@@ -110,13 +110,12 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     if (gMaterial.emissive > 1.0f)
     {
-        // もし「光らせる設定(emissive > 1)」なら、描いた色をそのまま2枚目にも書き込む
-        // （これが「Bloom対象だよ！」というフラグ兼、光る色の情報になります）
-        output.mask = float4(output.color.rgb, 1.0f);
+        // output.color.rgb（通常の色）に、emissive（光る強さ）を掛け算して書き込む！
+        // これにより、emissiveが 5.0 なら、マスク画像の明るさも 5.0 になる
+        output.mask = float4(output.color.rgb * gMaterial.emissive, 1.0f);
     }
     else
     {
-        // 対象じゃないなら真っ黒（フラグOFF）にする
         output.mask = float4(0.0f, 0.0f, 0.0f, 0.0f);
     }
     

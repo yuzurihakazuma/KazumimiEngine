@@ -233,9 +233,10 @@ void PostEffect::ApplyEffect(
 
 
 // デバッグ用UIの描画
-void PostEffect::DrawDebugUI() {
+// デバッグ用UIの描画
+void PostEffect::DrawDebugUI(){
 #ifdef USE_IMGUI
-	if (ImGui::Begin("インスペクター (詳細設定)")) {
+	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
 
 		static const char* effectNames[] = {
 			"None (使わない)",
@@ -250,48 +251,63 @@ void PostEffect::DrawDebugUI() {
 			"ノイズ・砂嵐 (Random Noise)"
 		};
 		// --- ポストエフェクトのON/OFF設定 ---
-		if (ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if ( ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 
 			ImGui::Checkbox("エフェクト全体を有効化", &isActive_);
 			ImGui::Separator();
 
-			if (isActive_) {
+			if ( isActive_ ) {
 				// それぞれのエフェクトのON/OFFを切り替えるチェックボックスを出す
-				for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+				for ( int i = 1; i < static_cast< int >(PostEffectType::Count); ++i ) {
 					ImGui::Checkbox(effectNames[i], &activeEffects_[i]);
 
 					// ノイズ(RandomNoise)がONの時だけ、スピード調整スライダーを出す
-					if (i == static_cast<int>(PostEffectType::RandomNoise) && activeEffects_[i]) {
+					if ( i == static_cast< int >(PostEffectType::RandomNoise) && activeEffects_[i] ) {
 						ImGui::Indent(); // ちょっと右にずらす
 						ImGui::SliderFloat("ノイズの速度", &timeSpeed_, 0.0f, 0.5f);
-						if (ImGui::Button("速度リセット")) { timeSpeed_ = 0.05f; }
+						if ( ImGui::Button("速度リセット") ) { timeSpeed_ = 0.05f; }
 						ImGui::Unindent();
 					}
 				}
+
+				// ★追加箇所 1：ループの直後（他のエフェクトの下）にBloomを差し込む！
+				Bloom::GetInstance()->DrawDebugUI();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::Button("設定を保存")) { Save(); }
+			// ★追加箇所 2：保存・読み込みボタンを押したときにBloomも一緒に処理させる！
+			if ( ImGui::Button("設定を保存") ) {
+				Save();
+				Bloom::GetInstance()->Save("resources/bloom.json");
+			}
 			ImGui::SameLine();
-			if (ImGui::Button("設定を読み込む")) { Load(); }
+			if ( ImGui::Button("設定を読み込む") ) {
+				Load();
+				Bloom::GetInstance()->Load("resources/bloom.json");
+			}
 		}
 
 		// --- 現在適用中のエフェクト表示 ---
 		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[現在適用中のエフェクト]"); // 緑色で文字を表示
 		bool hasActiveEffect = false;
-		if (isActive_) {
-			for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
-				if (activeEffects_[i]) {
-					// ★一番上で作っているので、ここからも無事にアクセスできる！
+		if ( isActive_ ) {
+			for ( int i = 1; i < static_cast< int >(PostEffectType::Count); ++i ) {
+				if ( activeEffects_[i] ) {
 					ImGui::BulletText("%s", effectNames[i]);
 					hasActiveEffect = true;
 				}
 			}
+
+			// ★追加箇所 3：BloomがONの時は、適用中のリストにも表示する！
+			if ( Bloom::GetInstance()->IsEnabled() ) {
+				ImGui::BulletText("発光 (Bloom)");
+				hasActiveEffect = true;
+			}
 		}
 
 		// 1つもかかっていない場合の表示
-		if (!isActive_ || !hasActiveEffect) {
+		if ( !isActive_ || !hasActiveEffect ) {
 			ImGui::Text("  (なし)");
 		}
 
@@ -299,7 +315,6 @@ void PostEffect::DrawDebugUI() {
 	ImGui::End();
 #endif
 }
-
 
 
 // 設定をJSONファイルに保存する関数

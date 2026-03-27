@@ -105,7 +105,7 @@ void SceneManager::Update(){
 		// 3. 全シーン共通のUI
 		PostEffect::GetInstance()->DrawDebugUI();
 
-		Bloom::GetInstance()->DrawDebugUI();
+		//Bloom::GetInstance()->DrawDebugUI();
 
 		// 4. 現在のシーン固有のUI
 		if ( currentScene_ ) {
