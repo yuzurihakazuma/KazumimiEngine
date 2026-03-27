@@ -2,6 +2,7 @@
 #include "engine/math/VectorMath.h"
 #include "game/card/HandManager.h"
 #include <vector>
+#include <unordered_map>
 
 class Boss {
 public:
@@ -10,8 +11,7 @@ public:
         Appear,    // 登場演出
         Idle,      // 待機
         Chase,     // プレイヤー追跡
-        Attack,    // 近接攻撃
-        UseSkill,  // スキル使用
+        UseCard,   // カード使用
         Dead       // 死亡
     };
 
@@ -51,11 +51,8 @@ public:
     void SetActionLock(int frame);
     bool IsActionLocked() const { return isActionLocked_; }
 
-    // 攻撃リクエスト
-    bool GetAttackRequest() const { return attackRequest_; }
-    void ClearAttackRequest() { attackRequest_ = false; }
 
-    // スキルリクエスト
+    // カード使用リクエスト
     bool GetCardUseRequest() const { return cardUseRequest_; }
     void ClearCardUseRequest() { cardUseRequest_ = false; }
 
@@ -79,7 +76,7 @@ public:
 
     bool IsAttackDebuffed() const { return isAttackDebuffed_; }
 
-    bool cardUseRequest_ = false;
+    bool IsCasting() const { return isCasting_; }
 
     // 雑魚敵召喚リクエスト
     void RequestSummon(int count) {
@@ -96,10 +93,15 @@ private:
     void UpdateAppear();   // 登場演出
     void UpdateIdle();
     void UpdateChase();
-    void UpdateAttack();
-    void UpdateUseSkill();
+    void UpdateUseCard();
 
     void InitializeBossCards();
+
+    bool cardUseRequest_ = false;
+
+    bool IsCardReady(int cardId) const;
+    void StartCardCooldown(int cardId, int time);
+    int GetCardCooldownTime(int cardId) const;
 
 private:
     // Transform
@@ -123,14 +125,16 @@ private:
 
     // 距離設定
     float chaseRange_ = 100.0f;
-    float attackEnterRange_ = 4.8f;
-    float attackExitRange_ = 10.0f;
 
-    float skillEnterRange_ = 8.0f;
-    float skillExitRange_ = 10.0f;
+    float cardExitRange_ = 10.0f;
 
     // 思考
     int thinkTimer_ = 0;
+
+	// カード使用時間
+    bool isCasting_ = false;
+    int castTimer_ = 0;
+    const int castTime_ = 60;
 
     // 行動ロック
     bool isActionLocked_ = false;
@@ -142,15 +146,8 @@ private:
     const int hitDuration_ = 10;
     Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f };
 
-    // 攻撃・スキル
-    bool attackRequest_ = false;
-    
+    int cardCooldownTimer_ = 0;
 
-    int attackCooldownTimer_ = 0;
-    int skillCooldownTimer_ = 0;
-
-    const int attackCooldown_ = 45;
-    const int skillCooldown_ = 120;
 
     // カード
     std::vector<Card> heldCards_;
@@ -166,9 +163,8 @@ private:
     int appearTimer_ = 0;            // 残り時間
     const int appearDuration_ = 60;  // 演出フレーム数
 
-    // 距離によって決めたカードを保持する変数
-    Card currentCard_{ -1, "", 0 };
-
     bool summonRequest_ = false;
     int summonCount_ = 0;
+
+    std::unordered_map<int, int> cardCooldownTimers_;
 };
