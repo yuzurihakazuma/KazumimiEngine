@@ -1,5 +1,5 @@
 id,name,cost,effectType,sffectValue,description,modelName,effectName,seName,canEnemyUse
-1,Fist,0,0,1,１ダメージ与える,cardF,nullptr,nullptr,1
+1,Fist,0,0,1,１ダメージ与える,cardF,nullptr,nullptr,0
 2,Fireball,1,0,3,３ダメージ与える,cardFire,nullptr,nullptr,1
 3,potion(S),3,1,5,HP5回復,cardPotion,nullptr,nullptr,0
 4,speedUp,2,3,2,速度を2倍にする,cardSpeedUp,nullptr,nullptr,0

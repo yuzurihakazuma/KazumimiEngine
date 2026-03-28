@@ -47,5 +47,8 @@ public:
 	// 敵が使えるカードの中からランダムに1枚取得する
 	static Card GetRandomEnemyUsableCard();
 
+	// プレイヤーが拾えるカードだけをランダムに取得
+	static Card GetRandomPlayerCard();
+
 };
 

@@ -142,6 +142,8 @@ private: // メンバ変数
 	// カード交換モード用変数
 	bool isCardSwapMode_ = false; // 交換モード中かどうか
 	Card pendingCard_;            // 拾おうとしている（保留中の）カード
+	struct CardPickup *pendingPickup_ = nullptr; // 拾おうとしているフィールドのアイテム
+	int swapSelectionIndex_ = 0;                 // 捨てる手札を選ぶカーソル位置
 
 	//カード交換モードの処理
 	void UpdateCardSwapMode(Input *input);

@@ -400,9 +400,7 @@ void GamePlayScene::Update() {
 		return;
 	}
 
-	// ==========================================
-// 階段タイル(3)との判定
-// ==========================================
+
 	// ==========================================
 	// 階段タイル(3)との判定
 	// ==========================================
@@ -881,10 +879,11 @@ void GamePlayScene::Update() {
 				continue;
 			} else {
 				// 手札が一杯ならカード交換モードへ移行
-				/*isCardSwapMode_ = true;
-				pendingCard_ = pickup.card;*/
-				pickup.isActive = false;
-				continue;
+				isCardSwapMode_ = true;
+				pendingCard_ = pickup.card;
+				pendingPickup_ = &pickup; // どのアイテムに触れたかを記憶
+				swapSelectionIndex_ = 0;  // 最初は0番目の手札を選択状態にする
+				break; // 同時に2枚拾うバグを防ぐため、ループを抜ける！
 			}
 		}
 
@@ -1725,8 +1724,16 @@ void GamePlayScene::UpdateCardSwapMode(Input *input) {
 		}
 
 		handManager_.SwapSelectedCard(pendingCard_);
+		// ★追加：交換成功したら、地面に落ちていたアイテムを消す！
+		if (pendingPickup_) {
+			pendingPickup_->isActive = false;
+			pendingPickup_ = nullptr;
+		}
+
 		isCardSwapMode_ = false;
 	} else if (input->Triggerkey(DIK_C)) {
+		// キャンセルした場合はアイテムは消さずにポインタだけリセット
+		pendingPickup_ = nullptr;
 		isCardSwapMode_ = false;
 	}
 }
@@ -1998,8 +2005,7 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 	int spawnCount = std::min(cardCount, static_cast<int>(filtered.size()));
 
-	int maxCardId = static_cast<int>(CardDatabase::GetCardCount());
-	std::uniform_int_distribution<int> cardDist(2, maxCardId);
+	
 
 	for (int i = 0; i < spawnCount; ++i) {
 		int tileX = filtered[i].first;
@@ -2007,9 +2013,10 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
 
-		int cardId = cardDist(mt);
+		// IDを数字でランダムに選ぶのではなく、プレイヤー用リストから取得する
+		Card dropCard = CardDatabase::GetRandomPlayerCard();
 
-		cardPickupManager_.AddPickup(worldPos, CardDatabase::GetCardData(cardId));
+		cardPickupManager_.AddPickup(worldPos, dropCard);
 	}
 }
 

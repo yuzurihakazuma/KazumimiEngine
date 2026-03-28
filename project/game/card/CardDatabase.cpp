@@ -144,3 +144,24 @@ Card CardDatabase::GetRandomEnemyUsableCard() {
 
     return usableCards[dist(gen)];
 }
+
+Card CardDatabase::GetRandomPlayerCard() {
+    std::vector<Card> dropCards;
+
+	// データベースの中身を全部チェックする
+    for (const auto &pair : database_) {
+        // IDが100未満、かつ「IDが1ではない」カードだけをリストに入れる
+        if (pair.second.id > 1 && pair.second.id < 100) {
+            dropCards.push_back(pair.second);
+        }
+    }
+
+    // 万が一拾えるカードがなかったら、エラーで回避でID2枚選ぶ
+    if (dropCards.empty()) {
+        return GetCardData(2);
+    }
+
+    // プレイヤー用リストの中からランダムに1枚選らぶ
+    int randomIndex = rand() % dropCards.size();
+    return dropCards[randomIndex];
+}
