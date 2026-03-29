@@ -447,10 +447,10 @@ void LevelEditor::UpdateTileObject(int x, int z) {
 	const int tile = levelData_.tiles[z][x];
 
 	// ==========================================
-	// 床の処理 (タイルが0の時)
-	// ==========================================
+// 床の処理 (タイルが0の時)
+// ==========================================
 	if (tile == 0) {
-		if (!floorObjects_[z][x]) { // 無ければ作る（使い回し）
+		if (!floorObjects_[z][x]) {
 			floorObjects_[z][x] = std::make_unique<Obj3d>();
 			floorObjects_[z][x]->Initialize(model);
 			floorObjects_[z][x]->SetCamera(camera_);
@@ -459,14 +459,16 @@ void LevelEditor::UpdateTileObject(int x, int z) {
 		floorObjects_[z][x]->SetTranslation(pos);
 		floorObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
 		floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
-		// floorObjects_[z][x]->Update(); // ※Updateは全体のUpdateで呼ばれるのでここでは不要
+
+		// ★ コメントアウトを外して、ここで1回だけ Update を呼ぶ！
+		floorObjects_[z][x]->Update();
 	}
 
 	// ==========================================
 	// 壁・階段の処理 (タイルが1 or 3の時)
 	// ==========================================
 	if (tile == 1 || tile == 3) {
-		if (!wallObjects_[z][x]) { // 無ければ作る
+		if (!wallObjects_[z][x]) {
 			wallObjects_[z][x] = std::make_unique<Obj3d>();
 			wallObjects_[z][x]->Initialize(model);
 			wallObjects_[z][x]->SetCamera(camera_);
@@ -481,10 +483,10 @@ void LevelEditor::UpdateTileObject(int x, int z) {
 			wallObjects_[z][x]->SetTranslation(pos);
 			wallObjects_[z][x]->SetScale({ 1.0f, 2.0f, 1.0f });
 		}
-	}
 
-	// ※使わなくなったObj3dを消すと重いので、そのまま放置しておいてOKです。
-	// Update() の描画登録の時に、tiles[z][x] の値を見て無視する仕組みになっているので悪さはしません。
+		// ★ ここにも追加！配置時に1回だけ Update を呼ぶ！
+		wallObjects_[z][x]->Update();
+	}
 }
 std::pair<int, int> LevelEditor::PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance) {
 	std::vector<std::pair<int, int>> candidates;
