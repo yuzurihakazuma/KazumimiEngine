@@ -23,11 +23,15 @@ void LevelEditor::Initialize() {
 	mapType_ = 0;
 	saveFileName_ = "map01.json";
 
+	floorGroup_ = std::make_unique<InstancedGroup>();
+	floorGroup_->Initialize("block", 10000);
+
 	wallGroup_ = std::make_unique<InstancedGroup>();
 	wallGroup_->Initialize("block", 10000);
 
 	stairsGroup_ = std::make_unique<InstancedGroup>();
 	stairsGroup_->Initialize("block", 10000);
+
 	LoadAndCreateMap(currentMapFile_);
 }
 
@@ -45,16 +49,16 @@ void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
 }
 
 void LevelEditor::ResizeObjectGrids() {
+	floorObjects_.resize(levelData_.height);
 	wallObjects_.resize(levelData_.height);
 
 	for (int z = 0; z < levelData_.height; ++z) {
+		floorObjects_[z].resize(levelData_.width);
 		wallObjects_[z].resize(levelData_.width);
 	}
 }
-
 void LevelEditor::RebuildMapObjects() {
 	ResizeObjectGrids();
-	CreateFloorObject();
 
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
@@ -64,42 +68,48 @@ void LevelEditor::RebuildMapObjects() {
 }
 
 void LevelEditor::Update(const Vector3& playerPos) {
-	if (floorObject_) {
-		floorObject_->Update();
-	}
-
+	if (floorGroup_) floorGroup_->PreUpdate();
 	if (wallGroup_) wallGroup_->PreUpdate();
 	if (stairsGroup_) stairsGroup_->PreUpdate();
 
-	for (int z = 0; z < levelData_.height; ++z) {
-		for (int x = 0; x < levelData_.width; ++x) {
+	const float tileSize = levelData_.tileSize;
+
+	int centerX = static_cast<int>(std::round(playerPos.x / tileSize));
+	int centerZ = static_cast<int>(std::round(playerPos.z / tileSize));
+
+	// 表示範囲
+	const int range = 16;
+
+	int minX = std::max(0, centerX - range);
+	int maxX = std::min(levelData_.width - 1, centerX + range);
+	int minZ = std::max(0, centerZ - range);
+	int maxZ = std::min(levelData_.height - 1, centerZ + range);
+
+	for (int z = minZ; z <= maxZ; ++z) {
+		for (int x = minX; x <= maxX; ++x) {
+
+			// 床
+			if (floorObjects_[z][x]) {
+				floorObjects_[z][x]->Update();
+				floorGroup_->AddObject(floorObjects_[z][x].get());
+			}
+
+			// 壁・階段
 			if (wallObjects_[z][x]) {
-				Vector3 objPos = wallObjects_[z][x]->GetTranslation();
-				float diffX = objPos.x - playerPos.x;
-				float diffZ = objPos.z - playerPos.z;
-				float distSq = (diffX * diffX) + (diffZ * diffZ);
+				wallObjects_[z][x]->Update();
 
-				// 距離が近いものだけ更新してグループに追加
-				if (distSq < 800.0f) {
-					wallObjects_[z][x]->Update();
-
-					int tile = levelData_.tiles[z][x];
-					if (tile == 1) { // 壁
-						wallGroup_->AddObject(wallObjects_[z][x].get());
-					}
-					else if (tile == 3) { // 階段
-						stairsGroup_->AddObject(wallObjects_[z][x].get());
-					}
+				int tile = levelData_.tiles[z][x];
+				if (tile == 1) {
+					wallGroup_->AddObject(wallObjects_[z][x].get());
+				} else if (tile == 3) {
+					stairsGroup_->AddObject(wallObjects_[z][x].get());
 				}
 			}
 		}
 	}
 }
 void LevelEditor::Draw(const Vector3& playerPos) {
-	if (floorObject_) {
-		floorObject_->Draw();
-	}
-
+	if (floorGroup_) floorGroup_->Draw(camera_);
 	if (wallGroup_) wallGroup_->Draw(camera_);
 	if (stairsGroup_) stairsGroup_->Draw(camera_);
 }
@@ -285,38 +295,6 @@ void LevelEditor::DrawDebugUI() {
 #endif
 }
 
-
-
-void LevelEditor::CreateFloorObject() {
-	Model* model = ModelManager::GetInstance()->FindModel("block");
-	if (model == nullptr) {
-		return;
-	}
-
-	floorObject_ = std::make_unique<Obj3d>();
-	floorObject_->Initialize(model);
-	floorObject_->SetCamera(camera_);
-
-	const float tileSize = levelData_.tileSize;
-
-	Vector3 pos;
-	pos.x = ((float)levelData_.width - 1.0f) * tileSize * 0.5f;
-	pos.y = levelData_.baseY;
-	pos.z = ((float)levelData_.height - 1.0f) * tileSize * 0.5f;
-
-	floorObject_->SetTranslation(pos);
-	floorObject_->SetRotation({ 0.0f, 0.0f, 0.0f });
-
-	// blockモデル1個をマップ全体サイズまで拡大
-	floorObject_->SetScale({
-		(float)levelData_.width,
-		1.0f,
-		(float)levelData_.height
-		});
-
-	floorObject_->Update();
-}
-
 void LevelEditor::FillAllTiles(int tileType) {
 	for (int z = 0; z < levelData_.height; ++z) {
 		for (int x = 0; x < levelData_.width; ++x) {
@@ -459,60 +437,55 @@ void LevelEditor::PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoi
 	levelData_.tiles[tileZ][tileX] = 3;
 	UpdateTileObject(tileX, tileZ);
 }
-
 void LevelEditor::UpdateTileObject(int x, int z) {
-	if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) {
-		return;
-	}
+	if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
 
 	Model* model = ModelManager::GetInstance()->FindModel("block");
-	if (model == nullptr) {
-		return;
-	}
-
-	wallObjects_[z][x].reset();
+	if (model == nullptr) return;
 
 	const float tileSize = levelData_.tileSize;
 	const int tile = levelData_.tiles[z][x];
 
-	// 壁
-	if (tile == 1) {
-		std::unique_ptr<Obj3d> wallObj = std::make_unique<Obj3d>();
-		wallObj->Initialize(model);
-		wallObj->SetCamera(camera_);
-
-		Vector3 pos;
-		pos.x = x * tileSize;
-		pos.y = levelData_.baseY + tileSize;
-		pos.z = z * tileSize;
-
-		wallObj->SetTranslation(pos);
-		wallObj->SetRotation({ 0.0f, 0.0f, 0.0f });
-		wallObj->SetScale({ 1.0f, 1.0f, 1.0f });
-		wallObj->Update();
-
-		wallObjects_[z][x] = std::move(wallObj);
+	// ==========================================
+	// 床の処理 (タイルが0の時)
+	// ==========================================
+	if (tile == 0) {
+		if (!floorObjects_[z][x]) { // 無ければ作る（使い回し）
+			floorObjects_[z][x] = std::make_unique<Obj3d>();
+			floorObjects_[z][x]->Initialize(model);
+			floorObjects_[z][x]->SetCamera(camera_);
+		}
+		Vector3 pos = { x * tileSize, levelData_.baseY, z * tileSize };
+		floorObjects_[z][x]->SetTranslation(pos);
+		floorObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
+		floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
+		// floorObjects_[z][x]->Update(); // ※Updateは全体のUpdateで呼ばれるのでここでは不要
 	}
-	// 階段
-	else if (tile == 3) {
-		std::unique_ptr<Obj3d> stairsObj = std::make_unique<Obj3d>();
-		stairsObj->Initialize(model);
-		stairsObj->SetCamera(camera_);
 
-		Vector3 pos;
-		pos.x = x * tileSize;
-		pos.y = levelData_.baseY + 2.5f;
-		pos.z = z * tileSize;
+	// ==========================================
+	// 壁・階段の処理 (タイルが1 or 3の時)
+	// ==========================================
+	if (tile == 1 || tile == 3) {
+		if (!wallObjects_[z][x]) { // 無ければ作る
+			wallObjects_[z][x] = std::make_unique<Obj3d>();
+			wallObjects_[z][x]->Initialize(model);
+			wallObjects_[z][x]->SetCamera(camera_);
+		}
 
-		stairsObj->SetTranslation(pos);
-		stairsObj->SetRotation({ 0.0f, 0.0f, 0.0f });
-		stairsObj->SetScale({ 1.0f, 2.0f, 1.0f });
-		stairsObj->Update();
-
-		wallObjects_[z][x] = std::move(stairsObj);
+		if (tile == 1) { // 壁
+			Vector3 pos = { x * tileSize, levelData_.baseY + tileSize, z * tileSize };
+			wallObjects_[z][x]->SetTranslation(pos);
+			wallObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
+		} else { // 階段
+			Vector3 pos = { x * tileSize, levelData_.baseY + 2.5f, z * tileSize };
+			wallObjects_[z][x]->SetTranslation(pos);
+			wallObjects_[z][x]->SetScale({ 1.0f, 2.0f, 1.0f });
+		}
 	}
+
+	// ※使わなくなったObj3dを消すと重いので、そのまま放置しておいてOKです。
+	// Update() の描画登録の時に、tiles[z][x] の値を見て無視する仕組みになっているので悪さはしません。
 }
-
 std::pair<int, int> LevelEditor::PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance) {
 	std::vector<std::pair<int, int>> candidates;
 
@@ -583,6 +556,7 @@ std::pair<int, int> LevelEditor::PlaceStairsTileRandomAndGetTile(const Vector3& 
 
 void LevelEditor::SetNoiseTexture(uint32_t index) {
 	noiseTextureIndex_ = index;
+	if (floorGroup_) floorGroup_->SetNoiseTexture(index);
 	if (wallGroup_) wallGroup_->SetNoiseTexture(index);
 	if (stairsGroup_) stairsGroup_->SetNoiseTexture(index);
 }

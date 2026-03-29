@@ -1,5 +1,5 @@
 #pragma once
-
+#define NOMINMAX
 #include "engine/utils/Level/LevelData.h"
 #include "LevelManager.h"
 #include <vector>
@@ -32,7 +32,7 @@ public:
 
     const LevelData& GetLevelData() const { return levelData_; }
     void UpdateTileObject(int x, int z);
-    void CreateFloorObject();
+   
     void ResizeObjectGrids();
 
     void FillAllTiles(int tileType);
@@ -65,7 +65,7 @@ private:
 
     LevelData levelData_;
     // 1マスごとの床オブジェクト
-    std::unique_ptr<Obj3d> floorObject_;
+    std::vector<std::vector<std::unique_ptr<Obj3d>>> floorObjects_;
 
     // 1マスごとの壁オブジェクト
     std::vector<std::vector<std::unique_ptr<Obj3d>>> wallObjects_;
@@ -85,7 +85,7 @@ private:
 
     bool mapChanged_ = false;
 
-
+    std::unique_ptr<InstancedGroup> floorGroup_;
     std::unique_ptr<InstancedGroup> wallGroup_;
     std::unique_ptr<InstancedGroup> stairsGroup_;
     uint32_t noiseTextureIndex_ = 0;
