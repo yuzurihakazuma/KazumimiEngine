@@ -851,76 +851,7 @@ void GamePlayScene::Update() {
 			return;
 		}
 	}
-	// ==========================================
-	// ドロップアイテム(カード)の取得判定
-	// ==========================================
-
-	cardPickupManager_.Update();
-
-	for (auto &pickup : cardPickupManager_.GetPickups()) {
-		if (!pickup.isActive) {
-			continue;
-		}
-
-		// プレイヤーとの距離計算
-		Vector3 playerDiff = {
-			playerPos_.x - pickup.position.x,
-			playerPos_.y - pickup.position.y,
-			playerPos_.z - pickup.position.z
-		};
-
-		float playerDist = Length(playerDiff);
-
-		// プレイヤーが拾う処理
-		if (player_ && !player_->IsDead() && playerDist < 2.0f) {
-			bool success = handManager_.AddCard(pickup.card);
-			if (success) {
-				pickup.isActive = false;
-				continue;
-			} else {
-				// 手札が一杯ならカード交換モードへ移行
-				isCardSwapMode_ = true;
-				pendingCard_ = pickup.card;
-				pendingPickup_ = &pickup; // どのアイテムに触れたかを記憶
-				swapSelectionIndex_ = 0;  // 最初は0番目の手札を選択状態にする
-				break; // 同時に2枚拾うバグを防ぐため、ループを抜ける！
-			}
-		}
-
-		// 敵が拾う処理
-		for (size_t i = 0; i < enemies_.size(); ++i) {
-			auto &enemy = enemies_[i];
-
-			// 既にカードを持っている敵や死んでいる敵は拾えない
-			if (!enemy || enemy->IsDead() || enemy->HasCard()) {
-				continue;
-			}
-
-
-			Vector3 enemyPos = enemy->GetPosition();
-
-			Vector3 enemyDiff = {
-				enemyPos.x - pickup.position.x,
-				enemyPos.y - pickup.position.y,
-				enemyPos.z - pickup.position.z
-			};
-
-			float enemyDist = Length(enemyDiff);
-
-			// 敵が拾う
-			if (enemyDist < 2.0f) {
-				Card pickedCard = pickup.card;
-
-				// もし拾ったカードが「敵は使えないカード(canEnemyUseが0)」だったら、敵が使えるカードの中からランダムに選んですり替える！
-				if (!pickedCard.canEnemyUse) {
-					pickedCard = CardDatabase::GetRandomEnemyUsableCard();
-				}
-				enemy->SetHeldCard(pickedCard);
-				pickup.isActive = false;
-				break;
-			}
-		}
-	}
+	
 
 	// ==========================================
 	// カメラ・各種オブジェクトの更新
@@ -1110,6 +1041,78 @@ void GamePlayScene::Update() {
 		}
 
 		camera_->Update();
+	}
+
+
+	// ==========================================
+	// ドロップアイテム(カード)の取得判定
+	// ==========================================
+
+	cardPickupManager_.Update();
+
+	for (auto &pickup : cardPickupManager_.GetPickups()) {
+		if (!pickup.isActive) {
+			continue;
+		}
+
+		// プレイヤーとの距離計算
+		Vector3 playerDiff = {
+			playerPos_.x - pickup.position.x,
+			playerPos_.y - pickup.position.y,
+			playerPos_.z - pickup.position.z
+		};
+
+		float playerDist = Length(playerDiff);
+
+		// プレイヤーが拾う処理
+		if (player_ && !player_->IsDead() && playerDist < 2.0f) {
+			bool success = handManager_.AddCard(pickup.card);
+			if (success) {
+				pickup.isActive = false;
+				continue;
+			} else {
+				// 手札が一杯ならカード交換モードへ移行
+				isCardSwapMode_ = true;
+				pendingCard_ = pickup.card;
+				pendingPickup_ = &pickup; // どのアイテムに触れたかを記憶
+				swapSelectionIndex_ = 0;  // 最初は0番目の手札を選択状態にする
+				break; // 同時に2枚拾うバグを防ぐため、ループを抜ける！
+			}
+		}
+
+		// 敵が拾う処理
+		for (size_t i = 0; i < enemies_.size(); ++i) {
+			auto &enemy = enemies_[i];
+
+			// 既にカードを持っている敵や死んでいる敵は拾えない
+			if (!enemy || enemy->IsDead() || enemy->HasCard()) {
+				continue;
+			}
+
+
+			Vector3 enemyPos = enemy->GetPosition();
+
+			Vector3 enemyDiff = {
+				enemyPos.x - pickup.position.x,
+				enemyPos.y - pickup.position.y,
+				enemyPos.z - pickup.position.z
+			};
+
+			float enemyDist = Length(enemyDiff);
+
+			// 敵が拾う
+			if (enemyDist < 2.0f) {
+				Card pickedCard = pickup.card;
+
+				// もし拾ったカードが「敵は使えないカード(canEnemyUseが0)」だったら、敵が使えるカードの中からランダムに選んですり替える！
+				if (!pickedCard.canEnemyUse) {
+					pickedCard = CardDatabase::GetRandomEnemyUsableCard();
+				}
+				enemy->SetHeldCard(pickedCard);
+				pickup.isActive = false;
+				break;
+			}
+		}
 	}
 
 	// ボス頭上HPバー更新
@@ -2012,6 +2015,7 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 		int tileZ = filtered[i].second;
 
 		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
+		worldPos.y = -0.99f;
 
 		// IDを数字でランダムに選ぶのではなく、プレイヤー用リストから取得する
 		Card dropCard = CardDatabase::GetRandomPlayerCard();
