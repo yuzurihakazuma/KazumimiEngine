@@ -9,7 +9,6 @@ public:
         Patrol,       // 巡回
         MoveToCard,   // カードへ移動
         ChasePlayer,  // プレイヤー追跡
-        AttackPlayer, // 近接攻撃
         UseCard,      // カード使用
         Retreat       // プレイヤーから離れる
     };
@@ -42,11 +41,13 @@ public:
     void SetState(State state) { state_ = state; } // 状態設定
     State GetState() const { return state_; }      // 状態取得
 
-    // カード所持関連
-    bool HasCard() const { return hasCard_; }                    // カード所持判定
-    void SetHeldCard(const Card& card) { heldCard_ = card; hasCard_ = true; } // カード所持
-    const Card& GetHeldCard() const { return heldCard_; }        // 所持カード取得
-    void ClearHeldCard() { hasCard_ = false; }                   // 所持カード解除
+    bool HasPickupCard() const { return hasPickupCard_; }
+    void SetPickupCard(const Card& card) { pickupCard_ = card; hasPickupCard_ = true; }
+    const Card& GetPickupCard() const { return pickupCard_; }
+    void ClearPickupCard() { hasPickupCard_ = false; pickupCard_ = { -1, "", 0 }; }
+
+    const Card& GetBaseCard() const { return baseCard_; }
+    const Card& GetCurrentUseCard() const { return currentUseCard_; }
 
     // HP関連
     void TakeDamage(int damage);             // ダメージを受ける
@@ -61,11 +62,9 @@ public:
     bool IsHit() const { return isHit_; } // ヒット中か
     bool IsVisible() const;               // 描画するか
 
-    // 攻撃・カード使用リクエスト
-    bool GetAttackRequest() const { return attackRequest_; }      // 近接攻撃発生取得
+    // カード使用リクエスト
     bool GetCardUseRequest() const { return cardUseRequest_; }    // カード使用発生取得
 
-    void ClearAttackRequest() { attackRequest_ = false; }         // 近接攻撃発生クリア
     void ClearCardUseRequest() { cardUseRequest_ = false; }       // カード使用発生クリア
 
     // 敵を凍らせる関数
@@ -83,13 +82,10 @@ public:
 private:
     void DecideNextState();     // 次の状態を決める
     bool IsStuck() const;       // 詰まり判定
-    bool HasMeleeCard() const;  // 近接カードを持っているか
-    bool HasRangedCard() const; // 遠距離カードを持っているか
 
     void UpdatePatrol();        // 巡回処理
     void UpdateMoveToCard();    // カードへ向かう処理
     void UpdateChasePlayer();   // プレイヤー追跡処理
-    void UpdateAttackPlayer();  // 近接攻撃処理
     void UpdateUseCard();       // カード使用処理
     void UpdateRetreat();       // プレイヤーから離れる処理
 
@@ -103,9 +99,6 @@ private:
     float moveRange_ = 3.0f;                // 巡回範囲
 
     float chaseRange_ = 15.0f;              // プレイヤーを追跡し始める距離
-
-    float attackEnterRange_ = 2.0f;         // 近接攻撃に入る距離
-    float attackExitRange_ = 3.0f;          // 近接攻撃をやめる距離
 
     float cardUseEnterRange_ = 6.0f;        // カード使用に入る距離
     float cardUseExitRange_ = 7.5f;         // カード使用をやめる距離
@@ -122,8 +115,10 @@ private:
     Vector3 targetCardPos_{ 0.0f, 0.0f, 0.0f }; // 目標カード位置
     bool hasTargetCard_ = false;                // 目標カードがあるか
 
-    bool hasCard_ = false;                  // カード所持中か
-    Card heldCard_{ -1, "", 0 };            // 所持カード
+    Card baseCard_{ -1, "", 0 };              // 固定のパンチカード
+    bool hasPickupCard_ = false;              // 拾ったカードを持っているか
+    Card pickupCard_{ -1, "", 0 };            // 拾ったカード
+    Card currentUseCard_{ -1, "", 0 };        // 今回使うカード
 
     int hp_ = 3;                            // 敵HP
     bool isDead_ = false;                   // 死亡フラグ
@@ -139,14 +134,11 @@ private:
     Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f }; // ノックバック速度
 
     // 攻撃・カード使用発生フラグ
-    bool attackRequest_ = false;            // 近接攻撃発生フラグ
     bool cardUseRequest_ = false;           // カード使用発生フラグ
 
     // クールダウン
-    int attackCooldownTimer_ = 0;           // 近接攻撃クールダウン
     int cardCooldownTimer_ = 0;             // カード使用クールダウン
 
-    const int attackCooldown_ = 30;         // 近接攻撃クールダウン時間
     const int cardCooldown_ = 60;           // カード使用クールダウン時間
 
     // 詰まり判定用
@@ -164,4 +156,9 @@ private:
 
     bool isAttackDebuffed_ = false;         // 攻撃デバフ中か
     int attackDebuffTimer_ = 0;             // 攻撃デバフ残り時間
+
+    bool isCasting_ = false;
+    int castTimer_ = 0;
+    const int castTime_ = 20;
+    int strafeDirection_ = 1;
 };
