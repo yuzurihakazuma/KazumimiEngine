@@ -1188,11 +1188,10 @@ void GamePlayScene::Update() {
 		for (size_t i = 0; i < enemies_.size(); ++i) {
 			auto &enemy = enemies_[i];
 
-			// 既にカードを持っている敵や死んでいる敵は拾えない
-			if (!enemy || enemy->IsDead() || enemy->HasCard()) {
+			// 既に拾ったカードを持っている敵や死んでいる敵は拾えない
+			if (!enemy || enemy->IsDead() || enemy->HasPickupCard()) {
 				continue;
 			}
-
 
 			Vector3 enemyPos = enemy->GetPosition();
 
@@ -1212,7 +1211,7 @@ void GamePlayScene::Update() {
 				if (!pickedCard.canEnemyUse) {
 					pickedCard = CardDatabase::GetRandomEnemyUsableCard();
 				}
-				enemy->SetHeldCard(pickedCard);
+				enemy->SetPickupCard(pickedCard);
 				pickup.isActive = false;
 				break;
 			}
