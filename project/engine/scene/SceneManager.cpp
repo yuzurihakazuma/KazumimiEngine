@@ -87,6 +87,35 @@ void SceneManager::Update(){
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 		ImGui::End();
 
+		if ( ImGui::BeginMainMenuBar() ) {
+			// 「ファイル」メニュー
+			if ( ImGui::BeginMenu("ファイル (File)") ) {
+				if ( ImGui::MenuItem("パーティクルを保存 (Save Particles)") ) {
+					// パーティクルの保存処理を呼ぶ（例）
+					// ParticleManager::GetInstance()->Save();
+				}
+				if ( ImGui::MenuItem("パーティクルを読み込む (Load Particles)") ) {
+					// パーティクルの読み込み処理を呼ぶ（例）
+					// ParticleManager::GetInstance()->Load();
+				}
+				ImGui::Separator(); // 横線で区切る
+				if ( ImGui::MenuItem("エディタを終了する") ) {
+					// 終了処理など
+				}
+				ImGui::EndMenu(); // 「ファイル」メニューを閉じる
+			}
+
+			// 「ウィンドウ」メニュー
+			if ( ImGui::BeginMenu("ウィンドウ (Window)") ) {
+				if ( ImGui::MenuItem("レイアウトをリセット (※再起動後に反映)") ) {
+					// imgui.ini を消す処理などを書くか、単なるダミーとして置いておく
+				}
+				ImGui::EndMenu(); // 「ウィンドウ」メニューを閉じる
+			}
+
+			ImGui::EndMainMenuBar(); // メインメニューバー全体を閉じる
+		}
+
 		// 2. 🎮 ゲーム画面（Game View）ウィンドウ
 		ImGui::Begin("Game View");
 		ImVec2 sceneSize = ImGui::GetContentRegionAvail();

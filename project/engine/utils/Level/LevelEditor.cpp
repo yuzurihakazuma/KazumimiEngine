@@ -60,7 +60,7 @@ void LevelEditor::DrawDebugUI(){
 	if ( isEditorActive ) {
 
 		// =========================================================
-		// 📁 1. Main Menu ウィンドウ（ファイル操作・追加）
+		//  1. Main Menu ウィンドウ（ファイル操作・追加）
 		// =========================================================
 		ImGui::Begin("メインメニュー");
 
@@ -83,7 +83,7 @@ void LevelEditor::DrawDebugUI(){
 
 		ImGui::Separator();
 
-		const char* modelNames[] = { "block", "fence", "plane", "sphere", "terrain", "axis" };
+		const char* modelNames[] = { "block", "fence", "plane", "sphere", "terrain", "animatedCube" };
 		static int currentModelIndex = 0;
 		ImGui::Combo("モデルの種類", &currentModelIndex, modelNames, IM_ARRAYSIZE(modelNames));
 
@@ -107,11 +107,12 @@ void LevelEditor::DrawDebugUI(){
 		ImGui::End();
 
 		// =========================================================
-		// 📋 2. Hierarchy ウィンドウ（オブジェクト一覧）
+		//  2. Hierarchy ウィンドウ（オブジェクト一覧とドロップ先）
 		// =========================================================
 		ImGui::Begin("ヒエラルキー (配置リスト)");
-		// リストをウィンドウいっぱいに広げる
-		if ( ImGui::BeginListBox("##ObjectList", ImVec2(-FLT_MIN, -FLT_MIN)) ) {
+
+		// リストを広げる（一番下にドロップ用の余白を少し残すため -40.0f にする）
+		if ( ImGui::BeginListBox("##ObjectList", ImVec2(-FLT_MIN, -40.0f)) ) {
 			for ( int i = 0; i < levelData_.objects.size(); ++i ) {
 				std::string label = std::to_string(i) + ": " + levelData_.objects[i].type;
 				if ( ImGui::Selectable(label.c_str(), selectedObjectIndex_ == i) ) {
@@ -120,10 +121,41 @@ void LevelEditor::DrawDebugUI(){
 			}
 			ImGui::EndListBox();
 		}
+
+		//  ドロップ先の的（まと） 🌟🌟
+		// ウィンドウの残りのスペースを「見えない的」にする
+		ImGui::Dummy(ImGui::GetContentRegionAvail());
+
+		// もし、この「ヒエラルキー」ウィンドウの余白に何かがドロップされたら…
+		if ( ImGui::BeginDragDropTarget() ) {
+			// "DND_MODEL" というラベルの荷物を受け取る
+			if ( const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_MODEL") ) {
+				// 荷物（文字列）を取り出す
+				const char* droppedModelName = ( const char* ) payload->Data;
+
+				// ドロップされたモデルを新しく追加！
+				LevelObjectData newObj;
+				newObj.type = droppedModelName;
+				newObj.translation = { 0.0f, 0.0f, 0.0f }; // 原点に配置
+				newObj.rotation = { 0.0f, 0.0f, 0.0f };
+				newObj.scale = { 1.0f, 1.0f, 1.0f };
+				levelData_.objects.push_back(newObj);
+
+				Model* model = ModelManager::GetInstance()->FindModel(newObj.type);
+				if ( model != nullptr ) {
+					std::unique_ptr<Obj3d> obj = std::make_unique<Obj3d>();
+					obj->Initialize(model);
+					obj->SetCamera(camera_);
+					object3ds_.push_back(std::move(obj));
+					selectedObjectIndex_ = ( int ) levelData_.objects.size() - 1; // 今追加したものを選択状態にする
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
 		ImGui::End();
 
 		// =========================================================
-		// ⚙️ 3. Inspector ウィンドウ（選択中のオブジェクト編集）
+		// ⚙ 3. Inspector ウィンドウ（選択中のオブジェクト編集）
 		// =========================================================
 		ImGui::Begin("インスペクター (詳細設定)");
 		if ( selectedObjectIndex_ >= 0 && selectedObjectIndex_ < levelData_.objects.size() ) {
@@ -181,7 +213,36 @@ void LevelEditor::DrawDebugUI(){
 			ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "オブジェクトが選択されていません");
 		}
 		ImGui::End();
+
+		// =========================================================
+		//  4. アセットブラウザ ウィンドウ（ドラッグ元）
+		// =========================================================
+		ImGui::Begin("アセットブラウザ (Assets)");
+
+		ImGui::Text("【 3Dモデル 】");
+		ImGui::Separator();
+
+		// ドラッグ＆ドロップで使えるモデルのリスト
+		const char* assetModels[] = { "block", "fence", "plane", "sphere", "terrain", "animatedCube" };
+
+		for ( int i = 0; i < IM_ARRAYSIZE(assetModels); ++i ) {
+			// リスト表示
+			ImGui::Selectable(assetModels[i]);
+
+			// 
+			if ( ImGui::BeginDragDropSource(ImGuiDragDropFlags_None) ) {
+				// "DND_MODEL" というラベルで、モデルの名前を荷物として送る
+				ImGui::SetDragDropPayload("DND_MODEL", assetModels[i], strlen(assetModels[i]) + 1);
+
+				// ドラッグ中にマウスカーソルにくっついて表示される文字
+				ImGui::Text("モデルを配置: %s", assetModels[i]);
+
+				ImGui::EndDragDropSource();
+			}
+		}
+
+		ImGui::End();
+
 	}
 #endif
-
 }
