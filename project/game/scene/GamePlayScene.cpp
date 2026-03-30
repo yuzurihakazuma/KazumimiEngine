@@ -2004,10 +2004,10 @@ Vector2 GamePlayScene::WorldToScreen(const Vector3 &worldPos) const {
 
 void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 
-	enemies_.clear();
+	/*enemies_.clear();
 	enemyObjs_.clear();
 	enemyDeadHandled_.clear();
-	enemyCardSystems_.clear();
+	enemyCardSystems_.clear();*/
 
 	if (!spawnManager_.HasLevelData()) {
 		return;
@@ -2073,7 +2073,18 @@ void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
 	std::mt19937 mt(rd());
 	std::shuffle(filtered.begin(), filtered.end(), mt);
 
+	const int kMaxEnemies = 5; // 画面に出せる敵の最大数（好きな数に調整してください！）
+	int currentEnemies = static_cast<int>(enemies_.size());
+	int availableSpace = kMaxEnemies - currentEnemies; // あと何体出せるか
+
+	// すでに上限（5体）以上いたら、1体も出さずにここで処理を終わる
+	if (availableSpace <= 0) {
+		return;
+	}
+
+	// 「ボスの希望数」「空いている場所の数」「上限までの空き枠」の中で、一番少ない数を採用する
 	int spawnCount = std::min(enemyCount, static_cast<int>(filtered.size()));
+	spawnCount = std::min(spawnCount, availableSpace); // さらに空き枠と比較
 
 	for (int i = 0; i < spawnCount; ++i) {
 		int tileX = filtered[i].first;
