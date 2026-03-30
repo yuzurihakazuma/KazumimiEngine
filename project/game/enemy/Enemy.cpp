@@ -1,5 +1,6 @@
 #include "game/enemy/Enemy.h"
 #include "engine/math/VectorMath.h"
+#include "game/card/CardDatabase.h"
 #include <cmath>
 
 using namespace VectorMath;
@@ -11,7 +12,10 @@ void Enemy::Initialize() {
 
     startX_ = pos_.x;
     state_ = State::Patrol;
-    hasCard_ = false;
+    baseCard_ = CardDatabase::GetCardData(1); // 固定のパンチカード
+    hasPickupCard_ = false;
+    pickupCard_ = { -1, "", 0 };
+    currentUseCard_ = { -1, "", 0 };
 
     hp_ = 3;                 // 敵HP初期化
     isDead_ = false;         // 死亡状態リセット
@@ -24,10 +28,11 @@ void Enemy::Initialize() {
     hitStunTimer_ = 0;                         // 被弾硬直時間リセット
     knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック初期化
 
-    attackRequest_ = false;   // 近接攻撃発生フラグ初期化
     cardUseRequest_ = false;  // カード使用発生フラグ初期化
 
-    attackCooldownTimer_ = 0; // 近接攻撃クールダウン初期化
+    isCasting_ = false;
+    castTimer_ = 0;
+    strafeDirection_ = 1;
     cardCooldownTimer_ = 0;   // カード使用クールダウン初期化
 
     hasTargetCard_ = false;   // 目標カード状態リセット
@@ -42,7 +47,6 @@ void Enemy::Update() {
 
     if (isDead_) return; // 死亡していたら何もしない
 
-    attackRequest_ = false;   // 毎フレーム攻撃フラグ初期化
     cardUseRequest_ = false;  // 毎フレームカード使用フラグ初期化
 
     if (isActionLocked_) {
@@ -54,10 +58,6 @@ void Enemy::Update() {
         // 🌟超重要🌟
         // ロック中はこの下の「移動」や「攻撃」の処理を一切やらずにここで終わる！
         return;
-    }
-
-    if (attackCooldownTimer_ > 0) {
-        attackCooldownTimer_--; // 近接攻撃クールダウン減少
     }
 
     if (cardCooldownTimer_ > 0) {
@@ -92,16 +92,6 @@ void Enemy::Update() {
     }
     prevPos_ = pos_;                     // 現在位置を保存
 
-    if (isActionLocked_) {
-        actionLockTimer_--;              // ロック残り時間減少
-
-        if (actionLockTimer_ <= 0) {
-            isActionLocked_ = false;     // ロック解除
-        }
-
-        return;                          // ロック中は行動しない
-    }
-
     if (thinkTimer_ > 0) {
         thinkTimer_--;                   // 次の判断まで待つ
     }
@@ -131,10 +121,6 @@ void Enemy::Update() {
         UpdateChasePlayer();
         break;
 
-    case State::AttackPlayer:
-        UpdateAttackPlayer();
-        break;
-
     case State::UseCard:
         UpdateUseCard();
         break;
@@ -146,9 +132,9 @@ void Enemy::Update() {
 
     // デバフタイマーの更新
     if (isAttackDebuffed_) {
-        attackCooldownTimer_--;
-        if (attackCooldownTimer_ <= 0) {
-            isAttackDebuffed_ = false; // 時間切れで元に戻る
+        attackDebuffTimer_--;
+        if (attackDebuffTimer_ <= 0) {
+            isAttackDebuffed_ = false;
         }
     }
 }
@@ -173,122 +159,61 @@ void Enemy::DecideNextState() {
 
     // 詰まっていたら一旦巡回に戻して方向転換
     if (IsStuck()) {
-        state_ = State::Patrol; // 巡回へ戻す
-        direction_ *= -1;       // 巡回方向反転
-        thinkTimer_ = 20;       // 少しの間判断固定
-        stuckTimer_ = 0;        // 詰まり状態解除
+        state_ = State::Patrol;
+        direction_ *= -1;
+        strafeDirection_ *= -1;
+        thinkTimer_ = 20;
+        stuckTimer_ = 0;
         return;
     }
 
-    // カードを持っている場合
-    if (hasCard_) {
+    // 拾ったカードを持っている場合
+    if (hasPickupCard_) {
 
-        // 近接カードを持っている場合
-        if (HasMeleeCard()) {
-
-            // すでにカード使用中なら、少し離れても維持する
-            if (state_ == State::UseCard) {
-                if (playerDist > attackExitRange_) {
-                    state_ = State::ChasePlayer; // 離れすぎたら追跡へ戻る
-                }
-            } else {
-                if (playerDist <= attackEnterRange_) {
-                    state_ = State::UseCard;     // 近ければカード使用
-                } else if (playerDist <= chaseRange_) {
-                    state_ = State::ChasePlayer; // 射程外なら追跡
-                } else {
-                    state_ = State::Patrol;      // 遠ければ巡回
-                }
-            }
-
-            return;
-        }
-
-        // 遠距離カードを持っている場合
-        if (HasRangedCard()) {
-
-            // 離れる状態中なら、十分離れるまで維持
-            if (state_ == State::Retreat) {
-                if (playerDist >= retreatExitRange_) {
-                    state_ = State::UseCard; // 十分離れたらカード使用へ
-                }
-                return;
-            }
-
-            // カード使用中なら、少し離れても維持
-            if (state_ == State::UseCard) {
-                if (playerDist < retreatEnterRange_) {
-                    state_ = State::Retreat;     // 近すぎたら離れる
-                } else if (playerDist > cardUseExitRange_) {
-                    state_ = State::ChasePlayer; // 離れすぎたら追跡
-                }
-                return;
-            }
-
-            // 通常時の判定
-            if (playerDist < retreatEnterRange_) {
-                state_ = State::Retreat;         // 近すぎる
-            } else if (playerDist <= cardUseEnterRange_) {
-                state_ = State::UseCard;         // 射程内
-            } else if (playerDist <= chaseRange_) {
-                state_ = State::ChasePlayer;     // 追跡
-            } else {
-                state_ = State::Patrol;          // 遠い
-            }
-
-            return;
-        }
-
-        // その他カード
         if (state_ == State::UseCard) {
-            if (playerDist > cardUseExitRange_) {
+            if (playerDist < retreatEnterRange_) {
+                state_ = State::Retreat;
+            } else if (playerDist > cardUseExitRange_) {
                 state_ = State::ChasePlayer;
             }
-        } else {
-            if (playerDist <= cardUseEnterRange_) {
+            return;
+        }
+
+        if (state_ == State::Retreat) {
+            if (playerDist >= retreatExitRange_) {
                 state_ = State::UseCard;
-            } else if (playerDist <= chaseRange_) {
-                state_ = State::ChasePlayer;
-            } else {
-                state_ = State::Patrol;
             }
+            return;
+        }
+
+        if (playerDist < retreatEnterRange_) {
+            state_ = State::Retreat;
+        } else if (playerDist <= cardUseEnterRange_) {
+            state_ = State::UseCard;
+        } else if (playerDist <= chaseRange_) {
+            state_ = State::ChasePlayer;
+        } else {
+            state_ = State::Patrol;
         }
 
         return;
     }
 
-    // カードを持っていない場合
-    if (state_ == State::AttackPlayer) {
-        if (playerDist > attackExitRange_) {
-            state_ = State::ChasePlayer; // 離れたら追跡へ戻る
-        }
-        return;
-    }
-
-    if (playerDist <= attackEnterRange_) {
-        state_ = State::AttackPlayer; // 近ければ通常攻撃
-    } else if (hasTargetCard_) {
-        state_ = State::MoveToCard;   // カードが見つかっていれば拾いに行く
+    // 拾ったカードを持っていない場合は、基本カード（パンチカード）で戦う
+    if (playerDist <= cardUseEnterRange_) {
+        state_ = State::UseCard;
     } else if (playerDist <= chaseRange_) {
-        state_ = State::ChasePlayer;  // プレイヤー追跡
+        state_ = State::ChasePlayer;
+    } else if (hasTargetCard_) {
+        state_ = State::MoveToCard;
     } else {
-        state_ = State::Patrol;       // 何もなければ巡回
+        state_ = State::Patrol;
     }
 }
 
 // 詰まり判定
 bool Enemy::IsStuck() const {
     return stuckTimer_ >= stuckThreshold_; // 一定時間動いていなければ詰まり
-}
-
-// 近接カードを持っているか
-bool Enemy::HasMeleeCard() const {
-    return hasCard_ && heldCard_.id == 1; // 例：Fist
-}
-
-// 遠距離カードを持っているか
-bool Enemy::HasRangedCard() const {
-    return hasCard_ && heldCard_.id == 2; // 例：Fireball
 }
 
 void Enemy::UpdatePatrol() {
@@ -332,48 +257,13 @@ void Enemy::UpdateChasePlayer() {
     }
 }
 
-void Enemy::UpdateAttackPlayer() {
-
-    Vector3 dir = {
-        playerPos_.x - pos_.x,
-        0.0f,
-        playerPos_.z - pos_.z
-    }; // プレイヤー方向
-
-    float dist = Length(dir); // プレイヤーとの距離
-
-    // 十分離れたら追跡に戻す
-    if (dist > attackExitRange_) {
-        state_ = State::ChasePlayer; // 追跡へ戻す
-        thinkTimer_ = 0;             // すぐ再判断できるようにする
-        return;
-    }
-
-    // プレイヤー方向を向く
-    if (dist > 0.01f) {
-        rot_.y = std::atan2f(dir.x, dir.z);
-    }
-
-    // クールダウン中は攻撃しない
-    if (attackCooldownTimer_ > 0) {
-        return;
-    }
-
-    // 近接攻撃発生
-    attackRequest_ = true;
-    attackCooldownTimer_ = attackCooldown_;
-
-    SetActionLock(10);
-    thinkTimer_ = 10;
-}
-
 void Enemy::UpdateUseCard() {
 
     Vector3 dir = {
         playerPos_.x - pos_.x,
         0.0f,
         playerPos_.z - pos_.z
-    }; // プレイヤー方向
+    };
 
     float dist = Length(dir); // プレイヤーとの距離
 
@@ -381,6 +271,8 @@ void Enemy::UpdateUseCard() {
     if (dist > cardUseExitRange_) {
         state_ = State::ChasePlayer;
         thinkTimer_ = 0;
+        isCasting_ = false;
+        castTimer_ = 0;
         return;
     }
 
@@ -389,17 +281,55 @@ void Enemy::UpdateUseCard() {
         rot_.y = std::atan2f(dir.x, dir.z);
     }
 
-    // クールダウン中はカードを使わない
-    if (cardCooldownTimer_ > 0) {
+    // 詠唱開始
+    if (!isCasting_) {
+        isCasting_ = true;
+        castTimer_ = castTime_;
         return;
+    }
+
+    // 詠唱中
+    if (castTimer_ > 0) {
+        castTimer_--;
+        return;
+    }
+
+    // クールダウン中は撃たずに追跡へ戻る
+    if (cardCooldownTimer_ > 0) {
+        isCasting_ = false;
+        state_ = State::ChasePlayer;
+        return;
+    }
+
+    bool usedPickupCard = hasPickupCard_;
+
+    // 今回使うカードを決定
+    if (usedPickupCard) {
+        currentUseCard_ = pickupCard_; // 拾ったカード優先
+    } else {
+        currentUseCard_ = baseCard_;   // なければパンチカード
     }
 
     // カード使用発生
     cardUseRequest_ = true;
     cardCooldownTimer_ = cardCooldown_;
 
-    SetActionLock(15);
+    isCasting_ = false;
+
+    // 拾ったカードは使ったら消す
+    if (usedPickupCard) {
+        ClearPickupCard();
+    }
+
+    // 使用後の行動
+    if (usedPickupCard) {
+        state_ = State::Retreat;
+    } else {
+        state_ = State::ChasePlayer;
+    }
+
     thinkTimer_ = 15;
+    SetActionLock(15);
 }
 
 void Enemy::UpdateRetreat() {
@@ -444,7 +374,9 @@ void Enemy::TakeDamage(int damage) {
     hitStunTimer_ = hitStunDuration_;    // 被弾硬直開始
 
     thinkTimer_ = hitStunDuration_;      // 硬直中は再判断しない
-    attackCooldownTimer_ = 20;           // 被弾後すぐ攻撃しないようにする
+    isCasting_ = false;
+    castTimer_ = 0;
+    currentUseCard_ = { -1, "", 0 };
     cardCooldownTimer_ = 20;             // 被弾後すぐカードを使わないようにする
 
     Vector3 hitDir = {

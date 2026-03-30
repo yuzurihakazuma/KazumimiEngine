@@ -657,41 +657,15 @@ void GamePlayScene::Update() {
 
 		Vector3 enemyPos = enemy->GetPosition();
 
-		// 敵の近接攻撃要求がある場合
-		if (enemy->GetAttackRequest()) {
-			Vector3 diff = {
-				playerPos_.x - enemyPos.x,
-				0.0f,
-				playerPos_.z - enemyPos.z
-			};
-
-			// 攻撃範囲内ならプレイヤーにダメージを与える
-			if (Length(diff) <= 2.0f) {
-				player_->TakeDamage(1, enemyPos);
-
-				// プレイヤー用の詠唱だけ止める
-				if (playerCardSystem_) {
-					playerCardSystem_->CancelCasting();
-				}
-			}
-
-			enemy->ClearAttackRequest();
-		}
-
 		// 敵のカード使用要求がある場合
 		if (enemy->GetCardUseRequest()) {
-			if (enemy->HasCard()) {
-				// この敵専用のカードシステムを使う
-				if (i < enemyCardSystems_.size() && enemyCardSystems_[i]) {
-					enemyCardSystems_[i]->UseCard(
-						enemy->GetHeldCard(),
-						enemyPos,
-						enemy->GetRotation().y,
-						false
-					);
-				}
-
-				enemy->ClearHeldCard();
+			if (i < enemyCardSystems_.size() && enemyCardSystems_[i]) {
+				enemyCardSystems_[i]->UseCard(
+					enemy->GetCurrentUseCard(),
+					enemyPos,
+					enemy->GetRotation().y,
+					false
+				);
 			}
 
 			enemy->ClearCardUseRequest();
@@ -730,16 +704,16 @@ void GamePlayScene::Update() {
 		}
 	}
 
-   // =========================================================
-   // ★ ボスと雑魚敵、雑魚敵同士の「めり込み防止（押し出し）」処理
-   // =========================================================
+  // =========================================================
+  // ★ ボスと雑魚敵、雑魚敵同士の「めり込み防止（押し出し）」処理
+  // =========================================================
 
-    // ① ボスと雑魚敵の押し出し
+  // ① ボスと雑魚敵の押し出し
 	if (boss_ && !boss_->IsDead()) {
 		Vector3 bossPos = boss_->GetPosition();
-		float bossRadius = 2.5f; // ボスの押し出し半径（ボスのサイズに合わせて調整）
+		float bossRadius = 2.5f; // ボスの押し出し半径
 
-		for (auto &enemy : enemies_) {
+		for (auto& enemy : enemies_) {
 			if (enemy && !enemy->IsDead()) {
 				Vector3 enemyPos = enemy->GetPosition();
 				float enemyRadius = 1.0f; // 雑魚敵の押し出し半径
@@ -763,7 +737,19 @@ void GamePlayScene::Update() {
 		}
 	}
 
-	// ② 雑魚敵同士の押し出し（これを入れると敵同士も重ならなくなります！）
+	// ② 押し出し前の位置を保存
+	std::vector<Vector3> enemyPositionsBeforePush;
+	enemyPositionsBeforePush.reserve(enemies_.size());
+
+	for (const auto& enemy : enemies_) {
+		if (enemy) {
+			enemyPositionsBeforePush.push_back(enemy->GetPosition());
+		} else {
+			enemyPositionsBeforePush.push_back({ 0.0f, 0.0f, 0.0f });
+		}
+	}
+
+	// ③ 雑魚敵同士の押し出し
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		if (!enemies_[i] || enemies_[i]->IsDead()) continue;
 
@@ -772,8 +758,8 @@ void GamePlayScene::Update() {
 
 			Vector3 pos1 = enemies_[i]->GetPosition();
 			Vector3 pos2 = enemies_[j]->GetPosition();
-			float enemyRadius = 1.0f; // 敵の半径
-			float pushRange = enemyRadius * 2.0f; // 敵2体分のサイズ
+			float enemyRadius = 1.0f;
+			float pushRange = enemyRadius * 2.0f;
 
 			Vector3 diff = { pos1.x - pos2.x, 0.0f, pos1.z - pos2.z };
 			float dist = Length(diff);
@@ -790,6 +776,56 @@ void GamePlayScene::Update() {
 
 				enemies_[i]->SetPosition(pos1);
 				enemies_[j]->SetPosition(pos2);
+			}
+		}
+	}
+
+	// ④ 押し出し後にもう一度、敵と地形のめり込み補正
+	if (levelEditor_) {
+		const LevelData& level = levelEditor_->GetLevelData();
+
+		for (size_t i = 0; i < enemies_.size(); ++i) {
+			auto& enemy = enemies_[i];
+			if (!enemy || enemy->IsDead()) {
+				continue;
+			}
+
+			Vector3 enemyPos = enemy->GetPosition();
+
+			AABB enemyAABB;
+			enemyAABB.min = { enemyPos.x - 0.5f, enemyPos.y - 0.5f, enemyPos.z - 0.5f };
+			enemyAABB.max = { enemyPos.x + 0.5f, enemyPos.y + 0.5f, enemyPos.z + 0.5f };
+
+			int enemyGridX = static_cast<int>(std::round(enemyPos.x / level.tileSize));
+			int enemyGridZ = static_cast<int>(std::round(enemyPos.z / level.tileSize));
+
+			int eStartX = std::max(0, enemyGridX - 1);
+			int eEndX = std::min(level.width - 1, enemyGridX + 1);
+			int eStartZ = std::max(0, enemyGridZ - 1);
+			int eEndZ = std::min(level.height - 1, enemyGridZ + 1);
+
+			bool hitWall = false;
+
+			for (int z = eStartZ; z <= eEndZ && !hitWall; z++) {
+				for (int x = eStartX; x <= eEndX; x++) {
+					if (level.tiles[z][x] != 1) {
+						continue;
+					}
+
+					float worldX = x * level.tileSize;
+					float worldZ = z * level.tileSize;
+
+					AABB blockAABB;
+					blockAABB.min = { worldX - 1.0f, level.baseY,        worldZ - 1.0f };
+					blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+					if (Collision::IsCollision(enemyAABB, blockAABB)) {
+						// 壁に埋まったら押し出し前の位置に戻す
+						enemy->SetPosition(enemyPositionsBeforePush[i]);
+						hitWall = true;
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -811,10 +847,10 @@ void GamePlayScene::Update() {
 				player_->AddExp(1);
 			}
 
-			// 敵がカードを持っていたらその場に落とす
-			if (enemy->HasCard()) {
-				cardPickupManager_.AddPickup(enemy->GetPosition(), enemy->GetHeldCard());
-				enemy->ClearHeldCard();
+			// 敵が拾ったカードを持っていたらその場に落とす
+			if (enemy->HasPickupCard()) {
+				cardPickupManager_.AddPickup(enemy->GetPosition(), enemy->GetPickupCard());
+				enemy->ClearPickupCard();
 			}
 
 			enemyDeadHandled_[i] = true;
@@ -892,8 +928,8 @@ void GamePlayScene::Update() {
 		for (size_t i = 0; i < enemies_.size(); ++i) {
 			auto &enemy = enemies_[i];
 
-			// 既にカードを持っている敵や死んでいる敵は拾えない
-			if (!enemy || enemy->IsDead() || enemy->HasCard()) {
+			// 既に拾ったカードを持っている敵や死んでいる敵は拾えない
+			if (!enemy || enemy->IsDead() || enemy->HasPickupCard()) {
 				continue;
 			}
 
@@ -916,7 +952,7 @@ void GamePlayScene::Update() {
 				if (!pickedCard.canEnemyUse) {
 					pickedCard = CardDatabase::GetRandomEnemyUsableCard();
 				}
-				enemy->SetHeldCard(pickedCard);
+				enemy->SetPickupCard(pickedCard);
 				pickup.isActive = false;
 				break;
 			}
