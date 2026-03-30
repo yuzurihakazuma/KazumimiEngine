@@ -220,4 +220,8 @@ private: // メンバ変数
 	std::vector<std::unique_ptr<Obj3d>> blocks_;
 
 	std::unique_ptr<Minimap> minimap_;
+
+	bool isCardReady_ = false;       // 現在カードを構えているか
+	Card readiedCard_{};             // 構えているカードの情報
+	int cardReadyTimer_ = 0;         // 構えていられる残り時間
 };

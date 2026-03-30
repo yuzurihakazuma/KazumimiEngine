@@ -1287,6 +1287,54 @@ void GamePlayScene::Update() {
 
 	UpdateCardUse(input);
 
+	// ==========================================
+	// 攻撃カードの「撃ち放題」タイマーと発動処理
+	// ==========================================
+	if (isCardReady_) {
+		cardReadyTimer_--; // 毎フレーム時間を減らす
+
+		// 画面に表示する文字を作る
+		std::string displayText = "Eキーで発動：" + readiedCard_.name;
+		
+		if (cardReadyTimer_ > 120) {
+			// 【残り2秒(120フレーム)より多いとき】
+			// まだ余裕があるので、ずっと常時表示しておく
+			TextManager::GetInstance()->SetText("ReadyCardT", displayText);
+
+		} else {
+			// 【残り2秒以下になったとき】
+			// 時間切れが近いので、チカチカ点滅させてプレイヤーを焦らす！
+			// （% 20 >= 10 にすることで、少し早めのスピードで点滅します）
+			if (cardReadyTimer_ % 20 >= 10) {
+				TextManager::GetInstance()->SetText("ReadyCardT", displayText);
+			} else {
+				TextManager::GetInstance()->SetText("ReadyCardT", "");
+			}
+		}
+
+
+		// 別キー（例として Eキー）を押した瞬間に魔法を発動！（連打で何回でも撃てる）
+		if (input->Triggerkey(DIK_E)) {
+			if (playerCardSystem_) {
+				playerCardSystem_->UseCard(
+					readiedCard_,
+					playerPos_,
+					player_->GetRotation().y,
+					true,
+					player_.get()
+				);
+			}
+		}
+
+		// 時間切れになったら構え状態（撃ち放題）を終了する
+		if (cardReadyTimer_ <= 0) {
+			isCardReady_ = false;
+
+			// 時間切れになったら文字を空（非表示）にする
+			TextManager::GetInstance()->SetText("ReadyCardT", "");
+		}
+	}
+
 	// プレイヤー用カードシステム更新
 	if (playerCardSystem_) {
 		playerCardSystem_->Update(
@@ -1764,6 +1812,12 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 		return;
 	}
 
+	// すでに攻撃カードを構えている（撃ち放題中）なら、他の攻撃カードは使えないようにする！
+	if (isCardReady_ && selectedCard.id != 1 && static_cast<int>(selectedCard.effectType) == 0) {
+		// 構えが終わるまでは弾く（ここで return するので、コストも消費されず手札からも消えません）
+		return;
+	}
+
 	if (!player_->CanUseCost(selectedCard.cost)) {
 		// コスト不足メッセージを出す
 		costLackMessageTimer_ = 60; // 約1秒表示
@@ -1773,14 +1827,24 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 
 	player_->UseCost(selectedCard.cost);
 
-	if (playerCardSystem_) {
-		playerCardSystem_->UseCard(
-			selectedCard,
-			playerPos_,
-			player_->GetRotation().y,
-			true,
-			player_.get()
-		);
+	// カードの種類によって処理を分ける！
+
+	if (selectedCard.id != 1 && static_cast<int>(selectedCard.effectType) == 0) {
+		// 攻撃カード(effectType == 0)なら、数秒間「撃ち放題モード（構え状態）」にする
+		isCardReady_ = true;
+		readiedCard_ = selectedCard;
+		cardReadyTimer_ = 60 * 5; // 5秒間維持 (60FPS想定)
+
+	} else {
+		if (playerCardSystem_) {
+			playerCardSystem_->UseCard(
+				selectedCard,
+				playerPos_,
+				player_->GetRotation().y,
+				true,
+				player_.get()
+			);
+		}
 	}
 
 	if (selectedCard.id != 1) {
