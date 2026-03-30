@@ -128,7 +128,7 @@ void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
 }
 
 
-void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvIndex) {
+void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex) {
 	// 1. 描画先を「Bloomの抽出用キャンバス」に切り替え
 	extractTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
 
@@ -137,74 +137,76 @@ void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t srcSrvI
 	commandList->SetPipelineState(pipelineState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 3. データを渡す (パラメータ0番: CBV, 1番: SRV)
-	commandList->SetGraphicsRootConstantBufferView(0, bloomDataResource_->GetGPUVirtualAddress()); // b0: しきい値
-	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, srcSrvIndex); // t0: 元の画面画像
+	// [0]番のポスト(CBV) に、Thresholdなどの「設定データ」を送る！
+	commandList->SetGraphicsRootConstantBufferView(0, bloomDataResource_->GetGPUVirtualAddress());
 
-	// 4. 全画面描画
+	// [1]番のポスト(SRV) に、受け取った「マスク画像」を送る！
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, maskSrvIndex);
+	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
-
 	extractTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
-// 工程③ 元の画像と光を合成する！
-void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex) {
-	// 1. 描画先を「最終キャンバス」に切り替え
+
+// 修正後の Bloom.cpp (DrawCombine)
+void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex){
+	//  バックバッファではなく、combineTexture_ をお絵かき先にセットする！
 	combineTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
 
-	// 2. パイプライン設定
+	// パイプラインなどの設定
 	commandList->SetGraphicsRootSignature(combineRootSignature_.Get());
 	commandList->SetPipelineState(combinePipelineState_.Get());
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// 3. テクスチャを2枚渡す！
-	// t0: 元の画面 (PostEffectの結果)
+	// テクスチャを渡す
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, mainSrvIndex);
-	// t1: ぼかした光 (Blurの結果)
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, blurTextures_[1]->GetSrvIndex());
 
-	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
 
+	//  お絵かき終了（読み込みモードに戻す）
 	combineTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
 void Bloom::DrawDebugUI() {
 #ifdef USE_IMGUI
-	ImGui::Begin("Bloom Settings");
 
-	// ★ ON/OFFのチェックボックス
-	ImGui::Checkbox("Enable Bloom", &isEnabled_);
+	ImGui::Checkbox("発光 (Bloom)", &isEnabled_);
 
 	// ONの時だけ設定をいじれるようにする
-	if (isEnabled_) {
-		ImGui::DragFloat("Threshold (光る基準値)", &bloomData_->threshold, 0.01f, 0.0f, 5.0f);
+	if ( isEnabled_ ) {
+		ImGui::Indent(); // 階層を見やすくするために少し右にずらす
+
+		// 🚨変更箇所：ラベルを「光る基準値 (Threshold)」に変更
+		// 閾値（どれだけ明るいと光るか）を調整
+		ImGui::DragFloat("光る基準値 (Threshold)", &bloomData_->threshold, 0.01f, 0.0f, 10.0f);
+
+		// 🚨追加箇所：マテリアルの発光パワー（どれだけ光るか）を調整するスライダー
+		// 対象のマテリアルがセットされている場合のみ描画
+		if ( targetEmissivePower_ ) {
+			ImGui::DragFloat("光る強さ (Emissive Power)", targetEmissivePower_, 0.01f, 0.0f, 10.0f);
+		} else {
+			// セットされていない場合は赤文字で注意喚起
+			ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "※対象マテリアルが設定されていません");
+		}
+
+		ImGui::Unindent();
 	}
-
-	ImGui::Separator();
-
-	// ★ セーブボタン
-	if (ImGui::Button("Save Settings")) {
-		Save("resources/bloom.json");
-	}
-
-	ImGui::End();
 #endif
 }
 
 
-void Bloom::Render(ID3D12GraphicsCommandList* commandList, uint32_t baseSrvIndex) {
-	// もしBloomがOFFなら、計算は一切せず「元の画像」をそのまま結果として返す！
-	if (!isEnabled_) {
-		resultSrvIndex_ = baseSrvIndex;
+void Bloom::Render(ID3D12GraphicsCommandList* commandList, uint32_t colorSrvIndex, uint32_t maskSrvIndex){
+	if ( !isEnabled_ ) {
+		resultSrvIndex_ = colorSrvIndex; // OFFなら色をそのまま返す
 		return;
 	}
 
-	// BloomがONなら、3つの工程を順番に実行する！
-	DrawExtract(commandList, baseSrvIndex);
+	//  「マスク画像(フラグ)」から光を抽出する！
+	DrawExtract(commandList, maskSrvIndex);
 	DrawBlur(commandList);
-	DrawCombine(commandList, baseSrvIndex);
+	//  「色画像」に光を合成する！
+	DrawCombine(commandList, colorSrvIndex);
 
-	// 合成まで終わった「最終結果」を結果として返す！
 	resultSrvIndex_ = combineTexture_->GetSrvIndex();
 }
 

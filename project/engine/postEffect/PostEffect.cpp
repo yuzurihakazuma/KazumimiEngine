@@ -27,6 +27,16 @@ void PostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uin
 		renderTextures_[i] = std::make_unique<RenderTexture>();
 		renderTextures_[i]->Initialize(dxCommon, srvManager, width, height);
 	}
+	
+
+	maskTexture_ = std::make_unique<RenderTexture>();
+	
+	maskTexture_->SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	
+	// ※背景は絶対に「真っ黒（フラグ0）」でクリアするため、Vector4{0,0,0,0}等を設定するように内部で調整するか、RenderTexture側で黒クリアになるようにします
+	maskTexture_->Initialize(dxCommon, srvManager, width, height);
+	
 	// 1枚目を「エフェクト前」、2枚目を「エフェクト後」としてわかりやすく変数に入れる
 	timeResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(float));
 	timeResource_->Map(0, nullptr, reinterpret_cast<void**>(&timeData_));
@@ -63,6 +73,8 @@ void PostEffect::Finalize() {
 	}
 	
 	Bloom::GetInstance()->Finalize();
+
+	if ( maskTexture_ ) { maskTexture_.reset(); }
 }
 
 void PostEffect::PreDrawScene(ID3D12GraphicsCommandList* commandList) {
@@ -127,6 +139,65 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList) {
 }
 
 
+// =========================================================
+// 3Dモデルを描く前に、キャンバスを2枚(色用とマスク用)セットする関数
+// =========================================================
+void PostEffect::PreDrawSceneMRT(ID3D12GraphicsCommandList* commandList){
+	// 1. 2枚とも「書き込みモード（RTV）」にするためのバリアを張る（RenderTextureのPreDrawSceneの中身と同じ処理）
+	// ※ここでは簡略化のため、手動で2枚分のバリアを張ります
+	D3D12_RESOURCE_BARRIER barriers[2] = {};
+	barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barriers[0].Transition.pResource = renderTextures_[0]->GetResource().Get();
+	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barriers[1].Transition.pResource = maskTexture_->GetResource().Get();
+	barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	commandList->ResourceBarrier(2, barriers);
+
+	// 2. RTVのハンドルを2つ配列にする！ここがMRTの要！
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {
+		renderTextures_[0]->GetRtvHandle(), // 1枚目：色
+		maskTexture_->GetRtvHandle()        // 2枚目：マスク（フラグ）
+	};
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon_->GetDsvHandle();
+
+	// 3. GPUに「2枚に同時に描け！」と命令
+	commandList->OMSetRenderTargets(2, rtvHandles, FALSE, &dsvHandle);
+
+	auto c0 = renderTextures_[0]->GetClearColor();
+	const float clearColor[4] = { c0.x, c0.y, c0.z, c0.w }; // 1枚目（色用）
+
+	auto c1 = maskTexture_->GetClearColor();
+	const float clearMask[4] = { c1.x, c1.y, c1.z, c1.w };  // 2枚目（マスク用）
+
+	commandList->ClearRenderTargetView(rtvHandles[0], clearColor, 0, nullptr);
+	commandList->ClearRenderTargetView(rtvHandles[1], clearMask, 0, nullptr);
+	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	// ビューポートとシザー
+	D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast< float >( dxCommon_->GetClientWidth() ), static_cast< float >( dxCommon_->GetClientHeight() ), 0.0f, 1.0f };
+	D3D12_RECT scissorRect = { 0, 0, static_cast< LONG >( dxCommon_->GetClientWidth() ), static_cast< LONG >( dxCommon_->GetClientHeight() ) };
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+}
+
+// 描画が終わったら「読み込みモード」に戻す関数
+void PostEffect::PostDrawSceneMRT(ID3D12GraphicsCommandList* commandList){
+	D3D12_RESOURCE_BARRIER barriers[2] = {};
+	barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barriers[0].Transition.pResource = renderTextures_[0]->GetResource().Get();
+	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+	barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barriers[1].Transition.pResource = maskTexture_->GetResource().Get();
+	barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	commandList->ResourceBarrier(2, barriers);
+}
+
 // ポストエフェクトの描画（巨大な三角形を描く）※エフェクトの種類を指定して、ON/OFFも指定できるバージョン
 void PostEffect::ApplyEffect(
 	ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon,
@@ -159,10 +230,13 @@ void PostEffect::ApplyEffect(
 	std::swap(src, dest);
 }
 
+
+
 // デバッグ用UIの描画
-void PostEffect::DrawDebugUI() {
+// デバッグ用UIの描画
+void PostEffect::DrawDebugUI(){
 #ifdef USE_IMGUI
-	if (ImGui::Begin("インスペクター (詳細設定)")) {
+	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
 
 		static const char* effectNames[] = {
 			"None (使わない)",
@@ -177,48 +251,63 @@ void PostEffect::DrawDebugUI() {
 			"ノイズ・砂嵐 (Random Noise)"
 		};
 		// --- ポストエフェクトのON/OFF設定 ---
-		if (ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if ( ImGui::CollapsingHeader("ポストエフェクト設定 (Post Effect)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 
 			ImGui::Checkbox("エフェクト全体を有効化", &isActive_);
 			ImGui::Separator();
 
-			if (isActive_) {
+			if ( isActive_ ) {
 				// それぞれのエフェクトのON/OFFを切り替えるチェックボックスを出す
-				for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
+				for ( int i = 1; i < static_cast< int >(PostEffectType::Count); ++i ) {
 					ImGui::Checkbox(effectNames[i], &activeEffects_[i]);
 
 					// ノイズ(RandomNoise)がONの時だけ、スピード調整スライダーを出す
-					if (i == static_cast<int>(PostEffectType::RandomNoise) && activeEffects_[i]) {
+					if ( i == static_cast< int >(PostEffectType::RandomNoise) && activeEffects_[i] ) {
 						ImGui::Indent(); // ちょっと右にずらす
 						ImGui::SliderFloat("ノイズの速度", &timeSpeed_, 0.0f, 0.5f);
-						if (ImGui::Button("速度リセット")) { timeSpeed_ = 0.05f; }
+						if ( ImGui::Button("速度リセット") ) { timeSpeed_ = 0.05f; }
 						ImGui::Unindent();
 					}
 				}
+
+				// ★追加箇所 1：ループの直後（他のエフェクトの下）にBloomを差し込む！
+				Bloom::GetInstance()->DrawDebugUI();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::Button("設定を保存")) { Save(); }
+			// ★追加箇所 2：保存・読み込みボタンを押したときにBloomも一緒に処理させる！
+			if ( ImGui::Button("設定を保存") ) {
+				Save();
+				Bloom::GetInstance()->Save("resources/bloom.json");
+			}
 			ImGui::SameLine();
-			if (ImGui::Button("設定を読み込む")) { Load(); }
+			if ( ImGui::Button("設定を読み込む") ) {
+				Load();
+				Bloom::GetInstance()->Load("resources/bloom.json");
+			}
 		}
 
 		// --- 現在適用中のエフェクト表示 ---
 		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[現在適用中のエフェクト]"); // 緑色で文字を表示
 		bool hasActiveEffect = false;
-		if (isActive_) {
-			for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
-				if (activeEffects_[i]) {
-					// ★一番上で作っているので、ここからも無事にアクセスできる！
+		if ( isActive_ ) {
+			for ( int i = 1; i < static_cast< int >(PostEffectType::Count); ++i ) {
+				if ( activeEffects_[i] ) {
 					ImGui::BulletText("%s", effectNames[i]);
 					hasActiveEffect = true;
 				}
 			}
+
+			// ★追加箇所 3：BloomがONの時は、適用中のリストにも表示する！
+			if ( Bloom::GetInstance()->IsEnabled() ) {
+				ImGui::BulletText("発光 (Bloom)");
+				hasActiveEffect = true;
+			}
 		}
 
 		// 1つもかかっていない場合の表示
-		if (!isActive_ || !hasActiveEffect) {
+		if ( !isActive_ || !hasActiveEffect ) {
 			ImGui::Text("  (なし)");
 		}
 
@@ -226,6 +315,8 @@ void PostEffect::DrawDebugUI() {
 	ImGui::End();
 #endif
 }
+
+
 // 設定をJSONファイルに保存する関数
 void PostEffect::Save(const std::string& filePath) {
 	json j;

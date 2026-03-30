@@ -81,6 +81,8 @@ public:
 	// 座標変換行列を取得する関数
 	const TransformationMatrix& GetMatrixData() const { return matrixData_; }
 
+	Model* GetModel() const { return model_; }
+
 private:
 
 	// -------------------------------------------------
