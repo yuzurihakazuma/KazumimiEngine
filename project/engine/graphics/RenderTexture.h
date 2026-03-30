@@ -43,6 +43,8 @@ public: // ゲッター・セッター
 		clearColor_.w = a;
 	}
 
+
+
 private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource_;

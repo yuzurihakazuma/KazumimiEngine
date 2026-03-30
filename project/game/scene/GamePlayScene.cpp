@@ -185,9 +185,7 @@ void GamePlayScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = dxCommon->GetCommandList();
 
-	// =========================================================
 	// 1. 【MRT開始】キャンバスを2枚(色用とマスク用)セットする！
-	// =========================================================
 	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
 
 	// --- 3D描画の前準備 ---
@@ -206,9 +204,12 @@ void GamePlayScene::Draw(){
 	// --- インスタンシングの3D描画 ---
 	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
 
-	// =========================================================
+	// --- パーティクル描画 ---
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
+	ParticleManager::GetInstance()->Draw(commandList);
+
+
 	// 2. 【MRT終了】3Dの描画が終わったので、2枚のキャンバスを読み込みモードに戻す
-	// =========================================================
 	PostEffect::GetInstance()->PostDrawSceneMRT(commandList);
 
 
@@ -219,23 +220,14 @@ void GamePlayScene::Draw(){
 	uint32_t colorSrv = PostEffect::GetInstance()->GetSrvIndex();
 	uint32_t maskSrv = PostEffect::GetInstance()->GetMaskSrvIndex();
 
-	// =========================================================
 	// 5. Bloomに「色」と「マスク」を両方渡す！
-	// =========================================================
 	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
 
 
-	// =========================================================
 	// 6. メイン画面（バックバッファ）への直接描画！
-	// パーティクルやUIはMRT非対応なので、Bloom合成後のメイン画面に直接描きます。
-	// =========================================================
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
 	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-
-	// --- パーティクル描画 ---
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
 
 	// --- スプライト・UI描画 ---
 	SpriteCommon::GetInstance()->PreDraw(commandList);

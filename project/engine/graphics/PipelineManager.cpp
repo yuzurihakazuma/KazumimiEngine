@@ -277,7 +277,7 @@ void PipelineManager::CreateParticleGraphicsPipeline(){
 		BlendMode::kAdd,            // 加算ブレンド
 		D3D12_CULL_MODE_NONE,       // カリングなし
 		false,                      // 深度書き込みしない
-		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		particlePipelineState_
 	);
 
