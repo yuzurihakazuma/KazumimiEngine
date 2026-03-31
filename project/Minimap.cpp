@@ -35,6 +35,11 @@ void Minimap::SetEnemyPositions(const std::vector<Vector3>& worldPositions) {
 	EnsureEnemySprites(enemyWorldPositions_.size());
 }
 
+void Minimap::SetCardPositions(const std::vector<Vector3>& worldPositions) {
+	cardWorldPositions_ = worldPositions;
+	EnsureCardSprites(cardWorldPositions_.size());
+}
+
 void Minimap::EnsureEnemySprites(size_t count) {
 	while (enemySprites_.size() < count) {
 		auto sprite = std::unique_ptr<Sprite>(Sprite::Create("resources/white1x1.png", mapLeftTop_));
@@ -43,6 +48,25 @@ void Minimap::EnsureEnemySprites(size_t count) {
 		sprite->SetColor({ 1.0f, 0.3f, 0.3f, 0.95f });
 		sprite->Update();
 		enemySprites_.push_back(std::move(sprite));
+	}
+
+	while (enemySprites_.size() > count) {
+		enemySprites_.pop_back();
+	}
+}
+
+void Minimap::EnsureCardSprites(size_t count) {
+	while (cardSprites_.size() < count) {
+		auto sprite = std::unique_ptr<Sprite>(Sprite::Create("resources/white1x1.png", mapLeftTop_));
+		sprite->SetAnchorPoint({ 0.5f, 0.5f });
+		sprite->SetSize({ 4.0f, 4.0f });
+		sprite->SetColor({ 0.0f, 1.0f, 0.0f, 1.0f });
+		sprite->Update();
+		cardSprites_.push_back(std::move(sprite));
+	}
+
+	while (cardSprites_.size() > count) {
+		cardSprites_.pop_back();
 	}
 }
 
@@ -58,9 +82,7 @@ void Minimap::RebuildMapSprites() {
 	float tileSizeY = mapSize_.y / static_cast<float>(levelData_->height);
 	drawTileSize_ = (tileSizeX < tileSizeY) ? tileSizeX : tileSizeY;
 
-	// -------------------------
 	// 壁は横方向の連続をまとめる
-	// -------------------------
 	for (int z = 0; z < levelData_->height; ++z) {
 		int x = 0;
 		while (x < levelData_->width) {
@@ -89,9 +111,7 @@ void Minimap::RebuildMapSprites() {
 		}
 	}
 
-	// -------------------------
-	// 階段はそのまま
-	// -------------------------
+	// 階段
 	for (int z = 0; z < levelData_->height; ++z) {
 		for (int x = 0; x < levelData_->width; ++x) {
 			if (levelData_->tiles[z][x] != 3) {
@@ -133,13 +153,11 @@ void Minimap::Update() {
 		return;
 	}
 
-	// プレイヤーだけ毎フレーム更新
 	if (playerSprite_) {
 		playerSprite_->SetPosition(WorldToMinimapPosition(playerWorldPos_));
 		playerSprite_->Update();
 	}
 
-	// 敵だけ毎フレーム更新
 	for (size_t i = 0; i < enemySprites_.size(); ++i) {
 		if (i < enemyWorldPositions_.size()) {
 			enemySprites_[i]->SetPosition(WorldToMinimapPosition(enemyWorldPositions_[i]));
@@ -147,6 +165,16 @@ void Minimap::Update() {
 		} else {
 			enemySprites_[i]->SetPosition({ -1000.0f, -1000.0f });
 			enemySprites_[i]->Update();
+		}
+	}
+
+	for (size_t i = 0; i < cardSprites_.size(); ++i) {
+		if (i < cardWorldPositions_.size()) {
+			cardSprites_[i]->SetPosition(WorldToMinimapPosition(cardWorldPositions_[i]));
+			cardSprites_[i]->Update();
+		} else {
+			cardSprites_[i]->SetPosition({ -1000.0f, -1000.0f });
+			cardSprites_[i]->Update();
 		}
 	}
 }
@@ -172,6 +200,10 @@ void Minimap::Draw() {
 
 	for (size_t i = 0; i < enemyWorldPositions_.size() && i < enemySprites_.size(); ++i) {
 		enemySprites_[i]->Draw();
+	}
+
+	for (size_t i = 0; i < cardWorldPositions_.size() && i < cardSprites_.size(); ++i) {
+		cardSprites_[i]->Draw();
 	}
 
 	if (playerSprite_) {

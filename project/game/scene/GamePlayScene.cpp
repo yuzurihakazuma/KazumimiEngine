@@ -1302,19 +1302,29 @@ void GamePlayScene::Update() {
 
 	// ミニマップ更新
 	if (minimap_) {
+		// プレイヤー
 		minimap_->SetPlayerPosition(playerPos_);
 
+		// 敵
 		std::vector<Vector3> enemyPositions;
-		enemyPositions.reserve(enemies_.size());
-
-		for (const auto &enemy : enemies_) {
+		for (const auto& enemy : enemies_) {
 			if (!enemy || enemy->IsDead()) {
 				continue;
 			}
 			enemyPositions.push_back(enemy->GetPosition());
 		}
-
 		minimap_->SetEnemyPositions(enemyPositions);
+
+		// カード
+		std::vector<Vector3> cardPositions;
+		for (const auto& pickup : cardPickupManager_.GetPickups()) {
+			if (!pickup.isActive) {
+				continue;
+			}
+			cardPositions.push_back(pickup.position);
+		}
+		minimap_->SetCardPositions(cardPositions);
+
 		minimap_->Update();
 	}
 
