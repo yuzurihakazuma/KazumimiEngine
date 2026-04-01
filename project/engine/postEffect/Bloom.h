@@ -34,12 +34,14 @@ public:
 
 	// ぼかし終わった最終結果のSRVを取得
 	uint32_t GetBlurSrvIndex() const { return blurTextures_[1]->GetSrvIndex(); }
-
+	// 初期化
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
 
+	// 終了処理
 	void Finalize();
-
+	// 高輝度抽出を描画する関数
 	void Render(ID3D12GraphicsCommandList* commandList, uint32_t colorSrvIndex, uint32_t maskSrvIndex);
+	// 高輝度抽出を描画する関数
 	void DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex);
 
 	
@@ -47,7 +49,7 @@ public:
 	uint32_t GetExtractSrvIndex() const { return extractTexture_->GetSrvIndex(); }
 
 
-	// 工程③ 元の画像と光を合成する！
+	// 元の画像と光を合成する！
 	void DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex);
 
 	// すべての処理が終わった「最終結果」のSRVを取得
@@ -57,12 +59,12 @@ public:
 
 	void DrawDebugUI();
 public:
-	// ★追加：ON/OFFスイッチと、結果のSRV番号
+	// ON/OFFスイッチと、結果のSRV番号
 	bool IsEnabled() const { return isEnabled_; }
 	void SetEnabled(bool enabled) { isEnabled_ = enabled; }
 	uint32_t GetResultSrvIndex() const { return resultSrvIndex_; }
 
-	// ★追加：JSONへの保存と読み込み
+	// JSONへの保存と読み込み
 	void Save(const std::string& filePath);
 	void Load(const std::string& filePath);
 private:

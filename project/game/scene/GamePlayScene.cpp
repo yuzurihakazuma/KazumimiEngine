@@ -222,12 +222,21 @@ void GamePlayScene::Draw(){
 
 	// 5. Bloomに「色」と「マスク」を両方渡す！
 	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
+	
+	// 5-2. Bloomの最終結果のSRV番号をもらう
+	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
 
 
 	// 6. メイン画面（バックバッファ）への直接描画！
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
 	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
+	// 7. 最終的な結果を画面にドーン！と描く
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None); // シェーダーはエフェクトなしのやつを使う
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, finalSrv); // Bloomの結果をSRVとしてセット
+	commandList->DrawInstanced(3, 1, 0, 0); // 巨大な三角形を描いて全画面にテクスチャを貼る方式なので、頂点数は3でOK！
+
 
 	// --- スプライト・UI描画 ---
 	SpriteCommon::GetInstance()->PreDraw(commandList);

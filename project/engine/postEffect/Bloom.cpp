@@ -30,29 +30,28 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 
 	auto vsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
 	auto psBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/bloom/BloomExtract.PS.hlsl", L"ps_6_0");
-
+	// パイプラインステートの構築
 	GraphicsPipelineBuilder psoBuilder;
-	psoBuilder.SetRootSignature(rootSignature_.Get())
-		.SetShaders(
-			vsBlob.Get(), psBlob.Get()
-		)
-		.SetInputLayoutEmpty()
-		.SetBlendMode(BlendMode::kNormal)
-		.SetCullMode(D3D12_CULL_MODE_NONE)
-		.SetDepthStencil(false, false);
+	psoBuilder.SetRootSignature(rootSignature_.Get()) // PSOの共通設定はここで行う（ルートシグネチャやブレンドモードなど）！
+		.SetShaders( vsBlob.Get(), psBlob.Get()) // シェーダーはVSは「Fullscreen」を使い回し、PSは「BloomExtract」を使う！
+		.SetInputLayoutEmpty() // 頂点を使わない（フルスクリーンポストエフェクトなので）ので、InputLayoutは空でOK
+		.SetBlendMode(BlendMode::kNormal) // ブレンドは特にしないのでNormalでOK
+		.SetCullMode(D3D12_CULL_MODE_NONE) // カリングはしないのでNONE
+		.SetDepthStencil(false, false);// 深度テストも書き込みも必要ないので、両方ともfalse
 
+	// 最後にBuild関数を呼び出して、パイプラインステートを生成する！
 	psoBuilder.Build(dxCommon->GetDevice(), pipelineState_);
 
 
-	blurTextures_[0] = std::make_unique<RenderTexture>();
-	blurTextures_[0]->Initialize(dxCommon, srvManager, width, height);
-	blurTextures_[1] = std::make_unique<RenderTexture>();
-	blurTextures_[1]->Initialize(dxCommon, srvManager, width, height);
+	blurTextures_[0] = std::make_unique<RenderTexture>(); // 2枚の画用紙を初期化
+	blurTextures_[0]->Initialize(dxCommon, srvManager, width, height); // 1枚目は横ぼかし用
+	blurTextures_[1] = std::make_unique<RenderTexture>(); // 2枚目は縦ぼかし用
+	blurTextures_[1]->Initialize(dxCommon, srvManager, width, height); // ブラー用の定数バッファを生成して、1ピクセルのサイズを計算して保存しておく
 
-	blurDataResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(BlurData));
-	blurDataResource_->Map(0, nullptr, reinterpret_cast<void**>(&blurData_));
-	blurData_->texelSize[0] = 1.0f / width;
-	blurData_->texelSize[1] = 1.0f / height;
+	blurDataResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(BlurData)); // ブラー用の定数バッファを生成して、1ピクセルのサイズを計算して保存しておく
+	blurDataResource_->Map(0, nullptr, reinterpret_cast< void** >( &blurData_ )); // 1ピクセルのサイズを計算して保存しておく
+	blurData_->texelSize[0] = 1.0f / width; // 1ピクセルのサイズを計算して保存しておく
+	blurData_->texelSize[1] = 1.0f / height; // 1ピクセルのサイズを計算して保存しておく
 
 	// ブラー用のルートシグネチャ (Extractと同じくCBVとSRVを1つずつ)
 	RootSignatureBuilder blurRsBuilder;
@@ -61,10 +60,10 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	blurRsBuilder.AddDefaultSampler(0);
 	blurRsBuilder.Build(dxCommon->GetDevice(), blurRootSignature_);
 
-	// ★ここがポイント！ VSは「Fullscreen」を使い回し、PSは「GaussianBlur」を使う！
+	// VSは「Fullscreen」を使い回し、PSは「GaussianBlur」を使う！
 	auto blurVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
 	auto blurPsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/bloom/GaussianBlur.PS.hlsl", L"ps_6_0");
-
+	// ブラー用のパイプラインステートを構築
 	GraphicsPipelineBuilder blurPsoBuilder;
 	blurPsoBuilder.SetRootSignature(blurRootSignature_.Get())
 		.SetShaders(blurVsBlob.Get(), blurPsBlob.Get())
@@ -86,12 +85,12 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 
 	auto combineVsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/Fullscreen.VS.hlsl", L"vs_6_0");
 	auto combinePsBlob = dxCommon->GetShaderCompiler().CompileShader(L"resources/shaders/PostEffect/bloom/BloomCombine.PS.hlsl", L"ps_6_0");
-
+	// ブラー用のパイプラインステートを構築
 	GraphicsPipelineBuilder combinePsoBuilder;
 	combinePsoBuilder.SetRootSignature(combineRootSignature_.Get())
 		.SetShaders(combineVsBlob.Get(), combinePsBlob.Get())
 		.SetInputLayoutEmpty()
-		.SetBlendMode(BlendMode::kNormal) // シェーダーの中で足し算しているのでNormalでOK！
+		.SetBlendMode(BlendMode::kNormal) // シェーダーの中で足し算しているのでNormal
 		.SetCullMode(D3D12_CULL_MODE_NONE)
 		.SetDepthStencil(false, false);
 	combinePsoBuilder.Build(dxCommon->GetDevice(), combinePipelineState_);
@@ -123,11 +122,11 @@ void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
 	commandList->SetGraphicsRootConstantBufferView(0, blurDataResource_->GetGPUVirtualAddress());
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, blurTextures_[0]->GetSrvIndex());
 	commandList->DrawInstanced(3, 1, 0, 0);
-
-	blurTextures_[1]->PostDrawScene(commandList, DirectXCommon::GetInstance());
+	// 描画終了
+	blurTextures_[1]->PostDrawScene(commandList, DirectXCommon::GetInstance()); 
 }
 
-
+// 工程①：高輝度抽出を描画する
 void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex) {
 	// 1. 描画先を「Bloomの抽出用キャンバス」に切り替え
 	extractTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
@@ -144,10 +143,11 @@ void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrv
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, maskSrvIndex);
 	// 4. 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
+	// 5. 描画先を「メイン画面」に戻す
 	extractTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
-// 修正後の Bloom.cpp (DrawCombine)
+// 工程③：元の画像と光を合成する
 void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrvIndex){
 	//  バックバッファではなく、combineTexture_ をお絵かき先にセットする！
 	combineTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
@@ -160,7 +160,7 @@ void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrv
 	// テクスチャを渡す
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, mainSrvIndex);
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, blurTextures_[1]->GetSrvIndex());
-
+	// 全画面に描画
 	commandList->DrawInstanced(3, 1, 0, 0);
 
 	//  お絵かき終了（読み込みモードに戻す）
@@ -176,11 +176,11 @@ void Bloom::DrawDebugUI() {
 	if ( isEnabled_ ) {
 		ImGui::Indent(); // 階層を見やすくするために少し右にずらす
 
-		// 🚨変更箇所：ラベルを「光る基準値 (Threshold)」に変更
+		// ベルを「光る基準値 (Threshold)」に変更
 		// 閾値（どれだけ明るいと光るか）を調整
 		ImGui::DragFloat("光る基準値 (Threshold)", &bloomData_->threshold, 0.01f, 0.0f, 10.0f);
 
-		// 🚨追加箇所：マテリアルの発光パワー（どれだけ光るか）を調整するスライダー
+		// マテリアルの発光パワー（どれだけ光るか）を調整するスライダー
 		// 対象のマテリアルがセットされている場合のみ描画
 		if ( targetEmissivePower_ ) {
 			ImGui::DragFloat("光る強さ (Emissive Power)", targetEmissivePower_, 0.01f, 0.0f, 10.0f);

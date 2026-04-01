@@ -164,7 +164,7 @@ void PostEffect::PreDrawSceneMRT(ID3D12GraphicsCommandList* commandList){
 	};
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon_->GetDsvHandle();
 
-	// 3. GPUに「2枚に同時に描け！」と命令
+	// 3. GPUに「2枚に同時に描く
 	commandList->OMSetRenderTargets(2, rtvHandles, FALSE, &dsvHandle);
 
 	auto c0 = renderTextures_[0]->GetClearColor();
@@ -185,16 +185,16 @@ void PostEffect::PreDrawSceneMRT(ID3D12GraphicsCommandList* commandList){
 
 // 描画が終わったら「読み込みモード」に戻す関数
 void PostEffect::PostDrawSceneMRT(ID3D12GraphicsCommandList* commandList){
-	D3D12_RESOURCE_BARRIER barriers[2] = {};
-	barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barriers[0].Transition.pResource = renderTextures_[0]->GetResource().Get();
-	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
-	barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barriers[1].Transition.pResource = maskTexture_->GetResource().Get();
-	barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	D3D12_RESOURCE_BARRIER barriers[2] = {}; // 2枚分のバリアを張る
+	barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION; // 1枚目：色用
+	barriers[0].Transition.pResource = renderTextures_[0]->GetResource().Get(); // 2枚目：マスク用
+	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET; // 1枚目：色用
+	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE; // 2枚目：マスク用
+	
+	barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION; // 2枚目：マスク用
+	barriers[1].Transition.pResource = maskTexture_->GetResource().Get(); // 2枚目：マスク用
+	barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET; // 2枚目：マスク用 
+	barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE; // 2枚目：マスク用
 	commandList->ResourceBarrier(2, barriers);
 }
 
@@ -270,13 +270,13 @@ void PostEffect::DrawDebugUI(){
 					}
 				}
 
-				// ★追加箇所 1：ループの直後（他のエフェクトの下）にBloomを差し込む！
+				// ループの直後（他のエフェクトの下）にBloomを差し込む！
 				Bloom::GetInstance()->DrawDebugUI();
 			}
 
 			ImGui::Separator();
 
-			// ★追加箇所 2：保存・読み込みボタンを押したときにBloomも一緒に処理させる！
+			// 保存・読み込みボタンを押したときにBloomも一緒に処理させる！
 			if ( ImGui::Button("設定を保存") ) {
 				Save();
 				Bloom::GetInstance()->Save("resources/bloom.json");
@@ -299,7 +299,7 @@ void PostEffect::DrawDebugUI(){
 				}
 			}
 
-			// ★追加箇所 3：BloomがONの時は、適用中のリストにも表示する！
+			// BloomがONの時は、適用中のリストにも表示する！
 			if ( Bloom::GetInstance()->IsEnabled() ) {
 				ImGui::BulletText("発光 (Bloom)");
 				hasActiveEffect = true;
@@ -325,7 +325,7 @@ void PostEffect::Save(const std::string& filePath) {
 	j["isActive"] = isActive_;
 	j["timeSpeed"] = timeSpeed_;
 
-	// ★ 配列の中身をすべて保存 (例: "1": true, "2": false ...)
+	//  配列の中身をすべて保存 (例: "1": true, "2": false ...)
 	for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
 		j["activeEffects"][std::to_string(i)] = activeEffects_[i];
 	}
@@ -353,7 +353,7 @@ void PostEffect::Load(const std::string& filePath) {
 		timeSpeed_ = j["timeSpeed"];
 	}
 
-	// ★ JSONから配列にON/OFFの設定を復元する
+	//  JSONから配列にON/OFFの設定を復元する
 	if (j.contains("activeEffects")) {
 		for (int i = 1; i < static_cast<int>(PostEffectType::Count); ++i) {
 			std::string key = std::to_string(i);
