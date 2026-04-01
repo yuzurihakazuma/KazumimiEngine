@@ -32,7 +32,7 @@
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
 #include "game/card/CardUseSystem.h"
-#include "Minimap.h"
+#include "game/map/Minimap.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -616,6 +616,67 @@ void GamePlayScene::Update() {
 				boss_->GetPosition(),
 				level
 			);
+		}
+	}
+
+	// ボス部屋では一定時間ごとにカードを落とす
+	if (levelEditor_ && levelEditor_->IsBossMap() &&
+		isBossCardRainEnabled_ &&
+		!isBossIntroPlaying_) {
+
+		int activeCardCount = 0;
+
+		for (const auto& pickup : cardPickupManager_.GetPickups()) {
+			if (pickup.isActive) {
+				activeCardCount++;
+			}
+		}
+
+		// 上限未満のときだけタイマー進行
+		if (activeCardCount < bossCardRainMax_) {
+			bossCardRainTimer_--;
+
+			if (bossCardRainTimer_ <= 0) {
+				Vector3 center = levelEditor_->GetMapCenterPosition(1.5f);
+				Vector3 dropPos = center;
+
+				// 何回か試して、他のカードに近すぎない位置を探す
+				for (int attempt = 0; attempt < 10; ++attempt) {
+					Vector3 candidate = center;
+					candidate.x += static_cast<float>((rand() % 50) - 25);
+					candidate.z += static_cast<float>((rand() % 50) - 25);
+					candidate.y = -0.99f;
+
+					bool tooClose = false;
+
+					for (const auto& pickup : cardPickupManager_.GetPickups()) {
+						if (!pickup.isActive) {
+							continue;
+						}
+
+						Vector3 diff = {
+							candidate.x - pickup.position.x,
+							0.0f,
+							candidate.z - pickup.position.z
+						};
+
+						if (Length(diff) < 4.0f) {
+							tooClose = true;
+							break;
+						}
+					}
+
+					if (!tooClose) {
+						dropPos = candidate;
+						break;
+					}
+				}
+
+				Card dropCard = CardDatabase::GetRandomPlayerCard();
+				cardPickupManager_.AddPickup(dropPos, dropCard);
+
+				bossCardRainTimer_ = bossCardRainInterval_; // 次の出現までリセット
+			}
 		}
 	}
 
@@ -2424,6 +2485,8 @@ void GamePlayScene::AdvanceFloor() {
 			isBossIntroPlaying_ = true;
 			bossIntroCameraState_ = BossIntroCameraState::PlayerFocus;
 			bossIntroTimer_ = 60; // 最初はプレイヤーを見る時間
+
+			bossCardRainTimer_ = bossCardRainInterval_; // ボス部屋のカード降らせ開始
 		} else {
 			levelEditor_->ChangeToNormalMap();
 
@@ -2431,6 +2494,8 @@ void GamePlayScene::AdvanceFloor() {
 			isBossIntroPlaying_ = false;
 			bossIntroCameraState_ = BossIntroCameraState::None;
 			bossIntroTimer_ = 0;
+
+			bossCardRainTimer_ = 0; // 通常部屋では止める
 		}
 	}
 
