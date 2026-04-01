@@ -32,7 +32,7 @@
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
 #include "game/card/CardUseSystem.h"
-#include "Minimap.h"
+#include "game/map/Minimap.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -236,6 +236,16 @@ void GamePlayScene::Initialize() {
 	fadeSprite_->SetSize({ 4000.0f, 4000.0f });
 	// 初期状態は透明の黒
 	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+	// ポーズ画面用の文字位置
+	TextManager::GetInstance()->SetPosition("PauseTitle", 560, 220);
+	TextManager::GetInstance()->SetPosition("PauseResume", 540, 320);
+	TextManager::GetInstance()->SetPosition("PauseToTitle", 540, 360);
+
+	// ポーズ中の半透明背景
+	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	pauseBgSprite_->SetSize({ 4000.0f, 4000.0f });
+	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 }
 
 void GamePlayScene::Update() {
@@ -246,6 +256,18 @@ void GamePlayScene::Update() {
 	}
 
 	Input *input = Input::GetInstance();
+
+	// ポーズ切り替え
+	if (input->Triggerkey(DIK_ESCAPE)) {
+		isPaused_ = !isPaused_;
+		pauseSelection_ = 0; // 開くたびに先頭へ戻す
+	}
+
+	// ポーズ中は専用更新だけして止める
+	if (isPaused_) {
+		UpdatePause(input);
+		return;
+	}
 
 	// ==========================================
 // FadeOut中だけゲーム更新を止める
@@ -594,6 +616,67 @@ void GamePlayScene::Update() {
 				boss_->GetPosition(),
 				level
 			);
+		}
+	}
+
+	// ボス部屋では一定時間ごとにカードを落とす
+	if (levelEditor_ && levelEditor_->IsBossMap() &&
+		isBossCardRainEnabled_ &&
+		!isBossIntroPlaying_) {
+
+		int activeCardCount = 0;
+
+		for (const auto& pickup : cardPickupManager_.GetPickups()) {
+			if (pickup.isActive) {
+				activeCardCount++;
+			}
+		}
+
+		// 上限未満のときだけタイマー進行
+		if (activeCardCount < bossCardRainMax_) {
+			bossCardRainTimer_--;
+
+			if (bossCardRainTimer_ <= 0) {
+				Vector3 center = levelEditor_->GetMapCenterPosition(1.5f);
+				Vector3 dropPos = center;
+
+				// 何回か試して、他のカードに近すぎない位置を探す
+				for (int attempt = 0; attempt < 10; ++attempt) {
+					Vector3 candidate = center;
+					candidate.x += static_cast<float>((rand() % 50) - 25);
+					candidate.z += static_cast<float>((rand() % 50) - 25);
+					candidate.y = -0.99f;
+
+					bool tooClose = false;
+
+					for (const auto& pickup : cardPickupManager_.GetPickups()) {
+						if (!pickup.isActive) {
+							continue;
+						}
+
+						Vector3 diff = {
+							candidate.x - pickup.position.x,
+							0.0f,
+							candidate.z - pickup.position.z
+						};
+
+						if (Length(diff) < 4.0f) {
+							tooClose = true;
+							break;
+						}
+					}
+
+					if (!tooClose) {
+						dropPos = candidate;
+						break;
+					}
+				}
+
+				Card dropCard = CardDatabase::GetRandomPlayerCard();
+				cardPickupManager_.AddPickup(dropPos, dropCard);
+
+				bossCardRainTimer_ = bossCardRainInterval_; // 次の出現までリセット
+			}
 		}
 	}
 
@@ -1674,6 +1757,9 @@ void GamePlayScene::Draw() {
 	if (minimap_) {
 		minimap_->Draw();
 	}
+
+	DrawPauseUI();
+
 	TextManager::GetInstance()->Draw();
 
 	PostEffect::GetInstance()->PostDrawScene(commandList);
@@ -1965,6 +2051,64 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 	}
 }
 
+void GamePlayScene::UpdatePause(Input* input) {
+
+	// 上下で選択
+	if (input->Triggerkey(DIK_W)) {
+		pauseSelection_--;
+		if (pauseSelection_ < 0) {
+			pauseSelection_ = 1;
+		}
+	}
+
+	if (input->Triggerkey(DIK_S)) {
+		pauseSelection_++;
+		if (pauseSelection_ > 1) {
+			pauseSelection_ = 0;
+		}
+	}
+
+	// 決定
+	if (input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN)) {
+		if (pauseSelection_ == 0) {
+			isPaused_ = false; // ゲームに戻る
+		} else if (pauseSelection_ == 1) {
+			SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
+			return;
+		}
+	}
+
+	// ポーズ中の文字表示
+	TextManager::GetInstance()->SetText("PauseTitle", "PAUSE");
+
+	if (pauseSelection_ == 0) {
+		TextManager::GetInstance()->SetText("PauseResume", "> Resume");
+		TextManager::GetInstance()->SetText("PauseToTitle", "  Title");
+	} else {
+		TextManager::GetInstance()->SetText("PauseResume", "  Resume");
+		TextManager::GetInstance()->SetText("PauseToTitle", "> Title");
+	}
+
+	// 背景更新
+	if (pauseBgSprite_) {
+		pauseBgSprite_->Update();
+	}
+}
+
+void GamePlayScene::DrawPauseUI() {
+
+	if (!isPaused_) {
+		TextManager::GetInstance()->SetText("PauseTitle", "");
+		TextManager::GetInstance()->SetText("PauseResume", "");
+		TextManager::GetInstance()->SetText("PauseToTitle", "");
+		return;
+	}
+
+	if (pauseBgSprite_) {
+		pauseBgSprite_->Draw();
+	}
+}
+
 GamePlayScene::GamePlayScene() {}
 
 GamePlayScene::~GamePlayScene() {}
@@ -1978,6 +2122,7 @@ void GamePlayScene::Finalize() {
 	bossCardSystem_.reset();
 	bossHpBackSprite_.reset();
 	bossHpFillSprite_.reset();
+	pauseBgSprite_.reset();
 
 	TextManager::GetInstance()->Finalize();
 
@@ -2340,6 +2485,8 @@ void GamePlayScene::AdvanceFloor() {
 			isBossIntroPlaying_ = true;
 			bossIntroCameraState_ = BossIntroCameraState::PlayerFocus;
 			bossIntroTimer_ = 60; // 最初はプレイヤーを見る時間
+
+			bossCardRainTimer_ = bossCardRainInterval_; // ボス部屋のカード降らせ開始
 		} else {
 			levelEditor_->ChangeToNormalMap();
 
@@ -2347,6 +2494,8 @@ void GamePlayScene::AdvanceFloor() {
 			isBossIntroPlaying_ = false;
 			bossIntroCameraState_ = BossIntroCameraState::None;
 			bossIntroTimer_ = 0;
+
+			bossCardRainTimer_ = 0; // 通常部屋では止める
 		}
 	}
 
