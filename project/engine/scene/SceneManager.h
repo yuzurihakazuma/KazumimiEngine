@@ -26,9 +26,7 @@ public:
 
 	void Finalize();
 
-	// エディタのアクティブ状態を管理
-	bool IsEditorActive() const{ return isEditorActive_; }
-
+	
 
 private:
 	// コンストラクタを private にして外部からの生成を禁止
@@ -42,8 +40,4 @@ private:
 
 	AbstractSceneFactory* sceneFactory_ = nullptr; 
 
-	bool isEditorActive_ = false;
-
-	float cpuUpdateTimeMs_ = 0.0f;
-	float cpuDrawTimeMs_ = 0.0f;
 };
