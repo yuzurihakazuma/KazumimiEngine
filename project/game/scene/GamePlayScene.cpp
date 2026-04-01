@@ -32,7 +32,7 @@
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
 #include "game/card/CardUseSystem.h"
-#include "Minimap.h"
+#include "game/map/Minimap.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
