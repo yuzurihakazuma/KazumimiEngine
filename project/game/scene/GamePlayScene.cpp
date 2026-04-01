@@ -31,6 +31,7 @@
 #include "engine/utils/TextManager.h"
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
+#include "game/enemy/EnemyManager.h"
 #include "game/card/CardUseSystem.h"
 #include "Minimap.h"
 
@@ -91,6 +92,9 @@ void GamePlayScene::Initialize() {
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
 
+	// 敵
+	enemyManager_ = std::make_unique<EnemyManager>();
+	enemyManager_->Initialize();
 
 	playerObj_ = Obj3d::Create("player");
 	if (playerObj_) {
@@ -236,6 +240,8 @@ void GamePlayScene::Initialize() {
 	fadeSprite_->SetSize({ 4000.0f, 4000.0f });
 	// 初期状態は透明の黒
 	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+	
 }
 
 void GamePlayScene::Update() {
@@ -429,6 +435,11 @@ void GamePlayScene::Update() {
 		targetPos = playerCardSystem_->GetDecoyPosition(); // 身代わりがいたら身代わりを狙う！
 	}
 
+	// EnemyManager に更新をお願いする
+	if (enemyManager_) {
+		enemyManager_->Update(player_.get());
+	}
+
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		auto &enemy = enemies_[i];
 		if (!enemy || enemy->IsDead()) {
@@ -470,6 +481,8 @@ void GamePlayScene::Update() {
 		// 敵のAIにカードの目標位置をセットし、更新する
 		enemy->SetCardTarget(foundCard, nearestCardPos);
 		enemy->Update();
+
+		
 
 		Vector3 enemyPos = enemy->GetPosition();
 
@@ -599,48 +612,9 @@ void GamePlayScene::Update() {
 
 	// ボスからの召喚リクエストを受け取って敵を生成する処理
 	if (boss_ && boss_->GetSummonRequest()) {
-		int count = boss_->GetSummonCount();
+		// ★丸投げ！ (Cameraを渡すのを忘れずに)
+		enemyManager_->SpawnBossMinions(boss_->GetSummonCount(), boss_->GetPosition(), camera_.get());
 
-		const int kMaxEnemies = 5; // 画面に出る敵の最大数（好きな数字に変えてください）
-
-		int currentEnemies = static_cast<int>(enemies_.size()); // 今いる敵の数
-		int availableSpace = kMaxEnemies - currentEnemies;      // あと何体出せるか
-
-		// 実際に召喚する数は、「ボスの希望数」と「出せる余裕」の少ない方にする
-		int actualSpawnCount = std::min(count, availableSpace);
-
-		for (int i = 0; i < actualSpawnCount; ++i) {
-			// ボスの周りに散らばって出現するように位置をずらす
-			Vector3 spawnPos = boss_->GetPosition();
-			spawnPos.x += (rand() % 30 - 5.0f); // -5.0f ～ +5.0f のランダム
-			spawnPos.z += (rand() % 30 - 5.0f); // -5.0f ～ +5.0f のランダム
-
-			// ① 敵の本体（AIやステータス）を生成してリストに追加
-			auto newEnemy = std::make_unique<Enemy>();
-			newEnemy->Initialize();
-			newEnemy->SetPosition(spawnPos);
-			enemies_.push_back(std::move(newEnemy));
-
-			// ② 敵の3Dモデルを生成してリストに追加
-			auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));
-			if (enemyObj) {
-				enemyObj->SetCamera(camera_.get());
-				enemyObj->SetTranslation(spawnPos);
-				enemyObj->SetScale({ 1.0f, 1.0f, 1.0f }); // ※敵のサイズに合わせて調整してください
-				enemyObj->Update();
-			}
-			enemyObjs_.push_back(std::move(enemyObj));
-
-			// ③ 敵の死亡処理フラグを追加（最初はfalse）
-			enemyDeadHandled_.push_back(false);
-
-			// ④ 敵用のカードシステム（魔法用）を生成してリストに追加
-			auto enemyCardSystem = std::make_unique<CardUseSystem>();
-			enemyCardSystem->Initialize(camera_.get());
-			enemyCardSystems_.push_back(std::move(enemyCardSystem));
-		}
-
-		// 召喚が終わったらフラグを戻す（忘れると毎フレーム無限に召喚されます）
 		boss_->ClearSummonRequest();
 	}
 
@@ -687,7 +661,7 @@ void GamePlayScene::Update() {
 
 				// 召喚カード
 				if (useCard.id == 103) {
-					SpawnEnemiesRandom(useCard.effectValue, 2);
+					enemyManager_->SpawnBossMinions(boss_->GetSummonCount(), boss_->GetPosition(), camera_.get());
 				}
 
 				bossCardSystem_->UseCard(
@@ -1601,6 +1575,11 @@ void GamePlayScene::Draw() {
 		bossObj_->Draw();
 	}
 
+	// EnemyManager に描画をお願いする
+	if (enemyManager_) {
+		enemyManager_->Draw(camera_.get());
+	}
+
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		auto &enemy = enemies_[i];
 		auto &enemyObj = enemyObjs_[i];
@@ -2276,7 +2255,8 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	if (levelEditor_->IsBossMap()) {
 		ClearEnemiesAndCards();
 	} else {
-		SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
+		enemyManager_->SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_, &spawnManager_, levelEditor_.get(), playerPos_, camera_.get());
+		//SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_);
 		SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 	}
 

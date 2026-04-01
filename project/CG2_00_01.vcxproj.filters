@@ -224,6 +224,9 @@
     <ClCompile Include="Minimap.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\enemy\EnemyManager.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -581,6 +584,9 @@
     <ClInclude Include="game\scene\GameOverScene.h" />
     <ClInclude Include="game\scene\GameClearScene.h" />
     <ClInclude Include="Minimap.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\EnemyManager.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
