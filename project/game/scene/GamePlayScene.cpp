@@ -236,6 +236,16 @@ void GamePlayScene::Initialize() {
 	fadeSprite_->SetSize({ 4000.0f, 4000.0f });
 	// 初期状態は透明の黒
 	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+	// ポーズ画面用の文字位置
+	TextManager::GetInstance()->SetPosition("PauseTitle", 560, 220);
+	TextManager::GetInstance()->SetPosition("PauseResume", 540, 320);
+	TextManager::GetInstance()->SetPosition("PauseToTitle", 540, 360);
+
+	// ポーズ中の半透明背景
+	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	pauseBgSprite_->SetSize({ 4000.0f, 4000.0f });
+	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 }
 
 void GamePlayScene::Update() {
@@ -246,6 +256,18 @@ void GamePlayScene::Update() {
 	}
 
 	Input *input = Input::GetInstance();
+
+	// ポーズ切り替え
+	if (input->Triggerkey(DIK_ESCAPE)) {
+		isPaused_ = !isPaused_;
+		pauseSelection_ = 0; // 開くたびに先頭へ戻す
+	}
+
+	// ポーズ中は専用更新だけして止める
+	if (isPaused_) {
+		UpdatePause(input);
+		return;
+	}
 
 	// ==========================================
 // FadeOut中だけゲーム更新を止める
@@ -1674,6 +1696,9 @@ void GamePlayScene::Draw() {
 	if (minimap_) {
 		minimap_->Draw();
 	}
+
+	DrawPauseUI();
+
 	TextManager::GetInstance()->Draw();
 
 	PostEffect::GetInstance()->PostDrawScene(commandList);
@@ -1965,6 +1990,64 @@ void GamePlayScene::UpdateCardUse(Input *input) {
 	}
 }
 
+void GamePlayScene::UpdatePause(Input* input) {
+
+	// 上下で選択
+	if (input->Triggerkey(DIK_W)) {
+		pauseSelection_--;
+		if (pauseSelection_ < 0) {
+			pauseSelection_ = 1;
+		}
+	}
+
+	if (input->Triggerkey(DIK_S)) {
+		pauseSelection_++;
+		if (pauseSelection_ > 1) {
+			pauseSelection_ = 0;
+		}
+	}
+
+	// 決定
+	if (input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN)) {
+		if (pauseSelection_ == 0) {
+			isPaused_ = false; // ゲームに戻る
+		} else if (pauseSelection_ == 1) {
+			SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
+			return;
+		}
+	}
+
+	// ポーズ中の文字表示
+	TextManager::GetInstance()->SetText("PauseTitle", "PAUSE");
+
+	if (pauseSelection_ == 0) {
+		TextManager::GetInstance()->SetText("PauseResume", "> Resume");
+		TextManager::GetInstance()->SetText("PauseToTitle", "  Title");
+	} else {
+		TextManager::GetInstance()->SetText("PauseResume", "  Resume");
+		TextManager::GetInstance()->SetText("PauseToTitle", "> Title");
+	}
+
+	// 背景更新
+	if (pauseBgSprite_) {
+		pauseBgSprite_->Update();
+	}
+}
+
+void GamePlayScene::DrawPauseUI() {
+
+	if (!isPaused_) {
+		TextManager::GetInstance()->SetText("PauseTitle", "");
+		TextManager::GetInstance()->SetText("PauseResume", "");
+		TextManager::GetInstance()->SetText("PauseToTitle", "");
+		return;
+	}
+
+	if (pauseBgSprite_) {
+		pauseBgSprite_->Draw();
+	}
+}
+
 GamePlayScene::GamePlayScene() {}
 
 GamePlayScene::~GamePlayScene() {}
@@ -1978,6 +2061,7 @@ void GamePlayScene::Finalize() {
 	bossCardSystem_.reset();
 	bossHpBackSprite_.reset();
 	bossHpFillSprite_.reset();
+	pauseBgSprite_.reset();
 
 	TextManager::GetInstance()->Finalize();
 
