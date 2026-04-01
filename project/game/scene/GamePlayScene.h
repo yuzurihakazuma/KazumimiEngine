@@ -236,4 +236,10 @@ private: // メンバ変数
 	int pauseSelection_ = 0;                 // 0: Resume  1: Title
 
 	std::unique_ptr<Sprite> pauseBgSprite_ = nullptr; // ポーズ中の半透明背景
+
+	// ボス部屋のカード降らせ演出
+	int bossCardRainTimer_ = 0;              // 次にカードを落とすまでの時間
+	const int bossCardRainInterval_ = 180;   // 何フレームごとに落とすか
+	int bossCardRainMax_ = 5;                // 同時に存在できる最大カード数
+	bool isBossCardRainEnabled_ = true;      // ボス部屋でカードを降らせるか
 };
