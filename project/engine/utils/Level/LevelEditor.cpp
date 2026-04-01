@@ -1,564 +1,544 @@
 #include "LevelEditor.h"
 
-// --- 標準ライブラリ ---
 #include <cmath>
-
-// --- エンジン側のファイル ---
 #include "LevelManager.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/utils/ImGuiManager.h"
 #include "engine/3d/model/ModelManager.h"
 
+// デフォルト生成
 LevelEditor::LevelEditor() = default;
+
+// デフォルト破棄
 LevelEditor::~LevelEditor() = default;
 
+// 初期化
 void LevelEditor::Initialize() {
 
-	editWidth_ = levelData_.width;
-	editHeight_ = levelData_.height;
+    // サイズ同期
+    editWidth_ = levelData_.width;
+    editHeight_ = levelData_.height;
 
-	dungeonGenerator_ = std::make_unique<DungeonGenerator>();
+    // マップ生成初期化
+    mapGenerator_ = std::make_unique<MapGenerator>();
+    mapGenerator_->Initialize();
 
-	currentMapFile_ = "resources/map/map01.json";
-	mapType_ = 0;
-	saveFileName_ = "map01.json";
+    // 初期マップ設定
+    currentMapFile_ = "resources/map/map01.json";
+    mapType_ = 0;
+    saveFileName_ = "map01.json";
 
-	floorGroup_ = std::make_unique<InstancedGroup>();
-	floorGroup_->Initialize("block", 10000);
+    // 床インスタンス
+    floorGroup_ = std::make_unique<InstancedGroup>();
+    floorGroup_->Initialize("block", 10000);
 
-	wallGroup_ = std::make_unique<InstancedGroup>();
-	wallGroup_->Initialize("block", 10000);
+    // 壁インスタンス
+    wallGroup_ = std::make_unique<InstancedGroup>();
+    wallGroup_->Initialize("block", 10000);
 
-	stairsGroup_ = std::make_unique<InstancedGroup>();
-	stairsGroup_->Initialize("block", 10000);
+    // 階段インスタンス
+    stairsGroup_ = std::make_unique<InstancedGroup>();
+    stairsGroup_->Initialize("block", 10000);
 
-	LoadAndCreateMap(currentMapFile_);
+    // マップ読み込み
+    LoadAndCreateMap(currentMapFile_);
 }
 
+// マップ読み込み＋生成
 void LevelEditor::LoadAndCreateMap(const std::string& fileName) {
-	levelData_ = LevelManager::GetInstance()->Load(fileName);
 
-	editWidth_ = levelData_.width;
-	editHeight_ = levelData_.height;
+    // 読み込み
+    levelData_ = LevelManager::GetInstance()->Load(fileName);
 
-	RebuildMapObjects();
+    // サイズ同期
+    editWidth_ = levelData_.width;
+    editHeight_ = levelData_.height;
 
-	mapChanged_ = true;
+    // オブジェクト再構築
+    RebuildMapObjects();
 
-	currentMapFile_ = fileName;
+    // 変更フラグ
+    mapChanged_ = true;
+
+    // 現在ファイル更新
+    currentMapFile_ = fileName;
 }
 
+// 配列サイズ調整
 void LevelEditor::ResizeObjectGrids() {
-	floorObjects_.resize(levelData_.height);
-	wallObjects_.resize(levelData_.height);
 
-	for (int z = 0; z < levelData_.height; ++z) {
-		floorObjects_[z].resize(levelData_.width);
-		wallObjects_[z].resize(levelData_.width);
-	}
+    // 行数確保
+    floorObjects_.resize(levelData_.height);
+    wallObjects_.resize(levelData_.height);
+
+    // 列数確保
+    for (int z = 0; z < levelData_.height; ++z) {
+        floorObjects_[z].resize(levelData_.width);
+        wallObjects_[z].resize(levelData_.width);
+    }
 }
+
+// マップ再構築
 void LevelEditor::RebuildMapObjects() {
-	ResizeObjectGrids();
 
-	for (int z = 0; z < levelData_.height; ++z) {
-		for (int x = 0; x < levelData_.width; ++x) {
-			UpdateTileObject(x, z);
-		}
-	}
+    // サイズ調整
+    ResizeObjectGrids();
+
+    // 全タイル更新
+    for (int z = 0; z < levelData_.height; ++z) {
+        for (int x = 0; x < levelData_.width; ++x) {
+            UpdateTileObject(x, z);
+        }
+    }
 }
 
+// 更新処理
 void LevelEditor::Update(const Vector3& playerPos) {
-	if (floorGroup_) floorGroup_->PreUpdate();
-	if (wallGroup_) wallGroup_->PreUpdate();
-	if (stairsGroup_) stairsGroup_->PreUpdate();
 
-	const float tileSize = levelData_.tileSize;
+    // インスタンス初期化
+    if (floorGroup_) floorGroup_->PreUpdate();
+    if (wallGroup_) wallGroup_->PreUpdate();
+    if (stairsGroup_) stairsGroup_->PreUpdate();
 
-	int centerX = static_cast<int>(std::round(playerPos.x / tileSize));
-	int centerZ = static_cast<int>(std::round(playerPos.z / tileSize));
+    const float tileSize = levelData_.tileSize;
 
-	// 表示範囲
-	const int range = 16;
+    // プレイヤー中心タイル
+    int centerX = static_cast<int>(std::round(playerPos.x / tileSize));
+    int centerZ = static_cast<int>(std::round(playerPos.z / tileSize));
 
-	int minX = std::max(0, centerX - range);
-	int maxX = std::min(levelData_.width - 1, centerX + range);
-	int minZ = std::max(0, centerZ - range);
-	int maxZ = std::min(levelData_.height - 1, centerZ + range);
+    // 描画範囲
+    const int range = 16;
 
-	for (int z = minZ; z <= maxZ; ++z) {
-		for (int x = minX; x <= maxX; ++x) {
+    int minX = std::max(0, centerX - range);
+    int maxX = std::min(levelData_.width - 1, centerX + range);
+    int minZ = std::max(0, centerZ - range);
+    int maxZ = std::min(levelData_.height - 1, centerZ + range);
 
-			// 床
-			if (floorObjects_[z][x]) {
-				floorObjects_[z][x]->Update();
-				floorGroup_->AddObject(floorObjects_[z][x].get());
-			}
+    // 範囲内だけ更新
+    for (int z = minZ; z <= maxZ; ++z) {
+        for (int x = minX; x <= maxX; ++x) {
 
-			// 壁・階段
-			if (wallObjects_[z][x]) {
-				wallObjects_[z][x]->Update();
+            // 床更新
+            if (floorObjects_[z][x]) {
+                floorObjects_[z][x]->Update();
+                floorGroup_->AddObject(floorObjects_[z][x].get());
+            }
 
-				int tile = levelData_.tiles[z][x];
-				if (tile == 1) {
-					wallGroup_->AddObject(wallObjects_[z][x].get());
-				} else if (tile == 3) {
-					stairsGroup_->AddObject(wallObjects_[z][x].get());
-				}
-			}
-		}
-	}
+            // 壁・階段更新
+            if (wallObjects_[z][x]) {
+                wallObjects_[z][x]->Update();
+
+                int tile = levelData_.tiles[z][x];
+                if (tile == 1) {
+                    wallGroup_->AddObject(wallObjects_[z][x].get());
+                } else if (tile == 3) {
+                    stairsGroup_->AddObject(wallObjects_[z][x].get());
+                }
+            }
+        }
+    }
 }
+
+// 描画
 void LevelEditor::Draw(const Vector3& playerPos) {
-	if (floorGroup_) floorGroup_->Draw(camera_);
-	if (wallGroup_) wallGroup_->Draw(camera_);
-	if (stairsGroup_) stairsGroup_->Draw(camera_);
+
+    // 床描画
+    if (floorGroup_) floorGroup_->Draw(camera_);
+
+    // 壁描画
+    if (wallGroup_) wallGroup_->Draw(camera_);
+
+    // 階段描画
+    if (stairsGroup_) stairsGroup_->Draw(camera_);
 }
+
+// デバッグUI
 void LevelEditor::DrawDebugUI() {
 #ifdef USE_IMGUI
-	if (isEditorActive) {
+    // エディタ有効時
+    if (isEditorActive) {
 
-		static int roomX = 1;
-		static int roomZ = 1;
-		static int roomWidth = 5;
-		static int roomHeight = 5;
+        // 部屋作成用
+        static int roomX = 1;
+        static int roomZ = 1;
+        static int roomWidth = 5;
+        static int roomHeight = 5;
 
-		ImGui::Begin("マップエディタ");
-		ImGui::Text("マップ切り替え");
+        ImGui::Begin("マップエディタ");
+        ImGui::Text("マップ切り替え");
 
-		if (ImGui::RadioButton("通常マップ(map01.json)", mapType_ == 0)) {
-			mapType_ = 0;
-			saveFileName_ = "map01.json";
-			LoadAndCreateMap("resources/map/map01.json");
-		}
-		ImGui::SameLine();
-		if (ImGui::RadioButton("ボス部屋(boss.json)", mapType_ == 1)) {
-			mapType_ = 1;
-			saveFileName_ = "boss.json";
-			LoadAndCreateMap("resources/map/boss.json");
+        // 通常マップ切り替え
+        if (ImGui::RadioButton("通常マップ(map01.json)", mapType_ == 0)) {
+            mapType_ = 0;
+            saveFileName_ = "map01.json";
+            LoadAndCreateMap("resources/map/map01.json");
+        }
+        ImGui::SameLine();
 
-		}
+        // ボスマップ切り替え
+        if (ImGui::RadioButton("ボス部屋(boss.json)", mapType_ == 1)) {
+            mapType_ = 1;
+            saveFileName_ = "boss.json";
+            LoadAndCreateMap("resources/map/boss.json");
+        }
 
-		ImGui::Separator();
+        ImGui::Separator();
 
+        // 保存名入力
+        char buffer[256];
+        strcpy_s(buffer, saveFileName_.c_str());
+        if (ImGui::InputText("保存ファイル名", buffer, sizeof(buffer))) {
+            saveFileName_ = buffer;
+        }
 
-		char buffer[256];
-		strcpy_s(buffer, saveFileName_.c_str());
-		if (ImGui::InputText("保存ファイル名", buffer, sizeof(buffer))) {
-			saveFileName_ = buffer;
-		}
+        // 保存パス
+        std::string fullPath = "resources/map/" + saveFileName_;
 
-		std::string fullPath = "resources/map/" + saveFileName_;
+        // 保存
+        if (ImGui::Button("マップを保存")) {
+            LevelManager::GetInstance()->Save(fullPath, levelData_);
+        }
+        ImGui::SameLine();
 
-		if (ImGui::Button("マップを保存")) {
-			LevelManager::GetInstance()->Save(fullPath, levelData_);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("マップを読み込む")) {
-			LoadAndCreateMap(fullPath);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("マップをクリア")) {
-			FillAllTiles(0);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("全部壁(1)で埋める")) {
-			FillAllTiles(1);
-		}
-		if (ImGui::Button("全部壁(0)で埋める")) {
-			FillAllTiles(0);
-		}
+        // 読み込み
+        if (ImGui::Button("マップを読み込む")) {
+            LoadAndCreateMap(fullPath);
+        }
+        ImGui::SameLine();
 
-		ImGui::Separator();
+        // クリア
+        if (ImGui::Button("マップをクリア")) {
+            FillAllTiles(0);
+        }
+        ImGui::SameLine();
 
-		ImGui::InputInt("幅", &editWidth_);
-		ImGui::InputInt("高さ", &editHeight_);
+        // 全部壁
+        if (ImGui::Button("全部壁(1)で埋める")) {
+            FillAllTiles(1);
+        }
 
-		if (editWidth_ < 1) { editWidth_ = 1; }
-		if (editHeight_ < 1) { editHeight_ = 1; }
+        // 全部床
+        if (ImGui::Button("全部壁(0)で埋める")) {
+            FillAllTiles(0);
+        }
 
-		if (ImGui::Button("サイズを反映")) {
-			levelData_.width = editWidth_;
-			levelData_.height = editHeight_;
+        ImGui::Separator();
 
-			levelData_.tiles.resize(levelData_.height);
-			for (auto& row : levelData_.tiles) {
-				row.resize(levelData_.width, 0);
-			}
+        // サイズ入力
+        ImGui::InputInt("幅", &editWidth_);
+        ImGui::InputInt("高さ", &editHeight_);
 
-			RebuildMapObjects();
-		}
+        // 最小補正
+        if (editWidth_ < 1) { editWidth_ = 1; }
+        if (editHeight_ < 1) { editHeight_ = 1; }
 
-		ImGui::Separator();
+        // サイズ反映
+        if (ImGui::Button("サイズを反映")) {
+            levelData_.width = editWidth_;
+            levelData_.height = editHeight_;
 
-		ImGui::Text("部屋作成");
+            levelData_.tiles.resize(levelData_.height);
+            for (auto& row : levelData_.tiles) {
+                row.resize(levelData_.width, 0);
+            }
 
-		ImGui::InputInt("部屋開始X", &roomX);
-		ImGui::InputInt("部屋開始Z", &roomZ);
-		ImGui::InputInt("部屋幅", &roomWidth);
-		ImGui::InputInt("部屋高さ", &roomHeight);
+            RebuildMapObjects();
+        }
 
-		if (roomWidth < 1) { roomWidth = 1; }
-		if (roomHeight < 1) { roomHeight = 1; }
+        ImGui::Separator();
 
-		if (ImGui::Button("部屋を作る")) {
-			CreateRoom(roomX, roomZ, roomWidth, roomHeight);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("中央に部屋を作る")) {
-			int autoRoomWidth = 6;
-			int autoRoomHeight = 6;
+        ImGui::Text("部屋作成");
 
-			int startX = (levelData_.width - autoRoomWidth) / 2;
-			int startZ = (levelData_.height - autoRoomHeight) / 2;
+        // 部屋入力
+        ImGui::InputInt("部屋開始X", &roomX);
+        ImGui::InputInt("部屋開始Z", &roomZ);
+        ImGui::InputInt("部屋幅", &roomWidth);
+        ImGui::InputInt("部屋高さ", &roomHeight);
 
-			CreateRoom(startX, startZ, autoRoomWidth, autoRoomHeight);
-		}
+        // 最小補正
+        if (roomWidth < 1) { roomWidth = 1; }
+        if (roomHeight < 1) { roomHeight = 1; }
 
-		static int randomRoomCount = 8;
+        // 部屋作成
+        if (ImGui::Button("部屋を作る")) {
+            CreateRoom(roomX, roomZ, roomWidth, roomHeight);
+        }
+        ImGui::SameLine();
 
-		ImGui::Separator();
-		ImGui::Text("ランダムダンジョン生成");
-		ImGui::InputInt("部屋数", &randomRoomCount);
-		if (randomRoomCount < 1) { randomRoomCount = 1; }
+        // 中央部屋作成
+        if (ImGui::Button("中央に部屋を作る")) {
+            int autoRoomWidth = 6;
+            int autoRoomHeight = 6;
 
-		if (ImGui::Button("部屋だけ生成")) {
-			if (dungeonGenerator_) {
-				dungeonGenerator_->GenerateRooms(levelData_, randomRoomCount);
-				RebuildMapObjects();
-			}
-		}
+            int startX = (levelData_.width - autoRoomWidth) / 2;
+            int startZ = (levelData_.height - autoRoomHeight) / 2;
 
-		ImGui::SameLine();
+            CreateRoom(startX, startZ, autoRoomWidth, autoRoomHeight);
+        }
 
-		if (ImGui::Button("部屋+通路生成")) {
-			GenerateRandomDungeon(randomRoomCount);
-		}
+        // ランダム部屋数
+        static int randomRoomCount = 8;
 
-		ImGui::Separator();
+        ImGui::Separator();
+        ImGui::Text("ランダムダンジョン生成");
 
-		ImGui::Text("配置タイル");
-		ImGui::RadioButton("床(0)", &selectedTile_, 0);
-		ImGui::SameLine();
-		ImGui::RadioButton("壁(1)", &selectedTile_, 1);
-		ImGui::SameLine();
-		ImGui::RadioButton("階段(3)", &selectedTile_, 3);
+        // 部屋数入力
+        ImGui::InputInt("部屋数", &randomRoomCount);
+        if (randomRoomCount < 1) { randomRoomCount = 1; }
 
-		ImGui::Separator();
+        // 部屋だけ生成
+        if (ImGui::Button("部屋だけ生成")) {
+            GenerateRandomDungeon(randomRoomCount);
+        }
 
-		if ((int)levelData_.tiles.size() != levelData_.height) {
-			levelData_.tiles.resize(levelData_.height);
-		}
-		for (auto& row : levelData_.tiles) {
-			if ((int)row.size() != levelData_.width) {
-				row.resize(levelData_.width, 0);
-			}
-		}
+        ImGui::SameLine();
 
-		ImGui::Text("グリッド編集");
+        // 部屋＋通路生成
+        if (ImGui::Button("部屋+通路生成")) {
+            GenerateRandomDungeon(randomRoomCount);
+        }
 
-		for (int viewZ = 0; viewZ < levelData_.height; ++viewZ) {
-			int dataZ = levelData_.height - 1 - viewZ;
+        ImGui::Separator();
 
-			for (int x = 0; x < levelData_.width; ++x) {
+        ImGui::Text("配置タイル");
 
-				int tile = levelData_.tiles[dataZ][x];
+        // 配置タイル選択
+        ImGui::RadioButton("床(0)", &selectedTile_, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("壁(1)", &selectedTile_, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("階段(3)", &selectedTile_, 3);
 
-				if (tile == 0) {
-					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 1.0f, 1.0f)); // 青
-				} else if (tile == 1) {
-					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.3f, 1.0f)); // 赤
-				} else if (tile == 3) {
-					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 1.0f, 1.0f, 1.0f)); // 水色
-				}
+        ImGui::Separator();
 
-				std::string label =
-					std::to_string(tile) +
-					"##" + std::to_string(dataZ) + "_" + std::to_string(x);
+        // 行数補正
+        if ((int)levelData_.tiles.size() != levelData_.height) {
+            levelData_.tiles.resize(levelData_.height);
+        }
 
-				if (ImGui::Button(label.c_str(), ImVec2(24, 24))) {
-					if (levelData_.tiles[dataZ][x] != selectedTile_) {
-						levelData_.tiles[dataZ][x] = selectedTile_;
-						UpdateTileObject(x, dataZ);
-					}
-				}
+        // 列数補正
+        for (auto& row : levelData_.tiles) {
+            if ((int)row.size() != levelData_.width) {
+                row.resize(levelData_.width, 0);
+            }
+        }
 
-				ImGui::PopStyleColor(); // 色戻す
+        ImGui::Text("グリッド編集");
 
-				if (x < levelData_.width - 1) {
-					ImGui::SameLine();
-				}
-			}
-		}
+        // グリッド表示
+        for (int viewZ = 0; viewZ < levelData_.height; ++viewZ) {
+            int dataZ = levelData_.height - 1 - viewZ;
 
-		ImGui::End();
-	}
+            for (int x = 0; x < levelData_.width; ++x) {
+
+                int tile = levelData_.tiles[dataZ][x];
+
+                // 床色
+                if (tile == 0) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 1.0f, 1.0f));
+                }
+                // 壁色
+                else if (tile == 1) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                }
+                // 階段色
+                else if (tile == 3) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 1.0f, 1.0f, 1.0f));
+                }
+
+                // ボタン名
+                std::string label =
+                    std::to_string(tile) +
+                    "##" + std::to_string(dataZ) + "_" + std::to_string(x);
+
+                // タイル変更
+                if (ImGui::Button(label.c_str(), ImVec2(24, 24))) {
+                    if (levelData_.tiles[dataZ][x] != selectedTile_) {
+                        levelData_.tiles[dataZ][x] = selectedTile_;
+                        UpdateTileObject(x, dataZ);
+                    }
+                }
+
+                ImGui::PopStyleColor();
+
+                // 横並び
+                if (x < levelData_.width - 1) {
+                    ImGui::SameLine();
+                }
+            }
+        }
+
+        ImGui::End();
+    }
 #endif
 }
 
+// 全タイル埋める
 void LevelEditor::FillAllTiles(int tileType) {
-	for (int z = 0; z < levelData_.height; ++z) {
-		for (int x = 0; x < levelData_.width; ++x) {
-			levelData_.tiles[z][x] = tileType;
-		}
-	}
+    if (!mapGenerator_) {
+        return;
+    }
 
-	RebuildMapObjects();
+    mapGenerator_->FillAllTiles(levelData_, tileType);
+    RebuildMapObjects();
 }
 
+// 部屋生成
 void LevelEditor::CreateRoom(int startX, int startZ, int roomWidth, int roomHeight) {
-	if (roomWidth <= 0 || roomHeight <= 0) {
-		return;
-	}
+    if (!mapGenerator_) {
+        return;
+    }
 
-	int endX = startX + roomWidth;
-	int endZ = startZ + roomHeight;
-
-	for (int z = startZ; z < endZ; ++z) {
-		for (int x = startX; x < endX; ++x) {
-			if (x < 0 || x >= levelData_.width || z < 0 || z >= levelData_.height) {
-				continue;
-			}
-
-			levelData_.tiles[z][x] = 0;
-		}
-	}
-
-	RebuildMapObjects();
+    mapGenerator_->CreateRoom(levelData_, startX, startZ, roomWidth, roomHeight);
+    RebuildMapObjects();
 }
 
+// ランダムダンジョン生成
 void LevelEditor::GenerateRandomDungeon(int roomCount) {
-	if (!dungeonGenerator_) {
-		dungeonGenerator_ = std::make_unique<DungeonGenerator>();
-	}
+    if (!mapGenerator_) {
+        return;
+    }
 
-	if (levelData_.width < 1 || levelData_.height < 1) {
-		return;
-	}
-
-	dungeonGenerator_->Generate(levelData_, roomCount);
-	RebuildMapObjects();
+    mapGenerator_->GenerateRandomDungeon(levelData_, roomCount);
+    RebuildMapObjects();
 }
 
+// プレイヤー初期位置取得
 Vector3 LevelEditor::GetRandomPlayerSpawnPosition(float y) {
-	if (!dungeonGenerator_) {
-		return { 0.0f, levelData_.baseY + y, 0.0f };
-	}
+    if (!mapGenerator_) {
+        return { 0.0f, levelData_.baseY + y, 0.0f };
+    }
 
-	return dungeonGenerator_->GetRandomRoomWorldPosition(levelData_, y);
+    return mapGenerator_->GetRandomPlayerSpawnPosition(levelData_, y);
 }
 
+// マップ中心座標取得
 Vector3 LevelEditor::GetMapCenterPosition(float y) const {
-	const float tileSize = levelData_.tileSize;
+    const float tileSize = levelData_.tileSize;
 
-	Vector3 pos;
-	pos.x = ((float)levelData_.width - 1.0f) * tileSize * 0.5f;
-	pos.y = levelData_.baseY + y;
-	pos.z = ((float)levelData_.height - 1.0f) * tileSize * 0.5f;
+    Vector3 pos;
+    pos.x = ((float)levelData_.width - 1.0f) * tileSize * 0.5f;
+    pos.y = levelData_.baseY + y;
+    pos.z = ((float)levelData_.height - 1.0f) * tileSize * 0.5f;
 
-	return pos;
+    return pos;
 }
 
+// マップ変更消費
 bool LevelEditor::ConsumeMapChanged() {
-	if (mapChanged_) {
-		mapChanged_ = false;
-		return true;
-	}
-	return false;
+    if (mapChanged_) {
+        mapChanged_ = false;
+        return true;
+    }
+    return false;
 }
 
-// LevelEditor.h の public: 内に追加
-
+// 通常マップ切り替え
 void LevelEditor::ChangeToNormalMap() {
-	mapType_ = 0;
-	currentMapFile_ = "resources/map/map01.json";
-	saveFileName_ = "map01.json";
-	LoadAndCreateMap(currentMapFile_);
+    mapType_ = 0;
+    currentMapFile_ = "resources/map/map01.json";
+    saveFileName_ = "map01.json";
+    LoadAndCreateMap(currentMapFile_);
 }
 
+// ボスマップ切り替え
 void LevelEditor::ChangeToBossMap() {
-	mapType_ = 1;
-	currentMapFile_ = "resources/map/boss.json";
-	saveFileName_ = "boss.json";
-	LoadAndCreateMap(currentMapFile_);
+    mapType_ = 1;
+    currentMapFile_ = "resources/map/boss.json";
+    saveFileName_ = "boss.json";
+    LoadAndCreateMap(currentMapFile_);
 }
 
+// タイル→ワールド座標変換
 Vector3 LevelEditor::GetTileWorldPosition(int x, int z, float y) const {
-	Vector3 pos;
-	pos.x = x * levelData_.tileSize;
-	pos.y = levelData_.baseY + y;
-	pos.z = z * levelData_.tileSize;
-	return pos;
+    if (!mapGenerator_) {
+        Vector3 pos;
+        pos.x = x * levelData_.tileSize;
+        pos.y = levelData_.baseY + y;
+        pos.z = z * levelData_.tileSize;
+        return pos;
+    }
+
+    return mapGenerator_->GetTileWorldPosition(levelData_, x, z, y);
 }
 
+// 階段ランダム配置
 void LevelEditor::PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoidDistance) {
-	std::vector<std::pair<int, int>> candidates;
+    if (!mapGenerator_) {
+        return;
+    }
 
-	for (int z = 0; z < levelData_.height; ++z) {
-		for (int x = 0; x < levelData_.width; ++x) {
-			if (levelData_.tiles[z][x] != 0) {
-				continue;
-			}
-
-			Vector3 worldPos = GetTileWorldPosition(x, z, 0.0f);
-
-			float dx = worldPos.x - avoidWorldPos.x;
-			float dz = worldPos.z - avoidWorldPos.z;
-			float dist = std::sqrt(dx * dx + dz * dz);
-
-			if (dist < avoidDistance) {
-				continue;
-			}
-
-			candidates.push_back({ x, z });
-		}
-	}
-
-	// 候補がなければ距離条件なしで 0 タイルから選ぶ
-	if (candidates.empty()) {
-		for (int z = 0; z < levelData_.height; ++z) {
-			for (int x = 0; x < levelData_.width; ++x) {
-				if (levelData_.tiles[z][x] == 0) {
-					candidates.push_back({ x, z });
-				}
-			}
-		}
-	}
-
-	if (candidates.empty()) {
-		return;
-	}
-
-	std::random_device rd;
-	std::mt19937 mt(rd());
-	std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
-
-	auto [tileX, tileZ] = candidates[dist(mt)];
-
-	levelData_.tiles[tileZ][tileX] = 3;
-	UpdateTileObject(tileX, tileZ);
+    mapGenerator_->PlaceStairsTileRandom(levelData_, avoidWorldPos, avoidDistance);
+    RebuildMapObjects();
 }
+
+// タイルオブジェクト更新
 void LevelEditor::UpdateTileObject(int x, int z) {
-	if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
+    if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
 
-	Model* model = ModelManager::GetInstance()->FindModel("block");
-	if (model == nullptr) return;
+    // モデル取得
+    Model* model = ModelManager::GetInstance()->FindModel("block");
+    if (model == nullptr) return;
 
-	const float tileSize = levelData_.tileSize;
-	const int tile = levelData_.tiles[z][x];
+    const float tileSize = levelData_.tileSize;
+    const int tile = levelData_.tiles[z][x];
 
-	// ==========================================
-// 床の処理 (タイルが0の時)
-// ==========================================
-	if (tile == 0) {
-		if (!floorObjects_[z][x]) {
-			floorObjects_[z][x] = std::make_unique<Obj3d>();
-			floorObjects_[z][x]->Initialize(model);
-			floorObjects_[z][x]->SetCamera(camera_);
-		}
-		Vector3 pos = { x * tileSize, levelData_.baseY, z * tileSize };
-		floorObjects_[z][x]->SetTranslation(pos);
-		floorObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
-		floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
+    // 床
+    if (tile == 0) {
+        if (!floorObjects_[z][x]) {
+            floorObjects_[z][x] = std::make_unique<Obj3d>();
+            floorObjects_[z][x]->Initialize(model);
+            floorObjects_[z][x]->SetCamera(camera_);
+        }
 
-		// ★ コメントアウトを外して、ここで1回だけ Update を呼ぶ！
-		floorObjects_[z][x]->Update();
-	}
+        Vector3 pos = { x * tileSize, levelData_.baseY, z * tileSize };
+        floorObjects_[z][x]->SetTranslation(pos);
+        floorObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
+        floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
 
-	// ==========================================
-	// 壁・階段の処理 (タイルが1 or 3の時)
-	// ==========================================
-	if (tile == 1 || tile == 3) {
-		if (!wallObjects_[z][x]) {
-			wallObjects_[z][x] = std::make_unique<Obj3d>();
-			wallObjects_[z][x]->Initialize(model);
-			wallObjects_[z][x]->SetCamera(camera_);
-		}
+        floorObjects_[z][x]->Update();
+    }
 
-		if (tile == 1) { // 壁
-			Vector3 pos = { x * tileSize, levelData_.baseY + tileSize, z * tileSize };
-			wallObjects_[z][x]->SetTranslation(pos);
-			wallObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
-		} else { // 階段
-			Vector3 pos = { x * tileSize, levelData_.baseY + 2.5f, z * tileSize };
-			wallObjects_[z][x]->SetTranslation(pos);
-			wallObjects_[z][x]->SetScale({ 1.0f, 2.0f, 1.0f });
-		}
+    // 壁 or 階段
+    if (tile == 1 || tile == 3) {
+        if (!wallObjects_[z][x]) {
+            wallObjects_[z][x] = std::make_unique<Obj3d>();
+            wallObjects_[z][x]->Initialize(model);
+            wallObjects_[z][x]->SetCamera(camera_);
+        }
 
-		// ★ ここにも追加！配置時に1回だけ Update を呼ぶ！
-		wallObjects_[z][x]->Update();
-	}
+        // 壁
+        if (tile == 1) {
+            Vector3 pos = { x * tileSize, levelData_.baseY + tileSize, z * tileSize };
+            wallObjects_[z][x]->SetTranslation(pos);
+            wallObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
+        }
+        // 階段
+        else {
+            Vector3 pos = { x * tileSize, levelData_.baseY + 2.5f, z * tileSize };
+            wallObjects_[z][x]->SetTranslation(pos);
+            wallObjects_[z][x]->SetScale({ 1.0f, 2.0f, 1.0f });
+        }
+
+        wallObjects_[z][x]->Update();
+    }
 }
+
+// 階段配置＋座標取得
 std::pair<int, int> LevelEditor::PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance) {
-	std::vector<std::pair<int, int>> candidates;
+    if (!mapGenerator_) {
+        return { -1, -1 };
+    }
 
-	for (int z = 1; z < levelData_.height - 1; ++z) {
-		for (int x = 1; x < levelData_.width - 1; ++x) {
-			if (levelData_.tiles[z][x] != 0) {
-				continue;
-			}
-
-			// 周囲1マス(3x3)が全部床(0)の場所だけ候補にする
-			bool allFloor = true;
-			for (int oz = -1; oz <= 1; ++oz) {
-				for (int ox = -1; ox <= 1; ++ox) {
-					if (levelData_.tiles[z + oz][x + ox] != 0) {
-						allFloor = false;
-						break;
-					}
-				}
-				if (!allFloor) {
-					break;
-				}
-			}
-
-			if (!allFloor) {
-				continue;
-			}
-
-			Vector3 worldPos = GetTileWorldPosition(x, z, 0.0f);
-
-			float dx = worldPos.x - avoidWorldPos.x;
-			float dz = worldPos.z - avoidWorldPos.z;
-			float dist = std::sqrt(dx * dx + dz * dz);
-
-			if (dist < avoidDistance) {
-				continue;
-			}
-
-			candidates.push_back({ x, z });
-		}
-	}
-
-	// 条件が厳しすぎて候補がない時の保険
-	if (candidates.empty()) {
-		for (int z = 0; z < levelData_.height; ++z) {
-			for (int x = 0; x < levelData_.width; ++x) {
-				if (levelData_.tiles[z][x] == 0) {
-					candidates.push_back({ x, z });
-				}
-			}
-		}
-	}
-
-	if (candidates.empty()) {
-		return { -1, -1 };
-	}
-
-	std::random_device rd;
-	std::mt19937 mt(rd());
-	std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
-
-	auto [tileX, tileZ] = candidates[dist(mt)];
-
-	levelData_.tiles[tileZ][tileX] = 3;
-	UpdateTileObject(tileX, tileZ);
-
-	return { tileX, tileZ };
+    auto result = mapGenerator_->PlaceStairsTileRandomAndGetTile(levelData_, avoidWorldPos, avoidDistance);
+    RebuildMapObjects();
+    return result;
 }
 
+// ノイズテクスチャ設定
 void LevelEditor::SetNoiseTexture(uint32_t index) {
-	noiseTextureIndex_ = index;
-	if (floorGroup_) floorGroup_->SetNoiseTexture(index);
-	if (wallGroup_) wallGroup_->SetNoiseTexture(index);
-	if (stairsGroup_) stairsGroup_->SetNoiseTexture(index);
+    noiseTextureIndex_ = index;
+    if (floorGroup_) floorGroup_->SetNoiseTexture(index);
+    if (wallGroup_) wallGroup_->SetNoiseTexture(index);
+    if (stairsGroup_) stairsGroup_->SetNoiseTexture(index);
 }
