@@ -52,12 +52,9 @@ void Enemy::Update() {
     if (isActionLocked_) {
         actionLockTimer_--;          // 残り時間を減らす
         if (actionLockTimer_ <= 0) {
-            isActionLocked_ = false; // 0になったらロック解除（動けるようになる）
+            isActionLocked_ = false; // 0になったらロック解除
         }
-
-        // 🌟超重要🌟
-        // ロック中はこの下の「移動」や「攻撃」の処理を一切やらずにここで終わる！
-        return;
+        return;                      // ロック中は他の処理しない
     }
 
     if (cardCooldownTimer_ > 0) {
@@ -141,6 +138,7 @@ void Enemy::Update() {
 
 
 
+
 void Enemy::Freeze(int durationFrames) {
     isFrozen_ = true;
     freezeTimer_ = durationFrames;
@@ -199,13 +197,13 @@ void Enemy::DecideNextState() {
         return;
     }
 
-    // 拾ったカードを持っていない場合は、基本カード（パンチカード）で戦う
-    if (playerDist <= cardUseEnterRange_) {
+    // 拾ったカードを持っていない場合は、近くのカードを優先して拾いに行く
+    if (hasTargetCard_) {
+        state_ = State::MoveToCard;
+    } else if (playerDist <= cardUseEnterRange_) {
         state_ = State::UseCard;
     } else if (playerDist <= chaseRange_) {
         state_ = State::ChasePlayer;
-    } else if (hasTargetCard_) {
-        state_ = State::MoveToCard;
     } else {
         state_ = State::Patrol;
     }
@@ -288,7 +286,7 @@ void Enemy::UpdateUseCard() {
         return;
     }
 
-    // 詠唱中
+    // 詠唱中はその場で止まる
     if (castTimer_ > 0) {
         castTimer_--;
         return;
@@ -321,6 +319,9 @@ void Enemy::UpdateUseCard() {
         ClearPickupCard();
     }
 
+    // 発動後の硬直
+    SetActionLock(15);
+
     // 使用後の行動
     if (usedPickupCard) {
         state_ = State::Retreat;
@@ -329,7 +330,6 @@ void Enemy::UpdateUseCard() {
     }
 
     thinkTimer_ = 15;
-    SetActionLock(15);
 }
 
 void Enemy::UpdateRetreat() {

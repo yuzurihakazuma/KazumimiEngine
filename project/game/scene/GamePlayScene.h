@@ -151,6 +151,12 @@ private: // メンバ変数
 	//カード使用の処理
 	void UpdateCardUse(Input *input);
 
+	// ポーズ画面の更新
+	void UpdatePause(Input* input);
+
+	// ポーズ画面の描画
+	void DrawPauseUI();
+
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
 	// 敵スポーンの処理
@@ -224,4 +230,10 @@ private: // メンバ変数
 	bool isCardReady_ = false;       // 現在カードを構えているか
 	Card readiedCard_{};             // 構えているカードの情報
 	int cardReadyTimer_ = 0;         // 構えていられる残り時間
+
+	// ポーズ画面関連
+	bool isPaused_ = false;                  // ポーズ中かどうか
+	int pauseSelection_ = 0;                 // 0: Resume  1: Title
+
+	std::unique_ptr<Sprite> pauseBgSprite_ = nullptr; // ポーズ中の半透明背景
 };
