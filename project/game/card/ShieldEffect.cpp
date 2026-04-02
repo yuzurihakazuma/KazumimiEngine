@@ -1,5 +1,6 @@
 ﻿#include "ShieldEffect.h"
 #include "game/player/Player.h"
+#include "game/enemy/EnemyManager.h"
 
 void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
 	// 誰が使ったか（プレイヤーか敵か）を保存
@@ -19,7 +20,7 @@ void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlaye
 	}
 }
 
-void ShieldEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enmeyPos, const Vector3 &bossPos, const LevelData &level) {
+void ShieldEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enmeyPos, const Vector3 &bossPos, const LevelData &level) {
 
 	// すでに演出が終わっている場合は何もせずに返す
 	if (isFinished_) {

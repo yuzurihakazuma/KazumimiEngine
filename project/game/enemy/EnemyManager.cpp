@@ -1,77 +1,261 @@
 #include "game/enemy/EnemyManager.h"
+#include "game/enemy/Boss.h"
+#include "game/player/Player.h"
 #include "game/spawn/SpawnManager.h"
-#include "engine/utils/Level/LevelEditor.h" 
 #include "game/card/CardUseSystem.h" 
+#include "game/card/CardPickupManager.h"
+#include "game/card/CardDatabase.h"
+#include "engine/utils/Level/LevelEditor.h" 
+#include "engine/math/VectorMath.h"
+#include "Minimap.h"
+
+
 #include <cmath>
 #include <algorithm>
+
+using namespace VectorMath;
 
 
 void EnemyManager::Initialize() {
 	enemies_.clear();
 }
 
-void EnemyManager::Update(Player *player) {
-	// ★変更：auto を使わず、i を使って回す形にします（頭脳と見た目をペアで扱うため）
+void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, LevelEditor *levelEditor,Boss *boss) {
+	if (!player || !cardPickupManager || !levelEditor) return;
+
+	Vector3 targetPos = player->GetPosition();
+	const LevelData &level = levelEditor->GetLevelData();
+
+	// 敵全員分ループ
 	for (size_t i = 0; i < enemies_.size(); ++i) {
+		auto &enemy = enemies_[i];
+		if (!enemy || enemy->IsDead()) {
+			continue;
+		}
 
-		// ① 頭脳（Enemy）の更新
-		enemies_[i]->Update();
+		// --- ① 移動前の座標を保存 ---
+		Vector3 oldEnemyPos = enemy->GetPosition();
 
-		// ② 見た目（Obj3d）を頭脳の座標に合わせて動かす＆更新する！
+		// --- ② プレイヤーの位置を教える ---
+		enemy->SetPlayerPosition(targetPos);
+
+		// --- ③ 近くに落ちているカードを探す（引数のcardPickupManagerを使う） ---
+		bool foundCard = false;
+		Vector3 nearestCardPos{};
+		float nearestCardDist = 99999.0f;
+
+		for (auto &pickup : cardPickupManager->GetPickups()) {
+			if (!pickup.isActive) continue;
+			Vector3 diff = { pickup.position.x - oldEnemyPos.x, 0.0f, pickup.position.z - oldEnemyPos.z };
+			float dist = Length(diff);
+			if (dist < 6.0f && dist < nearestCardDist) {
+				nearestCardDist = dist;
+				nearestCardPos = pickup.position;
+				foundCard = true;
+			}
+		}
+
+		// --- ④ AI更新 ---
+		enemy->SetCardTarget(foundCard, nearestCardPos);
+		enemy->Update();
+
+		if (enemy->IsDead() && !enemyDeadHandled_[i]) {
+			if (player) {
+				player->AddExp(1);
+			}
+			if (enemy->HasPickupCard()) {
+				cardPickupManager->AddPickup(enemy->GetPosition(), enemy->GetPickupCard());
+				enemy->ClearPickupCard();
+			}
+			enemyDeadHandled_[i] = true;
+		}
+
+		// --- ⑤ 壁との衝突判定（引数のlevelを使う） ---
+		Vector3 enemyPos = enemy->GetPosition();
+		AABB enemyAABB;
+		enemyAABB.min = { enemyPos.x - 0.5f, enemyPos.y - 0.5f, enemyPos.z - 0.5f };
+		enemyAABB.max = { enemyPos.x + 0.5f, enemyPos.y + 0.5f, enemyPos.z + 0.5f };
+
+		int enemyGridX = static_cast<int>(std::round(enemyPos.x / level.tileSize));
+		int enemyGridZ = static_cast<int>(std::round(enemyPos.z / level.tileSize));
+		int eStartX = (std::max)(0, enemyGridX - 1);
+		int eEndX = (std::min)(level.width - 1, enemyGridX + 1);
+		int eStartZ = (std::max)(0, enemyGridZ - 1);
+		int eEndZ = (std::min)(level.height - 1, enemyGridZ + 1);
+
+		bool isEnemyHit = false;
+		for (int z = eStartZ; z <= eEndZ && !isEnemyHit; z++) {
+			for (int x = eStartX; x <= eEndX; x++) {
+				if (level.tiles[z][x] != 1) {
+					continue;
+				}
+
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				if (Collision::IsCollision(enemyAABB, blockAABB)) {
+					enemy->SetPosition(oldEnemyPos);
+					isEnemyHit = true;
+					break;
+				}
+			}
+		}
+
+		// --- ⑥ 見た目（3Dモデル）に座標を反映 ---
 		if (enemyObjs_[i]) {
-			enemyObjs_[i]->SetTranslation(enemies_[i]->GetPosition());
-			enemyObjs_[i]->SetRotation(enemies_[i]->GetRotation());
-			enemyObjs_[i]->SetScale(enemies_[i]->GetScale());
-
-			// これが超重要です！毎フレームこれを呼ばないと画面に出ません！
+			enemyObjs_[i]->SetTranslation(enemy->GetPosition());
+			enemyObjs_[i]->SetRotation(enemy->GetRotation());
 			enemyObjs_[i]->Update();
+		}
+		// 敵が「カードを使いたい！」と合図を出した時の処理
+		if (enemy->GetCardUseRequest()) {
+			if (enemyCardSystems_[i]) {
+				enemyCardSystems_[i]->UseCard(
+					enemy->GetCurrentUseCard(),
+					enemy->GetPosition(),
+					enemy->GetRotation().y,
+					false // プレイヤーではないので false
+				);
+			}
+			// 合図を出したらリセットする
+			enemy->ClearCardUseRequest();
+		}
+
+		// 敵の魔法を毎フレーム動かす（飛んでいる弾などの処理）
+		if (enemyCardSystems_[i]) {
+			// CardUseSystem が EnemyManager を要求するようになったので "this"（自分自身）を渡す！
+			enemyCardSystems_[i]->Update(
+				player,
+				this,      // EnemyManager 自身を渡す
+				nullptr,   // ボスのポインタ（雑魚同士やボスに当たらないなら nullptr でOK）
+				player->GetPosition(),
+				enemy->GetPosition(),
+				{ 0.0f, 0.0f, 0.0f }, // bossPos
+				levelEditor->GetLevelData()
+			);
+		}
+
+		// 敵がカードを拾う処理（復活！）
+		if (!enemy->HasPickupCard()) {
+			for (auto &pickup : cardPickupManager->GetPickups()) {
+				if (!pickup.isActive) continue;
+
+				Vector3 ePos = enemy->GetPosition();
+				Vector3 diff = {
+					ePos.x - pickup.position.x,
+					ePos.y - pickup.position.y,
+					ePos.z - pickup.position.z
+				};
+
+				// 距離が近ければ拾う
+				if (Length(diff) < 2.0f) {
+					Card pickedCard = pickup.card;
+					// 敵が使えないカードなら、使えるカードにすり替える
+					if (!pickedCard.canEnemyUse) {
+						pickedCard = CardDatabase::GetRandomEnemyUsableCard();
+					}
+					enemy->SetPickupCard(pickedCard);
+					pickup.isActive = false; // マップ上からカードを消す
+					break; // 1度に拾うのは1枚だけ
+				}
+			}
+		}
+	}
+	// =========================================================
+	// ボスとの押し出し判定
+	// =========================================================
+	if (boss && !boss->IsDead()) {
+		Vector3 bossPos = boss->GetPosition();
+		float bossRadius = 3.0f; // ボスの大きさ（適宜調整してください）
+
+		for (auto &enemy : enemies_) {
+			if (enemy && !enemy->IsDead()) {
+				Vector3 enemyPos = enemy->GetPosition();
+				float enemyRadius = 1.0f;
+
+				Vector3 diff = { enemyPos.x - bossPos.x, 0.0f, enemyPos.z - bossPos.z };
+				float dist = Length(diff);
+				float pushRange = bossRadius + enemyRadius;
+
+				if (dist > 0.01f && dist < pushRange) {
+					Vector3 pushDir = Normalize(diff);
+					float pushAmount = pushRange - dist;
+					enemyPos.x += pushDir.x * pushAmount;
+					enemyPos.z += pushDir.z * pushAmount;
+					enemy->SetPosition(enemyPos);
+				}
+			}
+		}
+	}
+}
+
+
+void EnemyManager::Draw(Camera *camera, Minimap *minimap) {
+	std::vector<Vector3> enemyPositions;
+
+	// 1. 敵の見た目（3Dモデル）の描画 ＆ ミニマップ用の座標集め
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		if (enemies_[i] && !enemies_[i]->IsDead()) {
+			// 生きている敵だけモデルを描画する
+			if (enemyObjs_[i]) {
+				enemyObjs_[i]->Draw(); // ※引数が必要な場合は camera を渡す
+			}
+			// ミニマップ用の座標を保存
+			enemyPositions.push_back(enemies_[i]->GetPosition());
 		}
 	}
 
-	//// HPが0になって死んだ敵を、リストから自動的に削除する魔法のコード！
-	//enemies_.erase(std::remove_if(enemies_.begin(), enemies_.end(),
-	//	[](const std::unique_ptr<Enemy> &e) { return e->IsDead(); }), 
-	//	enemies_.end());
-}
-
-void EnemyManager::Draw(Camera *camera) {
-	// 敵の見た目（3Dモデル）を描画する！
-	for (const auto &obj : enemyObjs_) {
-		if (obj) {
-			obj->Draw(); // ※引数にcameraが必要な場合は obj->Draw(camera); にしてください
+	// 2. 魔法（カード効果）の描画
+	for (auto &cardSystem : enemyCardSystems_) {
+		if (cardSystem) {
+			cardSystem->Draw();
 		}
+	}
+
+	// 3. ミニマップへ座標を渡す
+	if (minimap) {
+		minimap->SetEnemyPositions(enemyPositions);
 	}
 }
 
 void EnemyManager::SpawnBossMinions(int spawnCount, const Vector3 &summonCenter, Camera *camera) {
-	const int kMaxMinions = 5;
-	int currentEnemies = static_cast<int>(enemies_.size());
-	int availableSpace = kMaxMinions - currentEnemies;
-
-	if (availableSpace <= 0) {
-		return;
+	// 現在「生きている雑魚敵」の数を数える
+	int aliveCount = 0;
+	for (const auto &enemy : enemies_) {
+		if (enemy && !enemy->IsDead()) {
+			aliveCount++;
+		}
 	}
 
-	int actualSpawnCount = std::min(spawnCount, availableSpace);
-	float radius = 4.0f; // ボスからの距離
+	// 上限の設定
+	int maxMinions = 5; // 出したい上限の数
+	if (aliveCount >= maxMinions) {
+		return; // すでに上限まで生きているなら、召喚をキャンセル！
+	}
 
+	// 今回実際に召喚する数を計算（要求数か、上限までの空き枠の少ない方）
+	int actualSpawnCount = std::min(spawnCount, maxMinions - aliveCount);
+
+	// 4. 実際に召喚する処理
+	float angleStep = 3.14159f * 2.0f / actualSpawnCount;
 	for (int i = 0; i < actualSpawnCount; ++i) {
-		// ボスの周りに円形に配置する計算
-		float angle = (360.0f / actualSpawnCount) * i;
-		float radian = angle * (3.14159f / 180.0f);
+		float angle = angleStep * i;
+		float radius = 4.0f;
 		Vector3 spawnPos = {
-			summonCenter.x + std::sinf(radian) * radius,
+			summonCenter.x + std::sin(angle) * radius,
 			summonCenter.y,
-			summonCenter.z + std::cosf(radian) * radius
+			summonCenter.z + std::cos(angle) * radius
 		};
 
-		// ① 敵の本体を生成
+		// 敵の本体を生成
 		auto newEnemy = std::make_unique<Enemy>();
 		newEnemy->Initialize();
 		newEnemy->SetPosition(spawnPos);
-		enemies_.push_back(std::move(newEnemy));
 
-		// ② 敵の3Dモデルを生成
+		// 敵の見た目（3Dモデル）を生成
 		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));
 		if (enemyObj) {
 			enemyObj->SetCamera(camera);
@@ -79,15 +263,16 @@ void EnemyManager::SpawnBossMinions(int spawnCount, const Vector3 &summonCenter,
 			enemyObj->SetScale({ 1.0f, 1.0f, 1.0f });
 			enemyObj->Update();
 		}
+
+		// 敵の魔法システムを生成
+		auto enemyCardSystem = std::make_unique<CardUseSystem>();
+		enemyCardSystem->Initialize(camera);
+
+		// リストに追加
+		enemies_.push_back(std::move(newEnemy));
 		enemyObjs_.push_back(std::move(enemyObj));
-
-		// ③ 死亡処理フラグを追加
+		enemyCardSystems_.push_back(std::move(enemyCardSystem));
 		enemyDeadHandled_.push_back(false);
-
-		// ④ 魔法システムを生成 (※CardUseSystemの準備ができていればコメント解除してください)
-		/* auto enemyCardSystem = std::make_unique<CardUseSystem>();
-		 enemyCardSystem->Initialize(camera);
-		 enemyCardSystems_.push_back(std::move(enemyCardSystem));*/
 	}
 }
 
@@ -159,8 +344,9 @@ void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *
 		int tileX = filtered[i].first;
 		int tileZ = filtered[i].second;
 
+		float mapY = level.baseY + 1.0f;
 		// spawnManager-> に変更
-		Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
+		Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, mapY);
 
 		auto enemy = std::make_unique<Enemy>();
 		enemy->Initialize();
@@ -182,5 +368,40 @@ void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *
 		enemyObjs_.push_back(std::move(enemyObj));
 		enemyDeadHandled_.push_back(false);
 		enemyCardSystems_.push_back(std::move(enemyCardSystem));
+	}
+}
+
+void EnemyManager::Clear() {
+	enemies_.clear();
+	enemyObjs_.clear();
+	enemyCardSystems_.clear(); 
+	enemyDeadHandled_.clear();
+}
+
+void EnemyManager::CheckCollisions(Player *player) {
+	if (!player || player->IsDead()) {
+		return;
+	}
+
+	// 1. プレイヤーの当たり判定
+	Vector3 pPos = player->GetPosition();
+	AABB playerAABB;
+	playerAABB.min = { pPos.x - 0.5f, pPos.y - 0.5f, pPos.z - 0.5f };
+	playerAABB.max = { pPos.x + 0.5f, pPos.y + 0.5f, pPos.z + 0.5f };
+
+	// 2. 敵との接触判定
+	for (auto &enemy : enemies_) {
+		if (!enemy || enemy->IsDead()) continue;
+
+		Vector3 ePos = enemy->GetPosition();
+		AABB enemyAABB;
+		enemyAABB.min = { ePos.x - 0.5f, ePos.y - 0.5f, ePos.z - 0.5f };
+		enemyAABB.max = { ePos.x + 0.5f, ePos.y + 0.5f, ePos.z + 0.5f };
+
+		// 体と体がぶつかったら
+		if (Collision::IsCollision(enemyAABB, playerAABB)) {
+			// 例：プレイヤーに接触ダメージ（必要であれば）
+			// player->TakeDamage(1);
+		}
 	}
 }
