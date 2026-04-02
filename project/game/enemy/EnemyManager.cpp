@@ -7,7 +7,7 @@
 #include "game/card/CardDatabase.h"
 #include "engine/utils/Level/LevelEditor.h" 
 #include "engine/math/VectorMath.h"
-#include "Minimap.h"
+#include "game/map/Minimap.h"
 
 
 #include <cmath>
