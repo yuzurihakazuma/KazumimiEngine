@@ -1,0 +1,55 @@
+#pragma once
+#define NOMINMAX
+#include "game/enemy/Enemy.h"
+#include "engine/3d/obj/Obj3d.h"
+#include <vector>
+#include <memory>
+
+class Player;
+class Camera;
+class SpawnManager;
+class LevelEditor;
+class CardUseSystem;
+class CardPickupManager;
+class Boss;
+class Minimap;
+
+class EnemyManager {
+public:
+
+	// 初期化
+	void Initialize();
+
+	// 更新
+	void Update(Player *player, CardPickupManager *cardPickupManager, LevelEditor *levelEditor,Boss *boss);
+
+	// 描画
+	void Draw(Camera *camera, Minimap *minimap = nullptr);
+
+	// ボスの雑魚敵召喚
+	void SpawnBossMinions(int spawnCount, const Vector3 &summonCenter, Camera *camera);
+
+	// 通常の敵をランダムに配置する
+	void SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *spawnManager, LevelEditor *levelEditor, const Vector3 &playerPos, Camera *camera);
+
+	// 全ての敵を消す
+	void Clear();
+
+	// 当たり判定のチェック
+	void CheckCollisions(Player *player);
+
+	// 敵のリストを取得
+	const std::vector<std::unique_ptr<Enemy>> &GetEnemies() const { return enemies_; }
+
+private:
+
+	// 敵のリスト
+	std::vector<std::unique_ptr<Enemy>> enemies_;
+	std::vector<std::unique_ptr<Obj3d>> enemyObjs_;
+	std::vector<bool> enemyDeadHandled_;
+
+
+	// 魔法システムのリストもこちらで持つ
+	std::vector<std::unique_ptr<CardUseSystem>> enemyCardSystems_;
+};
+

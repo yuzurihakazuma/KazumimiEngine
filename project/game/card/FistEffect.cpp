@@ -3,6 +3,7 @@
 #include "game/player/Player.h"
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
+#include "game/enemy/EnemyManager.h"
 #include "engine/math/VectorMath.h"
 #include <memory>
 #include <cmath>
@@ -41,7 +42,7 @@ void FistEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 	}
 }
 
-void FistEffect::Update(Player* player, Enemy* enemy, Boss* boss,
+void FistEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
 
 	// 終了済みなら何もしない
@@ -65,23 +66,25 @@ void FistEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 
 	// プレイヤーが使った攻撃
 	if (isPlayerCaster_) {
+		if (enemyManager) {
+			for (auto &enemy : enemyManager->GetEnemies()) {
+				// 雑魚敵への判定
+				if (enemy && !enemy->IsDead()) {
+					// Y軸を無視してXZ平面で距離判定する
+					Vector3 diff = {
+						enemyPos.x - pos_.x,
+						0.0f,
+						enemyPos.z - pos_.z
+					};
 
-		// 雑魚敵への判定
-		if (enemy && !enemy->IsDead()) {
-			// Y軸を無視してXZ平面で距離判定する
-			Vector3 diff = {
-				enemyPos.x - pos_.x,
-				0.0f,
-				enemyPos.z - pos_.z
-			};
-
-			if (Length(diff) < 2.0f) {
-				enemy->TakeDamage(1);
-				isFinished_ = true;
-				return;
+					if (Length(diff) < 2.0f) {
+						enemy->TakeDamage(1);
+						isFinished_ = true;
+						return;
+					}
+				}
 			}
 		}
-
 		// ボスへの判定
 		if (boss && !boss->IsDead()) {
 			// ボスは大きいので少し広めに取る
@@ -113,10 +116,7 @@ void FistEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 			if (Length(diff) < 2.0f) {
 				int damage = 1;
 
-				// 攻撃力低下中ならダメージを下げる
-				if (enemy && enemy->IsAttackDebuffed()) {
-					damage = 0;
-				} else if (boss && boss->IsAttackDebuffed()) {
+				if (boss && boss->IsAttackDebuffed()) {
 					damage = 0;
 				}
 

@@ -20,7 +20,7 @@ void DecoyEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayer
 
 }
 
-void DecoyEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void DecoyEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
 	if (isFinished_) {
 		return;
 	}

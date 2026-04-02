@@ -15,6 +15,7 @@ class Obj3d;
 class Player;
 class Enemy;
 class Boss;
+class EnemyManager;
 
 // カード使用システム
 class CardUseSystem {
@@ -23,7 +24,7 @@ public:
 	void Initialize(Camera* camera);
 
 	// 更新
-	void Update(Player* player, Enemy* enemy, Boss* boss,
+	void Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 		const Vector3& playerPos,
 		const Vector3& enemyPos,
 		const Vector3& bossPos,

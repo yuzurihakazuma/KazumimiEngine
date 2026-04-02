@@ -34,6 +34,7 @@ class Enemy;
 class CardUseSystem;
 class Boss;
 class Minimap;
+class EnemyManager;
 
 // ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -108,17 +109,15 @@ private: // メンバ変数
 
 	CardPickupManager cardPickupManager_;
 
+	// カード
 	std::unique_ptr<CardUseSystem> playerCardSystem_ = nullptr;
-	std::vector<std::unique_ptr<CardUseSystem>> enemyCardSystems_;
 	std::unique_ptr<CardUseSystem> bossCardSystem_ = nullptr;
 
 	// スポーンマネージャー
 	SpawnManager spawnManager_;
 
-	// 敵関連
-	std::vector<std::unique_ptr<Enemy>> enemies_;
-	std::vector<std::unique_ptr<Obj3d>> enemyObjs_;
-	std::vector<bool> enemyDeadHandled_;
+	
+	std::unique_ptr<EnemyManager> enemyManager_;
 
 	// ボス関連
 	std::unique_ptr<Boss> boss_ = nullptr;
@@ -159,8 +158,7 @@ private: // メンバ変数
 
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
-	// 敵スポーンの処理
-	void SpawnEnemiesRandom(int enemyCount, int margin);
+	
 	// カードスポーンの処理
 	void SpawnCardsRandom(int cardCount, int margin);
 

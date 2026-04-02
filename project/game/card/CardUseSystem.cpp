@@ -7,6 +7,7 @@
 #include "game/player/Player.h"
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
+#include "game/enemy/EnemyManager.h"
 #include "engine/math/VectorMath.h"
 #include "game/card/FireballEffect.h"
 #include "game/card/FistEffect.h"
@@ -57,13 +58,13 @@ void CardUseSystem::Initialize(Camera* camera) {
 }
 
 // 更新
-void CardUseSystem::Update(Player* player, Enemy* enemy, Boss* boss,
+void CardUseSystem::Update(Player* player, EnemyManager* enemyManager, Boss* boss,
 	const Vector3& playerPos, const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
 
 	// システム（クラス化した魔法）の更新・お掃除処理
 	for (auto it = activeEffects_.begin(); it != activeEffects_.end(); ) {
 		// リストの中の魔法を更新
-		(*it)->Update(player, enemy, boss, enemyPos, bossPos, level);
+		(*it)->Update(player, enemyManager, boss, enemyPos, bossPos, level);
 
 		// もし終わっていたらリストから削除
 		if ((*it)->IsFinished()) {

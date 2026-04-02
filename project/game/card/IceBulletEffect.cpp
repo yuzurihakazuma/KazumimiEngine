@@ -2,6 +2,7 @@
 #include "game/player/Player.h"
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
+#include "game/enemy/EnemyManager.h"
 #include "engine/math/VectorMath.h"
 #include "engine/collision/Collision.h"
 #include <cmath>
@@ -40,7 +41,7 @@ void IceBulletEffect::Start(const Vector3& casterPos, float casterYaw, bool isPl
 	}
 }
 
-void IceBulletEffect::Update(Player* player, Enemy* enemy, Boss* boss,
+void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
 
 	// 終了済みなら何もしない
@@ -59,19 +60,23 @@ void IceBulletEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 
 	// プレイヤーが使った場合
 	if (isPlayerCaster_) {
-		// 雑魚敵への判定
-		if (enemy && !enemy->IsDead()) {
-			Vector3 diff = {
-				enemyPos.x - pos_.x,
-				0.0f,
-				enemyPos.z - pos_.z
-			};
+		if (enemyManager) {
+			for (auto &enemy : enemyManager->GetEnemies()) {
+				// 雑魚敵への判定
+				if (enemy && !enemy->IsDead()) {
+					Vector3 diff = {
+						enemyPos.x - pos_.x,
+						0.0f,
+						enemyPos.z - pos_.z
+					};
 
-			if (Length(diff) < 1.5f) {
-				enemy->TakeDamage(2);
-				enemy->Freeze(300);
-				isFinished_ = true;
-				return;
+					if (Length(diff) < 1.5f) {
+						enemy->TakeDamage(2);
+						enemy->Freeze(300);
+						isFinished_ = true;
+						return;
+					}
+				}
 			}
 		}
 
@@ -112,10 +117,7 @@ void IceBulletEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 			if (Length(diff) < 1.5f) {
 				int damage = 2;
 
-				// 攻撃力低下中ならダメージを下げる
-				if (enemy && enemy->IsAttackDebuffed()) {
-					damage = 1;
-				} else if (boss && boss->IsAttackDebuffed()) {
+				if (boss && boss->IsAttackDebuffed()) {
 					damage = 1;
 				}
 

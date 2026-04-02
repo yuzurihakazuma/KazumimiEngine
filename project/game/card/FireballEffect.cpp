@@ -5,6 +5,7 @@
 #include "game/enemy/Boss.h"
 #include "engine/math/VectorMath.h"
 #include "engine/collision/Collision.h"
+#include "game/enemy/EnemyManager.h"
 #include <memory>
 #include <cmath>
 
@@ -46,7 +47,7 @@ void FireballEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
 	}
 }
 
-void FireballEffect::Update(Player* player, Enemy* enemy, Boss* boss,
+void FireballEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
 
 	// 終了済みなら何もしない
@@ -65,20 +66,23 @@ void FireballEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 
 	// プレイヤーが使った弾
 	if (isPlayerCaster_) {
+		if (enemyManager) {
+			for (auto &enemy : enemyManager->GetEnemies()) {
+				// 雑魚敵への判定
+				if (enemy && !enemy->IsDead()) {
+					// Y軸を無視してXZ平面で距離判定する
+					Vector3 diff = {
+						enemyPos.x - pos_.x,
+						0.0f,
+						enemyPos.z - pos_.z
+					};
 
-		// 雑魚敵への判定
-		if (enemy && !enemy->IsDead()) {
-			// Y軸を無視してXZ平面で距離判定する
-			Vector3 diff = {
-				enemyPos.x - pos_.x,
-				0.0f,
-				enemyPos.z - pos_.z
-			};
-
-			if (Length(diff) < 1.8f) {
-				enemy->TakeDamage(1);
-				isFinished_ = true;
-				return;
+					if (Length(diff) < 1.8f) {
+						enemy->TakeDamage(1);
+						isFinished_ = true;
+						return;
+					}
+				}
 			}
 		}
 
@@ -119,10 +123,7 @@ void FireballEffect::Update(Player* player, Enemy* enemy, Boss* boss,
 			if (Length(diff) < 1.5f) {
 				int damage = 3;
 
-				// 攻撃力低下中ならダメージを下げる
-				if (enemy && enemy->IsAttackDebuffed()) {
-					damage = 1;
-				} else if (boss && boss->IsAttackDebuffed()) {
+				if (boss && boss->IsAttackDebuffed()) {
 					damage = 1;
 				}
 
