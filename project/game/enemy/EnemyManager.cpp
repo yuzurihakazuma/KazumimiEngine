@@ -303,8 +303,9 @@ void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *
 		// 階段本体 + 周囲1マス禁止（※IsNearStairsTileの処理は、必要ならEnemyManagerに持ってくるか、SpawnManagerに移動させると良いです。今回は一旦コメントアウトか簡易的な判定にします）
 		// if (IsNearStairsTile(x, z)) { continue; } 
 
+		// マップの範囲内かチェック
 		if (x >= 0 && x < level.width && z >= 0 && z < level.height) {
-			if (level.tiles[z][x] == 3) {
+			if (level.tiles[z][x] != 0) {
 				continue;
 			}
 		}
@@ -344,9 +345,9 @@ void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *
 		int tileX = filtered[i].first;
 		int tileZ = filtered[i].second;
 
-		float mapY = level.baseY + 1.0f;
+		
 		// spawnManager-> に変更
-		Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, mapY);
+		Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ,0.0f);
 
 		auto enemy = std::make_unique<Enemy>();
 		enemy->Initialize();

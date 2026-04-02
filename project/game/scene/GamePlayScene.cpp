@@ -519,9 +519,7 @@ void GamePlayScene::Update() {
 		boss_->ClearSummonRequest();
 	}
 
-	// =========================
-	// 敵 → プレイヤー
-	// =========================
+	// 敵→ プレイヤーの攻撃
 	enemyManager_->CheckCollisions(player_.get());
 	// =========================
 	// ボス → プレイヤー
@@ -595,44 +593,7 @@ void GamePlayScene::Update() {
 			return;
 		}
 	}
-	// ==========================================
-	// ドロップアイテム(カード)の取得判定
-	// ==========================================
-
-	cardPickupManager_.Update();
-
-	for (auto &pickup : cardPickupManager_.GetPickups()) {
-		if (!pickup.isActive) {
-			continue;
-		}
-
-		// プレイヤーとの距離計算
-		Vector3 playerDiff = {
-			playerPos_.x - pickup.position.x,
-			playerPos_.y - pickup.position.y,
-			playerPos_.z - pickup.position.z
-		};
-
-		float playerDist = Length(playerDiff);
-
-		// プレイヤーが拾う処理
-		if (player_ && !player_->IsDead() && playerDist < 2.0f) {
-			bool success = handManager_.AddCard(pickup.card);
-			if (success) {
-				pickup.isActive = false;
-				continue;
-			} else {
-				// 手札が一杯ならカード交換モードへ移行
-				/*isCardSwapMode_ = true;
-				pendingCard_ = pickup.card;*/
-				pickup.isActive = false;
-				continue;
-			}
-		}
-
-		
-	}
-
+	
 	// ==========================================
 	// カメラ・各種オブジェクトの更新
 	// ==========================================
@@ -824,75 +785,43 @@ void GamePlayScene::Update() {
 	}
 
 
-	//// ==========================================
-	//// ドロップアイテム(カード)の取得判定
-	//// ==========================================
+	// ==========================================
+	// ドロップアイテム(カード)の取得判定
+	// ==========================================
 
-	//cardPickupManager_.Update();
+	cardPickupManager_.Update();
 
-	//for (auto &pickup : cardPickupManager_.GetPickups()) {
-	//	if (!pickup.isActive) {
-	//		continue;
-	//	}
+	for (auto &pickup : cardPickupManager_.GetPickups()) {
+		if (!pickup.isActive) {
+			continue;
+		}
 
-	//	// プレイヤーとの距離計算
-	//	Vector3 playerDiff = {
-	//		playerPos_.x - pickup.position.x,
-	//		playerPos_.y - pickup.position.y,
-	//		playerPos_.z - pickup.position.z
-	//	};
+		// プレイヤーとの距離計算
+		Vector3 playerDiff = {
+			playerPos_.x - pickup.position.x,
+			playerPos_.y - pickup.position.y,
+			playerPos_.z - pickup.position.z
+		};
 
-	//	float playerDist = Length(playerDiff);
+		float playerDist = Length(playerDiff);
 
-	//	// プレイヤーが拾う処理
-	//	if (player_ && !player_->IsDead() && playerDist < 2.0f) {
-	//		bool success = handManager_.AddCard(pickup.card);
-	//		if (success) {
-	//			pickup.isActive = false;
-	//			continue;
-	//		} else {
-	//			// 手札が一杯ならカード交換モードへ移行
-	//			isCardSwapMode_ = true;
-	//			pendingCard_ = pickup.card;
-	//			pendingPickup_ = &pickup; // どのアイテムに触れたかを記憶
-	//			swapSelectionIndex_ = 0;  // 最初は0番目の手札を選択状態にする
-	//			break; // 同時に2枚拾うバグを防ぐため、ループを抜ける！
-	//		}
-	//	}
+		// プレイヤーが拾う処理
+		if (player_ && !player_->IsDead() && playerDist < 2.0f) {
+			bool success = handManager_.AddCard(pickup.card);
+			if (success) {
+				pickup.isActive = false;
+				continue;
+			} else {
+				// 手札が一杯ならカード交換モードへ移行
+				/*isCardSwapMode_ = true;
+				pendingCard_ = pickup.card;*/
+				pickup.isActive = false;
+				continue;
+			}
+		}
 
-	//	// 敵が拾う処理
-	//	for (size_t i = 0; i < enemies.size(); ++i) {
-	//		auto &enemy = enemies[i];
 
-	//		// 既に拾ったカードを持っている敵や死んでいる敵は拾えない
-	//		if (!enemy || enemy->IsDead() || enemy->HasPickupCard()) {
-	//			continue;
-	//		}
-
-	//		Vector3 enemyPos = enemy->GetPosition();
-
-	//		Vector3 enemyDiff = {
-	//			enemyPos.x - pickup.position.x,
-	//			enemyPos.y - pickup.position.y,
-	//			enemyPos.z - pickup.position.z
-	//		};
-
-	//		float enemyDist = Length(enemyDiff);
-
-	//		// 敵が拾う
-	//		if (enemyDist < 2.0f) {
-	//			Card pickedCard = pickup.card;
-
-	//			// もし拾ったカードが「敵は使えないカード(canEnemyUseが0)」だったら、敵が使えるカードの中からランダムに選んですり替える！
-	//			if (!pickedCard.canEnemyUse) {
-	//				pickedCard = CardDatabase::GetRandomEnemyUsableCard();
-	//			}
-	//			enemy->SetPickupCard(pickedCard);
-	//			pickup.isActive = false;
-	//			break;
-	//		}
-	//	}
-	//}
+	}
 
 	// ボス頭上HPバー更新
 	if (boss_ && !boss_->IsDead() && levelEditor_ && levelEditor_->IsBossMap() &&
@@ -1636,118 +1565,7 @@ Vector2 GamePlayScene::WorldToScreen(const Vector3 &worldPos) const {
 	return screen;
 }
 
-//void GamePlayScene::SpawnEnemiesRandom(int enemyCount, int margin) {
-//
-//	/*enemies_.clear();
-//	enemyObjs_.clear();
-//	enemyDeadHandled_.clear();
-//	enemyCardSystems_.clear();*/
-//
-//	if (!spawnManager_.HasLevelData()) {
-//		return;
-//	}
-//
-//	const LevelData &level = levelEditor_->GetLevelData();
-//
-//	std::vector<std::pair<int, int>> candidates =
-//		spawnManager_.FindEnemySpawnCandidates(margin);
-//
-//	if (candidates.empty()) {
-//		return;
-//	}
-//
-//	// ==========================================
-//	// ★ 追加：プレイヤーの現在位置をタイル座標に変換しておく
-//	// ==========================================
-//	int playerTileX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
-//	int playerTileZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
-//
-//
-//	// 階段周囲とプレイヤー周囲を除外
-//	std::vector<std::pair<int, int>> filtered;
-//	for (const auto &c : candidates) {
-//		int x = c.first;
-//		int z = c.second;
-//
-//		// 階段本体 + 周囲1マス禁止
-//		if (IsNearStairsTile(x, z)) {
-//			continue;
-//		}
-//
-//		// 念のため階段タイルそのものも除外
-//		if (x >= 0 && x < level.width && z >= 0 && z < level.height) {
-//			if (level.tiles[z][x] == 3) {
-//				continue;
-//			}
-//		}
-//
-//		// ==========================================
-//		// ★ 追加：プレイヤーから近すぎるマスを除外する
-//		// ==========================================
-//		int dx = x - playerTileX;
-//		int dz = z - playerTileZ;
-//		// タイル単位での距離を計算
-//		float distanceToPlayer = std::sqrt(static_cast<float>(dx * dx + dz * dz));
-//
-//		// プレイヤーから「5マス」以内ならスポーン候補から外す！
-//		// ※ 5.0f の部分は、ゲームの部屋の広さに合わせて 3.0f ～ 8.0f くらいで調整してください
-//		if (distanceToPlayer < 5.0f) {
-//			continue;
-//		}
-//		// ==========================================
-//
-//		filtered.push_back(c);
-//	}
-//
-//	if (filtered.empty()) {
-//		return;
-//	}
-//
-//	std::random_device rd;
-//	std::mt19937 mt(rd());
-//	std::shuffle(filtered.begin(), filtered.end(), mt);
-//
-//	const int kMaxEnemies = 5; // 画面に出せる敵の最大数（好きな数に調整してください！）
-//	//int currentEnemies = static_cast<int>(enemies_.size());
-//	int availableSpace = kMaxEnemies - currentEnemies; // あと何体出せるか
-//
-//	// すでに上限（5体）以上いたら、1体も出さずにここで処理を終わる
-//	if (availableSpace <= 0) {
-//		return;
-//	}
-//
-//	// 「ボスの希望数」「空いている場所の数」「上限までの空き枠」の中で、一番少ない数を採用する
-//	int spawnCount = std::min(enemyCount, static_cast<int>(filtered.size()));
-//	spawnCount = std::min(spawnCount, availableSpace); // さらに空き枠と比較
-//
-//	for (int i = 0; i < spawnCount; ++i) {
-//		int tileX = filtered[i].first;
-//		int tileZ = filtered[i].second;
-//
-//		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
-//
-//		auto enemy = std::make_unique<Enemy>();
-//		enemy->Initialize();
-//		enemy->SetPosition(worldPos);
-//		enemy->SetScale({ 1.0f, 1.0f, 1.0f });
-//
-//		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));
-//		if (enemyObj) {
-//			enemyObj->SetCamera(camera_.get());
-//			enemyObj->SetTranslation(worldPos);
-//			enemyObj->SetScale({ 1.0f, 1.0f, 1.0f });
-//			enemyObj->Update();
-//		}
-//
-//		auto enemyCardSystem = std::make_unique<CardUseSystem>();
-//		enemyCardSystem->Initialize(camera_.get());
-//
-//		//enemies_.push_back(std::move(enemy));
-//		enemyObjs_.push_back(std::move(enemyObj));
-//		enemyDeadHandled_.push_back(false);
-//		enemyCardSystems_.push_back(std::move(enemyCardSystem));
-//	}
-//}
+
 void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 	if (!spawnManager_.HasLevelData()) {
@@ -1897,9 +1715,9 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	// スポーンマネージャに新しいマップを渡し直す
 	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
 
-	if (levelEditor_->IsBossMap()) {
+	
 		ClearEnemiesAndCards();
-	} else {
+	if (!levelEditor_->IsBossMap()) {
 		enemyManager_->SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_, &spawnManager_, levelEditor_.get(), playerPos_, camera_.get());
 		SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 		
@@ -1972,23 +1790,6 @@ void GamePlayScene::AdvanceFloor() {
 			bossIntroTimer_ = 60; // 最初はプレイヤーを見る時間
 		} else {
 			levelEditor_->ChangeToNormalMap();
-
-		
-			// SpawnManagerに「新しいマップのデータ」をセットする！
-			spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
-
-			// 新しいマップ情報をもとに、安全な場所に敵をスポーンさせる
-			// （引数の数などは、普段 SpawnEnemiesRandom を呼んでいる時のものに合わせてください）
-			if (enemyManager_) {
-				enemyManager_->SpawnEnemiesRandom(
-					enemySpawnCount_,                  // 敵の数（例）
-					enemySpawnMargin_,                  // マージン（例）
-					&spawnManager_,     // スポーンマネージャーのアドレスを渡す
-					levelEditor_.get(),
-					player_->GetPosition(), // プレイヤーの座標（適宜変更してください）
-					camera_.get()
-				);
-			}
 
 			// 通常マップでは演出を切る
 			isBossIntroPlaying_ = false;
