@@ -8,6 +8,11 @@
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
+
+#include "externals/nlohmann/json.hpp"
+#include <fstream>
+using json = nlohmann::json;
+
 // --- エンジン側のファイル ---
 #include "engine/graphics/TextureManager.h"
 #include "engine/graphics/PipelineManager.h" 
@@ -76,7 +81,6 @@ void ParticleManager::Finalize(){
 	materialResource_.Reset();
 
 }
-
 void ParticleManager::Update(Camera* camera){
 	Matrix4x4 cameraMatrix = camera->GetWorldMatrix();
 	Matrix4x4 viewProjection = camera->GetViewProjectionMatrix();
@@ -87,7 +91,7 @@ void ParticleManager::Update(Camera* camera){
 	// 2. カメラの回転を適用する（ビルボード行列の作成）
 	Matrix4x4 billboardMatrix = MatrixMath::Multiply(backToFrontMatrix, cameraMatrix);
 
-	// 3. 平行移動成分は不要なので除去する（カメラの位置についてきてしまうのを防ぐため）
+	// 3. 平行移動成分は不要なので除去する
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
@@ -97,48 +101,62 @@ void ParticleManager::Update(Camera* camera){
 		// インスタンス数をリセット
 		group.kNumInstance = 0;
 
-		// 【最適化2】 更新と描画データ作成を1つのループにまとめる
-		for ( auto it = group.particles.begin(); it != group.particles.end(); ) {
+		//  【最適化】vector と Swap&Pop を使った超高速ループ
+		for ( int i = 0; i < group.particles.size(); ) {
+			Particle& p = group.particles[i];
 
 			// 1. 更新処理
-			it->currentTime += 1.0f / 60.0f; // 時間を進める
+			p.currentTime += 1.0f / 60.0f; // 時間を進める
 
-			// 寿命尽きたら削除
-			if ( it->currentTime >= it->lifeTime ) {
-				it = group.particles.erase(it);
-				continue; // 次の要素へ
+			// 寿命尽きたら「Swap & Pop」で超高速削除
+			if ( p.currentTime >= p.lifeTime ) {
+				group.particles[i] = group.particles.back(); // 一番後ろを今の場所に持ってくる
+				group.particles.pop_back();                  // 一番後ろを消す
+				continue; // 次のループへ（iは増やさない！）
 			}
 
+			// 重力を足す（設定から！）
+			p.velocity.y += group.setting.gravity;
+
 			// 移動処理
-			it->transform.translate.x += it->velocity.x;
-			it->transform.translate.y += it->velocity.y;
-			it->transform.translate.z += it->velocity.z;
+			p.transform.translate.x += p.velocity.x;
+			p.transform.translate.y += p.velocity.y;
+			p.transform.translate.z += p.velocity.z;
+
+			// フェードアウト＆徐々にサイズ変更
+			float lifeRatio = p.currentTime / p.lifeTime;
+			p.color.w = 1.0f - lifeRatio; // 徐々に透明に
+
+			float currentScale = group.setting.startScale + ( group.setting.endScale - group.setting.startScale ) * lifeRatio;
+			p.transform.scale = { currentScale, currentScale, currentScale };
 
 			// 2. 描画データの作成 (最大数を超えていなければ)
 			if ( group.kNumInstance < kNumMaxInstance ) {
 				// 行列計算
-				Matrix4x4 scaleMatrix = MatrixMath::MakeScale(it->transform.scale);
-				Matrix4x4 translateMatrix = MatrixMath::MakeTranslate(it->transform.translate);
+				Matrix4x4 scaleMatrix = MatrixMath::MakeScale(p.transform.scale);
+				Matrix4x4 translateMatrix = MatrixMath::MakeTranslate(p.transform.translate);
 
-				// World = Scale * Billboard * Translate
-				Matrix4x4 worldMatrix = MatrixMath::Multiply(scaleMatrix, MatrixMath::Multiply(billboardMatrix, translateMatrix));
+				// ビルボード処理（設定でONの時だけカメラを向く）
+				Matrix4x4 rotateMatrix = group.setting.isBillboard ? billboardMatrix : MatrixMath::MakeIdentity4x4();
+
+				// World = Scale * Rotate * Translate
+				Matrix4x4 worldMatrix = MatrixMath::Multiply(scaleMatrix, MatrixMath::Multiply(rotateMatrix, translateMatrix));
 				Matrix4x4 wvp = MatrixMath::Multiply(worldMatrix, viewProjection);
 
 				// GPU用データに書き込む
 				ParticleForGPU& data = group.instancingData[group.kNumInstance];
 				data.WVP = wvp;
 				data.World = worldMatrix;
-				data.color = it->color;
+				data.color = p.color;
 
 				// 個数カウントアップ
 				group.kNumInstance++;
 			}
 
-			++it; // 次のパーティクルへ
+			++i; // 処理が終わったら次のパーティクルへ
 		}
 	}
 }
-
 void ParticleManager::Draw(ID3D12GraphicsCommandList* commandList){
 
 	srvManager_->PreDraw();
@@ -237,8 +255,8 @@ void ParticleManager::Emit(const std::string& name, const Vector3& position, uin
 
 	// ループの中身が超スッキリ！
 	for ( uint32_t i = 0; i < count; ++i ) {
-		// 関数を呼ぶだけで1粒作れる
-		Particle newParticle = MakeNewParticle(engine, position);
+		//  設定(group.setting)を渡して1粒作る
+		Particle newParticle = MakeNewParticle(engine, position, group.setting);
 		group.particles.push_back(newParticle);
 	}
 }
@@ -303,15 +321,18 @@ void ParticleManager::CreateModel(){
 
 
 
-Particle ParticleManager::MakeNewParticle(std::mt19937& engine, const Vector3& position){
-	// 分布の定義（ここも引数で調整できるようにするとさらに汎用的になりますが、一旦固定で）
-	std::uniform_real_distribution<float> distPos(-1.0f, 1.0f);
-	std::uniform_real_distribution<float> distVel(-0.05f, 0.05f);
-	std::uniform_real_distribution<float> distColor(0.5f, 1.0f);
-	std::uniform_real_distribution<float> distTime(1.0f, 3.0f);
+Particle ParticleManager::MakeNewParticle(std::mt19937& engine, const Vector3& position, const ParticleSetting& setting){
+
+	// 設定（setting）の数値を使ってランダムの幅を決める
+	std::uniform_real_distribution<float> distPos(-0.5f, 0.5f); // 発生位置のバラつき
+	std::uniform_real_distribution<float> distVelX(setting.minVelocity.x, setting.maxVelocity.x);
+	std::uniform_real_distribution<float> distVelY(setting.minVelocity.y, setting.maxVelocity.y);
+	std::uniform_real_distribution<float> distVelZ(setting.minVelocity.z, setting.maxVelocity.z);
+	std::uniform_real_distribution<float> distTime(setting.minLifeTime, setting.maxLifeTime);
 
 	Particle p;
-	p.transform.scale = { 1.0f, 1.0f, 1.0f };
+	// 初期サイズを設定から持ってくる
+	p.transform.scale = { setting.startScale, setting.startScale, setting.startScale };
 	p.transform.rotate = { 0.0f, 0.0f, 0.0f };
 
 	// ランダムな位置と速度を設定
@@ -320,14 +341,14 @@ Particle ParticleManager::MakeNewParticle(std::mt19937& engine, const Vector3& p
 		position.y + distPos(engine),
 		position.z + distPos(engine)
 	};
-	p.velocity = { distVel(engine), distVel(engine), distVel(engine) };
-	p.color = { distColor(engine), distColor(engine), distColor(engine), 1.0f };
+	// ランダムな速度と、設定した色を入れる
+	p.velocity = { distVelX(engine), distVelY(engine), distVelZ(engine) };
+	p.color = setting.startColor;
 	p.lifeTime = distTime(engine);
 	p.currentTime = 0.0f;
 
 	return p;
 }
-
 size_t ParticleManager::GetParticleCount(const std::string& name) const{
 	auto it = particleGroups_.find(name);
 	if ( it == particleGroups_.end() ) {
@@ -349,19 +370,159 @@ void ParticleManager::DrawDebugUI(){
 #ifdef USE_IMGUI
 	// 他のツールと同じ "インスペクター (詳細設定)" ウィンドウの中にまとめる
 	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
-		if ( ImGui::CollapsingHeader("パーティクル情報 (Particle Debug)", ImGuiTreeNodeFlags_DefaultOpen) ) {
-			// 現在のパーティクル数とインスタンス数を取得して表示
-			size_t particleCount = GetParticleCount("Circle");
-			uint32_t instanceCount = GetInstanceCount("Circle");
-			ImGui::Text("パーティクル数 (CPU) : %zu", particleCount);
-			ImGui::Text("インスタンス数 (GPU) : %u", instanceCount);
+		if ( ImGui::CollapsingHeader("パーティクルエディタ (Particle Editor)", ImGuiTreeNodeFlags_DefaultOpen) ) {
 
-			// 10個発生させるテストボタン
-			if ( ImGui::Button("テスト発生 (Circleを10個)") ) {
-				Emit("Circle", { 0.0f, 5.0f, 0.0f }, 10);
+			// もしグループが1つも無ければメッセージを出して終了
+			if ( particleGroups_.empty() ) {
+				ImGui::Text("パーティクルグループがありません。");
+			} else {
+
+				// 🌟 1. 編集するグループをドロップダウン（コンボボックス）で選ぶ
+				static std::string selectedGroupName = particleGroups_.begin()->first;
+				if ( ImGui::BeginCombo("編集グループ", selectedGroupName.c_str()) ) {
+					for ( auto& pair : particleGroups_ ) {
+						bool isSelected = ( selectedGroupName == pair.first );
+						if ( ImGui::Selectable(pair.first.c_str(), isSelected) ) {
+							selectedGroupName = pair.first;
+						}
+						if ( isSelected ) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
+
+				// 🌟 2. 選択されたグループの設定(setting)を直接書き換えるUI
+				auto it = particleGroups_.find(selectedGroupName);
+				if ( it != particleGroups_.end() ) {
+					ParticleGroup& group = it->second;
+
+					ImGui::Text("現在数 [ CPU: %zu / GPU: %u ]", group.particles.size(), group.kNumInstance);
+					ImGui::Separator();
+
+					// --- 動きの設定 ---
+					ImGui::Text("【 動き (Movement) 】");
+					ImGui::DragFloat3("最小速度", &group.setting.minVelocity.x, 0.01f);
+					ImGui::DragFloat3("最大速度", &group.setting.maxVelocity.x, 0.01f);
+					ImGui::DragFloat("重力", &group.setting.gravity, 0.001f);
+
+					// --- 見た目の設定 ---
+					ImGui::Spacing();
+					ImGui::Text("【 見た目 (Appearance) 】");
+					ImGui::ColorEdit4("初期色", &group.setting.startColor.x);
+					ImGui::DragFloat("発生サイズ", &group.setting.startScale, 0.01f);
+					ImGui::DragFloat("消滅サイズ", &group.setting.endScale, 0.01f);
+					ImGui::Checkbox("ビルボード (常にカメラを向く)", &group.setting.isBillboard);
+
+					// --- 寿命の設定 ---
+					ImGui::Spacing();
+					ImGui::Text("【 寿命 (Life Time) 】");
+					ImGui::DragFloat("最短寿命(秒)", &group.setting.minLifeTime, 0.1f, 0.1f, 10.0f);
+					ImGui::DragFloat("最長寿命(秒)", &group.setting.maxLifeTime, 0.1f, 0.1f, 10.0f);
+
+
+
+					if ( ImGui::Button("設定を保存 (Save)") ) {
+						Save();
+					}
+					ImGui::SameLine();
+					if ( ImGui::Button("設定を読み込む (Load)") ) {
+						Load();
+					}
+
+					ImGui::Separator();
+
+					// 🌟 3. いじった設定ですぐに発生させて確認するボタン
+					if ( ImGui::Button("テスト発生 (10個)") ) {
+						// 画面の中央(0,0,0)あたりに発生させる
+						Emit(selectedGroupName, { 0.0f, 0.0f, 0.0f }, 10);
+					}
+					ImGui::SameLine();
+					if ( ImGui::Button("大量発生 (100個)") ) {
+						Emit(selectedGroupName, { 0.0f, 0.0f, 0.0f }, 100);
+					}
+				}
 			}
 		}
 	}
 	ImGui::End();
 #endif
+}
+// パーティクル設定のセッター
+void ParticleManager::SetParticleSetting(const std::string& name, const ParticleSetting& setting){
+	auto it = particleGroups_.find(name);
+	if ( it != particleGroups_.end() ) {
+		it->second.setting = setting;
+	}
+}
+
+
+// 🌟 設定をJSONファイルに保存する
+void ParticleManager::Save(){
+	nlohmann::json root;
+
+	for ( auto& [name, group] : particleGroups_ ) {
+		nlohmann::json groupJson;
+
+		// Vector3 や Vector4 は配列として保存する
+		groupJson["minVelocity"] = { group.setting.minVelocity.x, group.setting.minVelocity.y, group.setting.minVelocity.z };
+		groupJson["maxVelocity"] = { group.setting.maxVelocity.x, group.setting.maxVelocity.y, group.setting.maxVelocity.z };
+		groupJson["startColor"] = { group.setting.startColor.x, group.setting.startColor.y, group.setting.startColor.z, group.setting.startColor.w };
+		groupJson["gravity"] = group.setting.gravity;
+		groupJson["minLifeTime"] = group.setting.minLifeTime;
+		groupJson["maxLifeTime"] = group.setting.maxLifeTime;
+		groupJson["startScale"] = group.setting.startScale;
+		groupJson["endScale"] = group.setting.endScale;
+		groupJson["isBillboard"] = group.setting.isBillboard;
+
+		root[name] = groupJson;
+	}
+
+	// resourcesフォルダの中に保存する
+	std::ofstream file("resources/ParticleSettings.json");
+	if ( file.is_open() ) {
+		// インデント（字下げ）を4マスにして見やすく保存
+		file << std::setw(4) << root << std::endl;
+	}
+}
+
+// 🌟 JSONファイルから設定を読み込む
+void ParticleManager::Load(){
+	std::ifstream file("resources/ParticleSettings.json");
+	if ( !file.is_open() ) {
+		return; // ファイルがなければ何もしない
+	}
+
+	nlohmann::json root;
+	file >> root;
+
+	for ( auto& [name, group] : particleGroups_ ) {
+		// JSON内にこのグループの設定が保存されていれば読み込む
+		if ( root.contains(name) ) {
+			nlohmann::json& groupJson = root[name];
+
+			if ( groupJson.contains("minVelocity") ) {
+				group.setting.minVelocity.x = groupJson["minVelocity"][0];
+				group.setting.minVelocity.y = groupJson["minVelocity"][1];
+				group.setting.minVelocity.z = groupJson["minVelocity"][2];
+			}
+			if ( groupJson.contains("maxVelocity") ) {
+				group.setting.maxVelocity.x = groupJson["maxVelocity"][0];
+				group.setting.maxVelocity.y = groupJson["maxVelocity"][1];
+				group.setting.maxVelocity.z = groupJson["maxVelocity"][2];
+			}
+			if ( groupJson.contains("startColor") ) {
+				group.setting.startColor.x = groupJson["startColor"][0];
+				group.setting.startColor.y = groupJson["startColor"][1];
+				group.setting.startColor.z = groupJson["startColor"][2];
+				group.setting.startColor.w = groupJson["startColor"][3];
+			}
+			if ( groupJson.contains("gravity") ) group.setting.gravity = groupJson["gravity"];
+			if ( groupJson.contains("minLifeTime") ) group.setting.minLifeTime = groupJson["minLifeTime"];
+			if ( groupJson.contains("maxLifeTime") ) group.setting.maxLifeTime = groupJson["maxLifeTime"];
+			if ( groupJson.contains("startScale") ) group.setting.startScale = groupJson["startScale"];
+			if ( groupJson.contains("endScale") ) group.setting.endScale = groupJson["endScale"];
+			if ( groupJson.contains("isBillboard") ) group.setting.isBillboard = groupJson["isBillboard"];
+		}
+	}
 }

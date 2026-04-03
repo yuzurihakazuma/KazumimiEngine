@@ -140,6 +140,7 @@ void PipelineManager::CreateSpriteGraphicsPipeline(){
 		BlendMode::kNormal,         // 通常ブレンド
 		D3D12_CULL_MODE_NONE,       // カリングなし
 		false,                      // 深度書き込みしない
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
 		spritePipelineState_
 	);
 
@@ -176,7 +177,8 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
 		D3D12_CULL_MODE_BACK,      
-		true,                      
+		true,           
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		object3DPipelineState_
 	);
 	// カリングなし用
@@ -187,6 +189,7 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		BlendMode::kNormal,
 		D3D12_CULL_MODE_NONE,  
 		true,
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		object3DPipelineStateNone_ 
 	);
 
@@ -235,7 +238,8 @@ void PipelineManager::CreateInstancedObject3DGraphicsPipeline(){
 		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
 		.SetBlendMode(BlendMode::kNormal)
 		.SetCullMode(D3D12_CULL_MODE_BACK)
-		.SetDepthStencil(true, true); // 深度書き込みON
+		.SetDepthStencil(true, true) // 深度書き込みON
+		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // RTVフォーマットを指定
 
 	builder.Build(dxCommon_->GetDevice(), instancedObject3DPipelineState_);
 
@@ -273,6 +277,7 @@ void PipelineManager::CreateParticleGraphicsPipeline(){
 		BlendMode::kAdd,            // 加算ブレンド
 		D3D12_CULL_MODE_NONE,       // カリングなし
 		false,                      // 深度書き込みしない
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		particlePipelineState_
 	);
 
@@ -331,6 +336,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 }
 
 
+
 // グラフィックスパイプラインの共通生成
 void PipelineManager::CreateGraphicsPipelineCommon(
 	const std::wstring& vsPath, // 頂点シェーダーのパス
@@ -339,6 +345,7 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	BlendMode blendMode, 					// ブレンドモード
 	D3D12_CULL_MODE cullMode, 				// カリングモード
 	bool isDepthWrite, 					// 深度書き込みの有無
+	const std::vector<DXGI_FORMAT>& rtvFormats,
 	Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState// 生成結果
 ){
 	// 1. シェーダーコンパイル
@@ -384,8 +391,10 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	psoDesc.PS = { pixelShaderBlob->GetBufferPointer(), pixelShaderBlob->GetBufferSize() }; // ピクセルシェーダー
 	psoDesc.BlendState = blendDesc; // ブレンドステート
 	psoDesc.RasterizerState = rasterizerDesc; // ラスタライザステート
-	psoDesc.NumRenderTargets = 1; // RTVの数
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // RTVのフォーマット
+	psoDesc.NumRenderTargets = static_cast< UINT >( rtvFormats.size() ); // 配列の数にする
+	for ( UINT i = 0; i < rtvFormats.size(); ++i ) {
+		psoDesc.RTVFormats[i] = rtvFormats[i]; // 配列の中身を入れる
+	}
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // プリミティブ形状
 	psoDesc.SampleDesc.Count = 1; // サンプリング数
 	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK; // サンプルマスク

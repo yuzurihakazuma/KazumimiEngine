@@ -36,6 +36,9 @@
 #include "game/card/CardUseSystem.h"
 #include "game/map/Minimap.h"
 #include "game/map/MapManager.h"
+#include "Bloom.h"
+#include "engine/3d/model/Model.h"
+#include "engine/utils/EditorManager.h"
 using namespace VectorMath;
 using namespace MatrixMath;
 
@@ -130,7 +133,9 @@ void GamePlayScene::Initialize() {
 		testObj_->SetNoiseTexture(textures_["noise0"].srvIndex);
 		testObj_->SetDissolveThreshold(0.0f);
 
-		testObj_->PlayAnimation(&testAnimation_);
+		//testObj_->PlayAnimation(&testAnimation_);
+
+		Bloom::GetInstance()->SetTargetEmissivePower(&testObj_->GetModel()->GetMaterial()->emissive);
 	}
 
 
@@ -180,6 +185,7 @@ void GamePlayScene::Initialize() {
 	minimap_ = std::make_unique<Minimap>();
 	minimap_->Initialize();
 	minimap_->SetLevelData(&mapManager_->GetLevelData());
+	EditorManager::GetInstance()->SetCamera(camera_.get());
 
 	// 初期ロード時のマップ変更通知を消す
 	if (mapManager_) {
@@ -936,6 +942,9 @@ void GamePlayScene::Update() {
 			bossPos,
 			mapManager_->GetLevelData()
 		);
+	
+	for (auto& block : blocks_) {
+		block->Update();
 	}
 
 	// 背景枠の更新
@@ -1020,6 +1029,7 @@ void GamePlayScene::Update() {
 void GamePlayScene::Draw() {
 
 
+void GamePlayScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
@@ -1031,9 +1041,12 @@ void GamePlayScene::Draw() {
 
 	// 画用紙への切り替え
 	PostEffect::GetInstance()->PreDrawScene(commandList);
+	auto commandList = dxCommon->GetCommandList();
 
+	// 1. 【MRT開始】キャンバスを2枚(色用とマスク用)セットする！
+	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
 
-	// 3D描画の前準備
+	// --- 3D描画の前準備 ---
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
@@ -1045,6 +1058,13 @@ void GamePlayScene::Draw() {
 
 	// ボス描画を先に行う
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
+
+	// --- カリングありの3D描画 ---
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
+	if ( playerObj_ ) { playerObj_->Draw(); }
+	for ( auto& obj : object3ds_ ) { obj->Draw(); }
+	
+	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 
 	if (bossManager_) {
@@ -1082,13 +1102,21 @@ void GamePlayScene::Draw() {
 
 	//手札カード
 	handManager_.Draw();
+	if ( testObj_ ){ testObj_->Draw(); }
 
-	// レベルエディタの描画 
-	mapManager_->Draw(playerPos_);
+	// --- インスタンシングの3D描画 ---
+	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
+
+	// --- パーティクル描画 ---
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
+	ParticleManager::GetInstance()->Draw(commandList);
+
 
 	if (handManager_.GetHandSize() > 0 && descBgSprite_) {
 		descBgSprite_->Draw();
 	}
+	// 2. 【MRT終了】3Dの描画が終わったので、2枚のキャンバスを読み込みモードに戻す
+	PostEffect::GetInstance()->PostDrawSceneMRT(commandList);
 
 	// パーティクル描画 (パイプライン切り替え)
 	/*PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
@@ -1113,9 +1141,21 @@ void GamePlayScene::Draw() {
 		minimap_->Draw();
 	}
 
+	// 3. いつものPostEffect（色用のキャンバスだけに処理がかかります）
+	 PostEffect::GetInstance()->Draw(commandList); // ※もしこの関数を作っていれば
+
+	// 4. エフェクト後の「色画像」と「マスク画像」の番号(SRV)をもらう
+	uint32_t colorSrv = PostEffect::GetInstance()->GetSrvIndex();
+	uint32_t maskSrv = PostEffect::GetInstance()->GetMaskSrvIndex();
+
 	DrawPauseUI();
 
 	TextManager::GetInstance()->Draw();
+	// 5. Bloomに「色」と「マスク」を両方渡す！
+	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
+	
+	// 5-2. Bloomの最終結果のSRV番号をもらう
+	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
 
 	PostEffect::GetInstance()->PostDrawScene(commandList);
 	PostEffect::GetInstance()->Draw(commandList);
@@ -1124,6 +1164,22 @@ void GamePlayScene::Draw() {
 		SpriteCommon::GetInstance()->PreDraw(commandList); // 必要に応じて
 		fadeSprite_->Draw();
 	}
+
+	// 6. メイン画面（バックバッファ）への直接描画！
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
+	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
+	// 7. 最終的な結果を画面にドーン！と描く
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None); // シェーダーはエフェクトなしのやつを使う
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, finalSrv); // Bloomの結果をSRVとしてセット
+	commandList->DrawInstanced(3, 1, 0, 0); // 巨大な三角形を描いて全画面にテクスチャを貼る方式なので、頂点数は3でOK！
+
+
+	// --- スプライト・UI描画 ---
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+	if ( sprite_ ) { sprite_->Draw(); }
+	TextManager::GetInstance()->Draw();
 }
 
 void GamePlayScene::DrawDebugUI() {
@@ -1136,8 +1192,6 @@ void GamePlayScene::DrawDebugUI() {
 	if (debugCamera_) { debugCamera_->DrawDebugUI(); }
 	//ParticleManager::GetInstance()->DrawDebugUI();
 
-
-	mapManager_->DrawDebugUI();
 
 	TextManager::GetInstance()->DrawDebugUI();
 
@@ -1263,6 +1317,7 @@ void GamePlayScene::DrawDebugUI() {
 
 	ImGui::End();
 
+	
 #endif
 
 }

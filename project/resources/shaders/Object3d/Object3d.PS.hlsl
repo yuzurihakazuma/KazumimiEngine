@@ -14,7 +14,8 @@ ConstantBuffer<DissolveData> gDissolve : register(b5); // ディゾルブ用
 
 struct PixelShaderOutput
 {
-    float4 color : SV_TARGET0;
+    float4 color : SV_TARGET0; // 0枚目のキャンバス（色）
+    float4 mask : SV_TARGET1; // 1枚目のキャンバス（エフェクトをかけるかどうかのフラグ！）
 };
 
 PixelShaderOutput main(VertexShaderOutput input)
@@ -110,15 +111,17 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         output.color = gMaterial.color * textureColor;
     }
-
-    float3 outerColor = float3(0.2f, 0.8f, 1.0f); // 外側の青
-    float3 innerColor = float3(1.0f, 1.0f, 1.0f); // 内側の白
-
-    // 外側に薄い色を混ぜる
-    output.color.rgb = lerp(output.color.rgb, outerColor, outerGlow * 0.45f);
-
-    // 内側に強い白を混ぜる
-    output.color.rgb = lerp(output.color.rgb, innerColor, innerGlow * 0.75f);
-
+    
+    if (gMaterial.emissive > 1.0f)
+    {
+        // output.color.rgb（通常の色）に、emissive（光る強さ）を掛け算して書き込む！
+        // これにより、emissiveが 5.0 なら、マスク画像の明るさも 5.0 になる
+        output.mask = float4(output.color.rgb * gMaterial.emissive, 1.0f);
+    }
+    else
+    {
+        output.mask = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    
     return output;
 }

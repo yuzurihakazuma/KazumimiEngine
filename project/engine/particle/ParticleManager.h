@@ -16,6 +16,18 @@ class DirectXCommon;
 class SrvManager;
 class Camera;
 
+// パーティクルの設定構造体
+struct ParticleSetting{
+    Vector3 minVelocity = { -0.05f,  0.1f, -0.05f }; // 最小速度
+    Vector3 maxVelocity = { 0.05f,  0.3f,  0.05f }; // 最大速度
+    Vector4 startColor = { 1.0f,   1.0f,  1.0f,  1.0f }; // 初期色（白）
+    float gravity = -0.005f; // 重力（マイナスなら落ちる、プラスなら昇る）
+    float minLifeTime = 0.5f;    // 最短寿命
+    float maxLifeTime = 1.5f;    // 最長寿命
+    float startScale = 1.0f;    // 発生時の大きさ
+    float endScale = 0.0f;    // 消滅時の大きさ（0なら徐々に消える、大きくすれば爆発）
+    bool isBillboard = true;    // カメラの方を向くかどうか
+};
 
 // パーティクル1粒のデータ
 struct Particle{
@@ -46,8 +58,9 @@ struct ParticleGroup{
     std::string textureFilePath; // テクスチャパス
     uint32_t textureSrvIndex;    // テクスチャのSRVインデックス
 
-    // パーティクルのリスト
-    std::list<Particle> particles;
+	ParticleSetting setting; // パーティクルの設定
+
+	std::vector<Particle> particles; // CPU側で管理するパーティクルのコンテナ
 
     // インスタンシング用データ
     uint32_t kNumInstance = 0;   // 現在の個数（最大数は定数で定義するか、メンバに持たせる）
@@ -89,9 +102,17 @@ public: // メンバ関数
     // 終了処理
     void Finalize();
 
+	// セーブ・ロード
+    void Save();
+    void Load();
+
+public: // ゲッター・セッター
+
     size_t GetParticleCount(const std::string& name) const;
     uint32_t GetInstanceCount(const std::string& name) const;
 
+	// パーティクル設定のセッター
+    void SetParticleSetting(const std::string& name, const ParticleSetting& setting);
 
 private: // シングルトン用（コンストラクタ隠蔽）
     ParticleManager() = default;
@@ -101,8 +122,9 @@ private: // シングルトン用（コンストラクタ隠蔽）
 
     void CreateModel();
 
-    Particle MakeNewParticle(std::mt19937& engine, const Vector3& position);
 
+    // ランダムなパーティクルを生成する関数
+	Particle MakeNewParticle(std::mt19937& engine, const Vector3& position, const ParticleSetting& setting); 
 
 private: // メンバ変数
     DirectXCommon* dxCommon_ = nullptr;
@@ -120,5 +142,5 @@ private: // メンバ変数
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_ {};
 
     // 最大インスタンス数（1グループあたり）
-    const uint32_t kNumMaxInstance = 1000;
+    const uint32_t kNumMaxInstance = 10000;
 };

@@ -18,7 +18,9 @@ struct Material
     int32_t enableLighting;
     float4x4 uvTransform;
     float shininess;
-    float2 padding;
+    float2 padding2; // C++‚Ì padding2[2]
+    float emissive; // ‚±‚±‚Å112?115ƒoƒCƒg–Ú
+    float padding3;
 };
 
 struct DirectionalLight

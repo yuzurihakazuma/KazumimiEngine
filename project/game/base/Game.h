@@ -3,6 +3,7 @@
 #include <memory>
 
 class SceneFactory;
+
 // ゲームクラス
 class Game : public Framework{
 public:
@@ -13,12 +14,15 @@ public:
 	void Draw() override;
 
 
+public: // コンストラクタ・デストラクタ
+
 	Game();
 
 	~Game() = default;
 
 private:
-
+	// シーンファクトリー
 	std::unique_ptr<SceneFactory> sceneFactory_ = nullptr;
+
 
 };

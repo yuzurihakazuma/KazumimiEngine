@@ -32,6 +32,13 @@ public:
 	// 終了処理
 	void Finalize();
 
+	// 現在のシーン固有のデバッグUIを描画
+	void DrawCurrentSceneDebugUI();
+
+	// パフォーマンス計測値のゲッター
+	float GetCpuUpdateTimeMs() const{ return cpuUpdateTimeMs_; }
+	float GetCpuDrawTimeMs() const{ return cpuDrawTimeMs_; }
+
 	// エディタのアクティブ状態を管理
 	bool IsEditorActive() const { return isEditorActive_; }
 
