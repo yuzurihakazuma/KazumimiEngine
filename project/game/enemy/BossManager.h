@@ -8,7 +8,7 @@ class Obj3d;
 class Camera;
 class Sprite;
 class CardUseSystem;
-class LevelEditor;
+class MapManager;
 class Player;
 class EnemyManager;
 class CardPickupManager;
@@ -32,7 +32,7 @@ public:
     void Finalize();
 
     // ボス再配置
-    void RespawnInRoom(LevelEditor* levelEditor);
+    void RespawnInRoom(MapManager* mapManager);
 
     // 状態リセット
     void Reset();
@@ -42,17 +42,17 @@ public:
         Player* player,
         EnemyManager* enemyManager,
         CardPickupManager* cardPickupManager,
-        LevelEditor* levelEditor,
+        MapManager* mapManager,
         Camera* camera,
         const Vector3& playerPos,
         const Vector3& targetPos
     );
 
     // ボス本体・カード演出・HPバーを描画する
-    void Draw(LevelEditor* levelEditor);
+    void Draw(MapManager* mapManager);
 
     // ボスHPバーの描画
-    void DrawHpBar(LevelEditor* levelEditor);
+    void DrawHpBar(MapManager* mapManager);
 
     // getter
     Boss* GetBoss() const { return boss_.get(); }
@@ -87,7 +87,7 @@ public:
     void StartBossIntro();
     void EndBossIntro();
 
-    bool ShouldTriggerGameClear(LevelEditor* levelEditor) const;
+    bool ShouldTriggerGameClear(MapManager* mapManager) const;
 
 private:
     std::unique_ptr<Boss> boss_ = nullptr;
