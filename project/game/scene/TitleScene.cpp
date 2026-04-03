@@ -22,7 +22,7 @@
 #include "Engine/Base/WindowProc.h"
 #include "engine/math/VectorMath.h"
 #include "engine/postEffect/PostEffect.h"
-#include "engine/utils/Level/LevelEditor.h"
+#include "game/map/MapManager.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -77,9 +77,9 @@ void TitleScene::Initialize() {
 	);
 
 	// 必要ならマップエディタ初期化
-	levelEditor_ = std::make_unique<LevelEditor>();
-	levelEditor_->SetCamera(camera_.get());
-	levelEditor_->Initialize();
+	mapManager_ = std::make_unique<MapManager>();
+	mapManager_->SetCamera(camera_.get());
+	mapManager_->Initialize();
 
 	// タイトル用テキストを設定
 	TextManager::GetInstance()->Initialize();
@@ -139,8 +139,8 @@ void TitleScene::DrawDebugUI() {
 
 	ParticleManager::GetInstance()->DrawDebugUI();
 
-	if (levelEditor_) {
-		levelEditor_->DrawDebugUI();
+	if (mapManager_) {
+		mapManager_->DrawDebugUI();
 	}
 
 	ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_FirstUseEver);
@@ -185,7 +185,7 @@ void TitleScene::Draw() {
 
 void TitleScene::Finalize() {
 	object3ds_.clear();
-	levelEditor_.reset();
+	mapManager_.reset();
 
 	// タイトル用テキストを消す
 	TextManager::GetInstance()->SetText("SceneMessage", "");

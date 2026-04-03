@@ -35,7 +35,7 @@
 #include "game/enemy/BossManager.h"
 #include "game/card/CardUseSystem.h"
 #include "game/map/Minimap.h"
-
+#include "game/map/MapManager.h"
 using namespace VectorMath;
 using namespace MatrixMath;
 
@@ -142,10 +142,10 @@ void GamePlayScene::Initialize() {
 	currentFloor_ = 1;
 	// マップエディタ生成・初期化
 	// マップエディタ生成・初期化
-	levelEditor_ = std::make_unique<LevelEditor>();
-	levelEditor_->SetCamera(camera_.get());
-	levelEditor_->Initialize();
-	levelEditor_->SetNoiseTexture(textures_["noise0"].srvIndex);
+	mapManager_ = std::make_unique<MapManager>();
+	mapManager_->SetCamera(camera_.get());
+	mapManager_->Initialize();
+	mapManager_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
 
 
@@ -179,11 +179,11 @@ void GamePlayScene::Initialize() {
 
 	minimap_ = std::make_unique<Minimap>();
 	minimap_->Initialize();
-	minimap_->SetLevelData(&levelEditor_->GetLevelData());
+	minimap_->SetLevelData(&mapManager_->GetLevelData());
 
 	// 初期ロード時のマップ変更通知を消す
-	if (levelEditor_) {
-		levelEditor_->ConsumeMapChanged();
+	if (mapManager_) {
+		mapManager_->ConsumeMapChanged();
 	}
 
 	TextManager::GetInstance()->Initialize();
@@ -284,10 +284,10 @@ void GamePlayScene::Update() {
 	}
 
 	// マップ切り替えがあったら戦闘ごとリセット
-	if (levelEditor_ && levelEditor_->ConsumeMapChanged()) {
+	if (mapManager_ && mapManager_->ConsumeMapChanged()) {
 
 		// GUI切り替えでも、ボス部屋になったら登場演出を開始する
-		if (levelEditor_->IsBossMap()) {
+		if (mapManager_->IsBossMap()) {
 			if (bossManager_) {
 				bossManager_->SetBossIntroPlaying(true);
 				bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::PlayerFocus);
@@ -368,7 +368,7 @@ void GamePlayScene::Update() {
 		playerAABB.min = { playerPos_.x - 0.5f, playerPos_.y - 0.5f, playerPos_.z - 0.5f };
 		playerAABB.max = { playerPos_.x + 0.5f, playerPos_.y + 0.5f, playerPos_.z + 0.5f };
 
-		const LevelData &level = levelEditor_->GetLevelData();
+		const LevelData &level = mapManager_->GetLevelData();
 
 		int centerGridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
 		int centerGridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
@@ -420,8 +420,8 @@ void GamePlayScene::Update() {
 	// ==========================================
 	// 階段タイル(3)との判定
 	// ==========================================
-	if (player_ && levelEditor_) {
-		const LevelData &level = levelEditor_->GetLevelData();
+	if (player_ && mapManager_) {
+		const LevelData &level = mapManager_->GetLevelData();
 		int gridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
 		int gridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
 
@@ -447,7 +447,7 @@ void GamePlayScene::Update() {
 
 	// EnemyManager に更新をお願いする
 	if (enemyManager_) {
-		enemyManager_->Update(player_.get(), &cardPickupManager_, levelEditor_.get(), boss);
+		enemyManager_->Update(player_.get(), &cardPickupManager_, mapManager_.get(), boss);
 	}
 	
 	// ==========================================
@@ -460,7 +460,7 @@ void GamePlayScene::Update() {
 			player_.get(),
 			enemyManager_.get(),
 			&cardPickupManager_,
-			levelEditor_.get(),
+			mapManager_.get(),
 			camera_.get(),
 			playerPos_,
 			targetPos
@@ -468,7 +468,7 @@ void GamePlayScene::Update() {
 	}
 
 	// ボスを倒していたらゲームクリアへ遷移
-	if (bossManager_ && bossManager_->ShouldTriggerGameClear(levelEditor_.get())) {
+	if (bossManager_ && bossManager_->ShouldTriggerGameClear(mapManager_.get())) {
 		SceneManager::GetInstance()->ChangeScene("GAMECLEAR");
 		return;
 	}
@@ -497,7 +497,7 @@ void GamePlayScene::Update() {
 			Vector3 targetRot = currentRot;
 
 			// ボス部屋突入時の演出カメラ
-			if (isBossIntroPlaying && levelEditor_ && levelEditor_->IsBossMap() && boss) {
+			if (isBossIntroPlaying && mapManager_ && mapManager_->IsBossMap() && boss) {
 
 				Vector3 bossPos = boss->GetPosition();
 
@@ -607,7 +607,7 @@ void GamePlayScene::Update() {
 			}
 
 			// 通常のボス戦カメラ
-			else if (levelEditor_ && levelEditor_->IsBossMap() && boss && !boss->IsDead()) {
+			else if (mapManager_ && mapManager_->IsBossMap() && boss && !boss->IsDead()) {
 
 				Vector3 bossPos = boss->GetPosition();
 
@@ -726,7 +726,7 @@ void GamePlayScene::Update() {
 	}
 
 	// ボス頭上HPバー更新
-	if (boss && !boss->IsDead() && levelEditor_ && levelEditor_->IsBossMap() &&
+	if (boss && !boss->IsDead() && mapManager_ && mapManager_->IsBossMap() &&
 		bossHpBackSprite && bossHpFillSprite && camera_) {
 
 		Vector3 bossHeadPos = boss->GetPosition();
@@ -804,7 +804,7 @@ void GamePlayScene::Update() {
 	}
 
 	// レベル(マップ)・ポストエフェクトの更新
-	levelEditor_->Update(playerPos_);
+	mapManager_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
 
 	// ミニマップ更新
@@ -934,7 +934,7 @@ void GamePlayScene::Update() {
 			playerPos_,
 			{ 0.0f, 0.0f, 0.0f },
 			bossPos,
-			levelEditor_->GetLevelData()
+			mapManager_->GetLevelData()
 		);
 	}
 
@@ -1048,7 +1048,7 @@ void GamePlayScene::Draw() {
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 
 	if (bossManager_) {
-		bossManager_->Draw(levelEditor_.get());
+		bossManager_->Draw(mapManager_.get());
 	}
 
 	// そのあと敵描画
@@ -1084,7 +1084,7 @@ void GamePlayScene::Draw() {
 	handManager_.Draw();
 
 	// レベルエディタの描画 
-	levelEditor_->Draw(playerPos_);
+	mapManager_->Draw(playerPos_);
 
 	if (handManager_.GetHandSize() > 0 && descBgSprite_) {
 		descBgSprite_->Draw();
@@ -1102,7 +1102,7 @@ void GamePlayScene::Draw() {
 
 	// ボスHPバーはSprite描画のタイミングで描く
 	if (bossManager_) {
-		bossManager_->DrawHpBar(levelEditor_.get());
+		bossManager_->DrawHpBar(mapManager_.get());
 	}
 
 	// ステータス背景描画
@@ -1137,7 +1137,7 @@ void GamePlayScene::DrawDebugUI() {
 	//ParticleManager::GetInstance()->DrawDebugUI();
 
 
-	levelEditor_->DrawDebugUI();
+	mapManager_->DrawDebugUI();
 
 	TextManager::GetInstance()->DrawDebugUI();
 
@@ -1297,8 +1297,8 @@ void GamePlayScene::ResetBattleDebug() {
 	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成 + ボス再配置
 	RegenerateDungeonAndRespawnPlayer(5);
 
-	if (minimap_ && levelEditor_) {
-		minimap_->SetLevelData(&levelEditor_->GetLevelData());
+	if (minimap_ && mapManager_) {
+		minimap_->SetLevelData(&mapManager_->GetLevelData());
 	}
 
 	// 交換モードも戻しておく
@@ -1517,7 +1517,7 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 
 	cardPickupManager_.Initialize(camera_.get());
 
-	const LevelData &level = levelEditor_->GetLevelData();
+	const LevelData &level = mapManager_->GetLevelData();
 
 	std::vector<std::pair<int, int>> candidates =
 		spawnManager_.FindCardSpawnCandidates(margin);
@@ -1598,16 +1598,16 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin) {
 }
 
 void GamePlayScene::RespawnPlayerInRoom() {
-	if (!levelEditor_ || !player_) {
+	if (!mapManager_ || !player_) {
 		return;
 	}
 
-	if (levelEditor_->IsBossMap()) {
-		Vector3 center = levelEditor_->GetMapCenterPosition(1.5f);
+	if (mapManager_->IsBossMap()) {
+		Vector3 center = mapManager_->GetMapCenterPosition(1.5f);
 		playerPos_ = center;
 		playerPos_.z -= 6.0f; // ボスより少し手前
 	} else {
-		playerPos_ = levelEditor_->GetRandomPlayerSpawnPosition(1.5f);
+		playerPos_ = mapManager_->GetRandomPlayerSpawnPosition(1.5f);
 	}
 
 	playerScale_ = { 1.0f, 1.0f, 1.0f };
@@ -1635,15 +1635,15 @@ void GamePlayScene::RespawnPlayerInRoom() {
 	}
 }
 void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
-	if (!levelEditor_) {
+	if (!mapManager_) {
 		return;
 	}
 
 	stairsTile_ = { -1, -1 };
 
-	if (levelEditor_) {
-		if (!levelEditor_->IsBossMap()) {
-			levelEditor_->GenerateRandomDungeon(roomCount);
+	if (mapManager_) {
+		if (!mapManager_->IsBossMap()) {
+			mapManager_->GenerateRandomDungeon(roomCount);
 		}
 	}
 
@@ -1651,17 +1651,17 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 	RespawnPlayerInRoom();
 
 	// 通常マップなら階段を1個置く
-	if (levelEditor_ && !levelEditor_->IsBossMap()) {
-		stairsTile_ = levelEditor_->PlaceStairsTileRandomAndGetTile(playerPos_, 6.0f);
+	if (mapManager_ && !mapManager_->IsBossMap()) {
+		stairsTile_ = mapManager_->PlaceStairsTileRandomAndGetTile(playerPos_, 6.0f);
 	}
 
 	// スポーンマネージャに新しいマップを渡し直す
-	spawnManager_.SetLevelData(&levelEditor_->GetLevelData());
+	spawnManager_.SetLevelData(&mapManager_->GetLevelData());
 
 	
 		ClearEnemiesAndCards();
-	if (!levelEditor_->IsBossMap()) {
-		enemyManager_->SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_, &spawnManager_, levelEditor_.get(), playerPos_, camera_.get());
+	if (!mapManager_->IsBossMap()) {
+		enemyManager_->SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_, &spawnManager_, mapManager_.get(), playerPos_, camera_.get());
 		SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
 		
 	}
@@ -1671,7 +1671,7 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 
 void GamePlayScene::RespawnBossInRoom() {
 	if (bossManager_) {
-		bossManager_->RespawnInRoom(levelEditor_.get());
+		bossManager_->RespawnInRoom(mapManager_.get());
 	}
 }
 
@@ -1693,10 +1693,10 @@ void GamePlayScene::AdvanceFloor() {
 	}
 	currentFloor_++; // 階層を1つ進める
 
-	if (levelEditor_) {
+	if (mapManager_) {
 		// 5の倍数階ならボス部屋、それ以外は通常部屋
 		if (currentFloor_ % 5 == 0) {
-			levelEditor_->ChangeToBossMap();
+			mapManager_->ChangeToBossMap();
 
 			// ボス部屋突入時のカメラ演出開始
 			if (bossManager_) {
@@ -1706,7 +1706,7 @@ void GamePlayScene::AdvanceFloor() {
 				bossManager_->SetBossCardRainTimer(bossManager_->GetBossCardRainInterval());
 			}
 		} else {
-			levelEditor_->ChangeToNormalMap();
+			mapManager_->ChangeToNormalMap();
 
 			// 通常マップでは演出を切る
 			if (bossManager_) {
@@ -1720,8 +1720,8 @@ void GamePlayScene::AdvanceFloor() {
 
 	ResetBattleDebug();
 
-	if (minimap_ && levelEditor_) {
-		minimap_->SetLevelData(&levelEditor_->GetLevelData());
+	if (minimap_ && mapManager_) {
+		minimap_->SetLevelData(&mapManager_->GetLevelData());
 	}
 }
 

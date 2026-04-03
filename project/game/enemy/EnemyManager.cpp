@@ -8,7 +8,7 @@
 #include "engine/utils/Level/LevelEditor.h" 
 #include "engine/math/VectorMath.h"
 #include "game/map/Minimap.h"
-
+#include "game/map/MapManager.h"
 
 #include <cmath>
 #include <algorithm>
@@ -20,11 +20,11 @@ void EnemyManager::Initialize() {
 	enemies_.clear();
 }
 
-void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, LevelEditor *levelEditor,Boss *boss) {
-	if (!player || !cardPickupManager || !levelEditor) return;
+void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss) {
+	if (!player || !cardPickupManager || !mapManager) return;
 
 	Vector3 targetPos = player->GetPosition();
-	const LevelData &level = levelEditor->GetLevelData();
+	const LevelData &level = mapManager->GetLevelData();
 
 	// 敵全員分ループ
 	for (size_t i = 0; i < enemies_.size(); ++i) {
@@ -134,7 +134,7 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 				player->GetPosition(),
 				enemy->GetPosition(),
 				{ 0.0f, 0.0f, 0.0f }, // bossPos
-				levelEditor->GetLevelData()
+				mapManager->GetLevelData()
 			);
 		}
 
@@ -276,13 +276,13 @@ void EnemyManager::SpawnBossMinions(int spawnCount, const Vector3 &summonCenter,
 	}
 }
 
-void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *spawnManager, LevelEditor *levelEditor, const Vector3 &playerPos, Camera *camera) {
+void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *spawnManager, MapManager* mapManager, const Vector3 &playerPos, Camera *camera) {
 	// ポインタが有効かチェック
-	if (!spawnManager || !levelEditor || !spawnManager->HasLevelData()) {
+	if (!spawnManager || !mapManager || !spawnManager->HasLevelData()) {
 		return;
 	}
 
-	const LevelData &level = levelEditor->GetLevelData();
+	const LevelData &level = mapManager->GetLevelData();
 
 	// spawnManager-> に変更
 	std::vector<std::pair<int, int>> candidates = spawnManager->FindEnemySpawnCandidates(margin);

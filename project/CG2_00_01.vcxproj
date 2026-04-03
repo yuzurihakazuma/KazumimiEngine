@@ -240,6 +240,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\graphics\InstancedGroup.cpp" />
     <ClCompile Include="game\map\MapGenerator.cpp" />
     <ClCompile Include="game\map\Minimap.cpp" />
+    <ClCompile Include="game\map\MapManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -360,6 +361,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\graphics\InstancedGroup.h" />
     <ClInclude Include="game\map\MapGenerator.h" />
     <ClInclude Include="game\map\Minimap.h" />
+    <ClInclude Include="game\map\MapManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

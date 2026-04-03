@@ -8,7 +8,7 @@
 class Player;
 class Camera;
 class SpawnManager;
-class LevelEditor;
+class MapManager;
 class CardUseSystem;
 class CardPickupManager;
 class Boss;
@@ -21,7 +21,7 @@ public:
 	void Initialize();
 
 	// 更新
-	void Update(Player *player, CardPickupManager *cardPickupManager, LevelEditor *levelEditor,Boss *boss);
+	void Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss);
 
 	// 描画
 	void Draw(Camera *camera, Minimap *minimap = nullptr);
@@ -30,7 +30,7 @@ public:
 	void SpawnBossMinions(int spawnCount, const Vector3 &summonCenter, Camera *camera);
 
 	// 通常の敵をランダムに配置する
-	void SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *spawnManager, LevelEditor *levelEditor, const Vector3 &playerPos, Camera *camera);
+	void SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *spawnManager, MapManager* mapManager, const Vector3 &playerPos, Camera *camera);
 
 	// 全ての敵を消す
 	void Clear();

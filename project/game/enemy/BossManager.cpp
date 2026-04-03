@@ -7,7 +7,7 @@
 #include "game/card/CardUseSystem.h"
 #include "engine/3D/Obj/Obj3d.h"
 #include "engine/2D/Sprite.h"
-#include "engine/utils/Level/LevelEditor.h"
+#include "game/map/MapManager.h"
 #include "engine/camera/Camera.h"
 #include "game/player/Player.h"
 #include "game/enemy/EnemyManager.h"
@@ -73,13 +73,13 @@ void BossManager::Reset() {
     bossDeadHandled_ = false;
 }
 
-void BossManager::RespawnInRoom(LevelEditor* levelEditor) {
-    if (!levelEditor || !boss_) {
+void BossManager::RespawnInRoom(MapManager* mapManager) {
+    if (!mapManager || !boss_) {
         return;
     }
 
     // 通常マップではボスを出さない
-    if (!levelEditor->IsBossMap()) {
+    if (!mapManager->IsBossMap()) {
         boss_->Initialize();
         bossDeadHandled_ = false;
 
@@ -94,7 +94,7 @@ void BossManager::RespawnInRoom(LevelEditor* levelEditor) {
     }
 
     // bossマップでは中央固定
-    Vector3 spawnPos = levelEditor->GetMapCenterPosition(1.5f);
+    Vector3 spawnPos = mapManager->GetMapCenterPosition(1.5f);
 
     boss_->Initialize();
     boss_->SetPosition(spawnPos);
@@ -122,33 +122,33 @@ void BossManager::EndBossIntro() {
     bossIntroTimer_ = 0;
 }
 
-bool BossManager::ShouldTriggerGameClear(LevelEditor* levelEditor) const {
+bool BossManager::ShouldTriggerGameClear(MapManager* mapManager) const {
 	// ボス部屋でボスを倒していたらクリア
-	if (!levelEditor || !boss_) {
+	if (!mapManager || !boss_) {
 		return false;
 	}
 
-	return levelEditor->IsBossMap() && boss_->IsDead() && bossDeadHandled_;
+	return mapManager->IsBossMap() && boss_->IsDead() && bossDeadHandled_;
 }
 
 void BossManager::Update(
 	Player* player,
 	EnemyManager* enemyManager,
 	CardPickupManager* cardPickupManager,
-	LevelEditor* levelEditor,
+	MapManager* mapManager,
 	Camera* camera,
 	const Vector3& playerPos,
 	const Vector3& targetPos
 ) {
 	// 必要なポインタが無ければ処理しない
-	if (!boss_ || !levelEditor || !cardPickupManager) {
+	if (!boss_ || !mapManager || !cardPickupManager) {
 		return;
 	}
 
 	// =========================================================
 	// ボス本体の更新
 	// =========================================================
-	if (!boss_->IsDead() && levelEditor->IsBossMap()) {
+	if (!boss_->IsDead() && mapManager->IsBossMap()) {
 		// 衝突で戻すために更新前の位置を保存
 		Vector3 oldBossPos = boss_->GetPosition();
 
@@ -163,7 +163,7 @@ void BossManager::Update(
 		bossAABB.min = { bossPos.x - 1.0f, bossPos.y - 1.0f, bossPos.z - 1.0f };
 		bossAABB.max = { bossPos.x + 1.0f, bossPos.y + 1.0f, bossPos.z + 1.0f };
 
-		const LevelData& level = levelEditor->GetLevelData();
+		const LevelData& level = mapManager->GetLevelData();
 
 		int bossGridX = static_cast<int>(std::round(bossPos.x / level.tileSize));
 		int bossGridZ = static_cast<int>(std::round(bossPos.z / level.tileSize));
@@ -209,7 +209,7 @@ void BossManager::Update(
 	// =========================================================
 	// ボス部屋で一定時間ごとにカードを落とす
 	// =========================================================
-	if (levelEditor->IsBossMap() &&
+	if (mapManager->IsBossMap() &&
 		isBossCardRainEnabled_ &&
 		!isBossIntroPlaying_) {
 
@@ -226,7 +226,7 @@ void BossManager::Update(
 			bossCardRainTimer_--;
 
 			if (bossCardRainTimer_ <= 0) {
-				Vector3 center = levelEditor->GetMapCenterPosition(1.5f);
+				Vector3 center = mapManager->GetMapCenterPosition(1.5f);
 				Vector3 dropPos = center;
 
 				// 他のカードに近すぎない位置を探す
@@ -290,7 +290,7 @@ void BossManager::Update(
 	if (player &&
 		!boss_->IsDead() &&
 		!player->IsDead() &&
-		levelEditor->IsBossMap() &&
+		mapManager->IsBossMap() &&
 		!isBossIntroPlaying_ &&
 		!boss_->IsAppearing()) {
 
@@ -339,7 +339,7 @@ void BossManager::Update(
 				Vector3 dropPos = boss_->GetPosition();
 
 				// 地面の高さに補正
-				const LevelData& level = levelEditor->GetLevelData();
+				const LevelData& level = mapManager->GetLevelData();
 				dropPos.y = level.baseY + 1.5f;
 
 				cardPickupManager->AddPickup(dropPos, dropCard);
@@ -354,7 +354,7 @@ void BossManager::Update(
 	// =========================================================
 	if (!boss_->IsDead() &&
 		bossCardSystem_ &&
-		levelEditor->IsBossMap() &&
+		mapManager->IsBossMap() &&
 		!isBossIntroPlaying_ &&
 		!boss_->IsAppearing()) {
 
@@ -365,19 +365,19 @@ void BossManager::Update(
 			playerPos,
 			Vector3{ 0.0f, 0.0f, 0.0f },
 			boss_->GetPosition(),
-			levelEditor->GetLevelData()
+			mapManager->GetLevelData()
 		);
 	}
 }
 
-void BossManager::Draw(LevelEditor* levelEditor) {
+void BossManager::Draw(MapManager* mapManager) {
 	// 必要な物が無ければ描画しない
-	if (!boss_ || !levelEditor) {
+	if (!boss_ || !mapManager) {
 		return;
 	}
 
 	// ボス本体の描画
-	if (!boss_->IsDead() && boss_->IsVisible() && levelEditor->IsBossMap()) {
+	if (!boss_->IsDead() && boss_->IsVisible() && mapManager->IsBossMap()) {
 		if (bossObj_) {
 			bossObj_->Draw();
 		}
@@ -389,14 +389,14 @@ void BossManager::Draw(LevelEditor* levelEditor) {
 	}
 }
 
-void BossManager::DrawHpBar(LevelEditor* levelEditor) {
+void BossManager::DrawHpBar(MapManager* mapManager) {
 	// 必要な物が無ければ描画しない
-	if (!boss_ || !levelEditor) {
+	if (!boss_ || !mapManager) {
 		return;
 	}
 
 	// ボスHPバー描画
-	if (!boss_->IsDead() && levelEditor->IsBossMap()) {
+	if (!boss_->IsDead() && mapManager->IsBossMap()) {
 		if (bossHpBackSprite_) {
 			bossHpBackSprite_->Draw();
 		}

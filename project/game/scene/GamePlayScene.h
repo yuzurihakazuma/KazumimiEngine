@@ -36,6 +36,7 @@ class Boss;
 class Minimap;
 class EnemyManager;
 class BossManager;
+class MapManager;
 
 // ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -93,7 +94,7 @@ private: // メンバ変数
 	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
 	// マップエディタ
-	std::unique_ptr<LevelEditor> levelEditor_;
+	std::unique_ptr<MapManager> mapManager_;
 
 	bool isEditorActive_ = true;
 

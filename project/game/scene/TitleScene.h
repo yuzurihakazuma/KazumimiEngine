@@ -16,7 +16,7 @@ class Camera;
 class Obj3d;
 class RenderTexture;
 class PostEffect;
-class LevelEditor;
+class MapManager;
 
 // タイトルシーン
 class TitleScene : public IScene {
@@ -49,7 +49,7 @@ private:
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
 	// マップエディタ
-	std::unique_ptr<LevelEditor> levelEditor_ = nullptr;
+	std::unique_ptr<MapManager> mapManager_ = nullptr;
 
 	bool isEditorActive_ = true;
 };
