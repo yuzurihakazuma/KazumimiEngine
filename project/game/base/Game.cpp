@@ -66,6 +66,9 @@ void Game::Draw(){
 	// シーンの描画
 	SceneManager::GetInstance()->Draw();
 
+	
+
+
 	// エディタの描画前処理
 	EditorManager::GetInstance()->End();
 

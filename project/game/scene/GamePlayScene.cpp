@@ -27,7 +27,6 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
 #include "game/player/Player.h"
-#include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
@@ -194,6 +193,9 @@ void GamePlayScene::Draw(){
 	if ( playerObj_ ) { playerObj_->Draw(); }
 	for ( auto& obj : object3ds_ ) { obj->Draw(); }
 	
+	
+	EditorManager::GetInstance()->Draw();
+
 	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	if ( testObj_ ){ testObj_->Draw(); }
