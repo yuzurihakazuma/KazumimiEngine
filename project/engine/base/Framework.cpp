@@ -16,6 +16,8 @@
 #include "engine/scene/AbstractSceneFactory.h"
 #include "engine/scene/SceneManager.h"
 #include "engine/postEffect/PostEffect.h"
+#include "engine/utils/EditorManager.h"
+#include "engine/utils/TextManager.h"
 
 
 void Framework::Initialize(){
@@ -77,6 +79,9 @@ void Framework::Initialize(){
 		WindowProc::GetInstance()->GetClientHeight()
 	);
 
+	// シーンマネージャー初期化
+	TextManager::GetInstance()->Initialize();
+
 }
 
 void Framework::Finalize(){
@@ -87,13 +92,19 @@ void Framework::Finalize(){
 	SceneManager::GetInstance()->Finalize();
 
 	// 2. ゲーム固有のマネージャー類を終了
+
+	EditorManager::GetInstance()->Finalize();
 	PostEffect::GetInstance()->Finalize();
 	ParticleManager::GetInstance()->Finalize();
 	ModelManager::GetInstance()->Finalize();
 	Obj3dCommon::GetInstance()->Finalize();
 	AudioManager::GetInstance()->Finalize();
 
+	// スプライトはテキストより先に終了させるのが安全
+	TextManager::GetInstance()->Finalize();
+
 	// 3. ImGuiは描画系のマネージャーより先に終了させるのが安全
+
 	ImGuiManager::GetInstance()->Shutdown();
 
 	// 4. 描画・基盤系のマネージャーを終了

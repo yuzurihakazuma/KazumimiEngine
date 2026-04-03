@@ -80,9 +80,7 @@ Game::Game(){}
 
 void Game::Finalize(){
 
-	// エディタを先に終了（D3D12リソースを持っているため）
-	EditorManager::GetInstance()->Finalize();
-
+	
 	// 基盤終了
 	Framework::Finalize();
 }

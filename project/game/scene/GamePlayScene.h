@@ -68,18 +68,10 @@ private: // メンバ変数
 
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
-	// 描画先を切り替えるためのRenderTexture
-	std::unique_ptr<PostEffect> postEffect_ = nullptr;
-
-	std::unique_ptr<Player> player_ = nullptr;
-
-	std::unique_ptr<Obj3d> playerObj_ = nullptr;
-
+	
 	std::unique_ptr<Obj3d> testObj_ = nullptr;
 
-	Vector3 playerPos_ = { 0.0f, 0.0f, 0.0f };
-	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
-
+	
 	
 	
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）

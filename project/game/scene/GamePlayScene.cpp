@@ -3,9 +3,7 @@
 #include "TitleScene.h"
 
 // --- エンジン側のファイル ---
-#include "Engine/Math/Matrix4x4.h"
 #include "Engine/Utils/ImGuiManager.h"
-#include "Engine/Utils/Color.h"
 #include "Engine/Audio/AudioManager.h"
 #include "Engine/3D/Model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
@@ -26,7 +24,6 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-#include "game/player/Player.h"
 #include "engine/utils/TextManager.h"
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
@@ -111,8 +108,7 @@ void GamePlayScene::Initialize(){
 
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	
-	TextManager::GetInstance()->Initialize();
-
+	
 	blockGroup_ = std::make_unique<InstancedGroup>();
 	blockGroup_->Initialize("block", 10000); // 最大1万個まで対応！
 	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
@@ -195,7 +191,6 @@ void GamePlayScene::Draw(){
 
 	// --- カリングありの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
-	if ( playerObj_ ) { playerObj_->Draw(); }
 	for ( auto& obj : object3ds_ ) { obj->Draw(); }
 	
 	
@@ -301,8 +296,7 @@ void GamePlayScene::Finalize(){
 	
 
 	object3ds_.clear();
-	TextManager::GetInstance()->Finalize();
-
+	
 	textures_.clear();
 	depthStencilResource_.Reset();
 }
