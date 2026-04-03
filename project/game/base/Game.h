@@ -3,6 +3,8 @@
 #include <memory>
 
 class SceneFactory;
+class EditorManager;
+
 // ゲームクラス
 class Game : public Framework{
 public:
@@ -13,12 +15,16 @@ public:
 	void Draw() override;
 
 
+public: // コンストラクタ・デストラクタ
+
 	Game();
 
-	~Game() = default;
+	~Game();
 
 private:
-
+	// シーンファクトリー
 	std::unique_ptr<SceneFactory> sceneFactory_ = nullptr;
+	std::unique_ptr<EditorManager> editorManager_ = nullptr;
+
 
 };

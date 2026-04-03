@@ -26,7 +26,13 @@ public:
 
 	void Finalize();
 
-	
+	// 現在のシーン固有のデバッグUIを描画
+	void DrawCurrentSceneDebugUI();
+
+	// パフォーマンス計測値のゲッター
+	float GetCpuUpdateTimeMs() const{ return cpuUpdateTimeMs_; }
+	float GetCpuDrawTimeMs() const{ return cpuDrawTimeMs_; }
+
 
 private:
 	// コンストラクタを private にして外部からの生成を禁止
@@ -40,4 +46,6 @@ private:
 
 	AbstractSceneFactory* sceneFactory_ = nullptr; 
 
+	float cpuUpdateTimeMs_ = 0.0f;
+	float cpuDrawTimeMs_ = 0.0f;
 };
