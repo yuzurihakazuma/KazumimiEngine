@@ -161,6 +161,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="engine\postEffect\Bloom.cpp" />
     <ClCompile Include="game\enemy\BossManager.cpp" />
     <ClCompile Include="game\enemy\EnemyManager.cpp" />
     <ClCompile Include="game\card\BossSummonEffect.cpp" />
@@ -271,6 +272,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="engine\postEffect\Bloom.h" />
     <ClInclude Include="game\enemy\BossManager.h" />
     <ClInclude Include="game\enemy\EnemyManager.h" />
     <ClInclude Include="game\card\BossSummonEffect.h" />
