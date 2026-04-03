@@ -1,5 +1,4 @@
 #define NOMINMAX
-#include <Windows.h>
 #include <algorithm>
 
 #include "BossManager.h"

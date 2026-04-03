@@ -1,0 +1,308 @@
+#define NOMINMAX
+#include <algorithm>
+
+#include "game/player/PlayerManager.h"
+#include "game/player/Player.h"
+#include "Engine/3D/Obj/Obj3d.h"
+#include "Engine/Base/Input.h"
+#include "Engine/Camera/Camera.h"
+#include "Engine/Camera/DebugCamera.h"
+#include "game/enemy/BossManager.h"
+#include "game/map/MapManager.h"
+#include "engine/collision/Collision.h"
+
+using namespace VectorMath;
+
+void PlayerManager::Initialize(Camera* camera) {
+    // プレイヤー表示用オブジェクトを作成
+    playerObj_ = Obj3d::Create("player");
+    if (playerObj_) {
+        playerObj_->SetCamera(camera);
+        playerObj_->SetTranslation(playerPos_);
+        playerObj_->SetScale(playerScale_);
+    }
+
+    // プレイヤー本体を作成
+    player_ = std::make_unique<Player>();
+    player_->Initialize();
+    player_->SetPosition(playerPos_);
+    player_->SetScale(playerScale_);
+}
+
+void PlayerManager::Finalize() {
+    // プレイヤー関連を解放
+    playerObj_.reset();
+    player_.reset();
+}
+
+void PlayerManager::Update(
+    Input* input,
+    MapManager* mapManager,
+    DebugCamera* debugCamera,
+    BossManager* bossManager
+) {
+    // 必要なものが無ければ更新しない
+    if (!player_ || !mapManager || !input) {
+        return;
+    }
+
+    // ボス登場演出中かどうかを確認
+    bool isBossIntroPlaying = bossManager ? bossManager->IsBossIntroPlaying() : false;
+
+    // デバッグカメラ中またはボス演出中は入力を止める
+    if ((debugCamera && debugCamera->IsActive()) || isBossIntroPlaying) {
+        player_->SetInputEnable(false);
+    } else {
+        player_->SetInputEnable(true);
+    }
+
+    // 衝突時に戻すため更新前の位置を保存
+    Vector3 oldPos = player_->GetPosition();
+
+    // プレイヤー本体を更新
+    player_->Update();
+    playerPos_ = player_->GetPosition();
+
+    // プレイヤーの当たり判定を作成
+    AABB playerAABB;
+    playerAABB.min = { playerPos_.x - 0.5f, playerPos_.y - 0.5f, playerPos_.z - 0.5f };
+    playerAABB.max = { playerPos_.x + 0.5f, playerPos_.y + 0.5f, playerPos_.z + 0.5f };
+
+    const LevelData& level = mapManager->GetLevelData();
+
+    // プレイヤー周囲のマスだけ判定する
+    int centerGridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
+    int centerGridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
+
+    int startX = std::max(0, centerGridX - 1);
+    int endX = std::min(level.width - 1, centerGridX + 1);
+    int startZ = std::max(0, centerGridZ - 1);
+    int endZ = std::min(level.height - 1, centerGridZ + 1);
+
+    bool isPlayerHit = false;
+
+    for (int z = startZ; z <= endZ && !isPlayerHit; z++) {
+        for (int x = startX; x <= endX; x++) {
+            // 壁タイル以外は無視
+            if (level.tiles[z][x] != 1) {
+                continue;
+            }
+
+            float worldX = x * level.tileSize;
+            float worldZ = z * level.tileSize;
+
+            // 壁ブロックの当たり判定を作成
+            AABB blockAABB;
+            blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
+            blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+            // 壁に当たったら更新前の位置に戻す
+            if (Collision::IsCollision(playerAABB, blockAABB)) {
+                player_->SetPosition(oldPos);
+                playerPos_ = oldPos;
+                isPlayerHit = true;
+                break;
+            }
+        }
+    }
+
+    // プレイヤーの現在スケールを保存
+    playerScale_ = player_->GetScale();
+
+    // 表示用オブジェクトにプレイヤーの状態を反映
+    if (playerObj_) {
+        playerObj_->SetTranslation(playerPos_);
+        playerObj_->SetRotation(player_->GetRotation());
+        playerObj_->SetScale(playerScale_);
+        playerObj_->Update();
+    }
+}
+
+void PlayerManager::Draw() {
+    // 死亡しておらず表示可能なら描画
+    if (playerObj_ && player_ && !player_->IsDead() && player_->IsVisible()) {
+        playerObj_->Draw();
+    }
+}
+
+void PlayerManager::RespawnInRoom(MapManager* mapManager, Camera* camera) {
+    // 必要なものが無ければ再配置しない
+    if (!mapManager || !player_) {
+        return;
+    }
+
+    // ボス部屋と通常部屋で出現位置を分ける
+    if (mapManager->IsBossMap()) {
+        Vector3 center = mapManager->GetMapCenterPosition(1.5f);
+        playerPos_ = center;
+        playerPos_.z -= 6.0f;
+    } else {
+        playerPos_ = mapManager->GetRandomPlayerSpawnPosition(1.5f);
+    }
+
+    // スケールを初期値に戻す
+    playerScale_ = { 1.0f, 1.0f, 1.0f };
+
+    // プレイヤー本体に位置とスケールを反映
+    player_->SetPosition(playerPos_);
+    player_->SetScale(playerScale_);
+
+    // 表示用オブジェクトにも反映
+    if (playerObj_) {
+        playerObj_->SetTranslation(playerPos_);
+        playerObj_->SetRotation({ 0.0f, 0.0f, 0.0f });
+        playerObj_->SetScale(playerScale_);
+        playerObj_->Update();
+    }
+
+    // カメラもプレイヤー初期位置に合わせる
+    if (camera) {
+        camera->SetTranslation({
+            playerPos_.x,
+            playerPos_.y + 15.0f,
+            playerPos_.z - 15.0f
+            });
+        camera->SetRotation({ 0.9f, 0.0f, 0.0f });
+        camera->Update();
+    }
+}
+
+void PlayerManager::SetPosition(const Vector3& pos) {
+    // 保存位置を更新
+    playerPos_ = pos;
+
+    // プレイヤー本体にも反映
+    if (player_) {
+        player_->SetPosition(pos);
+    }
+
+    // 表示用オブジェクトにも反映
+    if (playerObj_) {
+        playerObj_->SetTranslation(playerPos_);
+        if (player_) {
+            playerObj_->SetRotation(player_->GetRotation());
+        }
+        playerObj_->Update();
+    }
+}
+
+void PlayerManager::SetScale(const Vector3& scale) {
+    // 保存スケールを更新
+    playerScale_ = scale;
+
+    // プレイヤー本体にも反映
+    if (player_) {
+        player_->SetScale(scale);
+    }
+
+    // 表示用オブジェクトにも反映
+    if (playerObj_) {
+        playerObj_->SetScale(playerScale_);
+        playerObj_->Update();
+    }
+}
+
+bool PlayerManager::IsDead() const {
+    return player_ ? player_->IsDead() : false;
+}
+
+bool PlayerManager::IsVisible() const {
+    return player_ ? player_->IsVisible() : false;
+}
+
+void PlayerManager::ApplyInfiniteMode(bool isInfiniteMode) {
+    // 無限モード中だけステータスを固定
+    if (!player_ || !isInfiniteMode) {
+        return;
+    }
+
+    player_->SetMaxCost(999);
+    player_->SetCost(player_->GetMaxCost());
+    player_->SetHP(player_->GetMaxHP());
+}
+
+int PlayerManager::GetHP() const {
+    return player_ ? player_->GetHP() : 0;
+}
+
+int PlayerManager::GetMaxHP() const {
+    return player_ ? player_->GetMaxHP() : 0;
+}
+
+int PlayerManager::GetCost() const {
+    return player_ ? player_->GetCost() : 0;
+}
+
+int PlayerManager::GetMaxCost() const {
+    return player_ ? player_->GetMaxCost() : 0;
+}
+
+int PlayerManager::GetLevel() const {
+    return player_ ? player_->GetLevel() : 0;
+}
+
+int PlayerManager::GetExp() const {
+    return player_ ? player_->GetExp() : 0;
+}
+
+int PlayerManager::GetNextLevelExp() const {
+    return player_ ? player_->GetNextLevelExp() : 0;
+}
+
+bool PlayerManager::IsDodging() const {
+    return player_ ? player_->IsDodging() : false;
+}
+
+bool PlayerManager::IsActionLocked() const {
+    return player_ ? player_->IsActionLocked() : false;
+}
+
+bool PlayerManager::IsHit() const {
+    return player_ ? player_->IsHit() : false;
+}
+
+bool PlayerManager::IsInvincible() const {
+    return player_ ? player_->IsInvincible() : false;
+}
+
+bool PlayerManager::CanUseCost(int cost) const {
+    return player_ ? player_->CanUseCost(cost) : false;
+}
+
+void PlayerManager::UseCost(int cost) {
+    if (player_) {
+        player_->UseCost(cost);
+    }
+}
+
+void PlayerManager::AddExp(int value) {
+    if (player_) {
+        player_->AddExp(value);
+    }
+}
+
+float PlayerManager::GetRotationY() const {
+    return player_ ? player_->GetRotation().y : 0.0f;
+}
+
+void PlayerManager::Reset() {
+    // プレイヤーが無ければ何もしない
+    if (!player_) {
+        return;
+    }
+
+    // スケールを初期値に戻す
+    playerScale_ = { 1.0f, 1.0f, 1.0f };
+    player_->SetScale(playerScale_);
+
+    // 保存位置を現在のプレイヤー座標に合わせる
+    playerPos_ = player_->GetPosition();
+
+    // 表示用オブジェクトにも反映
+    if (playerObj_) {
+        playerObj_->SetTranslation(playerPos_);
+        playerObj_->SetRotation(player_->GetRotation());
+        playerObj_->SetScale(playerScale_);
+        playerObj_->Update();
+    }
+}

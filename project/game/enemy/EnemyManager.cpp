@@ -17,7 +17,11 @@ using namespace VectorMath;
 
 
 void EnemyManager::Initialize() {
+	// 敵関連のデータをすべて初期化
 	enemies_.clear();
+	enemyObjs_.clear();
+	enemyDeadHandled_.clear();
+	enemyCardSystems_.clear();
 }
 
 void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss) {
@@ -28,8 +32,23 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 
 	// 敵全員分ループ
 	for (size_t i = 0; i < enemies_.size(); ++i) {
-		auto &enemy = enemies_[i];
-		if (!enemy || enemy->IsDead()) {
+		auto& enemy = enemies_[i];
+		if (!enemy) {
+			continue;
+		}
+
+		// 死亡時の処理を一度だけ行う
+		if (enemy->IsDead()) {
+			if (!enemyDeadHandled_[i]) {
+				if (player) {
+					player->AddExp(1);
+				}
+				if (enemy->HasPickupCard()) {
+					cardPickupManager->AddPickup(enemy->GetPosition(), enemy->GetPickupCard());
+					enemy->ClearPickupCard();
+				}
+				enemyDeadHandled_[i] = true;
+			}
 			continue;
 		}
 
@@ -58,17 +77,6 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 		// --- ④ AI更新 ---
 		enemy->SetCardTarget(foundCard, nearestCardPos);
 		enemy->Update();
-
-		if (enemy->IsDead() && !enemyDeadHandled_[i]) {
-			if (player) {
-				player->AddExp(1);
-			}
-			if (enemy->HasPickupCard()) {
-				cardPickupManager->AddPickup(enemy->GetPosition(), enemy->GetPickupCard());
-				enemy->ClearPickupCard();
-			}
-			enemyDeadHandled_[i] = true;
-		}
 
 		// --- ⑤ 壁との衝突判定（引数のlevelを使う） ---
 		Vector3 enemyPos = enemy->GetPosition();
@@ -239,6 +247,11 @@ void EnemyManager::SpawnBossMinions(int spawnCount, const Vector3 &summonCenter,
 	// 今回実際に召喚する数を計算（要求数か、上限までの空き枠の少ない方）
 	int actualSpawnCount = std::min(spawnCount, maxMinions - aliveCount);
 
+	// 召喚数が0なら何もしない
+	if (actualSpawnCount <= 0) {
+		return;
+	}
+
 	// 4. 実際に召喚する処理
 	float angleStep = 3.14159f * 2.0f / actualSpawnCount;
 	for (int i = 0; i < actualSpawnCount; ++i) {
@@ -331,8 +344,16 @@ void EnemyManager::SpawnEnemiesRandom(int enemyCount, int margin, SpawnManager *
 	std::shuffle(filtered.begin(), filtered.end(), mt);
 
 	const int kMaxEnemies = 5;
-	int currentEnemies = static_cast<int>(enemies_.size());
-	int availableSpace = kMaxEnemies - currentEnemies;
+
+	// 生きている敵の数を数える
+	int aliveCount = 0;
+	for (const auto& enemy : enemies_) {
+		if (enemy && !enemy->IsDead()) {
+			aliveCount++;
+		}
+	}
+
+	int availableSpace = kMaxEnemies - aliveCount;
 
 	if (availableSpace <= 0) {
 		return;

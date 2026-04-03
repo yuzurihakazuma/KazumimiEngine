@@ -26,9 +26,10 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-#include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
+#include "game/player/Player.h"
+#include "game/player/PlayerManager.h"
 #include "game/enemy/Enemy.h"
 #include "game/enemy/Boss.h"
 #include "game/enemy/EnemyManager.h"
@@ -100,17 +101,15 @@ void GamePlayScene::Initialize(){
 	enemyManager_ = std::make_unique<EnemyManager>();
 	enemyManager_->Initialize();
 
-	playerObj_ = Obj3d::Create("player");
-	if ( playerObj_ ) {
-		playerObj_->SetCamera(camera_.get());
-		playerObj_->SetTranslation(playerPos_);
-		playerObj_->SetScale(playerScale_);
-	}
+	// プレイヤー管理クラスを作成
+	playerManager_ = std::make_unique<PlayerManager>();
+	playerManager_->Initialize(camera_.get());
 
-	player_ = std::make_unique<Player>();
-	player_->Initialize();
-	player_->SetPosition(playerPos_);
-	player_->SetScale(playerScale_);
+	// 他の処理でも使うので位置とスケールを同期
+	if (playerManager_) {
+		playerPos_ = playerManager_->GetPosition();
+		playerScale_ = playerManager_->GetScale();
+	}
 
 	bossManager_ = std::make_unique<BossManager>();
 	bossManager_->Initialize(camera_.get());
@@ -246,6 +245,9 @@ void GamePlayScene::Update(){
 
 	Input* input = Input::GetInstance();
 
+	// プレイヤー本体を取得
+	Player* player = playerManager_ ? playerManager_->GetPlayer() : nullptr;
+
 	// BossManagerから必要なものだけ取る
 	Boss* boss = bossManager_ ? bossManager_->GetBoss() : nullptr;
 	Sprite* bossHpBackSprite = bossManager_ ? bossManager_->GetBossHpBackSprite() : nullptr;
@@ -342,91 +344,35 @@ void GamePlayScene::Update(){
 	// ==========================================
 	// プレイヤーの更新処理
 	// ==========================================
+	if (playerManager_) {
 
-	if ( player_ ) {
-
-		if ( input->Triggerkey(DIK_F1) ) {
+		// デバッグ用の無限モード切り替え
+		if (input->Triggerkey(DIK_F1)) {
 			isInfiniteMode_ = !isInfiniteMode_;
 		}
 
-		if ( isInfiniteMode_ ) {
-			player_->SetMaxCost(999);
-			player_->SetCost(player_->GetMaxCost());
-			player_->SetHP(player_->GetMaxHP());
-		}
+		// 無限モード中はプレイヤーステータスを固定
+		playerManager_->ApplyInfiniteMode(isInfiniteMode_);
 
+		// プレイヤー本体の更新を任せる
+		playerManager_->Update(input, mapManager_.get(), debugCamera_.get(), bossManager_.get());
 
-		// デバッグカメラ中、またはボス部屋突入演出中は操作を止める
-		bool isBossIntroPlaying = bossManager_ ? bossManager_->IsBossIntroPlaying() : false;
-
-		if ( ( debugCamera_ && debugCamera_->IsActive() ) || isBossIntroPlaying ) {
-			player_->SetInputEnable(false);
-		} else {
-			player_->SetInputEnable(true);
-		}
-
-		Vector3 oldPos = player_->GetPosition();
-
-		player_->Update();
-		playerPos_ = player_->GetPosition();
-
-		AABB playerAABB;
-		playerAABB.min = { playerPos_.x - 0.5f, playerPos_.y - 0.5f, playerPos_.z - 0.5f };
-		playerAABB.max = { playerPos_.x + 0.5f, playerPos_.y + 0.5f, playerPos_.z + 0.5f };
-
-		const LevelData& level = mapManager_->GetLevelData();
-
-		int centerGridX = static_cast< int >( std::round(playerPos_.x / level.tileSize) );
-		int centerGridZ = static_cast< int >( std::round(playerPos_.z / level.tileSize) );
-
-		int startX = std::max(0, centerGridX - 1);
-		int endX = std::min(level.width - 1, centerGridX + 1);
-		int startZ = std::max(0, centerGridZ - 1);
-		int endZ = std::min(level.height - 1, centerGridZ + 1);
-
-		bool isPlayerHit = false;
-
-		for ( int z = startZ; z <= endZ && !isPlayerHit; z++ ) {
-			for ( int x = startX; x <= endX; x++ ) {
-
-				if ( level.tiles[z][x] != 1 ) continue;
-
-				float worldX = x * level.tileSize;
-				float worldZ = z * level.tileSize;
-
-				AABB blockAABB;
-				blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
-				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
-
-				if ( Collision::IsCollision(playerAABB, blockAABB) ) {
-					player_->SetPosition(oldPos);
-					playerPos_ = oldPos;
-					isPlayerHit = true;
-					break;
-				}
-			}
-		}
-
-		playerScale_ = player_->GetScale();
+		// 他の処理でも使うので位置とスケールを同期
+		playerPos_ = playerManager_->GetPosition();
+		playerScale_ = playerManager_->GetScale();
 	}
 
-	if ( playerObj_ ) {
-		playerObj_->SetTranslation(playerPos_);
-		playerObj_->SetRotation(player_->GetRotation());
-		playerObj_->SetScale(playerScale_);
-		playerObj_->Update();
-	}
-
-	if ( player_ && player_->IsDead() ) {
+	// プレイヤーが死亡したらゲームオーバーへ遷移
+	if (playerManager_ && playerManager_->IsDead()) {
 		SceneManager::GetInstance()->ChangeScene("GAMEOVER");
 		return;
 	}
 
-
 	// ==========================================
 	// 階段タイル(3)との判定
 	// ==========================================
-	if ( player_ && mapManager_ ) {
+
+	if (player && mapManager_) {
 		const LevelData& level = mapManager_->GetLevelData();
 		int gridX = static_cast< int >( std::round(playerPos_.x / level.tileSize) );
 		int gridZ = static_cast< int >( std::round(playerPos_.z / level.tileSize) );
@@ -452,8 +398,8 @@ void GamePlayScene::Update(){
 	}
 
 	// EnemyManager に更新をお願いする
-	if ( enemyManager_ ) {
-		enemyManager_->Update(player_.get(), &cardPickupManager_, mapManager_.get(), boss);
+	if (enemyManager_) {
+		enemyManager_->Update(player, &cardPickupManager_, mapManager_.get(), boss);
 	}
 
 	// ==========================================
@@ -461,9 +407,9 @@ void GamePlayScene::Update(){
 	// ==========================================
 
 	// ボス関連の更新をまとめてBossManagerに任せる
-	if ( bossManager_ ) {
+	if (bossManager_) {
 		bossManager_->Update(
-			player_.get(),
+			player,
 			enemyManager_.get(),
 			&cardPickupManager_,
 			mapManager_.get(),
@@ -479,8 +425,10 @@ void GamePlayScene::Update(){
 		return;
 	}
 
-	// 敵→ プレイヤーの攻撃
-	enemyManager_->CheckCollisions(player_.get());
+	// 敵とプレイヤーの当たり判定
+	if (enemyManager_) {
+		enemyManager_->CheckCollisions(player);
+	}
 
 	// ==========================================
 	// カメラ・各種オブジェクトの更新
@@ -714,7 +662,7 @@ void GamePlayScene::Update(){
 		float playerDist = Length(playerDiff);
 
 		// プレイヤーが拾う処理
-		if ( player_ && !player_->IsDead() && playerDist < 2.0f ) {
+		if (player && !player->IsDead() && playerDist < 2.0f) {
 			bool success = handManager_.AddCard(pickup.card);
 			if ( success ) {
 				pickup.isActive = false;
@@ -833,8 +781,8 @@ void GamePlayScene::Update(){
 		minimap_->Update();
 	}
 
-	// 手札(UIなど)の更新
-	if ( player_ && !player_->IsDead() ) {
+	// プレイヤーが生存中なら手札UIを更新
+	if (playerManager_ && !playerManager_->IsDead()) {
 		handManager_.Update();
 	}
 
@@ -848,18 +796,18 @@ void GamePlayScene::Update(){
 	}
 
 	// プレイヤーステータス表示更新
-	if ( player_ ) {
+	if (playerManager_) {
 		std::string hpText =
-			"HP : " + std::to_string(player_->GetHP()) + " / " + std::to_string(player_->GetMaxHP());
+			"HP : " + std::to_string(playerManager_->GetHP()) + " / " + std::to_string(playerManager_->GetMaxHP());
 
 		std::string costText =
-			"COST : " + std::to_string(player_->GetCost()) + " / " + std::to_string(player_->GetMaxCost());
+			"COST : " + std::to_string(playerManager_->GetCost()) + " / " + std::to_string(playerManager_->GetMaxCost());
 
 		std::string levelText =
-			"LV : " + std::to_string(player_->GetLevel());
+			"LV : " + std::to_string(playerManager_->GetLevel());
 
 		std::string expText =
-			"EXP : " + std::to_string(player_->GetExp()) + " / " + std::to_string(player_->GetNextLevelExp());
+			"EXP : " + std::to_string(playerManager_->GetExp()) + " / " + std::to_string(playerManager_->GetNextLevelExp());
 
 		TextManager::GetInstance()->SetText("PlayerHP", hpText);
 		TextManager::GetInstance()->SetText("PlayerCost", costText);
@@ -909,15 +857,15 @@ void GamePlayScene::Update(){
 		}
 
 
-		// 別キー（例として Eキー）を押した瞬間に魔法を発動！（連打で何回でも撃てる）
-		if ( input->Triggerkey(DIK_E) ) {
-			if ( playerCardSystem_ ) {
+		// Eキーで構え中の攻撃カードを発動
+		if (input->Triggerkey(DIK_E)) {
+			if (playerCardSystem_ && playerManager_) {
 				playerCardSystem_->UseCard(
 					readiedCard_,
 					playerPos_,
-					player_->GetRotation().y,
+					playerManager_->GetRotationY(),
 					true,
-					player_.get()
+					playerManager_->GetPlayer()
 				);
 			}
 		}
@@ -932,9 +880,9 @@ void GamePlayScene::Update(){
 	}
 
 	// プレイヤー用カードシステム更新
-	if ( playerCardSystem_ ) {
+	if (playerCardSystem_) {
 		playerCardSystem_->Update(
-			player_.get(),
+			player,
 			enemyManager_.get(),
 			targetBoss,
 			playerPos_,
@@ -1015,10 +963,6 @@ void GamePlayScene::Draw(){
 	auto commandList = dxCommon->GetCommandList(); // ← 1回だけ！
 
 	Boss* boss = bossManager_ ? bossManager_->GetBoss() : nullptr;
-	Obj3d* bossObj = bossManager_ ? bossManager_->GetBossObj() : nullptr;
-	CardUseSystem* bossCardSystem = bossManager_ ? bossManager_->GetBossCardSystem() : nullptr;
-	Sprite* bossHpBackSprite = bossManager_ ? bossManager_->GetBossHpBackSprite() : nullptr;
-	Sprite* bossHpFillSprite = bossManager_ ? bossManager_->GetBossHpFillSprite() : nullptr;
 
 	// =========================================
 	// 1. MRT開始（色用 + マスク用の2枚同時）
@@ -1030,8 +974,8 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 
 	// プレイヤー描画
-	if ( playerObj_ && player_ && !player_->IsDead() && player_->IsVisible() ) {
-		playerObj_->Draw();
+	if (playerManager_) {
+		playerManager_->Draw();
 	}
 
 	// ボス描画
@@ -1137,6 +1081,7 @@ void GamePlayScene::Draw(){
 void GamePlayScene::DrawDebugUI(){
 
 #ifdef USE_IMGUI
+	Player* player = playerManager_ ? playerManager_->GetPlayer() : nullptr;
 	Boss* boss = bossManager_ ? bossManager_->GetBoss() : nullptr;
 	// 3Dオブジェクト、カメラ、パーティクルのUI
 	Obj3dCommon::GetInstance()->DrawDebugUI();
@@ -1192,15 +1137,15 @@ void GamePlayScene::DrawDebugUI(){
 			pickup.isActive ? "true" : "false");
 	}
 
-	// 仮のプレイヤー状況を表示
-	if ( player_ ) {
-		ImGui::Text("Player Level: %d", player_->GetLevel());       // プレイヤーレベル表示
-		ImGui::Text("Player EXP: %d / %d", player_->GetExp(), player_->GetNextLevelExp()); // 経験値表示
-		ImGui::Text("Player Cost: %d / %d", player_->GetCost(), player_->GetMaxCost());     // コスト表示
-		ImGui::Text("Player HP: %d / %d", player_->GetHP(), player_->GetMaxHP());           // HP表示
-		ImGui::Text("Player Dead: %s", player_->IsDead() ? "true" : "false");               // 死亡状態表示
-		ImGui::Text("Player Hit: %s", player_->IsHit() ? "true" : "false");                 // 被弾状態表示
-		ImGui::Text("Player Invincible: %s", player_->IsInvincible() ? "true" : "false");   // 無敵状態表示
+	// プレイヤー状態を表示
+	if (playerManager_) {
+		ImGui::Text("Player Level: %d", playerManager_->GetLevel());
+		ImGui::Text("Player EXP: %d / %d", playerManager_->GetExp(), playerManager_->GetNextLevelExp());
+		ImGui::Text("Player Cost: %d / %d", playerManager_->GetCost(), playerManager_->GetMaxCost());
+		ImGui::Text("Player HP: %d / %d", playerManager_->GetHP(), playerManager_->GetMaxHP());
+		ImGui::Text("Player Dead: %s", playerManager_->IsDead() ? "true" : "false");
+		ImGui::Text("Player Hit: %s", playerManager_->IsHit() ? "true" : "false");
+		ImGui::Text("Player Invincible: %s", playerManager_->IsInvincible() ? "true" : "false");
 	}
 
 	if ( boss ) {
@@ -1210,10 +1155,10 @@ void GamePlayScene::DrawDebugUI(){
 		ImGui::Text("Boss Dead: %s", boss->IsDead() ? "true" : "false");
 	}
 
-	// デバッグ用
-	if ( ImGui::Button("Add EXP +1") ) {
-		if ( player_ ) {
-			player_->AddExp(1); // デバッグ用経験値追加
+	// デバッグ用に経験値を加算
+	if (ImGui::Button("Add EXP +1")) {
+		if (playerManager_) {
+			playerManager_->AddExp(1);
 		}
 	}
 
@@ -1279,10 +1224,11 @@ void GamePlayScene::DrawDebugUI(){
 
 void GamePlayScene::ResetBattleDebug(){
 
-	// プレイヤーの状態だけ初期化
-	if ( player_ ) {
-		//player_->Initialize();
-		playerScale_ = { 1.0f, 1.0f, 1.0f };
+	// プレイヤー状態をリセット
+	if (playerManager_) {
+		playerManager_->Reset();
+		playerPos_ = playerManager_->GetPosition();
+		playerScale_ = playerManager_->GetScale();
 	}
 
 	if ( bossManager_ ) {
@@ -1348,65 +1294,76 @@ void GamePlayScene::UpdateCardSwapMode(Input* input){
 	}
 }
 
-void GamePlayScene::UpdateCardUse(Input* input){
+void GamePlayScene::UpdateCardUse(Input* input) {
 
-	if ( !player_ || player_->IsDead() || !input->Triggerkey(DIK_SPACE) ) {
+	// PlayerManager が無ければ何もしない
+	if (!playerManager_) {
 		return;
 	}
 
-	if ( player_->IsDodging() ) {
+	// プレイヤー本体を取得
+	Player* player = playerManager_->GetPlayer();
+
+	// プレイヤー不在、死亡中、または入力が無ければ何もしない
+	if (!player || playerManager_->IsDead() || !input->Triggerkey(DIK_SPACE)) {
 		return;
 	}
 
-	if ( player_->IsActionLocked() ) {
+	// 回避中はカードを使えない
+	if (playerManager_->IsDodging()) {
 		return;
 	}
 
-	if ( handManager_.IsSelectedCardDissolving() ) {
+	// 行動ロック中はカードを使えない
+	if (playerManager_->IsActionLocked()) {
 		return;
 	}
 
+	// 手札のディゾルブ中は使えない
+	if (handManager_.IsSelectedCardDissolving()) {
+		return;
+	}
+
+	// 現在選択中のカードを取得
 	Card selectedCard = handManager_.GetSelectedCard();
-	if ( selectedCard.id == -1 ) {
+	if (selectedCard.id == -1) {
 		return;
 	}
 
-	// すでに攻撃カードを構えている（撃ち放題中）なら、他の攻撃カードは使えないようにする！
-	if ( isCardReady_ && selectedCard.id != 1 && static_cast< int >( selectedCard.effectType ) == 0 ) {
-		// 構えが終わるまでは弾く（ここで return するので、コストも消費されず手札からも消えません）
+	// 攻撃カード構え中は他の攻撃カードを使えない
+	if (isCardReady_ && selectedCard.id != 1 && static_cast<int>(selectedCard.effectType) == 0) {
 		return;
 	}
 
-	if ( !player_->CanUseCost(selectedCard.cost) ) {
-		// コスト不足メッセージを出す
-		costLackMessageTimer_ = 60; // 約1秒表示
-
+	// コスト不足ならメッセージを出して終了
+	if (!playerManager_->CanUseCost(selectedCard.cost)) {
+		costLackMessageTimer_ = 60;
 		return;
 	}
 
-	player_->UseCost(selectedCard.cost);
+	// コストを消費
+	playerManager_->UseCost(selectedCard.cost);
 
-	// カードの種類によって処理を分ける！
-
-	if ( selectedCard.id != 1 && static_cast< int >( selectedCard.effectType ) == 0 ) {
-		// 攻撃カード(effectType == 0)なら、数秒間「撃ち放題モード（構え状態）」にする
+	// 攻撃カードなら構え状態にする
+	if (selectedCard.id != 1 && static_cast<int>(selectedCard.effectType) == 0) {
 		isCardReady_ = true;
 		readiedCard_ = selectedCard;
-		cardReadyTimer_ = 60 * 5; // 5秒間維持 (60FPS想定)
-
+		cardReadyTimer_ = 60 * 5;
 	} else {
-		if ( playerCardSystem_ ) {
+		// それ以外のカードは即時発動
+		if (playerCardSystem_) {
 			playerCardSystem_->UseCard(
 				selectedCard,
 				playerPos_,
-				player_->GetRotation().y,
+				playerManager_->GetRotationY(),
 				true,
-				player_.get()
+				player
 			);
 		}
 	}
 
-	if ( selectedCard.id != 1 ) {
+	// 初期カード以外は使用後にディゾルブ開始
+	if (selectedCard.id != 1) {
 		handManager_.StartDissolveSelectedCard();
 	}
 }
@@ -1473,13 +1430,19 @@ GamePlayScene::GamePlayScene(){}
 
 GamePlayScene::~GamePlayScene(){}
 // 終了
-void GamePlayScene::Finalize(){
+void GamePlayScene::Finalize() {
 
 	object3ds_.clear();
 
+	// プレイヤー管理クラスを解放
+	if (playerManager_) {
+		playerManager_->Finalize();
+		playerManager_.reset();
+	}
+
 	playerCardSystem_.reset();
 	//enemyCardSystems_.clear();
-	if ( bossManager_ ) {
+	if (bossManager_) {
 		bossManager_->Finalize();
 		bossManager_.reset();
 	}
@@ -1607,43 +1570,18 @@ void GamePlayScene::SpawnCardsRandom(int cardCount, int margin){
 	}
 }
 
-void GamePlayScene::RespawnPlayerInRoom(){
-	if ( !mapManager_ || !player_ ) {
-		return;
-	}
+void GamePlayScene::RespawnPlayerInRoom() {
 
-	if ( mapManager_->IsBossMap() ) {
-		Vector3 center = mapManager_->GetMapCenterPosition(1.5f);
-		playerPos_ = center;
-		playerPos_.z -= 6.0f; // ボスより少し手前
-	} else {
-		playerPos_ = mapManager_->GetRandomPlayerSpawnPosition(1.5f);
-	}
+	// PlayerManager にプレイヤー再配置を任せる
+	if (playerManager_) {
+		playerManager_->RespawnInRoom(mapManager_.get(), camera_.get());
 
-	playerScale_ = { 1.0f, 1.0f, 1.0f };
-
-	player_->SetPosition(playerPos_);
-	player_->SetScale(playerScale_);
-
-	if ( playerObj_ ) {
-		playerObj_->SetTranslation(playerPos_);
-		playerObj_->SetRotation({ 0.0f, 0.0f, 0.0f });
-		playerObj_->SetScale(playerScale_);
-		playerObj_->Update();
-	}
-
-	if ( camera_ ) {
-		camera_->SetTranslation({
-			playerPos_.x,
-			playerPos_.y + 15.0f,
-			playerPos_.z - 15.0f
-			});
-		camera_->SetRotation({
-			0.9f, 0.0f, 0.0f
-			});
-		camera_->Update();
+		// 他の処理でも使うので位置とスケールを同期
+		playerPos_ = playerManager_->GetPosition();
+		playerScale_ = playerManager_->GetScale();
 	}
 }
+
 void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount){
 	if ( !mapManager_ ) {
 		return;

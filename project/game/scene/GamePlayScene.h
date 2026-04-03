@@ -28,7 +28,7 @@ class DirectXCommon;
 class Input;
 class RenderTexture; 
 class PostEffect;
-class Player;
+class PlayerManager;
 class LevelEditor;
 class Enemy;
 class CardUseSystem;
@@ -84,12 +84,12 @@ private: // メンバ変数
 	// 描画先を切り替えるためのRenderTexture
 	std::unique_ptr<PostEffect> postEffect_ = nullptr;
 
-	std::unique_ptr<Player> player_ = nullptr;
-
-	std::unique_ptr<Obj3d> playerObj_ = nullptr;
+	// プレイヤー全体の管理
+	std::unique_ptr<PlayerManager> playerManager_ = nullptr;
 
 	std::unique_ptr<Obj3d> testObj_ = nullptr;
 
+	// プレイヤー位置とスケールは他の処理でも使うのでまだ残す
 	Vector3 playerPos_ = { 5.0f, 0.0f, 5.0f };
 	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
