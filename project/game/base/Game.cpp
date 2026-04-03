@@ -14,9 +14,7 @@ void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類)
 	Framework::Initialize();
 
-	// エディタマネージャーの生成
-	EditorManager::GetInstance()->Initialize();
-
+	
 
 	// 1. ファクトリーの生成
 	sceneFactory_ = std::make_unique<SceneFactory>();

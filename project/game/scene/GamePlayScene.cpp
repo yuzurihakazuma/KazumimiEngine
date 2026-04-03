@@ -64,6 +64,11 @@ void GamePlayScene::Initialize(){
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 	
+	// エディタマネージャーの生成
+	EditorManager::GetInstance()->Initialize();
+
+
+
 	// モデル読み込み (シングルトン)
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
