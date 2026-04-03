@@ -22,7 +22,6 @@ class Input;
 class RenderTexture; 
 class PostEffect;
 class Player;
-class LevelEditor;
 
 	// ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -81,11 +80,7 @@ private: // メンバ変数
 	Vector3 playerPos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };
 
-	// マップエディタ
-	std::unique_ptr<LevelEditor> levelEditor_;
-
-	bool isEditorActive_ = true;
-
+	
 	
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	

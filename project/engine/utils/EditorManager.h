@@ -1,17 +1,32 @@
 #pragma once
+#include <memory>  
 
+class LevelEditor;      
+class Camera;           
 
 class EditorManager{
 public:
+
+    // シングルトンインスタンスの取得
+    static EditorManager* GetInstance();
+
+
     // ImGuiのフレーム開始（Game::Update の先頭で呼ぶ）
     void Begin();
 
+    void Initialize();
+    void Finalize();
+    void Draw();
+
     // エディタUIの更新・描画
-    // F1キーのトグル、ドッキングスペース、メニューバー、
     void Update();
 
     // ImGuiの描画コマンドを発行（Game::Draw の末尾で呼ぶ）
     void End();
+
+	// カメラをSceneManagerから受け取るためのセッター
+    void SetCamera(const Camera* camera);
+
 
     // パフォーマンス計測値をSceneManagerから受け取るためのセッター
     void SetCpuTimes(float updateMs, float drawMs){
@@ -23,8 +38,21 @@ public:
     bool IsActive() const{ return isEditorActive_; }
 
 private:
-    bool isEditorActive_ = false;
 
+    // シングルトンなので外部からの生成・コピーを禁止
+    EditorManager() = default;
+    ~EditorManager();  // cpp 側で定義（unique_ptr の前方宣言対応）
+    EditorManager(const EditorManager&) = delete;
+    EditorManager& operator=(const EditorManager&) = delete;
+
+
+private:
+
+	// レベルエディタ（SceneManagerから渡してもらう）
+    std::unique_ptr<LevelEditor> levelEditor_ = nullptr;
+
+	// カメラ（SceneManagerから渡してもらう）
+    bool isEditorActive_ = false;
     // パフォーマンスモニター用（SceneManagerから渡してもらう）
     float cpuUpdateTimeMs_ = 0.0f;
     float cpuDrawTimeMs_ = 0.0f;

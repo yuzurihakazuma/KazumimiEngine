@@ -3,7 +3,6 @@
 #include <memory>
 
 class SceneFactory;
-class EditorManager;
 
 // ゲームクラス
 class Game : public Framework{
@@ -19,12 +18,11 @@ public: // コンストラクタ・デストラクタ
 
 	Game();
 
-	~Game();
+	~Game() = default;
 
 private:
 	// シーンファクトリー
 	std::unique_ptr<SceneFactory> sceneFactory_ = nullptr;
-	std::unique_ptr<EditorManager> editorManager_ = nullptr;
 
 
 };

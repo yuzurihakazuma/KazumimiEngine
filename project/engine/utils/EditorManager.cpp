@@ -8,6 +8,25 @@
 #include "engine/postEffect/PostEffect.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/scene/SceneManager.h"
+#include "engine/utils/Level/LevelEditor.h" 
+
+// シングルトンインスタンスの取得
+EditorManager* EditorManager::GetInstance(){
+    static EditorManager instance;
+    return &instance;
+}
+
+// cpp 側で定義（unique_ptr の前方宣言対応）
+EditorManager::~EditorManager() = default;
+
+
+void EditorManager::Initialize(){
+    // LevelEditor の生成と初期化
+    levelEditor_ = std::make_unique<LevelEditor>();
+    levelEditor_->Initialize();
+}
+
+
 
 void EditorManager::Begin(){
 #ifdef USE_IMGUI
@@ -20,6 +39,11 @@ void EditorManager::Update(){
     Input* input = Input::GetInstance();
     if ( input->Triggerkey(DIK_F1) ) {
         isEditorActive_ = !isEditorActive_;
+    }
+
+    // LevelEditor の更新は常に行う（エディタ非表示でも3Dオブジェクトは動く）
+    if ( levelEditor_ ) {
+        levelEditor_->Update();
     }
 
     if ( !isEditorActive_ ) { return; }
@@ -78,7 +102,12 @@ void EditorManager::Update(){
     // 5. 現在のシーン固有のUI
     SceneManager::GetInstance()->DrawCurrentSceneDebugUI();
 
-    // 6. パフォーマンスモニター
+    // 6. LevelEditor のデバッグUI
+    if ( levelEditor_ ) {
+        levelEditor_->DrawDebugUI();
+    }
+
+    // 7. パフォーマンスモニター
     ImGui::Begin("パフォーマンスモニター");
     float fps = ImGui::GetIO().Framerate;
     ImGui::Text("FPS: %.1f", fps);
@@ -103,10 +132,27 @@ void EditorManager::Update(){
     ImGui::End();
 #endif
 }
+// レベルエディタの描画
+void EditorManager::Draw(){
+    if ( levelEditor_ ) {
+        levelEditor_->Draw();
+    }
+}
+
+void EditorManager::SetCamera(const Camera* camera){
+    if ( levelEditor_ ) {
+        levelEditor_->SetCamera(camera);
+    }
+}
+
 
 void EditorManager::End(){
 #ifdef USE_IMGUI
     DirectXCommon* dxCommon = DirectXCommon::GetInstance();
     ImGuiManager::GetInstance()->End(dxCommon->GetCommandList());
 #endif
+}
+
+void EditorManager::Finalize(){
+    levelEditor_.reset();
 }

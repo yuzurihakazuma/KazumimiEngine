@@ -90,3 +90,9 @@ void SceneManager::Finalize() {
 		currentScene_.reset();    
 	}
 }
+
+void SceneManager::DrawCurrentSceneDebugUI(){
+	if ( currentScene_ ) {
+		currentScene_->DrawDebugUI();
+	}
+}

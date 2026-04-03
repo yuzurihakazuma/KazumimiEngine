@@ -15,7 +15,7 @@ void Game::Initialize(){
 	Framework::Initialize();
 
 	// エディタマネージャーの生成
-	editorManager_ = std::make_unique<EditorManager>();
+	EditorManager::GetInstance()->Initialize();
 
 
 	// 1. ファクトリーの生成
@@ -37,21 +37,20 @@ void Game::Update(){
 	Framework::Update();
 
 	// エディタ更新
-	editorManager_->Begin();
+	EditorManager::GetInstance()->Begin();
 
 
 	// シーンの更新
 	SceneManager::GetInstance()->Update();
 
 	// パフォーマンス計測値をエディタに渡す
-	editorManager_->SetCpuTimes(
+	EditorManager::GetInstance()->SetCpuTimes(
 		SceneManager::GetInstance()->GetCpuUpdateTimeMs(),
 		SceneManager::GetInstance()->GetCpuDrawTimeMs()
 	);
 
 	// エディタUIの更新・描画
-	editorManager_->Update();
-
+	EditorManager::GetInstance()->Update();
 
 }
 
@@ -68,7 +67,7 @@ void Game::Draw(){
 	SceneManager::GetInstance()->Draw();
 
 	// エディタの描画前処理
-	editorManager_->End();
+	EditorManager::GetInstance()->End();
 
 
 	// 描画後処理
@@ -77,10 +76,12 @@ void Game::Draw(){
 
 Game::Game(){}
 
-Game::~Game() = default;
-
 
 void Game::Finalize(){
+
+	// エディタを先に終了（D3D12リソースを持っているため）
+	EditorManager::GetInstance()->Finalize();
+
 	// 基盤終了
 	Framework::Finalize();
 }

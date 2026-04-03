@@ -31,6 +31,7 @@
 #include "engine/utils/TextManager.h"
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
+#include "engine/utils/EditorManager.h"
 using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
@@ -102,9 +103,7 @@ void GamePlayScene::Initialize(){
 
 	
 
-	levelEditor_ = std::make_unique<LevelEditor>();
-	levelEditor_->SetCamera(camera_.get());
-	levelEditor_->Initialize();
+	EditorManager::GetInstance()->SetCamera(camera_.get());
 
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	
@@ -169,8 +168,7 @@ void GamePlayScene::Update(){
 
 	PostEffect::GetInstance()->Update();
 
-	levelEditor_->Update();
-
+	
 	for (auto& block : blocks_) {
 		block->Update();
 	}
@@ -195,8 +193,7 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
 	if ( playerObj_ ) { playerObj_->Draw(); }
 	for ( auto& obj : object3ds_ ) { obj->Draw(); }
-	levelEditor_->Draw();
-
+	
 	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	if ( testObj_ ){ testObj_->Draw(); }
@@ -253,8 +250,6 @@ void GamePlayScene::DrawDebugUI(){
 	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
 	ParticleManager::GetInstance()->DrawDebugUI();
 
-	
-	levelEditor_->DrawDebugUI();
 
 	TextManager::GetInstance()->DrawDebugUI();
 
