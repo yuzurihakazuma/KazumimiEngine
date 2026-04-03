@@ -35,14 +35,14 @@ SceneManager::~SceneManager() {
 }
 
 // シーンマネージャーの更新
-void SceneManager::Update() {
+void SceneManager::Update(){
 	// -----------------------------
 	// フェードアウト処理
 	// -----------------------------
-	if (fadeState_ == FadeState::Out) {
+	if ( fadeState_ == FadeState::Out ) {
 		fadeAlpha_ += fadeSpeed_;
 
-		if (fadeAlpha_ >= 1.0f) {
+		if ( fadeAlpha_ >= 1.0f ) {
 			fadeAlpha_ = 1.0f;
 
 			// 真っ黒になったら待機状態へ移る
@@ -53,14 +53,14 @@ void SceneManager::Update() {
 	// -----------------------------
 	// 真っ黒で停止する処理
 	// -----------------------------
-	else if (fadeState_ == FadeState::Wait) {
+	else if ( fadeState_ == FadeState::Wait ) {
 		fadeWaitTimer_--;
 
-		if (fadeWaitTimer_ <= 0) {
+		if ( fadeWaitTimer_ <= 0 ) {
 			// 真っ黒時間が終わったらシーンを切り替える
-			if (nextScene_) {
+			if ( nextScene_ ) {
 				// 現在のシーンを終了
-				if (currentScene_) {
+				if ( currentScene_ ) {
 					currentScene_->Finalize();
 				}
 
@@ -72,13 +72,13 @@ void SceneManager::Update() {
 				dxCommon->BeginCommandRecording();
 
 				// フェード用スプライトがまだ無ければここで作成する
-				if (!fadeSprite_) {
+				if ( !fadeSprite_ ) {
 					auto commandList = dxCommon->GetCommandList();
 
 					TextureData tex = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/white1x1.png", commandList);
 
 					fadeSprite_ = std::unique_ptr<Sprite>(Sprite::Create(tex.srvIndex, { 640.0f, 360.0f }));
-					if (fadeSprite_) {
+					if ( fadeSprite_ ) {
 						fadeSprite_->SetSize({ 1280.0f, 720.0f });
 						fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
 						fadeSprite_->Update();
@@ -96,34 +96,34 @@ void SceneManager::Update() {
 	// -----------------------------
 	// フェードイン処理
 	// -----------------------------
-	else if (fadeState_ == FadeState::In) {
+	else if ( fadeState_ == FadeState::In ) {
 		fadeAlpha_ -= fadeSpeed_;
 
-		if (fadeAlpha_ <= 0.0f) {
+		if ( fadeAlpha_ <= 0.0f ) {
 			fadeAlpha_ = 0.0f;
 			fadeState_ = FadeState::None;
 		}
 	}
 
 	// フェードスプライトの色を更新
-	if (fadeSprite_) {
+	if ( fadeSprite_ ) {
 		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
 		fadeSprite_->Update();
 	}
 
 	// 現在のシーンを更新
-	if (currentScene_) {
+	if ( currentScene_ ) {
 
 		auto updateStartTime = std::chrono::steady_clock::now();
 		currentScene_->Update();
 
 		auto updateEndTime = std::chrono::steady_clock::now();
 		cpuUpdateTimeMs_ = std::chrono::duration<float, std::milli>(updateEndTime - updateStartTime).count();
-		
+
 
 	}
 
-
+}
 // シーンマネージャーの描画
 void SceneManager::Draw(){
 	if ( currentScene_ ) {
@@ -212,7 +212,7 @@ void SceneManager::Finalize() {
 	fadeAlpha_ = 0.0f;
 	fadeWaitTimer_ = 0;
 	fadeState_ = FadeState::None;
-}
+
 }
 
 void SceneManager::DrawCurrentSceneDebugUI(){

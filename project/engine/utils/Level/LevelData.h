@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <vector>
-
 // 使っているVector3の定義に合わせて include を調整してください
 #include "engine/math/struct.h"
 
@@ -26,4 +25,5 @@ struct LevelData{
     float tileSize = 2.0f;
     float baseY = -2.0f;
     std::vector<std::vector<int>> tiles;
+
 };

@@ -18,6 +18,12 @@ class Camera; // カメラ前方宣言
 // マップエディタ専用クラス
 class MapManager {
 public:
+
+    // シングルトンインスタンスの取得
+    static MapManager* GetInstance();
+
+
+
     // コンストラクタ
     MapManager();
 

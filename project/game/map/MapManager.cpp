@@ -542,3 +542,9 @@ void MapManager::SetNoiseTexture(uint32_t index) {
     if (wallGroup_) wallGroup_->SetNoiseTexture(index);
     if (stairsGroup_) stairsGroup_->SetNoiseTexture(index);
 }
+
+// シングルトンインスタンスの取得
+MapManager* MapManager::GetInstance(){
+    static MapManager instance;
+    return &instance;
+}
