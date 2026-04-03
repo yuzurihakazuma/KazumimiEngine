@@ -1,6 +1,9 @@
 #include "Minimap.h"
 #include "Engine/2D/Sprite.h"
 
+#include <algorithm>
+#include <cmath>
+
 void Minimap::Initialize() {
 	backgroundSprite_.reset(Sprite::Create("resources/white1x1.png", mapLeftTop_).release());
 	backgroundSprite_->SetAnchorPoint({ 0.0f, 0.0f });
@@ -71,10 +74,9 @@ void Minimap::EnsureCardSprites(size_t count) {
 }
 
 void Minimap::RebuildMapSprites() {
-	wallSprites_.clear();
-	stairsSprites_.clear();
+	chunks_.clear();
 
-	if (!levelData_) {
+	if (!levelData_ || levelData_->width <= 0 || levelData_->height <= 0) {
 		return;
 	}
 
@@ -82,54 +84,158 @@ void Minimap::RebuildMapSprites() {
 	float tileSizeY = mapSize_.y / static_cast<float>(levelData_->height);
 	drawTileSize_ = (tileSizeX < tileSizeY) ? tileSizeX : tileSizeY;
 
-	// 壁は横方向の連続をまとめる
-	for (int z = 0; z < levelData_->height; ++z) {
-		int x = 0;
-		while (x < levelData_->width) {
-			if (levelData_->tiles[z][x] != 1) {
-				++x;
-				continue;
+	BuildChunks();
+	BuildChunkSprites();
+}
+void Minimap::BuildChunks() {
+	chunks_.clear();
+	chunks_.resize(kChunkCountX * kChunkCountZ);
+
+	const int innerLeft = 1;
+	const int innerTop = 1;
+	const int innerRight = levelData_->width - 2;
+	const int innerBottom = levelData_->height - 2;
+
+	const int usableWidth = innerRight - innerLeft + 1;
+	const int usableHeight = innerBottom - innerTop + 1;
+
+	const int cellWidth = usableWidth / kChunkCountX;
+	const int cellHeight = usableHeight / kChunkCountZ;
+
+	for (int cz = 0; cz < kChunkCountZ; ++cz) {
+		for (int cx = 0; cx < kChunkCountX; ++cx) {
+
+			const int index = cz * kChunkCountX + cx;
+			Chunk& chunk = chunks_[index];
+
+			int cellX = innerLeft + cx * cellWidth;
+			int cellZ = innerTop + cz * cellHeight;
+
+			int currentCellWidth =
+				(cx == kChunkCountX - 1)
+				? (innerRight - cellX + 1)
+				: cellWidth;
+
+			int currentCellHeight =
+				(cz == kChunkCountZ - 1)
+				? (innerBottom - cellZ + 1)
+				: cellHeight;
+
+			chunk.startX = cellX;
+			chunk.endX = cellX + currentCellWidth - 1;
+
+			chunk.startZ = cellZ;
+			chunk.endZ = cellZ + currentCellHeight - 1;
+
+			chunk.discovered = false;
+		}
+	}
+}
+void Minimap::BuildChunkSprites() {
+	for (Chunk& chunk : chunks_) {
+
+		// 壁は横方向の連続をまとめる
+		for (int z = chunk.startZ; z <= chunk.endZ; ++z) {
+			int x = chunk.startX;
+
+			while (x <= chunk.endX) {
+				if (levelData_->tiles[z][x] != 1) {
+					++x;
+					continue;
+				}
+
+				const int startX = x;
+				while (x <= chunk.endX && levelData_->tiles[z][x] == 1) {
+					++x;
+				}
+				const int endX = x - 1;
+				const int length = endX - startX + 1;
+
+				Vector2 drawPos;
+				drawPos.x = mapLeftTop_.x + startX * drawTileSize_;
+				drawPos.y = mapLeftTop_.y + (levelData_->height - 1 - z) * drawTileSize_;
+
+				auto sprite = std::unique_ptr<Sprite>(Sprite::Create("resources/white1x1.png", drawPos));
+				sprite->SetAnchorPoint({ 0.0f, 0.0f });
+				sprite->SetSize({ drawTileSize_ * length, drawTileSize_ });
+				sprite->SetColor({ 0.78f, 0.78f, 0.88f, 0.58f });
+				sprite->Update();
+
+				chunk.wallSprites.push_back(std::move(sprite));
 			}
+		}
 
-			int startX = x;
-			while (x < levelData_->width && levelData_->tiles[z][x] == 1) {
-				++x;
+		// 階段
+		for (int z = chunk.startZ; z <= chunk.endZ; ++z) {
+			for (int x = chunk.startX; x <= chunk.endX; ++x) {
+				if (levelData_->tiles[z][x] != 3) {
+					continue;
+				}
+
+				Vector2 drawPos;
+				drawPos.x = mapLeftTop_.x + x * drawTileSize_;
+				drawPos.y = mapLeftTop_.y + (levelData_->height - 1 - z) * drawTileSize_;
+
+				auto sprite = std::unique_ptr<Sprite>(Sprite::Create("resources/white1x1.png", drawPos));
+				sprite->SetAnchorPoint({ 0.0f, 0.0f });
+				sprite->SetSize({ drawTileSize_, drawTileSize_ });
+				sprite->SetColor({ 0.2f, 1.0f, 1.0f, 0.95f });
+				sprite->Update();
+
+				chunk.stairsSprites.push_back(std::move(sprite));
 			}
-			int endX = x - 1;
-			int length = endX - startX + 1;
+		}
+	}
+}
 
-			Vector2 drawPos;
-			drawPos.x = mapLeftTop_.x + startX * drawTileSize_;
-			drawPos.y = mapLeftTop_.y + (levelData_->height - 1 - z) * drawTileSize_;
+int Minimap::GetChunkIndexFromTile(int tileX, int tileZ) const {
+	if (!levelData_ || chunks_.empty()) {
+		return -1;
+	}
 
-			auto sprite = std::unique_ptr<Sprite>(Sprite::Create("resources/white1x1.png", drawPos));
-			sprite->SetAnchorPoint({ 0.0f, 0.0f });
-			sprite->SetSize({ drawTileSize_ * length, drawTileSize_ });
-			sprite->SetColor({ 0.78f, 0.78f, 0.88f, 0.58f });
-			sprite->Update();
-			wallSprites_.push_back(std::move(sprite));
+	tileX = std::clamp(tileX, 0, levelData_->width - 1);
+	tileZ = std::clamp(tileZ, 0, levelData_->height - 1);
+
+	for (int i = 0; i < static_cast<int>(chunks_.size()); ++i) {
+		const Chunk& chunk = chunks_[i];
+
+		if (tileX >= chunk.startX && tileX <= chunk.endX &&
+			tileZ >= chunk.startZ && tileZ <= chunk.endZ) {
+			return i;
 		}
 	}
 
-	// 階段
-	for (int z = 0; z < levelData_->height; ++z) {
-		for (int x = 0; x < levelData_->width; ++x) {
-			if (levelData_->tiles[z][x] != 3) {
-				continue;
-			}
+	return -1;
+}
 
-			Vector2 drawPos;
-			drawPos.x = mapLeftTop_.x + x * drawTileSize_;
-			drawPos.y = mapLeftTop_.y + (levelData_->height - 1 - z) * drawTileSize_;
-
-			auto sprite = std::unique_ptr<Sprite>(Sprite::Create("resources/white1x1.png", drawPos));
-			sprite->SetAnchorPoint({ 0.0f, 0.0f });
-			sprite->SetSize({ drawTileSize_, drawTileSize_ });
-			sprite->SetColor({ 0.2f, 1.0f, 1.0f, 0.95f });
-			sprite->Update();
-			stairsSprites_.push_back(std::move(sprite));
-		}
+void Minimap::DiscoverCurrentChunk() {
+	if (!levelData_ || chunks_.empty()) {
+		return;
 	}
+
+	const int tileX = static_cast<int>(std::floor(playerWorldPos_.x / levelData_->tileSize));
+	const int tileZ = static_cast<int>(std::floor(playerWorldPos_.z / levelData_->tileSize));
+
+	const int chunkIndex = GetChunkIndexFromTile(tileX, tileZ);
+	if (chunkIndex >= 0) {
+		chunks_[chunkIndex].discovered = true;
+	}
+}
+
+bool Minimap::IsWorldPositionInDiscoveredChunk(const Vector3& worldPos) const {
+	if (!levelData_ || chunks_.empty()) {
+		return false;
+	}
+
+	const int tileX = static_cast<int>(std::floor(worldPos.x / levelData_->tileSize));
+	const int tileZ = static_cast<int>(std::floor(worldPos.z / levelData_->tileSize));
+
+	const int chunkIndex = GetChunkIndexFromTile(tileX, tileZ);
+	if (chunkIndex < 0) {
+		return false;
+	}
+
+	return chunks_[chunkIndex].discovered;
 }
 
 Vector2 Minimap::WorldToMinimapPosition(const Vector3& worldPos) const {
@@ -139,8 +245,8 @@ Vector2 Minimap::WorldToMinimapPosition(const Vector3& worldPos) const {
 		return result;
 	}
 
-	float tileX = worldPos.x / levelData_->tileSize;
-	float tileZ = worldPos.z / levelData_->tileSize;
+	const float tileX = worldPos.x / levelData_->tileSize;
+	const float tileZ = worldPos.z / levelData_->tileSize;
 
 	result.x = mapLeftTop_.x + (tileX + 0.5f) * drawTileSize_;
 	result.y = mapLeftTop_.y + ((levelData_->height - 1 - tileZ) + 0.5f) * drawTileSize_;
@@ -153,29 +259,32 @@ void Minimap::Update() {
 		return;
 	}
 
+	// 今いる区画を探索済みにする
+	DiscoverCurrentChunk();
+
 	if (playerSprite_) {
 		playerSprite_->SetPosition(WorldToMinimapPosition(playerWorldPos_));
 		playerSprite_->Update();
 	}
 
 	for (size_t i = 0; i < enemySprites_.size(); ++i) {
-		if (i < enemyWorldPositions_.size()) {
+		if (i < enemyWorldPositions_.size() &&
+			IsWorldPositionInDiscoveredChunk(enemyWorldPositions_[i])) {
 			enemySprites_[i]->SetPosition(WorldToMinimapPosition(enemyWorldPositions_[i]));
-			enemySprites_[i]->Update();
 		} else {
 			enemySprites_[i]->SetPosition({ -1000.0f, -1000.0f });
-			enemySprites_[i]->Update();
 		}
+		enemySprites_[i]->Update();
 	}
 
 	for (size_t i = 0; i < cardSprites_.size(); ++i) {
-		if (i < cardWorldPositions_.size()) {
+		if (i < cardWorldPositions_.size() &&
+			IsWorldPositionInDiscoveredChunk(cardWorldPositions_[i])) {
 			cardSprites_[i]->SetPosition(WorldToMinimapPosition(cardWorldPositions_[i]));
-			cardSprites_[i]->Update();
 		} else {
 			cardSprites_[i]->SetPosition({ -1000.0f, -1000.0f });
-			cardSprites_[i]->Update();
 		}
+		cardSprites_[i]->Update();
 	}
 }
 
@@ -191,19 +300,30 @@ void Minimap::Draw() {
 		backgroundSprite_->Draw();
 	}
 
-	for (auto& sprite : wallSprites_) {
-		sprite->Draw();
-	}
-	for (auto& sprite : stairsSprites_) {
-		sprite->Draw();
+	// 探索済み区画だけ描画
+	for (const Chunk& chunk : chunks_) {
+		if (!chunk.discovered) {
+			continue;
+		}
+
+		for (const auto& sprite : chunk.wallSprites) {
+			sprite->Draw();
+		}
+		for (const auto& sprite : chunk.stairsSprites) {
+			sprite->Draw();
+		}
 	}
 
 	for (size_t i = 0; i < enemyWorldPositions_.size() && i < enemySprites_.size(); ++i) {
-		enemySprites_[i]->Draw();
+		if (IsWorldPositionInDiscoveredChunk(enemyWorldPositions_[i])) {
+			enemySprites_[i]->Draw();
+		}
 	}
 
 	for (size_t i = 0; i < cardWorldPositions_.size() && i < cardSprites_.size(); ++i) {
-		cardSprites_[i]->Draw();
+		if (IsWorldPositionInDiscoveredChunk(cardWorldPositions_[i])) {
+			cardSprites_[i]->Draw();
+		}
 	}
 
 	if (playerSprite_) {

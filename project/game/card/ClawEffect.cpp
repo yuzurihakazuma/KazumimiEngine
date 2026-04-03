@@ -1,6 +1,6 @@
 ﻿#include "ClawEffect.h"
 #include "game/player/Player.h"
-#include "game/enemy/Enemy.h"
+#include "game/enemy/EnemyManager.h"
 #include "game/enemy/Boss.h"
 #include "engine/math/VectorMath.h"
 #include <cmath>
@@ -33,7 +33,7 @@ void ClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 
 }
 
-void ClawEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void ClawEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
 
 	if (isFinished_) {
 		return;
@@ -61,15 +61,23 @@ void ClawEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 
 		// プレイヤーが使った場合
 		// ==================================================
 		if (isPlayerCaster_) {
-			// 敵への当たり判定
-			if (enemy && !enemy->IsDead()) {
-				Vector3 diff = { enemyPos.x - pos_.x, 0.0f, enemyPos.z - pos_.z };
-				if (Length(diff) < 2.0f) { // 当たり判定の広さ
-					enemy->TakeDamage(damage_); // 受け取ったダメージ量を与える
-					hasHit_ = true; // 1回の振りで何度も当たらないようにする
+			// 🌟 敵への当たり判定（全員分チェック！）
+			if (enemyManager) {
+				for (auto &enemy : enemyManager->GetEnemies()) {
+					if (!enemy || enemy->IsDead()) continue; // 死んでたら無視
+
+					Vector3 enemyPos = enemy->GetPosition();
+					Vector3 diff = { enemyPos.x - pos_.x, 0.0f, enemyPos.z - pos_.z };
+
+					if (Length(diff) < 2.0f) { // 当たり判定の広さ
+						enemy->TakeDamage(damage_); // 受け取ったダメージ量を与える
+						hasHit_ = true; // 1回の振りで何度も当たらないようにする
+						break; // 1匹に当たったらこの攻撃の判定は終了（貫通させたいならbreakを消す）
+					}
 				}
 			}
-			// ボスへの当たり判定
+
+			// ボスへの当たり判定（ここは今のままでOK！）
 			if (boss && !boss->IsDead()) {
 				Vector3 diff = { bossPos.x - pos_.x, 0.0f, bossPos.z - pos_.z };
 				if (Length(diff) < 3.0f) {

@@ -1,6 +1,7 @@
 ﻿#include "BossFierEffect.h"
 #include "game/player/Player.h"
 #include "engine/math/VectorMath.h"
+#include "game/enemy/Boss.h"
 #include <cmath>
 
 using namespace VectorMath;
@@ -40,7 +41,7 @@ void BossFierEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
     }
 }
 
-void BossFierEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void BossFierEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
 
     if (isFinished_) {
         return;
@@ -75,8 +76,12 @@ void BossFierEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vect
 
         // スケールが大きいので当たり判定も広くする（2.0fくらい）
         if (Length(diff) < 2.0f) {
+            int finalDamage = damage_;
+            if (boss && boss->IsAttackDebuffed()) {
+                finalDamage = finalDamage / 2;
+            }
             // PlayerのTakeDamageは「ダメージ量」と「攻撃が飛んできた位置」を渡す
-            player->TakeDamage(damage_, pos_);
+            player->TakeDamage(finalDamage, pos_);
             isFinished_ = true; // 当たったら消える
             return;
         }

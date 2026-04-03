@@ -34,6 +34,8 @@ class Enemy;
 class CardUseSystem;
 class Boss;
 class Minimap;
+class EnemyManager;
+class BossManager;
 
 // ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -53,14 +55,6 @@ public:
 	GamePlayScene();
 
 	~GamePlayScene();
-
-	// ボス部屋突入時のカメラ演出状態
-	enum class BossIntroCameraState {
-		None,         // 演出なし
-		PlayerFocus,  // 最初はプレイヤーを見る
-		BossFocus,    // 次にボスを見る
-		ToBattle      // 最後に戦闘カメラへ戻す
-	};
 
 private: // メンバ変数
 
@@ -108,26 +102,16 @@ private: // メンバ変数
 
 	CardPickupManager cardPickupManager_;
 
+	// カード
 	std::unique_ptr<CardUseSystem> playerCardSystem_ = nullptr;
-	std::vector<std::unique_ptr<CardUseSystem>> enemyCardSystems_;
-	std::unique_ptr<CardUseSystem> bossCardSystem_ = nullptr;
 
 	// スポーンマネージャー
 	SpawnManager spawnManager_;
 
-	// 敵関連
-	std::vector<std::unique_ptr<Enemy>> enemies_;
-	std::vector<std::unique_ptr<Obj3d>> enemyObjs_;
-	std::vector<bool> enemyDeadHandled_;
+	
+	std::unique_ptr<EnemyManager> enemyManager_;
 
-	// ボス関連
-	std::unique_ptr<Boss> boss_ = nullptr;
-	std::unique_ptr<Obj3d> bossObj_ = nullptr;
-	bool bossDeadHandled_ = false;
-
-	// ボスHPバー
-	std::unique_ptr<Sprite> bossHpBackSprite_ = nullptr;
-	std::unique_ptr<Sprite> bossHpFillSprite_ = nullptr;
+	std::unique_ptr<BossManager> bossManager_ = nullptr;
 
 	int enemySpawnCount_ = 5;   // 出したい敵の数
 	int enemySpawnMargin_ = 2;  // 壁から何マス離すか
@@ -159,8 +143,7 @@ private: // メンバ変数
 
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
-	// 敵スポーンの処理
-	void SpawnEnemiesRandom(int enemyCount, int margin);
+	
 	// カードスポーンの処理
 	void SpawnCardsRandom(int cardCount, int margin);
 
@@ -191,11 +174,6 @@ private: // メンバ変数
 	// カードの説明文の後ろに敷く背景画像テクスチャ
 	uint32_t descBgTexture_ = 0;
 	std::unique_ptr<Sprite> descBgSprite_ = nullptr;
-
-	// ボス部屋突入時のカメラ演出管理
-	BossIntroCameraState bossIntroCameraState_ = BossIntroCameraState::None;
-	int bossIntroTimer_ = 0;
-	bool isBossIntroPlaying_ = false;
 
 	// ステータス無限モード(デバッグ用)
 	bool isInfiniteMode_ = false;
@@ -236,10 +214,4 @@ private: // メンバ変数
 	int pauseSelection_ = 0;                 // 0: Resume  1: Title
 
 	std::unique_ptr<Sprite> pauseBgSprite_ = nullptr; // ポーズ中の半透明背景
-
-	// ボス部屋のカード降らせ演出
-	int bossCardRainTimer_ = 0;              // 次にカードを落とすまでの時間
-	const int bossCardRainInterval_ = 180;   // 何フレームごとに落とすか
-	int bossCardRainMax_ = 5;                // 同時に存在できる最大カード数
-	bool isBossCardRainEnabled_ = true;      // ボス部屋でカードを降らせるか
 };

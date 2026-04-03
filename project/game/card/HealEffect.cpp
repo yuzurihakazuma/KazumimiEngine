@@ -6,7 +6,7 @@ void HealEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 	isFinished_ = false;
 }
 
-void HealEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void HealEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
 	if (isFinished_) {
 		return;
 	}

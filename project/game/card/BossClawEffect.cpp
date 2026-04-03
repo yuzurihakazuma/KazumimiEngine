@@ -1,6 +1,8 @@
 ﻿#include "BossClawEffect.h"
 #include "game/player/Player.h"
 #include "engine/math/VectorMath.h"
+#include "game/enemy/Boss.h"
+#include "game/enemy/EnemyManager.h"
 
 using namespace VectorMath;
 
@@ -29,7 +31,7 @@ void BossClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
 	}
 }
 
-void BossClawEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void BossClawEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
 	if (isFinished_) {
 		return;
 	}
@@ -59,9 +61,13 @@ void BossClawEffect::Update(Player *player, Enemy *enemy, Boss *boss, const Vect
 			Vector3 diff = { playerPos.x - pos_.x, 0.0f, playerPos.z - pos_.z };
 
 			if (Length(diff) < 2.0f) { // プレイヤーへの当たり判定の広さ
-				// プレイヤーにダメージと「攻撃元の座標(pos_)」を渡す！
-				player->TakeDamage(damage_, pos_);
-				hasHit_ = true; // 1回の振りで何度も当たらないようにする
+				int finalDamage = damage_;
+				if (boss && boss->IsAttackDebuffed()) {
+					finalDamage = finalDamage / 2;
+				}
+
+				player->TakeDamage(finalDamage, pos_);
+				hasHit_ = true;
 			}
 		}
 	}
