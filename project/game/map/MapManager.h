@@ -12,8 +12,17 @@
 #include "game/map/MapGenerator.h"
 #include "InstancedGroup.h"
 
+#include <functional>
+
 class Obj3d;  // 3Dオブジェクト前方宣言
 class Camera; // カメラ前方宣言
+class BossManager;
+class EnemyManager;
+class Minimap;
+class PlayerManager;
+class SpawnManager;
+class CardPickupManager;
+class Minimap;
 
 // マップエディタ専用クラス
 class MapManager {
@@ -87,6 +96,30 @@ public:
     // 階段配置＋座標取得
     std::pair<int, int> PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance = 6.0f);
 
+	// 現在の階層数取得・設定・進める
+    int GetCurrentFloor() const { return currentFloor_; }
+    void SetCurrentFloor(int floor) { currentFloor_ = floor; }
+    void AdvanceFloorCount() { ++currentFloor_; }
+	// 階段タイル位置取得・設定・近いか
+    void SetStairsTile(const std::pair<int, int>& tile) { stairsTile_ = tile; }
+    const std::pair<int, int>& GetStairsTile() const { return stairsTile_; }
+    bool IsNearStairsTile(int x, int z) const;
+	// 次の階層へ進む処理
+    void AdvanceFloor(
+        EnemyManager* enemyManager,
+        BossManager* bossManager,
+        Minimap* minimap,
+        const std::function<void()>& resetBattleDebug
+    );
+
+    void RespawnPlayerInRoom(PlayerManager* playerManager, Camera* camera, Vector3& playerPos, Vector3& playerScale);
+
+    void RespawnBossInRoom(BossManager* bossManager);
+
+    void ClearEnemiesAndCards(EnemyManager* enemyManager, CardPickupManager* cardPickupManager, Camera* camera);
+
+    void SpawnCardsRandom(int cardCount, int margin, SpawnManager* spawnManager, CardPickupManager* cardPickupManager, EnemyManager* enemyManager, Camera* camera);
+
 public:
     // ボスマップ判定
     bool IsBossMap() const { return mapType_ == 1; }
@@ -102,7 +135,27 @@ public:
 
     // ノイズテクスチャ設定
     void SetNoiseTexture(uint32_t index);
-
+	// ダンジョン再生成とプレイヤー再スポーンの処理
+    void RegenerateDungeonAndRespawnPlayer(
+        int roomCount,
+        PlayerManager* playerManager,
+        EnemyManager* enemyManager,
+        BossManager* bossManager,
+        SpawnManager* spawnManager,
+        CardPickupManager* cardPickupManager,
+        Camera* camera,
+        Vector3& playerPos,
+        Vector3& playerScale,
+        int enemySpawnCount,
+        int enemySpawnMargin,
+        int cardSpawnCount,
+        int cardSpawnMargin
+    );
+    void UpdateMinimap(
+        Minimap* minimap,
+        const Vector3& playerPos,
+        const CardPickupManager* cardPickupManager
+    );
 private:
     // 使用カメラ
     const Camera* camera_ = nullptr;
@@ -154,4 +207,10 @@ private:
 
     // ノイズテクスチャ番号
     uint32_t noiseTextureIndex_ = 0;
+
+	// 現在の階層数
+    int currentFloor_ = 1;
+	// 階段タイル位置
+    std::pair<int, int> stairsTile_ = { -1, -1 };
+
 };

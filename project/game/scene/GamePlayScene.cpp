@@ -143,13 +143,12 @@ void GamePlayScene::Initialize(){
 		windowProc->GetClientWidth(), windowProc->GetClientHeight()
 	);
 
-	currentFloor_ = 1;
-	// マップエディタ生成・初期化
-	// マップエディタ生成・初期化
 	mapManager_ = std::make_unique<MapManager>();
 	mapManager_->SetCamera(camera_.get());
 	mapManager_->Initialize();
+	mapManager_->SetCurrentFloor(1);
 	mapManager_->SetNoiseTexture(textures_["noise0"].srvIndex);
+
 
 
 
@@ -276,7 +275,12 @@ void GamePlayScene::Update(){
 			fadeAlpha_ = 1.0f;
 
 			// 真っ黒になった瞬間に階層切り替え
-			AdvanceFloor();
+			mapManager_->AdvanceFloor(
+				enemyManager_.get(),
+				bossManager_.get(),
+				minimap_.get(),
+				[this]() { ResetBattleDebug(); }
+			);
 
 			// ここからは新しい階層を更新しながら見せる
 			transitionState_ = TransitionState::FadeIn;
@@ -762,24 +766,7 @@ void GamePlayScene::Update(){
 	PostEffect::GetInstance()->Update();
 
 	// ミニマップ更新
-	if ( minimap_ ) {
-		// プレイヤー
-		minimap_->SetPlayerPosition(playerPos_);
-
-
-
-		// カード
-		std::vector<Vector3> cardPositions;
-		for ( const auto& pickup : cardPickupManager_.GetPickups() ) {
-			if ( !pickup.isActive ) {
-				continue;
-			}
-			cardPositions.push_back(pickup.position);
-		}
-		minimap_->SetCardPositions(cardPositions);
-
-		minimap_->Update();
-	}
+	mapManager_->UpdateMinimap(minimap_.get(), playerPos_, &cardPickupManager_);
 
 	// プレイヤーが生存中なら手札UIを更新
 	if (playerManager_ && !playerManager_->IsDead()) {
@@ -937,7 +924,12 @@ void GamePlayScene::Update(){
 			fadeAlpha_ = 1.0f;
 
 			// 画面が完全に真っ黒になった瞬間に、裏でマップを切り替える
-			AdvanceFloor();
+			mapManager_->AdvanceFloor(
+				enemyManager_.get(),
+				bossManager_.get(),
+				minimap_.get(),
+				[this]() { ResetBattleDebug(); }
+			);
 
 			// 切り替えが終わったらフェードインへ移行
 			transitionState_ = TransitionState::FadeIn;
@@ -1165,9 +1157,15 @@ void GamePlayScene::DrawDebugUI(){
 	ImGui::Separator();
 	ImGui::Text("[Dungeon Floor]");
 
-	ImGui::Text("Current Floor: %d F", currentFloor_); // 現在の階層を表示
+	ImGui::Text("Current Floor: %d F", mapManager_ ? mapManager_->GetCurrentFloor() : 0);
+
 	if ( ImGui::Button("Go to Next Floor (Stairs)") ) {
-		AdvanceFloor(); // ボタンを押したら次の階層へ
+		mapManager_->AdvanceFloor(
+			enemyManager_.get(),
+			bossManager_.get(),
+			minimap_.get(),
+			[this]() { ResetBattleDebug(); }
+		); // ボタンを押したら次の階層へ
 	}
 
 	// 図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
@@ -1481,206 +1479,24 @@ Vector2 GamePlayScene::WorldToScreen(const Vector3& worldPos) const{
 	return screen;
 }
 
-
-void GamePlayScene::SpawnCardsRandom(int cardCount, int margin){
-
-	if ( !spawnManager_.HasLevelData() ) {
+void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
+	if (!mapManager_) {
 		return;
 	}
 
-	cardPickupManager_.Initialize(camera_.get());
-
-	const LevelData& level = mapManager_->GetLevelData();
-
-	std::vector<std::pair<int, int>> candidates =
-		spawnManager_.FindCardSpawnCandidates(margin);
-
-	if ( candidates.empty() ) {
-		return;
-	}
-
-	// まず敵のいるマスを記録
-	std::vector<std::pair<int, int>> enemyTiles;
-	const auto& enemies = enemyManager_->GetEnemies();
-	for ( const auto& enemy : enemies ) {
-		if ( !enemy || enemy->IsDead() ) {
-			continue;
-		}
-		Vector3 pos = enemy->GetPosition();
-		int tileX = static_cast< int >( std::round(pos.x / level.tileSize) );
-		int tileZ = static_cast< int >( std::round(pos.z / level.tileSize) );
-		enemyTiles.push_back({ tileX, tileZ });
-	}
-
-	std::vector<std::pair<int, int>> filtered;
-	for ( const auto& c : candidates ) {
-		int x = c.first;
-		int z = c.second;
-
-		// 階段周囲3x3禁止
-		if ( IsNearStairsTile(x, z) ) {
-			continue;
-		}
-
-		// 階段タイルそのもの禁止
-		if ( x >= 0 && x < level.width && z >= 0 && z < level.height ) {
-			if ( level.tiles[z][x] == 3 ) {
-				continue;
-			}
-		}
-
-		// 敵と同じマス禁止
-		bool overlapsEnemy = false;
-		for ( const auto& e : enemyTiles ) {
-			if ( e.first == x && e.second == z ) {
-				overlapsEnemy = true;
-				break;
-			}
-		}
-		if ( overlapsEnemy ) {
-			continue;
-		}
-
-		filtered.push_back(c);
-	}
-
-	if ( filtered.empty() ) {
-		return;
-	}
-
-	std::random_device rd;
-	std::mt19937 mt(rd());
-	std::shuffle(filtered.begin(), filtered.end(), mt);
-
-	int spawnCount = std::min(cardCount, static_cast< int >( filtered.size() ));
-
-
-
-	for ( int i = 0; i < spawnCount; ++i ) {
-		int tileX = filtered[i].first;
-		int tileZ = filtered[i].second;
-
-		Vector3 worldPos = spawnManager_.TileToWorldPosition(tileX, tileZ, 0.0f);
-		worldPos.y = -0.99f;
-
-		// IDを数字でランダムに選ぶのではなく、プレイヤー用リストから取得する
-		Card dropCard = CardDatabase::GetRandomPlayerCard();
-
-		cardPickupManager_.AddPickup(worldPos, dropCard);
-	}
-}
-
-void GamePlayScene::RespawnPlayerInRoom() {
-
-	// PlayerManager にプレイヤー再配置を任せる
-	if (playerManager_) {
-		playerManager_->RespawnInRoom(mapManager_.get(), camera_.get());
-
-		// 他の処理でも使うので位置とスケールを同期
-		playerPos_ = playerManager_->GetPosition();
-		playerScale_ = playerManager_->GetScale();
-	}
-}
-
-void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount){
-	if ( !mapManager_ ) {
-		return;
-	}
-
-	stairsTile_ = { -1, -1 };
-
-	if ( mapManager_ ) {
-		if ( !mapManager_->IsBossMap() ) {
-			mapManager_->GenerateRandomDungeon(roomCount);
-		}
-	}
-
-	// プレイヤー再配置
-	RespawnPlayerInRoom();
-
-	// 通常マップなら階段を1個置く
-	if ( mapManager_ && !mapManager_->IsBossMap() ) {
-		stairsTile_ = mapManager_->PlaceStairsTileRandomAndGetTile(playerPos_, 6.0f);
-	}
-
-	// スポーンマネージャに新しいマップを渡し直す
-	spawnManager_.SetLevelData(&mapManager_->GetLevelData());
-
-
-	ClearEnemiesAndCards();
-	if ( !mapManager_->IsBossMap() ) {
-		enemyManager_->SpawnEnemiesRandom(enemySpawnCount_, enemySpawnMargin_, &spawnManager_, mapManager_.get(), playerPos_, camera_.get());
-		SpawnCardsRandom(cardSpawnCount_, cardSpawnMargin_);
-
-	}
-
-	RespawnBossInRoom();
-}
-
-void GamePlayScene::RespawnBossInRoom(){
-	if ( bossManager_ ) {
-		bossManager_->RespawnInRoom(mapManager_.get());
-	}
-}
-
-// 敵とカードを完全にクリアしてスポーンマネージャもリセット
-void GamePlayScene::ClearEnemiesAndCards(){
-
-	if ( enemyManager_ ) {
-		enemyManager_->Clear();
-	}
-
-	cardPickupManager_.Initialize(camera_.get());
-}
-
-void GamePlayScene::AdvanceFloor(){
-
-	// 階層が進む瞬間に、絶対に前の階の敵を全消去する！
-	if ( enemyManager_ ) {
-		enemyManager_->Clear();
-	}
-	currentFloor_++; // 階層を1つ進める
-
-	if ( mapManager_ ) {
-		// 5の倍数階ならボス部屋、それ以外は通常部屋
-		if ( currentFloor_ % 5 == 0 ) {
-			mapManager_->ChangeToBossMap();
-
-			// ボス部屋突入時のカメラ演出開始
-			if ( bossManager_ ) {
-				bossManager_->SetBossIntroPlaying(true);
-				bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::PlayerFocus);
-				bossManager_->SetBossIntroTimer(60);
-				bossManager_->SetBossCardRainTimer(bossManager_->GetBossCardRainInterval());
-			}
-		} else {
-			mapManager_->ChangeToNormalMap();
-
-			// 通常マップでは演出を切る
-			if ( bossManager_ ) {
-				bossManager_->SetBossIntroPlaying(false);
-				bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::None);
-				bossManager_->SetBossIntroTimer(0);
-				bossManager_->SetBossCardRainTimer(0);
-			}
-		}
-	}
-
-	ResetBattleDebug();
-
-	if ( minimap_ && mapManager_ ) {
-		minimap_->SetLevelData(&mapManager_->GetLevelData());
-	}
-}
-
-bool GamePlayScene::IsNearStairsTile(int x, int z) const{
-	if ( stairsTile_.first < 0 || stairsTile_.second < 0 ) {
-		return false;
-	}
-
-	int dx = x - stairsTile_.first;
-	int dz = z - stairsTile_.second;
-
-	// 周囲1マス以内 = 3x3禁止
-	return ( std::abs(dx) <= 1 && std::abs(dz) <= 1 );
+	mapManager_->RegenerateDungeonAndRespawnPlayer(
+		roomCount,
+		playerManager_.get(),
+		enemyManager_.get(),
+		bossManager_.get(),
+		&spawnManager_,
+		&cardPickupManager_,
+		camera_.get(),
+		playerPos_,
+		playerScale_,
+		enemySpawnCount_,
+		enemySpawnMargin_,
+		cardSpawnCount_,
+		cardSpawnMargin_
+	);
 }

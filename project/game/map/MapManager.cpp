@@ -5,6 +5,12 @@
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/utils/ImGuiManager.h"
 #include "engine/3d/model/ModelManager.h"
+#include "game/enemy/EnemyManager.h"
+#include "game/enemy/BossManager.h"
+#include "game/map/Minimap.h"
+#include "game/player/PlayerManager.h"
+#include "game/card/CardPickupManager.h"
+#include "game/spawn/SpawnManager.h"
 
 // デフォルト生成
 MapManager::MapManager() = default;
@@ -14,6 +20,9 @@ MapManager::~MapManager() = default;
 
 // 初期化
 void MapManager::Initialize() {
+	// 初期階層と階段タイル位置
+    int currentFloor_ = 1;
+    std::pair<int, int> stairsTile_ = { -1, -1 };
 
     // サイズ同期
     editWidth_ = levelData_.width;
@@ -547,4 +556,267 @@ void MapManager::SetNoiseTexture(uint32_t index) {
 MapManager* MapManager::GetInstance(){
     static MapManager instance;
     return &instance;
+}
+
+// 階段タイル近いか
+bool MapManager::IsNearStairsTile(int x, int z) const {
+    if (stairsTile_.first < 0 || stairsTile_.second < 0) {
+        return false;
+    }
+
+    int dx = x - stairsTile_.first;
+    int dz = z - stairsTile_.second;
+
+    return std::abs(dx) <= 1 && std::abs(dz) <= 1;
+}
+
+// 階段配置＋座標取得
+void MapManager::AdvanceFloor(
+    EnemyManager* enemyManager,
+    BossManager* bossManager,
+    Minimap* minimap,
+    const std::function<void()>& resetBattleDebug
+) {
+    if (enemyManager) {
+        enemyManager->Clear();
+    }
+
+    AdvanceFloorCount();
+
+    const bool isBossFloor = (GetCurrentFloor() % 5 == 0);
+
+    if (isBossFloor) {
+        ChangeToBossMap();
+    } else {
+        ChangeToNormalMap();
+    }
+
+    if (bossManager) {
+        if (isBossFloor) {
+            bossManager->SetBossIntroPlaying(true);
+            bossManager->SetBossIntroCameraState(BossManager::IntroCameraState::PlayerFocus);
+            bossManager->SetBossIntroTimer(60);
+            bossManager->SetBossCardRainTimer(bossManager->GetBossCardRainInterval());
+        } else {
+            bossManager->SetBossIntroPlaying(false);
+            bossManager->SetBossIntroCameraState(BossManager::IntroCameraState::None);
+            bossManager->SetBossIntroTimer(0);
+            bossManager->SetBossCardRainTimer(0);
+        }
+    }
+
+    if (resetBattleDebug) {
+        resetBattleDebug();
+    }
+
+    if (minimap) {
+        minimap->SetLevelData(&GetLevelData());
+    }
+}
+
+void MapManager::RespawnPlayerInRoom(
+    PlayerManager* playerManager,
+    Camera* camera,
+    Vector3& playerPos,
+    Vector3& playerScale
+) {
+    if (playerManager) {
+        playerManager->RespawnInRoom(this, camera);
+        playerPos = playerManager->GetPosition();
+        playerScale = playerManager->GetScale();
+    }
+}
+
+void MapManager::RespawnBossInRoom(BossManager* bossManager) {
+    if (bossManager) {
+        bossManager->RespawnInRoom(this);
+    }
+}
+
+void MapManager::ClearEnemiesAndCards(
+    EnemyManager* enemyManager,
+    CardPickupManager* cardPickupManager,
+    Camera* camera
+) {
+    if (enemyManager) {
+        enemyManager->Clear();
+    }
+
+    if (cardPickupManager) {
+        cardPickupManager->Initialize(camera);
+    }
+}
+
+void MapManager::SpawnCardsRandom(
+    int cardCount,
+    int margin,
+    SpawnManager* spawnManager,
+    CardPickupManager* cardPickupManager,
+    EnemyManager* enemyManager,
+    Camera* camera
+) {
+    if (!spawnManager || !cardPickupManager) {
+        return;
+    }
+
+    if (!spawnManager->HasLevelData()) {
+        return;
+    }
+
+    cardPickupManager->Initialize(camera);
+
+    const LevelData& level = GetLevelData();
+
+    std::vector<std::pair<int, int>> candidates =
+        spawnManager->FindCardSpawnCandidates(margin);
+
+    if (candidates.empty()) {
+        return;
+    }
+
+    std::vector<std::pair<int, int>> enemyTiles;
+    if (enemyManager) {
+        const auto& enemies = enemyManager->GetEnemies();
+        for (const auto& enemy : enemies) {
+            if (!enemy || enemy->IsDead()) {
+                continue;
+            }
+
+            Vector3 pos = enemy->GetPosition();
+            int tileX = static_cast<int>(std::round(pos.x / level.tileSize));
+            int tileZ = static_cast<int>(std::round(pos.z / level.tileSize));
+            enemyTiles.push_back({ tileX, tileZ });
+        }
+    }
+
+    std::vector<std::pair<int, int>> filtered;
+    for (const auto& c : candidates) {
+        int x = c.first;
+        int z = c.second;
+
+        if (IsNearStairsTile(x, z)) {
+            continue;
+        }
+
+        if (x >= 0 && x < level.width && z >= 0 && z < level.height) {
+            if (level.tiles[z][x] == 3) {
+                continue;
+            }
+        }
+
+        bool overlapsEnemy = false;
+        for (const auto& e : enemyTiles) {
+            if (e.first == x && e.second == z) {
+                overlapsEnemy = true;
+                break;
+            }
+        }
+        if (overlapsEnemy) {
+            continue;
+        }
+
+        filtered.push_back(c);
+    }
+
+    if (filtered.empty()) {
+        return;
+    }
+
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::shuffle(filtered.begin(), filtered.end(), mt);
+
+    int spawnCount = std::min(cardCount, static_cast<int>(filtered.size()));
+
+    for (int i = 0; i < spawnCount; ++i) {
+        int tileX = filtered[i].first;
+        int tileZ = filtered[i].second;
+
+        Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
+        worldPos.y = -0.99f;
+
+        Card dropCard = CardDatabase::GetRandomPlayerCard();
+        cardPickupManager->AddPickup(worldPos, dropCard);
+    }
+}
+
+void MapManager::RegenerateDungeonAndRespawnPlayer(
+    int roomCount,
+    PlayerManager* playerManager,
+    EnemyManager* enemyManager,
+    BossManager* bossManager,
+    SpawnManager* spawnManager,
+    CardPickupManager* cardPickupManager,
+    Camera* camera,
+    Vector3& playerPos,
+    Vector3& playerScale,
+    int enemySpawnCount,
+    int enemySpawnMargin,
+    int cardSpawnCount,
+    int cardSpawnMargin
+) {
+    SetStairsTile({ -1, -1 });
+
+    if (!IsBossMap()) {
+        GenerateRandomDungeon(roomCount);
+    }
+
+    RespawnPlayerInRoom(playerManager, camera, playerPos, playerScale);
+
+    if (!IsBossMap()) {
+        SetStairsTile(PlaceStairsTileRandomAndGetTile(playerPos, 6.0f));
+    }
+
+    if (spawnManager) {
+        spawnManager->SetLevelData(&GetLevelData());
+    }
+
+    ClearEnemiesAndCards(enemyManager, cardPickupManager, camera);
+
+    if (!IsBossMap() && enemyManager && spawnManager) {
+        enemyManager->SpawnEnemiesRandom(
+            enemySpawnCount,
+            enemySpawnMargin,
+            spawnManager,
+            this,
+            playerPos,
+            camera
+        );
+
+        SpawnCardsRandom(
+            cardSpawnCount,
+            cardSpawnMargin,
+            spawnManager,
+            cardPickupManager,
+            enemyManager,
+            camera
+        );
+    }
+
+    RespawnBossInRoom(bossManager);
+}
+
+void MapManager::UpdateMinimap(
+    Minimap* minimap,
+    const Vector3& playerPos,
+    const CardPickupManager* cardPickupManager
+) {
+    if (!minimap) {
+        return;
+    }
+
+    minimap->SetPlayerPosition(playerPos);
+
+    std::vector<Vector3> cardPositions;
+    if (cardPickupManager) {
+        for (const auto& pickup : cardPickupManager->GetPickups()) {
+            if (!pickup.isActive) {
+                continue;
+            }
+            cardPositions.push_back(pickup.position);
+        }
+    }
+
+    minimap->SetCardPositions(cardPositions);
+    minimap->Update();
 }
