@@ -8,6 +8,7 @@
 #include "game/card/HandManager.h"
 #include "game/card/CardPickupManager.h"
 #include "game/spawn/SpawnManager.h"
+#include "game/Player/LevelUpBonusManager.h"
 
 #include "Animation.h"
 #include "InstancedGroup.h"
@@ -108,6 +109,9 @@ private: // メンバ変数
 
 	// スポーンマネージャー
 	SpawnManager spawnManager_;
+
+	// レベルアップボーナスを管理する専用クラス
+	LevelUpBonusManager levelUpBonusManager_;
 
 	
 	std::unique_ptr<EnemyManager> enemyManager_;

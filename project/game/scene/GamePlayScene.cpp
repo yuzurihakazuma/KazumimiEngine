@@ -233,6 +233,8 @@ void GamePlayScene::Initialize(){
 	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
 	pauseBgSprite_->SetSize({ 4000.0f, 4000.0f });
 	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+
+	levelUpBonusManager_.Initialize();
 }
 
 void GamePlayScene::Update(){
@@ -322,6 +324,21 @@ void GamePlayScene::Update(){
 		return;
 	}
 
+	// ==========================================
+	// ★ レベルアップの処理（フリーズしない正しい止め方）
+	// ==========================================
+	LevelUpResult levelUpResult = levelUpBonusManager_.Update(playerManager_.get(), &handManager_, input);
+	if (levelUpResult.needCardSwap) {
+		isCardSwapMode_ = true;
+		pendingCard_ = levelUpResult.droppedCard;
+		pendingPickup_ = nullptr;
+	}
+
+	// 選択画面中なら、以降のゲーム処理（プレイヤーや敵の移動など）をストップ！
+	if (levelUpBonusManager_.IsSelecting()) {
+		return;
+	}
+
 	// デバッグ用リセット
 	if ( input->Triggerkey(DIK_R) ) {
 		ResetBattleDebug();
@@ -350,6 +367,8 @@ void GamePlayScene::Update(){
 	// ==========================================
 	if (playerManager_) {
 
+		
+
 		// デバッグ用の無限モード切り替え
 		if (input->Triggerkey(DIK_F1)) {
 			isInfiniteMode_ = !isInfiniteMode_;
@@ -361,6 +380,8 @@ void GamePlayScene::Update(){
 		// プレイヤー本体の更新を任せる
 		playerManager_->Update(input, mapManager_.get(), debugCamera_.get(), bossManager_.get());
 
+	
+
 		// 他の処理でも使うので位置とスケールを同期
 		playerPos_ = playerManager_->GetPosition();
 		playerScale_ = playerManager_->GetScale();
@@ -371,6 +392,9 @@ void GamePlayScene::Update(){
 		SceneManager::GetInstance()->ChangeScene("GAMEOVER");
 		return;
 	}
+
+
+
 
 	// ==========================================
 	// 階段タイル(3)との判定
@@ -403,6 +427,9 @@ void GamePlayScene::Update(){
 
 	// EnemyManager に更新をお願いする
 	if (enemyManager_) {
+
+	
+
 		enemyManager_->Update(player, &cardPickupManager_, mapManager_.get(), boss);
 	}
 
@@ -412,6 +439,8 @@ void GamePlayScene::Update(){
 
 	// ボス関連の更新をまとめてBossManagerに任せる
 	if (bossManager_) {
+
+		
 		bossManager_->Update(
 			player,
 			enemyManager_.get(),
@@ -1008,6 +1037,8 @@ void GamePlayScene::Draw(){
 	// マップ描画
 	mapManager_->Draw(playerPos_);
 
+	
+
 	// =========================================
 	// 2. MRT終了
 	// =========================================
@@ -1059,6 +1090,10 @@ void GamePlayScene::Draw(){
 	}
 
 	DrawPauseUI();
+
+	// レベルアップ選択
+	levelUpBonusManager_.Draw();
+
 	TextManager::GetInstance()->Draw();
 
 	// =========================================
@@ -1259,6 +1294,8 @@ void GamePlayScene::ResetBattleDebug(){
 	isCardSwapMode_ = false;
 	pendingCard_ = Card {};
 
+	// レベルボーナスのリセット
+	levelUpBonusManager_.Reset();
 }
 
 

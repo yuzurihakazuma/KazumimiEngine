@@ -244,6 +244,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="game\map\Minimap.cpp" />
     <ClCompile Include="game\map\MapManager.cpp" />
     <ClCompile Include="game\player\PlayerManager.cpp" />
+    <ClCompile Include="game\player\LevelUpBonusManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -368,6 +369,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="game\map\Minimap.h" />
     <ClInclude Include="game\map\MapManager.h" />
     <ClInclude Include="game\player\PlayerManager.h" />
+    <ClInclude Include="game\player\LevelUpBonusManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

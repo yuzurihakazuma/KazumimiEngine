@@ -82,6 +82,10 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 					for (auto &enemy : enemyManager->GetEnemies()) {
 						// 雑魚敵への判定
 						if (!fang.hasHit && enemy && !enemy->IsDead()) {
+
+							// ループ中の個別の敵の座標を取得する！
+							Vector3 ePos = enemy->GetPosition();
+
 							Vector3 diff = {
 								enemyPos.x - fang.pos.x,
 								0.0f,

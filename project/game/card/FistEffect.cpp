@@ -70,11 +70,15 @@ void FistEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 			for (auto &enemy : enemyManager->GetEnemies()) {
 				// 雑魚敵への判定
 				if (enemy && !enemy->IsDead()) {
+
+					// ループ中の個別の敵の座標を取得する！
+					Vector3 ePos = enemy->GetPosition();
+
 					// Y軸を無視してXZ平面で距離判定する
 					Vector3 diff = {
-						enemyPos.x - pos_.x,
+						ePos.x - pos_.x,
 						0.0f,
-						enemyPos.z - pos_.z
+						ePos.z - pos_.z
 					};
 
 					if (Length(diff) < 2.0f) {

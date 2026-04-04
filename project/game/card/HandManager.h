@@ -18,7 +18,7 @@ private:
 	std::vector<float> dissolveThresholds_;  // ディゾルブ進行度
 
 	int selectedCardIndex_ = 0;   //現在選んでいるカードの番号
-	const int maxHandSize_ = 10;  //最大手札枚数
+	int maxHandSize_ = 3;  //最大手札枚数
 
 	Camera* camera_ = nullptr;
 	uint32_t noiseTextureIndex_ = 0; // ノイズテクスチャ番号
@@ -63,4 +63,10 @@ public:
 
 	// 今選んでいるカードのインデックスを取得する関数
 	int GetSelectedCardIndex()const { return selectedCardIndex_; }
+
+	// 手札の最大枚数を取得する
+	int GetMaxHandSize() const { return maxHandSize_; }
+
+	// 手札の最大枚数を増やす
+	void IncreaseMaxHandSize(int amount = 1) { maxHandSize_ += amount; }
 };
