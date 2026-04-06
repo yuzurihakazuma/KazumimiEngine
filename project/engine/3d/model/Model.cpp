@@ -244,51 +244,54 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 			}
 		}
 
+		// 頂点の解析
+		uint32_t baseVertex = static_cast<uint32_t>(modelData.vertices.size());
+
+		for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
+			aiVector3D& position = mesh->mVertices[vertexIndex];
+			aiVector3D& normal = mesh->mNormals[vertexIndex];
+			aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
+
+			VertexData vertex;
+			// 座標、法線、UVを自分たちの構造体に詰め替える
+			vertex.position = { position.x, position.y, position.z, 1.0f };
+			vertex.normal = { normal.x, normal.y, normal.z };
+			vertex.texcoord = { texcoord.x, texcoord.y };
+			vertex.influence = influences[vertexIndex];
+
+			// もしボーン影響が全くない頂点なら、ルート（またはインデックス0）に100%影響とする
+			if (vertex.influence.weights[0] == 0.0f && vertex.influence.weights[1] == 0.0f &&
+				vertex.influence.weights[2] == 0.0f && vertex.influence.weights[3] == 0.0f) {
+				vertex.influence.weights[0] = 1.0f;
+				vertex.influence.jointIndices[0] = 0;
+			}
+
+			// DirectX(左手系)に合わせるためにX軸を反転
+			vertex.position.x *= -1.0f;
+			vertex.normal.x *= -1.0f;
+
+			// ウェイトの正規化 (合計が1.0にならない場合への対処)
+			float weightSum = vertex.influence.weights[0] + vertex.influence.weights[1] + 
+							  vertex.influence.weights[2] + vertex.influence.weights[3];
+			if (weightSum > 0.0f) {
+				vertex.influence.weights[0] /= weightSum;
+				vertex.influence.weights[1] /= weightSum;
+				vertex.influence.weights[2] /= weightSum;
+				vertex.influence.weights[3] /= weightSum;
+			}
+
+			// 頂点データを追加
+			modelData.vertices.push_back(vertex);
+		}
+
 		// 3. Face(面)の解析
 		for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; ++faceIndex) {
 			aiFace& face = mesh->mFaces[faceIndex];
 			assert(face.mNumIndices == 3); // オプションで三角形化しているので必ず3になるはず
 
-			// 4. Vertex(頂点)の解析
+			// インデックスデータを追加
 			for (uint32_t element = 0; element < face.mNumIndices; ++element) {
-				uint32_t vertexIndex = face.mIndices[element];
-
-				// Assimpからデータを取り出す
-				aiVector3D& position = mesh->mVertices[vertexIndex];
-				aiVector3D& normal = mesh->mNormals[vertexIndex];
-				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
-
-				VertexData vertex;
-				// 座標、法線、UVを自分たちの構造体に詰め替える
-				vertex.position = { position.x, position.y, position.z, 1.0f };
-				vertex.normal = { normal.x, normal.y, normal.z };
-				vertex.texcoord = { texcoord.x, texcoord.y };
-				vertex.influence = influences[vertexIndex];
-
-				// もしボーン影響が全くない頂点なら、ルート（またはインデックス0）に100%影響とする
-				if (vertex.influence.weights[0] == 0.0f && vertex.influence.weights[1] == 0.0f &&
-					vertex.influence.weights[2] == 0.0f && vertex.influence.weights[3] == 0.0f) {
-					vertex.influence.weights[0] = 1.0f;
-					vertex.influence.jointIndices[0] = 0;
-				}
-
-				// DirectX(左手系)に合わせるためにX軸を反転
-				vertex.position.x *= -1.0f;
-				vertex.normal.x *= -1.0f;
-
-				// ウェイトの正規化 (合計が1.0にならない場合への対処)
-				float weightSum = vertex.influence.weights[0] + vertex.influence.weights[1] + 
-								  vertex.influence.weights[2] + vertex.influence.weights[3];
-				if (weightSum > 0.0f) {
-					vertex.influence.weights[0] /= weightSum;
-					vertex.influence.weights[1] /= weightSum;
-					vertex.influence.weights[2] /= weightSum;
-					vertex.influence.weights[3] /= weightSum;
-				}
-
-				// 頂点データとインデックスデータを追加
-				modelData.vertices.push_back(vertex);
-				modelData.indices.push_back(static_cast<uint32_t>(modelData.vertices.size() - 1));
+				modelData.indices.push_back(baseVertex + face.mIndices[element]);
 			}
 		}
 	}
