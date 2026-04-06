@@ -74,6 +74,11 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	// ポストエフェクト用グラフィックスパイプラインの作成
 	CreatePostEffectPipeline();
 
+	// スキニングアニメーション用ルートシグネチャの作成
+	skinningObject3DRootSignature_.Reset();
+	// スキニングアニメーション用グラフィックスパイプラインの作成
+	skinningObject3DPipelineState_.Reset();
+
 }
 
 void PipelineManager::SetPipeline(
@@ -110,6 +115,11 @@ void PipelineManager::SetPipeline(
 	case PipelineType::PostEffect: // ポストエフェクト用
 		commandList->SetGraphicsRootSignature(postEffectRootSignature_.Get());
 		commandList->SetPipelineState(postEffectPipelineState_.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		break;
+	case PipelineType::SkinningObject3D:
+		commandList->SetGraphicsRootSignature(skinningObject3DRootSignature_.Get());
+		commandList->SetPipelineState(skinningObject3DPipelineState_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		break;
     }
@@ -336,6 +346,49 @@ void PipelineManager::CreatePostEffectPipeline(){
 }
 
 
+void PipelineManager::CreateSkinningObject3DRootSignature() {
+	RootSignatureBuilder builder;
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標変換行列 (b0)
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: 平行光源 (b1)
+	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
+	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: 点光源 (b3)
+	builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
+	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
+	builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ (b5)
+	builder.AddDescriptorTableSRV(2, D3D12_SHADER_VISIBILITY_VERTEX);// [9]: MatrixPalette (t2) ← 追加
+	builder.AddDefaultSampler(0);
+	builder.Build(dxCommon_->GetDevice(), skinningObject3DRootSignature_);
+}
+
+void PipelineManager::CreateSkinningObject3DGraphicsPipeline() {
+	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(
+		L"resources/shaders/Object3d/SkinningObject3d.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(
+		L"resources/shaders/Object3d/Object3d.PS.hlsl", L"ps_6_0");
+
+	//  スキニング用に WEIGHT と INDEX を追加した入力レイアウト
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,        0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,     0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "WEIGHT",   0, DXGI_FORMAT_R32G32B32A32_FLOAT,  0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "INDEX",    0, DXGI_FORMAT_R32G32B32A32_SINT,   0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	};
+
+	GraphicsPipelineBuilder builder;
+	builder.SetRootSignature(skinningObject3DRootSignature_.Get())
+		.SetShaders(vsBlob.Get(), psBlob.Get())
+		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
+		.SetBlendMode(BlendMode::kNormal)
+		.SetCullMode(D3D12_CULL_MODE_BACK)
+		.SetDepthStencil(true, true)
+		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB });
+
+	builder.Build(dxCommon_->GetDevice(), skinningObject3DPipelineState_);
+}
+
 
 // グラフィックスパイプラインの共通生成
 void PipelineManager::CreateGraphicsPipelineCommon(
@@ -407,6 +460,7 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	assert(SUCCEEDED(hr));
 }
 
+// ブレンドステートの共通関数
 void PipelineManager::SetPostEffectPipeline(ID3D12GraphicsCommandList* commandList, PostEffectType effectType) {
 	// ルートシグネチャをセット
 	commandList->SetGraphicsRootSignature(postEffectRootSignature_.Get());

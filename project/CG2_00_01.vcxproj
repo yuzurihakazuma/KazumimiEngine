@@ -83,7 +83,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -111,7 +111,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
@@ -142,7 +142,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -163,7 +163,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
   <ItemGroup>
     <ClCompile Include="engine\utils\EditorManager.cpp" />
     <ClCompile Include="engine\postEffect\Bloom.cpp" />
-    <ClCompile Include="engine\3d\Animation.cpp" />
+    <ClCompile Include="engine\3d\animation\Animation.cpp" />
     <ClCompile Include="engine\collision\Collision.cpp" />
     <ClCompile Include="engine\3d\model\Model.cpp" />
     <ClCompile Include="engine\3d\model\ModelCommon.cpp" />
@@ -215,6 +215,9 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClCompile Include="engine\utils\TextManager.cpp" />
     <ClCompile Include="engine\math\QuaternionMath.cpp" />
     <ClCompile Include="engine\graphics\InstancedGroup.cpp" />
+    <ClCompile Include="engine\3d\animation\Skeleton.cpp" />
+    <ClCompile Include="engine\3d\animation\SkinCluster.cpp" />
+    <ClCompile Include="engine\3d\obj\SkinnedObj3d.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -247,7 +250,7 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
   <ItemGroup>
     <ClInclude Include="engine\utils\EditorManager.h" />
     <ClInclude Include="engine\postEffect\Bloom.h" />
-    <ClInclude Include="engine\3d\Animation.h" />
+    <ClInclude Include="engine\3d\animation\Animation.h" />
     <ClInclude Include="engine\collision\Collision.h" />
     <ClInclude Include="engine\3d\model\Model.h" />
     <ClInclude Include="engine\3d\model\ModelCommon.h" />
@@ -308,6 +311,9 @@ copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "
     <ClInclude Include="engine\utils\TextManager.h" />
     <ClInclude Include="engine\math\QuaternionMath.h" />
     <ClInclude Include="engine\graphics\InstancedGroup.h" />
+    <ClInclude Include="engine\3d\animation\Skeleton.h" />
+    <ClInclude Include="engine\3d\animation\SkinCluster.h" />
+    <ClInclude Include="engine\3d\obj\SkinnedObj3d.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

@@ -22,6 +22,9 @@ namespace MatrixMath {
 	Matrix4x4 MakeRotateZ(float radian);
 	Matrix4x4 MakeAffine(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
 
+	// Quaternion を使ったアフィン変換行列（スキニング・アニメーション用）
+	Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate);
+
 	// ---------------------------------------------
 	// 座標変換 (ベクトル × 行列)
 	// ---------------------------------------------

@@ -6,4 +6,5 @@ enum class PipelineType{
 	InstancedObject3D, // インスタンシング専用
 	Particle, // パーティクル用
 	PostEffect, // ポストエフェクト用
+	SkinningObject3D, // スキニングアニメーション用
 };

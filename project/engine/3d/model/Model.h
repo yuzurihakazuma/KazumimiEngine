@@ -13,20 +13,31 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 #include "engine/math/Matrix4x4.h"
+#include "engine/3d/animation/Skeleton.h"
 
 // 前方宣言
 class ModelCommon;
+struct aiNode;
 
 class Model{
 
 public: // サブクラス定義
 
+	// 1頂点に影響するボーン情報（最大4つ）
+	struct VertexInfluence {
+		float    weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		int32_t  jointIndices[4] = { 0, 0, 0, 0 };
+	};
+
+	// 頂点データ構造体
 	struct VertexData{
 		Vector4 position;
 		Vector2 texcoord;
 		Vector3 normal;
+		VertexInfluence influence;
 	};
 
+	// マテリアルデータ構造体
 	struct MaterialData{
 		std::string textureFilePath;
 		uint32_t textureIndex = 0;
@@ -36,6 +47,8 @@ public: // サブクラス定義
 		std::vector<VertexData> vertices; // 頂点データ
 		std::vector<uint32_t> indices;    // インデックスデータ
 		MaterialData material;            // マテリアルデータ
+		Node rootNode; // モデルの階層構造のルートノード
+		std::map<std::string, Matrix4x4>     inverseBindPoseMap;
 	};
 	// 定数バッファ用データ構造体
 	struct Material{
@@ -68,8 +81,16 @@ public: // メンバ関数
 
 	Material* GetMaterial(){ return materialData_; }
 
-private: // 内部関数
+	const Node& GetRootNode() const { return modelData_.rootNode; }
 
+	const std::map<std::string, Matrix4x4>& GetInverseBindPoseMap() const {
+		return modelData_.inverseBindPoseMap;
+	}
+
+private: // 内部関数
+	 
+	// aiNodeからNode構造体を再帰的に作る関数
+	static Node ParseNode(const aiNode* node);
 	
 	// モデルファイルの読み込み (拡張子に応じて適切なローダーを呼び出す)
 	static ModelData LoadModelFile(const std::string& directoryPath, const std::string& filename);
@@ -79,6 +100,7 @@ private: // 内部関数
 	void AdjustModelCenter();
 	// / バッファの作成
 	void CreateBuffers();
+
 
 	
 private: // メンバ変数

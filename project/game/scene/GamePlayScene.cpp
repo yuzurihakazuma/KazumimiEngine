@@ -28,6 +28,8 @@
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
 #include "engine/utils/EditorManager.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
+
 using namespace VectorMath;
 using namespace MatrixMath;
 // 初期化
@@ -70,6 +72,9 @@ void GamePlayScene::Initialize(){
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
 	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
+	ModelManager::GetInstance()->LoadModel("human", "resources/human", "human.gltf");
+	
+
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
@@ -95,7 +100,10 @@ void GamePlayScene::Initialize(){
 		Bloom::GetInstance()->SetTargetEmissivePower(&testObj_->GetModel()->GetMaterial()->emissive);
 	}
 
+	
 
+	skinnedObj_ = SkinnedObj3d::Create("human", "resources/human", "human.gltf");
+	skinnedObj_->SetCamera(camera_.get());
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -203,6 +211,10 @@ void GamePlayScene::Draw(){
 	// --- インスタンシングの3D描画 ---
 	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
 
+	// 
+	if (skinnedObj_) { skinnedObj_->Draw(); }
+
+
 	// --- パーティクル描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
@@ -226,6 +238,12 @@ void GamePlayScene::Draw(){
 	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
 
 
+
+	// --- スプライト・UI描画 ---
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+	if (sprite_) { sprite_->Draw(); }
+	TextManager::GetInstance()->Draw();
+
 	// 6. メイン画面（バックバッファ）への直接描画！
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
@@ -236,11 +254,8 @@ void GamePlayScene::Draw(){
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, finalSrv); // Bloomの結果をSRVとしてセット
 	commandList->DrawInstanced(3, 1, 0, 0); // 巨大な三角形を描いて全画面にテクスチャを貼る方式なので、頂点数は3でOK！
 
+	
 
-	// --- スプライト・UI描画 ---
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-	if ( sprite_ ) { sprite_->Draw(); }
-	TextManager::GetInstance()->Draw();
 }
 
 void GamePlayScene::DrawDebugUI(){

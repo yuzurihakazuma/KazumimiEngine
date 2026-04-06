@@ -1,6 +1,9 @@
 #include "Matrix4x4.h"
+#include "engine/math/QuaternionMath.h"
+
 #include <cmath>
 #include <cassert>
+
 
 namespace MatrixMath {
 
@@ -162,6 +165,14 @@ namespace MatrixMath {
         Matrix4x4 rotateXYZMatrix = Multiply(Multiply(rotateXMatrix, rotateYMatrix), rotateZMatrix);
         Matrix4x4 translateMatrix = MakeTranslate(translate);
         return Multiply(Multiply(scaleMatrix, rotateXYZMatrix), translateMatrix);
+    }
+
+	// Quaternion を使ったアフィン変換行列
+    Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
+        Matrix4x4 scaleMatrix = MakeScale(scale);
+        Matrix4x4 rotateMatrix = QuaternionMath::MakeRotateMatrix(rotate); // Quaternion → 回転行列
+        Matrix4x4 translateMatrix = MakeTranslate(translate);
+        return Multiply(Multiply(scaleMatrix, rotateMatrix), translateMatrix);
     }
 
     // 座標変換

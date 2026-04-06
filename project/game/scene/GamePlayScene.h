@@ -5,6 +5,8 @@
 #include "Engine/graphics/TextureManager.h"
 #include "Animation.h"
 #include "InstancedGroup.h"
+#include "engine/3d/animation/Animation.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -80,4 +82,7 @@ private: // メンバ変数
 	// ブロックの一括描画用グループ
 	std::unique_ptr<InstancedGroup> blockGroup_ = nullptr;
 	std::vector<std::unique_ptr<Obj3d>> blocks_;
+
+	std::unique_ptr<SkinnedObj3d> skinnedObj_ = nullptr;
+
 };
