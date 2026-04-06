@@ -82,8 +82,22 @@ void EditorManager::Update(){
             if ( ImGui::MenuItem("レイアウトをリセット (※再起動後に反映)") ) {}
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("シーン (Scene)")) {
+            if (ImGui::MenuItem("タイトル (Title Scene)")) {
+                SceneManager::GetInstance()->ChangeScene("TITLE");
+            }
+            if (ImGui::MenuItem("ゲームプレイ (GamePlay Scene)")) {
+                SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+            }
+            if (ImGui::MenuItem("アニメーションエディタ (Animation Editor)")) {
+                SceneManager::GetInstance()->ChangeScene("ANIMATION_EDITOR");
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMainMenuBar();
     }
+
+    
 
     // 3. Game View
     ImGui::Begin("Game View");

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <vector>
 #include <string>
 #include "engine/math/struct.h"
@@ -29,7 +29,7 @@ public:
     void AddKeyframe(float time, const Vector3& pos, const Vector3& rot, const Vector3& scale);
 
     /// <summary>
-    /// 指定された時間から、計算された座標・回転・スケールを返す
+    ///　
     /// </summary>
     void UpdateTransformAtTime(float currentTime, Vector3& outPos, Vector3& outRot, Vector3& outScale) const;
 
@@ -37,5 +37,10 @@ public:
     void SaveToFile(const std::string& filepath) const;
     // テキストファイルからアニメーションを読み込む
     void LoadFromFile(const std::string& filepath);
+
+    // JSON ファイルに書き出し
+    void SaveToJson(const std::string& filepath) const;
+    // JSON ファイルから読み込み
+    void LoadFromJson(const std::string& filepath);
 
 };
