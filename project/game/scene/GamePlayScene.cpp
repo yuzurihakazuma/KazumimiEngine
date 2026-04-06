@@ -72,9 +72,8 @@ void GamePlayScene::Initialize(){
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
 	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
-	ModelManager::GetInstance()->LoadModel("human", "resources/human", "human.gltf");
+	ModelManager::GetInstance()->LoadModel("simpleSkin", "resources/simpleSkin", "simpleSkin.gltf");
 	
-
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
@@ -102,7 +101,7 @@ void GamePlayScene::Initialize(){
 
 	
 
-	skinnedObj_ = SkinnedObj3d::Create("human", "resources/human", "human.gltf");
+	skinnedObj_ = SkinnedObj3d::Create("simpleSkin", "resources/simpleSkin", "simpleSkin.gltf");
 	skinnedObj_->SetCamera(camera_.get());
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
