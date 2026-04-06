@@ -21,13 +21,21 @@ struct SkinCluster {
     // シェーダーに渡す SRV 情報
     uint32_t                    srvIndex = 0;
     D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = {};
+
+
 };
 
 // 関数宣言
 SkinCluster CreateSkinCluster(
     Skeleton& skeleton,
     const std::map<std::string, Matrix4x4>& inverseBindPoseMap,
+    const std::vector<std::string>& boneOrder,
     DirectXCommon* dxCommon
 );
 
-void UpdateSkinCluster(SkinCluster& skinCluster, const Skeleton& skeleton);
+
+void UpdateSkinCluster(
+    SkinCluster& cluster,
+    const Skeleton& skeleton,
+    const std::vector<std::string>& boneOrder   // 追加
+);

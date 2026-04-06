@@ -66,6 +66,7 @@ void SkinnedObj3d::Initialize(
     skinCluster_ = CreateSkinCluster(
         skeleton_,
         model_->GetInverseBindPoseMap(),
+        model_->GetBoneOrder(),
         dxCommon
     );
 
@@ -95,7 +96,7 @@ void SkinnedObj3d::Update() {
     UpdateSkeleton(skeleton_, animation_, animationTime_);
 
     // --- MatrixPalette を計算して GPU バッファに書き込む ---
-    UpdateSkinCluster(skinCluster_, skeleton_);
+    UpdateSkinCluster(skinCluster_, skeleton_, model_->GetBoneOrder());
 
     // --- WVP 行列の計算（Obj3d と同じ処理） ---
     Matrix4x4 worldMatrix = MakeAffine(scale_, rotation_, translate_);

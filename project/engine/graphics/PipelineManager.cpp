@@ -29,7 +29,8 @@ void PipelineManager::Finalize(){
 	postEffectPipelineState_.Reset();
 	postEffectRootSignature_.Reset();
 	
-
+	skinningObject3DRootSignature_.Reset();
+	skinningObject3DPipelineState_.Reset();
 
 	// ポストエフェクトの種類ごとのパイプラインステートも忘れずに解放
 	for (int i = 0; i < 10; ++i) {
@@ -74,10 +75,10 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	// ポストエフェクト用グラフィックスパイプラインの作成
 	CreatePostEffectPipeline();
 
-	// スキニングアニメーション用ルートシグネチャの作成
-	skinningObject3DRootSignature_.Reset();
-	// スキニングアニメーション用グラフィックスパイプラインの作成
-	skinningObject3DPipelineState_.Reset();
+	// スキニングメッシュ用ルートシグネチャの作成
+	CreateSkinningObject3DRootSignature();
+	// スキニングメッシュ用グラフィックスパイプラインの作成
+	CreateSkinningObject3DGraphicsPipeline();
 
 }
 

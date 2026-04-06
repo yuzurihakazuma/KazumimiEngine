@@ -49,6 +49,7 @@ public: // サブクラス定義
 		MaterialData material;            // マテリアルデータ
 		Node rootNode; // モデルの階層構造のルートノード
 		std::map<std::string, Matrix4x4>     inverseBindPoseMap;
+		std::vector<std::string> boneOrder; // ボーンの順番（頂点のjointIndicesと対応させるため）
 	};
 	// 定数バッファ用データ構造体
 	struct Material{
@@ -86,6 +87,9 @@ public: // メンバ関数
 	const std::map<std::string, Matrix4x4>& GetInverseBindPoseMap() const {
 		return modelData_.inverseBindPoseMap;
 	}
+
+	const std::vector<std::string>& GetBoneOrder() const { return modelData_.boneOrder; }
+
 
 private: // 内部関数
 	 

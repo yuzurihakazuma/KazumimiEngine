@@ -35,8 +35,9 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 	modelData_ = LoadModelFile(directoryPath, filename);
 
 	// 3. モデルの頂点座標を中心（原点）に合わせる
-	AdjustModelCenter();
-
+	if (modelData_.boneOrder.empty()) {
+		AdjustModelCenter();
+	}
 	// 4. マテリアルデータの読み込み (.mtlファイル)
 	if ( modelData_.material.textureFilePath.empty() ) {
 		modelData_.material.textureFilePath = "resources/uvChecker.png";
@@ -187,8 +188,15 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 
 		// --- スキンデータの収集 ---
 		std::vector<VertexInfluence> influences(mesh->mNumVertices);
-
+		// ボーンがある場合は、頂点ごとの影響データを収集
 		if (mesh->HasBones()) {
+			// ボーンの順番を記録（頂点のjointIndicesと対応させるため）
+			if (modelData.boneOrder.empty()) {
+				for (uint32_t b = 0; b < mesh->mNumBones; ++b) {
+					modelData.boneOrder.push_back(mesh->mBones[b]->mName.C_Str());
+				}
+			}
+			// 各ボーンについて
 			for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
 				aiBone* bone = mesh->mBones[boneIndex];
 
@@ -206,6 +214,16 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 				invBindPose.m[2][2] = m.c3; invBindPose.m[2][3] = m.c4;
 				invBindPose.m[3][0] = m.d1; invBindPose.m[3][1] = m.d2;
 				invBindPose.m[3][2] = m.d3; invBindPose.m[3][3] = m.d4;
+
+				// 右手系 → 左手系への変換をしながら保存
+				invBindPose.m[0][1] *= -1.0f;
+				invBindPose.m[0][2] *= -1.0f;
+				invBindPose.m[0][3] *= -1.0f;
+				invBindPose.m[1][0] *= -1.0f;
+				invBindPose.m[2][0] *= -1.0f;
+				invBindPose.m[3][0] *= -1.0f;
+
+
 				modelData.inverseBindPoseMap[boneName] = invBindPose;
 
 

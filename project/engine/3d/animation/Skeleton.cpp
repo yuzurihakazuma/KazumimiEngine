@@ -50,11 +50,14 @@ void UpdateSkeleton(Skeleton& skeleton, const Animation& animation, float time) 
         auto it = animation.nodeAnimations.find(joint.name);
 
         if (it != animation.nodeAnimations.end()) {
-            // アニメーションデータがあれば、現在時刻のSRTをキーフレームから計算して上書き
             const NodeAnimation& nodeAnimation = it->second;
+
             joint.transform.translate = CalculateValue(nodeAnimation.translate.keyframes, time);
+            
             joint.transform.rotate = CalculateValue(nodeAnimation.rotate.keyframes, time);
+        
             joint.transform.scale = CalculateValue(nodeAnimation.scale.keyframes, time);
+            // スケールは変換不要
         }
         // アニメーションがないジョイントはLoadModel時の初期値（transform）をそのまま使う
 

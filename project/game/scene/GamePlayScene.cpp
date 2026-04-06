@@ -72,12 +72,13 @@ void GamePlayScene::Initialize(){
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
 	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
-	ModelManager::GetInstance()->LoadModel("simpleSkin", "resources/simpleSkin", "simpleSkin.gltf");
-	
+	ModelManager::GetInstance()->LoadModel("human", "resources/human", "walk.gltf");
+
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
+
 	
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
@@ -101,8 +102,12 @@ void GamePlayScene::Initialize(){
 
 	
 
-	skinnedObj_ = SkinnedObj3d::Create("simpleSkin", "resources/simpleSkin", "simpleSkin.gltf");
+	skinnedObj_ = SkinnedObj3d::Create("human", "resources/human", "walk.gltf");
 	skinnedObj_->SetCamera(camera_.get());
+	skinnedObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
+	skinnedObj_->SetScale({ 0.01f, 0.01f, 0.01f });
+	skinnedObj_->SetRotation({ 3.14159f / 2.0f, 0.0f, 0.0f });
+
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -167,6 +172,10 @@ void GamePlayScene::Update(){
 	}
 	if ( testObj_ ){
 		testObj_->Update();
+	}
+
+	if (skinnedObj_) {
+		skinnedObj_->Update();
 	}
 
 	if ( sprite_ ) {
@@ -238,10 +247,6 @@ void GamePlayScene::Draw(){
 
 
 
-	// --- スプライト・UI描画 ---
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-	if (sprite_) { sprite_->Draw(); }
-	TextManager::GetInstance()->Draw();
 
 	// 6. メイン画面（バックバッファ）への直接描画！
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
@@ -253,6 +258,12 @@ void GamePlayScene::Draw(){
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, finalSrv); // Bloomの結果をSRVとしてセット
 	commandList->DrawInstanced(3, 1, 0, 0); // 巨大な三角形を描いて全画面にテクスチャを貼る方式なので、頂点数は3でOK！
 
+
+
+	// --- スプライト・UI描画 ---
+	SpriteCommon::GetInstance()->PreDraw(commandList);
+	if (sprite_) { sprite_->Draw(); }
+	TextManager::GetInstance()->Draw();
 	
 
 }
