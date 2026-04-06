@@ -190,12 +190,6 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 		std::vector<VertexInfluence> influences(mesh->mNumVertices);
 		// ボーンがある場合は、頂点ごとの影響データを収集
 		if (mesh->HasBones()) {
-			// ボーンの順番を記録（頂点のjointIndicesと対応させるため）
-			if (modelData.boneOrder.empty()) {
-				for (uint32_t b = 0; b < mesh->mNumBones; ++b) {
-					modelData.boneOrder.push_back(mesh->mBones[b]->mName.C_Str());
-				}
-			}
 			// 各ボーンについて
 			for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
 				aiBone* bone = mesh->mBones[boneIndex];
@@ -203,17 +197,24 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 				// ボーン名を取得
 				std::string boneName = bone->mName.C_Str();
 
+				// 全ボーン名を一意なリストに登録し、そのグローバルインデックスを取得する
+				auto it = std::find(modelData.boneOrder.begin(), modelData.boneOrder.end(), boneName);
+				uint32_t globalBoneIndex = 0;
+				if (it == modelData.boneOrder.end()) {
+					globalBoneIndex = static_cast<uint32_t>(modelData.boneOrder.size());
+					modelData.boneOrder.push_back(boneName);
+				} else {
+					globalBoneIndex = static_cast<uint32_t>(std::distance(modelData.boneOrder.begin(), it));
+				}
+
 				// mOffsetMatrix（バインドポーズの逆行列）を自分たちの Matrix4x4 に変換して保存
 				aiMatrix4x4& m = bone->mOffsetMatrix;
 				Matrix4x4 invBindPose;
-				invBindPose.m[0][0] = m.a1; invBindPose.m[0][1] = m.a2;
-				invBindPose.m[0][2] = m.a3; invBindPose.m[0][3] = m.a4;
-				invBindPose.m[1][0] = m.b1; invBindPose.m[1][1] = m.b2;
-				invBindPose.m[1][2] = m.b3; invBindPose.m[1][3] = m.b4;
-				invBindPose.m[2][0] = m.c1; invBindPose.m[2][1] = m.c2;
-				invBindPose.m[2][2] = m.c3; invBindPose.m[2][3] = m.c4;
-				invBindPose.m[3][0] = m.d1; invBindPose.m[3][1] = m.d2;
-				invBindPose.m[3][2] = m.d3; invBindPose.m[3][3] = m.d4;
+				// Assimp の行列は行優先メモリ配置だが、DirectX Math の行ベクトル演算に合わせるため転置してコピー
+				invBindPose.m[0][0] = m.a1; invBindPose.m[0][1] = m.b1; invBindPose.m[0][2] = m.c1; invBindPose.m[0][3] = m.d1;
+				invBindPose.m[1][0] = m.a2; invBindPose.m[1][1] = m.b2; invBindPose.m[1][2] = m.c2; invBindPose.m[1][3] = m.d2;
+				invBindPose.m[2][0] = m.a3; invBindPose.m[2][1] = m.b3; invBindPose.m[2][2] = m.c3; invBindPose.m[2][3] = m.d3;
+				invBindPose.m[3][0] = m.a4; invBindPose.m[3][1] = m.b4; invBindPose.m[3][2] = m.c4; invBindPose.m[3][3] = m.d4;
 
 				// 右手系 → 左手系への変換をしながら保存
 				invBindPose.m[0][1] *= -1.0f;
@@ -235,7 +236,7 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 					for (int slot = 0; slot < 4; ++slot) {
 						if (influences[vid].weights[slot] == 0.0f) {
 							influences[vid].weights[slot] = weight;
-							influences[vid].jointIndices[slot] = static_cast<int32_t>(boneIndex);
+							influences[vid].jointIndices[slot] = static_cast<int32_t>(globalBoneIndex);
 							break;
 						}
 					}
@@ -264,9 +265,26 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 				vertex.texcoord = { texcoord.x, texcoord.y };
 				vertex.influence = influences[vertexIndex];
 
+				// もしボーン影響が全くない頂点なら、ルート（またはインデックス0）に100%影響とする
+				if (vertex.influence.weights[0] == 0.0f && vertex.influence.weights[1] == 0.0f &&
+					vertex.influence.weights[2] == 0.0f && vertex.influence.weights[3] == 0.0f) {
+					vertex.influence.weights[0] = 1.0f;
+					vertex.influence.jointIndices[0] = 0;
+				}
+
 				// DirectX(左手系)に合わせるためにX軸を反転
 				vertex.position.x *= -1.0f;
 				vertex.normal.x *= -1.0f;
+
+				// ウェイトの正規化 (合計が1.0にならない場合への対処)
+				float weightSum = vertex.influence.weights[0] + vertex.influence.weights[1] + 
+								  vertex.influence.weights[2] + vertex.influence.weights[3];
+				if (weightSum > 0.0f) {
+					vertex.influence.weights[0] /= weightSum;
+					vertex.influence.weights[1] /= weightSum;
+					vertex.influence.weights[2] /= weightSum;
+					vertex.influence.weights[3] /= weightSum;
+				}
 
 				// 頂点データとインデックスデータを追加
 				modelData.vertices.push_back(vertex);

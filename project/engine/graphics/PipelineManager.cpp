@@ -383,7 +383,7 @@ void PipelineManager::CreateSkinningObject3DGraphicsPipeline() {
 		.SetShaders(vsBlob.Get(), psBlob.Get())
 		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
 		.SetBlendMode(BlendMode::kNormal)
-		.SetCullMode(D3D12_CULL_MODE_BACK)
+		.SetCullMode(D3D12_CULL_MODE_NONE)
 		.SetDepthStencil(true, true)
 		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB });
 

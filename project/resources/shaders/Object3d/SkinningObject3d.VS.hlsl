@@ -24,15 +24,19 @@ VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
 
-    // 4本のジョイント行列を重みで合成して1つのスキン行列を作る
     float4x4 skinMatrix =
         input.weight.x * gMatrixPalette[input.index.x] +
         input.weight.y * gMatrixPalette[input.index.y] +
         input.weight.z * gMatrixPalette[input.index.z] +
         input.weight.w * gMatrixPalette[input.index.w];
 
+    
     // スキニング済みの座標・法線を計算
     float4 skinnedPosition = mul(input.position, skinMatrix);
+    
+    skinnedPosition.w = 1.0f;
+
+    
     float3 skinnedNormal = normalize(mul(input.normal, (float3x3) skinMatrix));
 
     // あとは通常の Object3D と同じ

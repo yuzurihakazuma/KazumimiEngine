@@ -105,8 +105,8 @@ void GamePlayScene::Initialize(){
 	skinnedObj_ = SkinnedObj3d::Create("human", "resources/human", "walk.gltf");
 	skinnedObj_->SetCamera(camera_.get());
 	skinnedObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
-	skinnedObj_->SetScale({ 0.01f, 0.01f, 0.01f });
-	skinnedObj_->SetRotation({ 3.14159f / 2.0f, 0.0f, 0.0f });
+	skinnedObj_->SetScale({ 1.0f, 1.0f, 1.0f });
+	skinnedObj_->SetRotation({ 0.0f, 3.14159f, 0.0f });
 
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
