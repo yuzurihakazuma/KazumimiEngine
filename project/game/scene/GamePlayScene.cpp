@@ -953,41 +953,6 @@ void GamePlayScene::Update(){
 		// 手札がない時は文字を消す
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
-
-	//// ==========================================
-	//// ★最優先：フェード演出 ＆ マップ切り替え処理
-	//// ==========================================
-	//if ( transitionState_ == TransitionState::FadeOut ) {
-	//	fadeAlpha_ += kFadeSpeed; // 画面を暗くしていく
-
-	//	if ( fadeAlpha_ >= 1.0f ) {
-	//		fadeAlpha_ = 1.0f;
-
-	//		// 画面が完全に真っ黒になった瞬間に、裏でマップを切り替える
-	//		mapManager_->AdvanceFloor(
-	//			enemyManager_.get(),
-	//			bossManager_.get(),
-	//			minimap_.get(),
-	//			[this]() { ResetBattleDebug(); }
-	//		);
-
-	//		// 切り替えが終わったらフェードインへ移行
-	//		transitionState_ = TransitionState::FadeIn;
-	//	}
-	//} else if ( transitionState_ == TransitionState::FadeIn ) {
-	//	fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
-
-	//	if ( fadeAlpha_ <= 0.0f ) {
-	//		fadeAlpha_ = 0.0f;
-	//		transitionState_ = TransitionState::None; // 演出終了
-	//	}
-	//}
-
-	//// フェード用スプライトの色と透明度を更新
-	//if ( fadeSprite_ ) {
-	//	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
-	//	fadeSprite_->Update();
-	//}
 }
 
 void GamePlayScene::Draw(){
