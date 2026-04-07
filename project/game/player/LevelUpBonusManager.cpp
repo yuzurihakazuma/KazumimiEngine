@@ -53,9 +53,9 @@ void LevelUpBonusManager::Initialize() {
     TextManager::GetInstance()->SetText("ChoiceCardDesc", "");
 }
 
-void LevelUpBonusManager::Reset() {
+void LevelUpBonusManager::Reset(int currentLevel) {
     isSelecting_ = false;
-	previousPlayerLevel_ = 1;
+	previousPlayerLevel_ = currentLevel;
 }
 
 LevelUpResult LevelUpBonusManager::Update(PlayerManager *playerManager, HandManager *handManager, Input *input) {

@@ -27,7 +27,7 @@ public:
     void Initialize();
 
     // リセット（デバッグやリトライ時）
-    void Reset(); 
+    void Reset(int currentLevel);
 
     // 毎フレーム呼んで、レベルアップを監視・処理する
     LevelUpResult Update(PlayerManager *playerManager, HandManager *handManager, Input *input);

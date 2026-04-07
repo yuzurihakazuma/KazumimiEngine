@@ -288,12 +288,23 @@ void GamePlayScene::Update(){
 			transitionState_ = TransitionState::FadeIn;
 		}
 
-		if ( fadeSprite_ ) {
-			fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
-			fadeSprite_->Update();
-		}
+	} else if (transitionState_ == TransitionState::FadeIn) {
+		fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
 
-		// FadeOut中はここで止める
+		if (fadeAlpha_ <= 0.0f) {
+			fadeAlpha_ = 0.0f;
+			transitionState_ = TransitionState::None;
+		}
+	}
+
+	// フェードスプライトの更新（FadeOutでもFadeInでも絶対に実行する！）
+	if (fadeSprite_) {
+		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
+		fadeSprite_->Update();
+	}
+
+	// ★ FadeOut中（真っ黒に向かっている最中）だけ、ゲームの進行を止める
+	if (transitionState_ == TransitionState::FadeOut) {
 		return;
 	}
 
@@ -943,40 +954,40 @@ void GamePlayScene::Update(){
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
 
-	// ==========================================
-	// ★最優先：フェード演出 ＆ マップ切り替え処理
-	// ==========================================
-	if ( transitionState_ == TransitionState::FadeOut ) {
-		fadeAlpha_ += kFadeSpeed; // 画面を暗くしていく
+	//// ==========================================
+	//// ★最優先：フェード演出 ＆ マップ切り替え処理
+	//// ==========================================
+	//if ( transitionState_ == TransitionState::FadeOut ) {
+	//	fadeAlpha_ += kFadeSpeed; // 画面を暗くしていく
 
-		if ( fadeAlpha_ >= 1.0f ) {
-			fadeAlpha_ = 1.0f;
+	//	if ( fadeAlpha_ >= 1.0f ) {
+	//		fadeAlpha_ = 1.0f;
 
-			// 画面が完全に真っ黒になった瞬間に、裏でマップを切り替える
-			mapManager_->AdvanceFloor(
-				enemyManager_.get(),
-				bossManager_.get(),
-				minimap_.get(),
-				[this]() { ResetBattleDebug(); }
-			);
+	//		// 画面が完全に真っ黒になった瞬間に、裏でマップを切り替える
+	//		mapManager_->AdvanceFloor(
+	//			enemyManager_.get(),
+	//			bossManager_.get(),
+	//			minimap_.get(),
+	//			[this]() { ResetBattleDebug(); }
+	//		);
 
-			// 切り替えが終わったらフェードインへ移行
-			transitionState_ = TransitionState::FadeIn;
-		}
-	} else if ( transitionState_ == TransitionState::FadeIn ) {
-		fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
+	//		// 切り替えが終わったらフェードインへ移行
+	//		transitionState_ = TransitionState::FadeIn;
+	//	}
+	//} else if ( transitionState_ == TransitionState::FadeIn ) {
+	//	fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
 
-		if ( fadeAlpha_ <= 0.0f ) {
-			fadeAlpha_ = 0.0f;
-			transitionState_ = TransitionState::None; // 演出終了
-		}
-	}
+	//	if ( fadeAlpha_ <= 0.0f ) {
+	//		fadeAlpha_ = 0.0f;
+	//		transitionState_ = TransitionState::None; // 演出終了
+	//	}
+	//}
 
-	// フェード用スプライトの色と透明度を更新
-	if ( fadeSprite_ ) {
-		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
-		fadeSprite_->Update();
-	}
+	//// フェード用スプライトの色と透明度を更新
+	//if ( fadeSprite_ ) {
+	//	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
+	//	fadeSprite_->Update();
+	//}
 }
 
 void GamePlayScene::Draw(){
@@ -1295,7 +1306,8 @@ void GamePlayScene::ResetBattleDebug(){
 	pendingCard_ = Card {};
 
 	// レベルボーナスのリセット
-	levelUpBonusManager_.Reset();
+	int currentLevel = playerManager_ ? playerManager_->GetLevel() : 1;
+	levelUpBonusManager_.Reset(currentLevel);
 }
 
 
