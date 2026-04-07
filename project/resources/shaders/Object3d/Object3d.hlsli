@@ -58,5 +58,6 @@ struct Camera
 
 struct DissolveData
 {
-    float threshold; 
+    float threshold;
+    float3 edgeColor;
 };

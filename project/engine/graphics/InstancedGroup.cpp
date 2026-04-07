@@ -19,6 +19,8 @@ void InstancedGroup::Initialize(const std::string& modelName, uint32_t maxInstan
 	instancingResource_ = dxCommon->GetResourceFactory()->CreateBufferResource(sizeof(Obj3d::TransformationMatrix) * maxInstanceCount_);
 	instancingResource_->Map(0, nullptr, reinterpret_cast<void**>(&instancingData_));
 
+	
+	
 	dissolveResource_ = dxCommon->GetResourceFactory()->CreateBufferResource(sizeof(Obj3d::DissolveData));
 	dissolveResource_->Map(0, nullptr, reinterpret_cast<void**>(&dissolveData_));
 	dissolveData_->threshold = 0.0f;

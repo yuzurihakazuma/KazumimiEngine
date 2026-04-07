@@ -74,10 +74,15 @@ void Obj3d::Initialize(Model* model){
 	// ---------------------------------------------------------
 	dissolveResource_ = obj3dCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(DissolveData));
 	dissolveResource_->Map(0, nullptr, reinterpret_cast<void**>(&dissolveData_));
-	dissolveData_->threshold = 0.0f; //最初は溶けていない状態(0.0)にしておく
 
 	// 初期値は「0.0」（溶けていない状態）にしておく
 	dissolveData_->threshold = 0.0f;
+
+	// 初期のディゾルブ境界色（とりあえず赤）
+	dissolveData_->edgeColor = { 1.0f, 0.2f, 0.05f };
+
+	// paddingも0で初期化
+	dissolveData_->padding = 0.0f;
 
 	// ---------------------------------------------------------
 	// Transform変数の初期化
@@ -209,6 +214,12 @@ void Obj3d::Draw(){
 void Obj3d::SetDissolveThreshold(float threshold) {
 	if (dissolveData_) {
 		dissolveData_->threshold = threshold;
+	}
+}
+
+void Obj3d::SetDissolveColor(const Vector3& color) {
+	if (dissolveData_) {
+		dissolveData_->edgeColor = color;
 	}
 }
 

@@ -637,6 +637,7 @@
     <None Include="engine\base\resources\shaders\Object3d.hlsli" />
     <None Include="engine\base\resources\shaders\Particle.hlsli" />
     <None Include="game\card\packages.config" />
+    <None Include="assessment.md" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

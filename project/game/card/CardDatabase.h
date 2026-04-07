@@ -10,6 +10,14 @@ enum class CardEffectType {
 	Special     //特殊
 };
 
+//---------レア度の種類---------
+enum class CardRarity {
+	Common = 0,    // 通常
+	Rare = 1,      // レア
+	Epic = 2,      // エピック
+	Legendary = 3  // レジェンダリー
+};
+
 //---------カードのデータ構造---------
 struct Card {
 	int id;                    //ID
@@ -21,6 +29,7 @@ struct Card {
 	std::string modelName;     // 3Dモデルやテクスチャの名前
 	std::string effectName;    // エフェクト名
 	std::string seName;        // 効果音名
+	CardRarity rarity;         // レア度
 	bool canEnemyUse;          // 敵も使用可能か
 };
 

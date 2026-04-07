@@ -31,7 +31,8 @@ public:
 	// ディゾルブエフェクト用の定数バッファ構造体
 	struct DissolveData {
 		float threshold; // 進行度（0.0で通常、1.0で完全に消える）
-		float padding[3]; // 16バイト境界に合わせるための空き箱
+		Vector3 edgeColor; // ディゾルブ境界の色（Bloom用）
+		float padding; // 16バイト境界に合わせるための空き
 	};
 
 	/// <summary>
@@ -76,6 +77,9 @@ public:
 
 	// ディゾルブエフェクトのパラメータをセットする関数
 	void SetDissolveThreshold(float threshold);
+
+	// ディゾルブ境界の色を設定する
+	void SetDissolveColor(const Vector3& color);
 	void SetNoiseTexture(uint32_t textureIndex);
 
 	// 座標変換行列を取得する関数

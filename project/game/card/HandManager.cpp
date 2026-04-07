@@ -35,6 +35,16 @@ bool HandManager::AddCard(const Card& newCard) {
 		model->SetNoiseTexture(noiseTextureIndex_);
 		model->SetDissolveThreshold(0.0f);
 
+		if (newCard.effectType == CardEffectType::Attack) {
+			model->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
+		} else if (newCard.effectType == CardEffectType::Heal) {
+			model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+		} else if (newCard.effectType == CardEffectType::Defense) {
+			model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+		} else if (newCard.effectType == CardEffectType::Special) {
+			model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+		}
+
 		handModels_.push_back(std::move(model));
 
 		// ディゾルブ状態も追加
@@ -84,7 +94,7 @@ void HandManager::Update() {
 
 		// ディゾルブ中なら進行度を増やす
 		if (isDissolving_[i]) {
-			dissolveThresholds_[i] += 0.05f; // 消える速度
+			dissolveThresholds_[i] += 0.015f; // 消える速度
 
 			if (dissolveThresholds_[i] > 1.0f) {
 				dissolveThresholds_[i] = 1.0f;
@@ -136,14 +146,14 @@ void HandManager::Draw() {
 Card HandManager::GetSelectedCard() const {
 	if (hand_.empty()) {
 		// CardDatabase.hの構造体に合わせてエラーカードを返す
-		return { -1, "Unknown", 0, CardEffectType::Special, 0, "Error", "None", "None", "None" };
+		return { -1, "Unknown", 0, CardEffectType::Special, 0, "Error", "None", "None", "None", CardRarity::Common, false };
 	}
 
 	// ディゾルブ中のカードは使えないようにする
 	if (selectedCardIndex_ >= 0 &&
 		selectedCardIndex_ < static_cast<int>(isDissolving_.size()) &&
 		isDissolving_[selectedCardIndex_]) {
-		return { -1, "Unknown", 0, CardEffectType::Special, 0, "Error", "None", "None", "None" };
+		return { -1, "Unknown", 0, CardEffectType::Special, 0, "Error", "None", "None", "None", CardRarity::Common, false };
 	}
 
 	return hand_[selectedCardIndex_];
@@ -188,6 +198,16 @@ bool HandManager::SwapSelectedCard(const Card& newCard) {
 	model->SetNoiseTexture(noiseTextureIndex_);
 	model->SetDissolveThreshold(0.0f);
 
+	if (newCard.effectType == CardEffectType::Attack) {
+		model->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
+	} else if (newCard.effectType == CardEffectType::Heal) {
+		model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+	} else if (newCard.effectType == CardEffectType::Defense) {
+		model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+	} else if (newCard.effectType == CardEffectType::Special) {
+		model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+	}
+
 	handModels_[selectedCardIndex_] = std::move(model);
 	isDissolving_[selectedCardIndex_] = false;
 	dissolveThresholds_[selectedCardIndex_] = 0.0f;
@@ -199,7 +219,7 @@ Card HandManager::GetCard(int index) const {
 	if (index >= 0 && index < static_cast<int>(hand_.size())) {
 		return hand_[index];
 	}
-	return Card{ -1, "Unknown", 0, CardEffectType::Special, 0, "Error", "None", "None", "None" }; //エラー回避用のダミーカード
+	return Card{ -1, "Unknown", 0, CardEffectType::Special, 0, "Error", "None", "None", "None", CardRarity::Common, false }; //エラー回避用のダミーカード
 }
 
 void HandManager::RemoveCard(int index) {

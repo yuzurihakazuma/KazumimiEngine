@@ -43,7 +43,7 @@ void CardDatabase::Initialize(const std::string &filePath) {
         }
 
         //正しく分離できたかチェック
-        if (columns.size() >= 10) {
+        if (columns.size() >= 11) {
             Card card;
             card.id = std::stoi(columns[0]);
             card.name = columns[1];
@@ -54,10 +54,10 @@ void CardDatabase::Initialize(const std::string &filePath) {
             card.modelName = columns[6];
             card.effectName = columns[7];
             card.seName = columns[8];
+            card.rarity = static_cast<CardRarity>(std::stoi(columns[9]));
 
-
-            // CSVの10番目のデータ(インデックス9)が "0" じゃなければ true にする！
-            card.canEnemyUse = (std::stoi(columns[9]) != 0);
+            // CSVの11番目のデータ(インデックス10)が "0" じゃなければ true にする！
+            card.canEnemyUse = (std::stoi(columns[10]) != 0);
 
             //辞典に登録
             database_[card.id] = card;
@@ -93,7 +93,7 @@ void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
             columns.push_back(token);
         }
 
-        if (columns.size() >= 10) {
+        if (columns.size() >= 11) {
             Card card;
             card.id = std::stoi(columns[0]);
             card.name = columns[1];
@@ -104,9 +104,10 @@ void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
             card.modelName = columns[6];
             card.effectName = columns[7];
             card.seName = columns[8];
+            card.rarity = static_cast<CardRarity>(std::stoi(columns[9]));
 
-            // CSVの10番目のデータ(インデックス9)が "0" じゃなければ true にする！
-            card.canEnemyUse = (std::stoi(columns[9]) != 0);
+            // CSVの11番目のデータ(インデックス10)が "0" じゃなければ true にする！
+            card.canEnemyUse = (std::stoi(columns[10]) != 0);
 
             // 辞書に追加！（ID101などがここに入ります）
             database_[card.id] = card;
@@ -119,7 +120,7 @@ Card CardDatabase::GetCardData(int id) {
     if (database_.find(id) != database_.end()) {
         return database_[id];
     }
-    return { -1, "Unknwon",0,CardEffectType::Special,0,"Error","None","None","None" };
+    return { -1, "Unknwon", 0, CardEffectType::Special, 0, "Error", "None", "None", "None", CardRarity::Common, false };
 }
 
 Card CardDatabase::GetRandomEnemyUsableCard() {

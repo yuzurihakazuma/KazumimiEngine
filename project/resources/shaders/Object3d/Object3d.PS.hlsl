@@ -14,8 +14,8 @@ ConstantBuffer<DissolveData> gDissolve : register(b5); // ディゾルブ用
 
 struct PixelShaderOutput
 {
-    float4 color : SV_TARGET0; // 0枚目のキャンバス（色）
-    float4 mask : SV_TARGET1; // 1枚目のキャンバス（エフェクトをかけるかどうかのフラグ！）
+    float4 color : SV_TARGET0; // 通常カラー
+    float4 mask : SV_TARGET1; // Bloom用マスク
 };
 
 PixelShaderOutput main(VertexShaderOutput input)
@@ -28,6 +28,9 @@ PixelShaderOutput main(VertexShaderOutput input)
     float innerGlow = 0.0f; // 内側の強い光
     float outerGlow = 0.0f; // 外側の弱い光
 
+    // =========================================================
+    // ディゾルブ境界の計算
+    // =========================================================
     if (gDissolve.threshold > 0.0f)
     {
         float noiseValue = gNoiseTexture.Sample(gSampler, transformedUV.xy).r;
@@ -35,22 +38,28 @@ PixelShaderOutput main(VertexShaderOutput input)
         float innerWidth = 0.04f; // 内側の細い発光帯
         float outerWidth = 0.16f; // 外側の広い発光帯
 
+        // 閾値より内側は消す
         if (noiseValue <= gDissolve.threshold)
         {
-            discard; // 消える部分
+            discard;
         }
 
+        // 外側の柔らかい発光
         if (noiseValue <= gDissolve.threshold + outerWidth)
         {
             outerGlow = 1.0f - saturate((noiseValue - gDissolve.threshold) / outerWidth);
         }
 
+        // 内側の強い発光
         if (noiseValue <= gDissolve.threshold + innerWidth)
         {
             innerGlow = 1.0f - saturate((noiseValue - gDissolve.threshold) / innerWidth);
         }
     }
 
+    // =========================================================
+    // ライティング計算
+    // =========================================================
     float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
 
     float3 diffuseDirectional = float3(0, 0, 0);
@@ -111,17 +120,32 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         output.color = gMaterial.color * textureColor;
     }
-    
-    if (gMaterial.emissive > 1.0f)
+
+// =========================================================
+// ディゾルブ境界の見た目を通常カラー側にも少し足す
+// =========================================================
+    float3 edgeColor = gDissolve.edgeColor;
+
+// 本体への加算はかなり弱め
+    output.color.rgb += edgeColor * innerGlow * 0.1f;
+    output.color.rgb += edgeColor * outerGlow * 0.03f;
+
+// Bloom側はしっかり
+    float glow = saturate(innerGlow * 1.0f + outerGlow * 0.7f);
+
+    if (gDissolve.threshold > 0.0f && glow > 0.001f)
     {
-        // output.color.rgb（通常の色）に、emissive（光る強さ）を掛け算して書き込む！
-        // これにより、emissiveが 5.0 なら、マスク画像の明るさも 5.0 になる
+        float bloomPower = 2.5f;
+        output.mask = float4(edgeColor * glow * bloomPower, 1.0f);
+    }
+    else if (gMaterial.emissive > 1.0f)
+    {
         output.mask = float4(output.color.rgb * gMaterial.emissive, 1.0f);
     }
     else
     {
         output.mask = float4(0.0f, 0.0f, 0.0f, 0.0f);
     }
-    
+
     return output;
 }
