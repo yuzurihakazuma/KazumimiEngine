@@ -3,7 +3,9 @@
 #include "TitleScene.h"
 
 // --- エンジン側のファイル ---
+#include "Engine/Math/Matrix4x4.h"
 #include "Engine/Utils/ImGuiManager.h"
+#include "Engine/Utils/Color.h"
 #include "Engine/Audio/AudioManager.h"
 #include "Engine/3D/Model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
@@ -24,7 +26,6 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
-#include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
 #include "game/player/Player.h"
@@ -39,13 +40,11 @@
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
 #include "engine/utils/EditorManager.h"
-#include "engine/3d/obj/SkinnedObj3d.h"
-
 using namespace VectorMath;
 using namespace MatrixMath;
 
 // 初期化
-void GamePlayScene::Initialize(){
+void GamePlayScene::Initialize() {
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	WindowProc* windowProc = WindowProc::GetInstance();
 
@@ -80,29 +79,20 @@ void GamePlayScene::Initialize(){
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
-	
-	// エディタマネージャーの生成
-	EditorManager::GetInstance()->Initialize();
+	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 
-
-
-	
 	// モデル読み込み (シングルトン)
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
 	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
-	ModelManager::GetInstance()->LoadModel("human", "resources/human", "walk.gltf");
-
-	// 保存済みアニメーションを読み込んで再生するだけ
-	skinnedAnimTrack_.LoadFromJson("resources/human_anim.json");
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
+	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
 	//UI専用カメラの初期化
 	uiCamera_ = std::make_unique<Camera>(1280, 720, dxCommon);
 
-	
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
@@ -133,7 +123,7 @@ void GamePlayScene::Initialize(){
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	// プレイヤーオブジェクト生成
 	testObj_ = Obj3d::Create("block");
-	if ( testObj_ ) {
+	if (testObj_) {
 
 		testObj_->SetCamera(camera_.get());
 		testObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
@@ -194,8 +184,9 @@ void GamePlayScene::Initialize(){
 	minimap_->Initialize();
 	minimap_->SetLevelData(&mapManager_->GetLevelData());
 	EditorManager::GetInstance()->SetCamera(camera_.get());
+
 	// 初期ロード時のマップ変更通知を消す
-	if ( mapManager_ ) {
+	if (mapManager_) {
 		mapManager_->ConsumeMapChanged();
 	}
 
@@ -205,13 +196,10 @@ void GamePlayScene::Initialize(){
 	TextManager::GetInstance()->SetPosition("PlayerCost", 40, 600);
 	TextManager::GetInstance()->SetPosition("PlayerLevel", 40, 640);
 	TextManager::GetInstance()->SetPosition("PlayerEXP", 40, 680);
-	blockGroup_ = std::make_unique<InstancedGroup>(); // 1. まずインスタンスを作る
-	blockGroup_->Initialize("block");                // 2. モデル名を指定して初期化
-	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex); // 3. その後でテクスチャをセット
-	
+
 	// 画面サイズ取得
-	float screenW = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
-	float screenH = static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
+	float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
 
 	// 中央に配置（少し上に出すなら -50 くらい）
 	TextManager::GetInstance()->SetPosition("CostLack", screenW * 0.5f - 100.0f, screenH * 0.5f - 50.0f);
@@ -818,6 +806,7 @@ void GamePlayScene::Update() {
 	if (testObj_) {
 		testObj_->Update();
 	}
+
 	// レベル(マップ)・ポストエフェクトの更新
 	mapManager_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
@@ -902,30 +891,29 @@ void GamePlayScene::Update() {
 				TextManager::GetInstance()->SetText("ReadyCardT", "");
 			}
 		}
-	}
 
 
-	// Eキーで構え中の攻撃カードを発動
-	if (input->Triggerkey(DIK_E)) {
-		if (playerCardSystem_ && playerManager_) {
-			playerCardSystem_->UseCard(
-				readiedCard_,
-				playerPos_,
-				playerManager_->GetRotationY(),
-				true,
-				playerManager_->GetPlayer()
-			);
+		// Eキーで構え中の攻撃カードを発動
+		if (input->Triggerkey(DIK_E)) {
+			if (playerCardSystem_ && playerManager_) {
+				playerCardSystem_->UseCard(
+					readiedCard_,
+					playerPos_,
+					playerManager_->GetRotationY(),
+					true,
+					playerManager_->GetPlayer()
+				);
+			}
+		}
+
+		// 時間切れになったら構え状態（撃ち放題）を終了する
+		if (cardReadyTimer_ <= 0) {
+			isCardReady_ = false;
+
+			// 時間切れになったら文字を空（非表示）にする
+			TextManager::GetInstance()->SetText("ReadyCardT", "");
 		}
 	}
-
-	// 時間切れになったら構え状態（撃ち放題）を終了する
-	if (cardReadyTimer_ <= 0) {
-		isCardReady_ = false;
-
-		// 時間切れになったら文字を空（非表示）にする
-		TextManager::GetInstance()->SetText("ReadyCardT", "");
-	}
-
 
 	// プレイヤー用カードシステム更新
 	if (playerCardSystem_) {
@@ -941,12 +929,6 @@ void GamePlayScene::Update() {
 	}
 	for (auto& block : blocks_) {
 		block->Update();
-	} 
-	if (blockGroup_) {
-		blockGroup_->PreUpdate(); // カウントをリセット
-		for (auto& block : blocks_) {
-			blockGroup_->AddObject(block.get()); // データを配列に詰め込む
-		}
 	}
 
 	// 背景枠の更新
@@ -972,18 +954,18 @@ void GamePlayScene::Update() {
 		}
 
 		// 4. テキストオブジェクトに文字を流し込む！
+		// ※ textObj_ の部分は、チームメンバーさんが作ったテキスト管理の変数名に直してください
 		TextManager::GetInstance()->SetText("CardT", displayText);
+
 
 	}
 	else {
 		// 手札がない時は文字を消す
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
+}
 
-} 
-
-
-void GamePlayScene::Draw(){
+void GamePlayScene::Draw() {
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = dxCommon->GetCommandList(); // ← 1回だけ！
 
@@ -997,52 +979,49 @@ void GamePlayScene::Draw(){
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+
 	// プレイヤー描画
 	if (playerManager_) {
 		playerManager_->Draw();
 	}
-	EditorManager::GetInstance()->Draw();
+
 	// ボス描画
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
-	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-	if ( bossManager_ ) {
+	if (bossManager_) {
 		bossManager_->Draw(mapManager_.get());
 	}
 
 	// 敵描画
-	if ( enemyManager_ ) {
+	if (enemyManager_) {
 		enemyManager_->Draw(camera_.get(), minimap_.get());
 	}
 
 	// カード使用演出描画
-	if ( playerCardSystem_ ) {
+	if (playerCardSystem_) {
 		playerCardSystem_->Draw();
 	}
 
 	cardPickupManager_.Draw();
 
 	// 3Dオブジェクト描画
-	for ( auto& obj : object3ds_ ) {
+	for (auto& obj : object3ds_) {
 		obj->Draw();
 	}
 
 	// testObj（Homemade-engine から残す）
-	if ( testObj_ ) { testObj_->Draw(); }
+	if (testObj_) { testObj_->Draw(); }
 
 	// InstancedGroup
-	if ( blockGroup_ ) {
+	if (blockGroup_) {
 		blockGroup_->Draw(camera_.get());
 	}
 
 	// 手札カード(3D)
 	handManager_.Draw();
+
 	// マップ描画
 	mapManager_->Draw(playerPos_);
-	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
-	// --- パーティクル描画 ---
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
 
 
 
@@ -1063,8 +1042,6 @@ void GamePlayScene::Draw(){
 	uint32_t maskSrv = PostEffect::GetInstance()->GetMaskSrvIndex();
 	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
 	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
-	// エディタマネージャーに「これが最終的なゲーム画面のSRVだよ！」と教えてあげる
-	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
 
 	// =========================================
 	// 5. バックバッファへ最終出力
@@ -1082,19 +1059,19 @@ void GamePlayScene::Draw(){
 	// =========================================
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 
-	if ( handManager_.GetHandSize() > 0 && descBgSprite_ ) {
+	if (handManager_.GetHandSize() > 0 && descBgSprite_) {
 		descBgSprite_->Draw();
 	}
 
-	if ( bossManager_ ) {
+	if (bossManager_) {
 		bossManager_->DrawHpBar(mapManager_.get());
 	}
 
-	if ( playerStatusBgSprite_ ) {
+	if (playerStatusBgSprite_) {
 		playerStatusBgSprite_->Draw();
 	}
 
-	if ( minimap_ ) {
+	if (minimap_) {
 		minimap_->Draw();
 	}
 
@@ -1102,27 +1079,27 @@ void GamePlayScene::Draw(){
 
 	// レベルアップ選択
 	levelUpBonusManager_.Draw();
-	if ( sprite_ ) { sprite_->Draw(); }
+
+	TextManager::GetInstance()->Draw();
 
 	// =========================================
 	// 7. フェードスプライト（最前面）
 	// =========================================
-	if ( fadeSprite_ && transitionState_ != TransitionState::None ) {
+	if (fadeSprite_ && transitionState_ != TransitionState::None) {
 		fadeSprite_->Draw();
 	}
-	TextManager::GetInstance()->Draw();
 }
 
 
-void GamePlayScene::DrawDebugUI(){
+void GamePlayScene::DrawDebugUI() {
 
 #ifdef USE_IMGUI
 	Player* player = playerManager_ ? playerManager_->GetPlayer() : nullptr;
 	Boss* boss = bossManager_ ? bossManager_->GetBoss() : nullptr;
 	// 3Dオブジェクト、カメラ、パーティクルのUI
 	Obj3dCommon::GetInstance()->DrawDebugUI();
-	if ( camera_ ) { camera_->DrawDebugUI(); }
-	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
+	if (camera_) { camera_->DrawDebugUI(); }
+	if (debugCamera_) { debugCamera_->DrawDebugUI(); }
 	//ParticleManager::GetInstance()->DrawDebugUI();
 
 
@@ -1133,36 +1110,37 @@ void GamePlayScene::DrawDebugUI(){
 	ImGui::Begin("Block Dissolve Test");
 
 	// スライダーで 0.0(通常) 〜 1.0(消滅) を操作
-	if ( ImGui::SliderFloat("ブロックの消滅度", &dissolveThreshold_, 0.0f, 1.0f) ) {
-		if ( testObj_ ) {
+	if (ImGui::SliderFloat("ブロックの消滅度", &dissolveThreshold_, 0.0f, 1.0f)) {
+		if (testObj_) {
 			// スライダーを動かすと、このブロックの閾値だけが書き換わる
 			testObj_->SetDissolveThreshold(dissolveThreshold_);
 		}
 	}
 
 	// 便利なリセットボタン
-	if ( ImGui::Button("元に戻す") ) {
+	if (ImGui::Button("元に戻す")) {
 		dissolveThreshold_ = 0.0f;
-		if ( testObj_ ) {
+		if (testObj_) {
 
 			testObj_->SetDissolveThreshold(0.0f);
 		}
 
 	}
 	ImGui::SameLine();
-	if ( ImGui::Button("完全に消す") ) {
+	if (ImGui::Button("完全に消す")) {
 		dissolveThreshold_ = 1.0f;
-		if ( testObj_ ) {
+		if (testObj_) {
 			testObj_->SetDissolveThreshold(1.0f);
 		}
 	}
 
+	ImGui::End();
 
 	ImGui::Begin("Card System Test");
 
 	ImGui::Separator();
 	ImGui::Text("[Card Pickups]");
-	for ( size_t i = 0; i < cardPickupManager_.GetPickups().size(); ++i ) {
+	for (size_t i = 0; i < cardPickupManager_.GetPickups().size(); ++i) {
 		const auto& pickup = cardPickupManager_.GetPickups()[i];
 		ImGui::Text("%s : pos(%.1f, %.1f, %.1f) active=%s",
 			pickup.card.name.c_str(),
@@ -1183,7 +1161,7 @@ void GamePlayScene::DrawDebugUI(){
 		ImGui::Text("Player Invincible: %s", playerManager_->IsInvincible() ? "true" : "false");
 	}
 
-	if ( boss ) {
+	if (boss) {
 		ImGui::Separator();
 		ImGui::Text("[Boss]");
 		ImGui::Text("Boss HP: %d / %d", boss->GetHP(), boss->GetMaxHP());
@@ -1202,7 +1180,7 @@ void GamePlayScene::DrawDebugUI(){
 
 	ImGui::Text("Current Floor: %d F", mapManager_ ? mapManager_->GetCurrentFloor() : 0);
 
-	if ( ImGui::Button("Go to Next Floor (Stairs)") ) {
+	if (ImGui::Button("Go to Next Floor (Stairs)")) {
 		mapManager_->AdvanceFloor(
 			enemyManager_.get(),
 			bossManager_.get(),
@@ -1213,29 +1191,29 @@ void GamePlayScene::DrawDebugUI(){
 
 	// 図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
 	ImGui::SameLine();
-	if ( ImGui::Button("Pick Up (ID: 2)") ) {
+	if (ImGui::Button("Pick Up (ID: 2)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(2));
 	}
-	if ( ImGui::Button("Pick Up (ID: 3)") ) {
+	if (ImGui::Button("Pick Up (ID: 3)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(3));
 	}
-	if ( ImGui::Button("Pick Up (ID: 4)") ) {
+	if (ImGui::Button("Pick Up (ID: 4)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(4));
 	}
 
-	if ( ImGui::Button("Pick Up (ID: 6)") ) {
+	if (ImGui::Button("Pick Up (ID: 6)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(6));
 	}
 
-	if ( ImGui::Button("Pick Up (ID: 7)") ) {
+	if (ImGui::Button("Pick Up (ID: 7)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(7));
 	}
 
-	if ( ImGui::Button("Pick Up (ID: 8)") ) {
+	if (ImGui::Button("Pick Up (ID: 8)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(8));
 	}
 
-	if ( ImGui::Button("Pick Up (ID: 10)") ) {
+	if (ImGui::Button("Pick Up (ID: 10)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(10));
 	}
 
@@ -1243,29 +1221,27 @@ void GamePlayScene::DrawDebugUI(){
 	ImGui::Text("[Player Hand] : %d/10", handManager_.GetHandSize());
 
 	//手札の数だけループしてボタンを作る
-	for ( int i = 0; i < handManager_.GetHandSize(); ++i ) {
+	for (int i = 0; i < handManager_.GetHandSize(); ++i) {
 		Card card = handManager_.GetCard(i);
 
 		//ボタンの名前
 		std::string btnName = card.name + "(Cost:" + std::to_string(card.cost) + ")##" + std::to_string(i);
 
 		// 使う処理を入れる場合はこのif文の中に書く
-		if ( ImGui::Button(btnName.c_str()) ) {
+		if (ImGui::Button(btnName.c_str())) {
 			// 例：手札を使用する処理
 		}
 	}
-	 ImGui::EndChild();
 
 	ImGui::End();
 
 
 
-	
 #endif
 
 }
 
-void GamePlayScene::ResetBattleDebug(){
+void GamePlayScene::ResetBattleDebug() {
 
 	// プレイヤー状態をリセット
 	if (playerManager_) {
@@ -1274,12 +1250,12 @@ void GamePlayScene::ResetBattleDebug(){
 		playerScale_ = playerManager_->GetScale();
 	}
 
-	if ( bossManager_ ) {
+	if (bossManager_) {
 		bossManager_->Reset();
 	}
 
 	// カード使用システムの状態をリセット
-	if ( playerCardSystem_ ) {
+	if (playerCardSystem_) {
 		playerCardSystem_->Reset();
 	}
 
@@ -1296,13 +1272,13 @@ void GamePlayScene::ResetBattleDebug(){
 	// ダンジョン生成 + プレイヤー再配置 + 敵/カード再生成 + ボス再配置
 	RegenerateDungeonAndRespawnPlayer(5);
 
-	if ( minimap_ && mapManager_ ) {
+	if (minimap_ && mapManager_) {
 		minimap_->SetLevelData(&mapManager_->GetLevelData());
 	}
 
 	// 交換モードも戻しておく
 	isCardSwapMode_ = false;
-	pendingCard_ = Card {};
+	pendingCard_ = Card{};
 
 	// レベルボーナスのリセット
 	int currentLevel = playerManager_ ? playerManager_->GetLevel() : 1;
@@ -1310,30 +1286,31 @@ void GamePlayScene::ResetBattleDebug(){
 }
 
 
-void GamePlayScene::UpdateCardSwapMode(Input* input){
+void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 	// 手札の選択と見た目の更新
 	handManager_.Update();
 	uiCamera_->Update(); // UIカメラの更新もここで行う
 
-	if ( input->Triggerkey(DIK_SPACE) ) {
+	if (input->Triggerkey(DIK_SPACE)) {
 		// 現在選んでいるカードを取得
 		Card selectedCard = handManager_.GetSelectedCard();
 
 		// 選んでいるカードがID: 1（初期カード)なら交換をしない
-		if ( selectedCard.id == 1 ) {
+		if (selectedCard.id == 1) {
 			return;
 		}
 
 		handManager_.SwapSelectedCard(pendingCard_);
 		// ★追加：交換成功したら、地面に落ちていたアイテムを消す！
-		if ( pendingPickup_ ) {
+		if (pendingPickup_) {
 			pendingPickup_->isActive = false;
 			pendingPickup_ = nullptr;
 		}
 
 		isCardSwapMode_ = false;
-	} else if ( input->Triggerkey(DIK_C) ) {
+	}
+	else if (input->Triggerkey(DIK_C)) {
 		// キャンセルした場合はアイテムは消さずにポインタだけリセット
 		pendingPickup_ = nullptr;
 		isCardSwapMode_ = false;
@@ -1395,7 +1372,8 @@ void GamePlayScene::UpdateCardUse(Input* input) {
 		isCardReady_ = true;
 		readiedCard_ = selectedCard;
 		cardReadyTimer_ = 60 * 5;
-	} else {
+	}
+	else {
 		// それ以外のカードは即時発動
 		if (playerCardSystem_) {
 			playerCardSystem_->UseCard(
@@ -1414,28 +1392,29 @@ void GamePlayScene::UpdateCardUse(Input* input) {
 	}
 }
 
-void GamePlayScene::UpdatePause(Input* input){
+void GamePlayScene::UpdatePause(Input* input) {
 
 	// 上下で選択
-	if ( input->Triggerkey(DIK_W) ) {
+	if (input->Triggerkey(DIK_W)) {
 		pauseSelection_--;
-		if ( pauseSelection_ < 0 ) {
+		if (pauseSelection_ < 0) {
 			pauseSelection_ = 1;
 		}
 	}
 
-	if ( input->Triggerkey(DIK_S) ) {
+	if (input->Triggerkey(DIK_S)) {
 		pauseSelection_++;
-		if ( pauseSelection_ > 1 ) {
+		if (pauseSelection_ > 1) {
 			pauseSelection_ = 0;
 		}
 	}
 
 	// 決定
-	if ( input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN) ) {
-		if ( pauseSelection_ == 0 ) {
+	if (input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN)) {
+		if (pauseSelection_ == 0) {
 			isPaused_ = false; // ゲームに戻る
-		} else if ( pauseSelection_ == 1 ) {
+		}
+		else if (pauseSelection_ == 1) {
 			SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 			return;
 		}
@@ -1444,37 +1423,38 @@ void GamePlayScene::UpdatePause(Input* input){
 	// ポーズ中の文字表示
 	TextManager::GetInstance()->SetText("PauseTitle", "PAUSE");
 
-	if ( pauseSelection_ == 0 ) {
+	if (pauseSelection_ == 0) {
 		TextManager::GetInstance()->SetText("PauseResume", "> Resume");
 		TextManager::GetInstance()->SetText("PauseToTitle", "  Title");
-	} else {
+	}
+	else {
 		TextManager::GetInstance()->SetText("PauseResume", "  Resume");
 		TextManager::GetInstance()->SetText("PauseToTitle", "> Title");
 	}
 
 	// 背景更新
-	if ( pauseBgSprite_ ) {
+	if (pauseBgSprite_) {
 		pauseBgSprite_->Update();
 	}
 }
 
-void GamePlayScene::DrawPauseUI(){
+void GamePlayScene::DrawPauseUI() {
 
-	if ( !isPaused_ ) {
+	if (!isPaused_) {
 		TextManager::GetInstance()->SetText("PauseTitle", "");
 		TextManager::GetInstance()->SetText("PauseResume", "");
 		TextManager::GetInstance()->SetText("PauseToTitle", "");
 		return;
 	}
 
-	if ( pauseBgSprite_ ) {
+	if (pauseBgSprite_) {
 		pauseBgSprite_->Draw();
 	}
 }
 
-GamePlayScene::GamePlayScene(){}
+GamePlayScene::GamePlayScene() {}
 
-GamePlayScene::~GamePlayScene(){}
+GamePlayScene::~GamePlayScene() {}
 // 終了
 void GamePlayScene::Finalize() {
 
@@ -1493,27 +1473,27 @@ void GamePlayScene::Finalize() {
 		bossManager_.reset();
 	}
 	pauseBgSprite_.reset();
-	TextManager::GetInstance()->Finalize();
 
+	TextManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();
 }
 
-Vector2 GamePlayScene::WorldToScreen(const Vector3& worldPos) const{
-	if ( !camera_ ) {
+Vector2 GamePlayScene::WorldToScreen(const Vector3& worldPos) const {
+	if (!camera_) {
 		return { -10000.0f, -10000.0f };
 	}
 
 	Matrix4x4 viewProjection = camera_->GetViewProjectionMatrix();
 
-	Vector4 clip {};
+	Vector4 clip{};
 	clip.x = worldPos.x * viewProjection.m[0][0] + worldPos.y * viewProjection.m[1][0] + worldPos.z * viewProjection.m[2][0] + 1.0f * viewProjection.m[3][0];
 	clip.y = worldPos.x * viewProjection.m[0][1] + worldPos.y * viewProjection.m[1][1] + worldPos.z * viewProjection.m[2][1] + 1.0f * viewProjection.m[3][1];
 	clip.z = worldPos.x * viewProjection.m[0][2] + worldPos.y * viewProjection.m[1][2] + worldPos.z * viewProjection.m[2][2] + 1.0f * viewProjection.m[3][2];
 	clip.w = worldPos.x * viewProjection.m[0][3] + worldPos.y * viewProjection.m[1][3] + worldPos.z * viewProjection.m[2][3] + 1.0f * viewProjection.m[3][3];
 
-	if ( clip.w == 0.0f ) {
+	if (clip.w == 0.0f) {
 		return { -10000.0f, -10000.0f };
 	}
 
@@ -1521,9 +1501,9 @@ Vector2 GamePlayScene::WorldToScreen(const Vector3& worldPos) const{
 	float ndcX = clip.x * invW;
 	float ndcY = clip.y * invW;
 
-	Vector2 screen {};
-	screen.x = ( ndcX * 0.5f + 0.5f ) * static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
-	screen.y = ( -ndcY * 0.5f + 0.5f ) * static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
+	Vector2 screen{};
+	screen.x = (ndcX * 0.5f + 0.5f) * static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	screen.y = (-ndcY * 0.5f + 0.5f) * static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
 	return screen;
 }
 
