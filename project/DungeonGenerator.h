@@ -3,6 +3,7 @@
 #include <random>
 #include "engine/utils/Level/LevelData.h"
 #include "engine/math/VectorMath.h"
+#include "game/map/RoomTemplateLoader.h"
 
 class DungeonGenerator {
 public:
@@ -17,6 +18,24 @@ public:
 		int x;
 		int z;
 	};
+private:
+	struct GridRect {
+		int x;
+		int z;
+		int width;
+		int height;
+	};
+
+	bool TryGenerateTemplateRooms(LevelData& levelData, int roomCount);
+	bool CanPlaceTemplate(
+		const std::vector<std::vector<bool>>& occupied,
+		int startGX,
+		int startGZ,
+		const RoomTemplate& roomTemplate,
+		int gridCols,
+		int gridRows
+	) const;
+	Room PlaceTemplateRoom(LevelData& levelData, const RoomTemplate& roomTemplate, const GridRect& area);
 
 public:
 	DungeonGenerator();
@@ -45,4 +64,5 @@ private:
 private:
 	std::vector<Room> rooms_;
 	std::mt19937 randomEngine_;
+	RoomTemplateLoader templateLoader_;
 };

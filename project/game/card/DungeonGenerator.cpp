@@ -4,7 +4,9 @@
 
 DungeonGenerator::DungeonGenerator()
 	: randomEngine_(std::random_device{}()) {
+	templateLoader_.LoadFromCsv("resources/map/rooms/templates.csv");
 }
+
 
 void DungeonGenerator::FillAll(LevelData& levelData, int tileType) {
 	levelData.tiles.resize(levelData.height);
@@ -73,7 +75,9 @@ Vector2 DungeonGenerator::GetRoomCenter(const Room& room) const {
 void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 	rooms_.clear();
 	FillAll(levelData, 1);
-
+	if (TryGenerateTemplateRooms(levelData, roomCount)) {
+		return;
+	}
 	// ポケダン風に区画分割
 	const int gridCols = 4;
 	const int gridRows = 4;
@@ -237,7 +241,7 @@ void DungeonGenerator::Generate(LevelData& levelData, int roomCount) {
 	ConnectAllRooms(levelData, 2);
 
 	// 少しだけ余分な接続を足してポケダンっぽい枝や交差を増やす
-	AddExtraConnections(levelData, 2, 3);
+	AddExtraConnections(levelData, 2, 0);
 }
 
 void DungeonGenerator::GenerateRooms(LevelData& levelData, int roomCount) {
@@ -281,3 +285,196 @@ Vector3 DungeonGenerator::GetRandomRoomWorldPosition(const LevelData& levelData,
 
 	return worldPos;
 }
+
+bool DungeonGenerator::CanPlaceTemplate(
+	const std::vector<std::vector<bool>>& occupied,
+	int startGX,
+	int startGZ,
+	const RoomTemplate& roomTemplate,
+	int gridCols,
+	int gridRows
+) const {
+	if (startGX + roomTemplate.spanX > gridCols || startGZ + roomTemplate.spanZ > gridRows) {
+		return false;
+	}
+
+	for (int gz = startGZ; gz < startGZ + roomTemplate.spanZ; ++gz) {
+		for (int gx = startGX; gx < startGX + roomTemplate.spanX; ++gx) {
+			if (occupied[gz][gx]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+DungeonGenerator::Room DungeonGenerator::PlaceTemplateRoom(
+	LevelData& levelData,
+	const RoomTemplate& roomTemplate,
+	const GridRect& area
+) {
+	const int availableWidth = std::max(1, area.width);
+	const int availableHeight = std::max(1, area.height);
+
+	const int templateWidth = static_cast<int>(roomTemplate.tiles.front().size());
+	const int templateHeight = static_cast<int>(roomTemplate.tiles.size());
+
+	const int offsetX = area.x + std::max(0, (availableWidth - templateWidth) / 2);
+	const int offsetZ = area.z + std::max(0, (availableHeight - templateHeight) / 2);
+
+	for (int z = 0; z < templateHeight; ++z) {
+		for (int x = 0; x < templateWidth; ++x) {
+			int tileX = offsetX + x;
+			int tileZ = offsetZ + z;
+
+			if (tileX <= 0 || tileX >= levelData.width - 1 || tileZ <= 0 || tileZ >= levelData.height - 1) {
+				continue;
+			}
+
+			levelData.tiles[tileZ][tileX] = roomTemplate.tiles[z][x];
+		}
+	}
+
+	Room room{};
+	room.x = offsetX;
+	room.z = offsetZ;
+	room.width = templateWidth;
+	room.height = templateHeight;
+	return room;
+}
+
+bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCount) {
+	if (!templateLoader_.IsLoaded() || roomCount <= 0) {
+		return false;
+	}
+
+	const int gridCols = 4;
+	const int gridRows = 4;
+
+	const int innerLeft = 1;
+	const int innerTop = 1;
+	const int innerRight = levelData.width - 2;
+	const int innerBottom = levelData.height - 2;
+
+	const int usableWidth = innerRight - innerLeft + 1;
+	const int usableHeight = innerBottom - innerTop + 1;
+
+	const int cellWidth = usableWidth / gridCols;
+	const int cellHeight = usableHeight / gridRows;
+
+	if (cellWidth < 6 || cellHeight < 6) {
+		return false;
+	}
+
+	std::vector<int> cellWidths(gridCols, cellWidth);
+	std::vector<int> cellHeights(gridRows, cellHeight);
+
+	cellWidths[gridCols - 1] = innerRight - (innerLeft + (gridCols - 1) * cellWidth) + 1;
+	cellHeights[gridRows - 1] = innerBottom - (innerTop + (gridRows - 1) * cellHeight) + 1;
+
+	std::vector<int> cellXs(gridCols);
+	std::vector<int> cellZs(gridRows);
+
+	for (int gx = 0; gx < gridCols; ++gx) {
+		cellXs[gx] = innerLeft + gx * cellWidth;
+	}
+	for (int gz = 0; gz < gridRows; ++gz) {
+		cellZs[gz] = innerTop + gz * cellHeight;
+	}
+
+	std::vector<const RoomTemplate*> templates;
+	for (const RoomTemplate& roomTemplate : templateLoader_.GetTemplates()) {
+		templates.push_back(&roomTemplate);
+	}
+
+	std::sort(templates.begin(), templates.end(),
+		[](const RoomTemplate* a, const RoomTemplate* b) {
+			const int areaA = a->spanX * a->spanZ;
+			const int areaB = b->spanX * b->spanZ;
+			if (areaA != areaB) {
+				return areaA > areaB;
+			}
+			return a->weight > b->weight;
+		});
+
+	if (templates.empty()) {
+		return false;
+	}
+
+	std::vector<std::vector<bool>> occupied(gridRows, std::vector<bool>(gridCols, false));
+
+	int attempts = 0;
+	const int maxAttempts = roomCount * 24;
+
+	while (static_cast<int>(rooms_.size()) < roomCount && attempts < maxAttempts) {
+		++attempts;
+
+		bool placed = false;
+
+		for (const RoomTemplate* roomTemplate : templates) {
+			std::vector<std::pair<int, int>> positions;
+			for (int gz = 0; gz < gridRows; ++gz) {
+				for (int gx = 0; gx < gridCols; ++gx) {
+					positions.push_back({ gx, gz });
+				}
+			}
+
+			std::shuffle(positions.begin(), positions.end(), randomEngine_);
+
+			for (const auto& position : positions) {
+				int startGX = position.first;
+				int startGZ = position.second;
+
+				if (!CanPlaceTemplate(occupied, startGX, startGZ, *roomTemplate, gridCols, gridRows)) {
+					continue;
+				}
+
+				GridRect area{};
+				area.x = cellXs[startGX];
+				area.z = cellZs[startGZ];
+				area.width = 0;
+				area.height = 0;
+
+				for (int gx = 0; gx < roomTemplate->spanX; ++gx) {
+					area.width += cellWidths[startGX + gx];
+				}
+				for (int gz = 0; gz < roomTemplate->spanZ; ++gz) {
+					area.height += cellHeights[startGZ + gz];
+				}
+
+				const int availableWidth = std::max(1, area.width);
+				const int availableHeight = std::max(1, area.height);
+
+				const int templateWidth = static_cast<int>(roomTemplate->tiles.front().size());
+				const int templateHeight = static_cast<int>(roomTemplate->tiles.size());
+
+				if (templateWidth > availableWidth || templateHeight > availableHeight) {
+					continue;
+				}
+
+				rooms_.push_back(PlaceTemplateRoom(levelData, *roomTemplate, area));
+
+				for (int gz = startGZ; gz < startGZ + roomTemplate->spanZ; ++gz) {
+					for (int gx = startGX; gx < startGX + roomTemplate->spanX; ++gx) {
+						occupied[gz][gx] = true;
+					}
+				}
+
+				placed = true;
+				break;
+			}
+
+			if (placed) {
+				break;
+			}
+		}
+
+		if (!placed) {
+			break;
+		}
+	}
+
+	return !rooms_.empty();
+}
+
