@@ -713,10 +713,11 @@ void GamePlayScene::Update(){
 				continue;
 			} else {
 				// 手札が一杯ならカード交換モードへ移行
-				/*isCardSwapMode_ = true;
-				pendingCard_ = pickup.card;*/
-				pickup.isActive = false;
-				continue;
+				isCardSwapMode_ = true;
+				pendingCard_ = pickup.card;
+				// フィールドのどのアイテムを拾おうとしているかを記憶しておく
+				pendingPickup_ = &pickup;
+				break;
 			}
 		}
 
