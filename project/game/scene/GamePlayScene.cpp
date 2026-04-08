@@ -123,9 +123,9 @@ void GamePlayScene::Initialize(){
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	
 	
-	blockGroup_ = std::make_unique<InstancedGroup>();
-	blockGroup_->Initialize("block", 10000); // 最大1万個まで対応！
-	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
+	//blockGroup_ = std::make_unique<InstancedGroup>();
+	//blockGroup_->Initialize("block", 10000); // 最大1万個まで対応！
+	//blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
 	// 試しに20x20 = 400個のブロックを床のように敷き詰めてみます
 	for (int x = -100; x < 100; ++x) {
@@ -202,10 +202,10 @@ void GamePlayScene::Update(){
 	for (auto& block : blocks_) {
 		block->Update();
 	}
-	// InstancedGroup に「最新のデータをお願い！」と渡すだけ
-	if (blockGroup_) {
-		blockGroup_->Update(blocks_);
-	}
+	//// InstancedGroup に「最新のデータをお願い！」と渡すだけ
+	//if (blockGroup_) {
+	//	blockGroup_->Update(blocks_);
+	//}
 
 }
 
@@ -231,7 +231,7 @@ void GamePlayScene::Draw(){
 	if ( testObj_ ){ testObj_->Draw(); }
 
 	// --- インスタンシングの3D描画 ---
-	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
+	//if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
 
 	// 
 	if (skinnedObj_) { skinnedObj_->Draw(); }
