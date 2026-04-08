@@ -259,8 +259,8 @@ void GamePlayScene::Draw(){
 	
 	// 5-2. Bloomの最終結果のSRV番号をもらう
 	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
-
-
+	// エディタマネージャーに「これが最終的なゲーム画面のSRVだよ！」と教えてあげる
+	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
 
 
 	// 6. メイン画面（バックバッファ）への直接描画！

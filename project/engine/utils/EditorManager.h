@@ -34,6 +34,9 @@ public:
         cpuDrawTimeMs_ = drawMs;
     }
 
+	// Game View に表示するテクスチャのSRVインデックスをSceneManagerから受け取るためのセッター
+    void SetGameViewSrvIndex(uint32_t srvIndex) { gameViewSrvIndex_ = srvIndex; }
+
     // エディタがアクティブかどうか
     bool IsActive() const{ return isEditorActive_; }
 
@@ -56,4 +59,7 @@ private:
     // パフォーマンスモニター用（SceneManagerから渡してもらう）
     float cpuUpdateTimeMs_ = 0.0f;
     float cpuDrawTimeMs_ = 0.0f;
+
+	// Game View に表示するテクスチャのSRVインデックス（SceneManagerから渡してもらう）
+    uint32_t gameViewSrvIndex_ = 0;
 };

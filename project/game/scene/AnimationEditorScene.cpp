@@ -8,6 +8,8 @@
 #include "Engine/3D/Obj/Obj3dCommon.h"
 #include "Engine/Graphics/PipelineManager.h"
 #include "TitleScene.h" // Tキーでタイトルに戻る用等
+#include "engine/postEffect/PostEffect.h"
+#include "engine/utils/EditorManager.h"
 
 void AnimationEditorScene::Initialize() {
     auto windowProc = WindowProc::GetInstance();
@@ -62,11 +64,17 @@ void AnimationEditorScene::Draw() {
     auto dxCommon = DirectXCommon::GetInstance();
     auto commandList = dxCommon->GetCommandList();
 
-    // 描画準備
-    Obj3dCommon::GetInstance()->PreDraw(commandList);
+    // PostEffectのRenderTextureに描画
+    PostEffect::GetInstance()->PreDrawScene(commandList);
 
-    // 今回はモデルしか置かないシンプルな構成にします
+    Obj3dCommon::GetInstance()->PreDraw(commandList);
     if (skinnedObj_) skinnedObj_->Draw();
+
+    PostEffect::GetInstance()->PostDrawScene(commandList);
+    PostEffect::GetInstance()->Draw(commandList);
+
+    // Game Viewに表示するSRVを通知
+    EditorManager::GetInstance()->SetGameViewSrvIndex(PostEffect::GetInstance()->GetSrvIndex());
 }
 
 void AnimationEditorScene::DrawDebugUI() {

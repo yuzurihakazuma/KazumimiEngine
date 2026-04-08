@@ -9,7 +9,7 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/scene/SceneManager.h"
 #include "engine/utils/Level/LevelEditor.h" 
-#include "Bloom.h"  
+
 // シングルトンインスタンスの取得
 EditorManager* EditorManager::GetInstance(){
     static EditorManager instance;
@@ -104,7 +104,7 @@ void EditorManager::Update(){
     ImVec2 sceneSize = ImGui::GetContentRegionAvail();
     if ( sceneSize.x < 10.0f ) sceneSize.x = 640.0f;
     if ( sceneSize.y < 10.0f ) sceneSize.y = 360.0f;
-    uint32_t srvIndex = Bloom::GetInstance()->GetResultSrvIndex();
+    uint32_t srvIndex = gameViewSrvIndex_;
     D3D12_GPU_DESCRIPTOR_HANDLE textureHandle =
         SrvManager::GetInstance()->GetGPUDescriptorHandle(srvIndex);
     ImGui::Image(( ImTextureID ) ( uintptr_t ) textureHandle.ptr, sceneSize);
