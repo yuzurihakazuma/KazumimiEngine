@@ -14,9 +14,7 @@ void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類)
 	Framework::Initialize();
 
-	// エディタマネージャーの生成
-	EditorManager::GetInstance()->Initialize();
-
+	
 
 	// 1. ファクトリーの生成
 	sceneFactory_ = std::make_unique<SceneFactory>();
@@ -66,6 +64,9 @@ void Game::Draw(){
 	// シーンの描画
 	SceneManager::GetInstance()->Draw();
 
+	
+
+
 	// エディタの描画前処理
 	EditorManager::GetInstance()->End();
 
@@ -79,9 +80,7 @@ Game::Game(){}
 
 void Game::Finalize(){
 
-	// エディタを先に終了（D3D12リソースを持っているため）
-	EditorManager::GetInstance()->Finalize();
-
+	
 	// 基盤終了
 	Framework::Finalize();
 }

@@ -3,9 +3,7 @@
 #include "TitleScene.h"
 
 // --- エンジン側のファイル ---
-#include "Engine/Math/Matrix4x4.h"
 #include "Engine/Utils/ImGuiManager.h"
-#include "Engine/Utils/Color.h"
 #include "Engine/Audio/AudioManager.h"
 #include "Engine/3D/Model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
@@ -26,6 +24,7 @@
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/postEffect/PostEffect.h"
+#include "game/player/Player.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/TextManager.h"
 #include "game/player/Player.h"
@@ -40,6 +39,8 @@
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
 #include "engine/utils/EditorManager.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
+
 using namespace VectorMath;
 using namespace MatrixMath;
 
@@ -79,20 +80,29 @@ void GamePlayScene::Initialize(){
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
-	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
+	
+	// エディタマネージャーの生成
+	EditorManager::GetInstance()->Initialize();
 
+
+
+	
 	// モデル読み込み (シングルトン)
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
 	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
+	ModelManager::GetInstance()->LoadModel("human", "resources/human", "walk.gltf");
+
+	// 保存済みアニメーションを読み込んで再生するだけ
+	skinnedAnimTrack_.LoadFromJson("resources/human_anim.json");
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
-	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
 	//UI専用カメラの初期化
 	uiCamera_ = std::make_unique<Camera>(1280, 720, dxCommon);
 
+	
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize();
@@ -184,7 +194,6 @@ void GamePlayScene::Initialize(){
 	minimap_->Initialize();
 	minimap_->SetLevelData(&mapManager_->GetLevelData());
 	EditorManager::GetInstance()->SetCamera(camera_.get());
-
 	// 初期ロード時のマップ変更通知を消す
 	if ( mapManager_ ) {
 		mapManager_->ConsumeMapChanged();
@@ -196,6 +205,7 @@ void GamePlayScene::Initialize(){
 	TextManager::GetInstance()->SetPosition("PlayerCost", 40, 600);
 	TextManager::GetInstance()->SetPosition("PlayerLevel", 40, 640);
 	TextManager::GetInstance()->SetPosition("PlayerEXP", 40, 680);
+	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
 	// 画面サイズ取得
 	float screenW = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
@@ -800,7 +810,6 @@ void GamePlayScene::Update(){
 	// テストオブジェクトの更新
 	if ( testObj_ ) {
 		testObj_->Update();
-	}
 
 	// レベル(マップ)・ポストエフェクトの更新
 	mapManager_->Update(playerPos_);
@@ -883,6 +892,7 @@ void GamePlayScene::Update(){
 				TextManager::GetInstance()->SetText("ReadyCardT", "");
 			}
 		}
+	}
 
 
 		// Eキーで構え中の攻撃カードを発動
@@ -921,7 +931,6 @@ void GamePlayScene::Update(){
 	}
 	for ( auto& block : blocks_ ) {
 		block->Update();
-	}
 
 	// 背景枠の更新
 	if ( descBgSprite_ ) {
@@ -944,6 +953,7 @@ void GamePlayScene::Update(){
 			displayText.replace(pos, 2, "\n");
 			pos = displayText.find("\\n", pos + 1);
 		}
+	}
 
 		// 4. テキストオブジェクトに文字を流し込む！
 		// ※ textObj_ の部分は、チームメンバーさんが作ったテキスト管理の変数名に直してください
@@ -970,14 +980,14 @@ void GamePlayScene::Draw(){
 	// 3D描画の前準備
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-
 	// プレイヤー描画
 	if (playerManager_) {
 		playerManager_->Draw();
 	}
-
+	EditorManager::GetInstance()->Draw();
 	// ボス描画
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
+	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	if ( bossManager_ ) {
 		bossManager_->Draw(mapManager_.get());
@@ -1010,11 +1020,14 @@ void GamePlayScene::Draw(){
 
 	// 手札カード(3D)
 	handManager_.Draw();
-
 	// マップ描画
 	mapManager_->Draw(playerPos_);
+	if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
+	// --- パーティクル描画 ---
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
+	ParticleManager::GetInstance()->Draw(commandList);
 
-	
+
 
 	// =========================================
 	// 2. MRT終了
@@ -1033,6 +1046,8 @@ void GamePlayScene::Draw(){
 	uint32_t maskSrv = PostEffect::GetInstance()->GetMaskSrvIndex();
 	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
 	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
+	// エディタマネージャーに「これが最終的なゲーム画面のSRVだよ！」と教えてあげる
+	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
 
 	// =========================================
 	// 5. バックバッファへ最終出力
@@ -1070,8 +1085,7 @@ void GamePlayScene::Draw(){
 
 	// レベルアップ選択
 	levelUpBonusManager_.Draw();
-
-	TextManager::GetInstance()->Draw();
+	if ( sprite_ ) { sprite_->Draw(); }
 
 	// =========================================
 	// 7. フェードスプライト（最前面）
@@ -1079,6 +1093,7 @@ void GamePlayScene::Draw(){
 	if ( fadeSprite_ && transitionState_ != TransitionState::None ) {
 		fadeSprite_->Draw();
 	}
+	TextManager::GetInstance()->Draw();
 }
 
 
@@ -1125,7 +1140,6 @@ void GamePlayScene::DrawDebugUI(){
 		}
 	}
 
-	ImGui::End();
 
 	ImGui::Begin("Card System Test");
 
@@ -1228,6 +1242,7 @@ void GamePlayScene::DrawDebugUI(){
 
 
 
+	
 #endif
 
 }
@@ -1460,8 +1475,8 @@ void GamePlayScene::Finalize() {
 		bossManager_.reset();
 	}
 	pauseBgSprite_.reset();
-
 	TextManager::GetInstance()->Finalize();
+
 
 	textures_.clear();
 	depthStencilResource_.Reset();

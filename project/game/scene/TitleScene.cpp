@@ -23,6 +23,8 @@
 #include "engine/math/VectorMath.h"
 #include "engine/postEffect/PostEffect.h"
 #include "game/map/MapManager.h"
+#include"engine/utils/Level/LevelEditor.h"
+#include "engine/utils/EditorManager.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -179,7 +181,7 @@ void TitleScene::Draw() {
 	PostEffect::GetInstance()->PostDrawScene(commandList);
 	PostEffect::GetInstance()->Draw(commandList);
 
-	
+	EditorManager::GetInstance()->SetGameViewSrvIndex(PostEffect::GetInstance()->GetSrvIndex());
 
 }
 

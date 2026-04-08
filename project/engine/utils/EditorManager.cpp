@@ -82,15 +82,29 @@ void EditorManager::Update(){
             if ( ImGui::MenuItem("レイアウトをリセット (※再起動後に反映)") ) {}
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("シーン (Scene)")) {
+            if (ImGui::MenuItem("タイトル (Title Scene)")) {
+                SceneManager::GetInstance()->ChangeScene("TITLE");
+            }
+            if (ImGui::MenuItem("ゲームプレイ (GamePlay Scene)")) {
+                SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+            }
+            if (ImGui::MenuItem("アニメーションエディタ (Animation Editor)")) {
+                SceneManager::GetInstance()->ChangeScene("ANIMATION_EDITOR");
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMainMenuBar();
     }
+
+    
 
     // 3. Game View
     ImGui::Begin("Game View");
     ImVec2 sceneSize = ImGui::GetContentRegionAvail();
     if ( sceneSize.x < 10.0f ) sceneSize.x = 640.0f;
     if ( sceneSize.y < 10.0f ) sceneSize.y = 360.0f;
-    uint32_t srvIndex = PostEffect::GetInstance()->GetSrvIndex();
+    uint32_t srvIndex = gameViewSrvIndex_;
     D3D12_GPU_DESCRIPTOR_HANDLE textureHandle =
         SrvManager::GetInstance()->GetGPUDescriptorHandle(srvIndex);
     ImGui::Image(( ImTextureID ) ( uintptr_t ) textureHandle.ptr, sceneSize);

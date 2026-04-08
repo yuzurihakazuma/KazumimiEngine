@@ -12,6 +12,10 @@
 
 #include "Animation.h"
 #include "InstancedGroup.h"
+#include "engine/3d/animation/Animation.h"
+#include "engine/3d/animation/CustomAnimation.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
+#include "engine/3d/animation/CustomAnimation.h"
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -219,4 +223,11 @@ private: // メンバ変数
 	int pauseSelection_ = 0;                 // 0: Resume  1: Title
 
 	std::unique_ptr<Sprite> pauseBgSprite_ = nullptr; // ポーズ中の半透明背景
+
+	std::unique_ptr<SkinnedObj3d> skinnedObj_ = nullptr;
+
+	// アニメーション再生用（編集なし・読み込みのみ）
+	CustomAnimationTrack skinnedAnimTrack_;
+	float skinnedAnimTime_ = 0.0f;
+	
 };

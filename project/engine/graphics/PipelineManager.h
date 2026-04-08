@@ -55,6 +55,11 @@ private:
 	void CreatePostEffectRootSignature();
 	void CreatePostEffectPipeline();
 	
+	// スキニングアニメーション用変数
+	void CreateSkinningObject3DRootSignature();
+	void CreateSkinningObject3DGraphicsPipeline();
+
+
 
 	// 汎用グラフィックスパイプライン生成
 	// 引数で「違い」を受け取ることで、あらゆるパイプラインに対応します
@@ -96,6 +101,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> postEffectRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineState_;
 
+	// スキニングアニメーション用変数
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> skinningObject3DRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> skinningObject3DPipelineState_;
 
 	// ポストエフェクトの種類ごとのパイプラインステートを格納する配列
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineStates_[10];

@@ -9,6 +9,7 @@
 #include "engine/math/struct.h"
 #include "engine/math/Matrix4x4.h"
 #include "Animation.h"
+#include "IAnimatable.h"
 
 // 前方宣言
 class Obj3dCommon;
@@ -17,8 +18,7 @@ class Camera;
 class DirectXCommon;
 
 // モデル3Dクラス
-class Obj3d{
-
+class Obj3d: public IAnimatable{
 public:
 	// 定数バッファ用データ構造体
 	// ※座標（WVP/World）はオブジェクトごとに違うのでここに残す
@@ -48,12 +48,12 @@ public:
 	/// <summary>
 	/// 更新
 	/// </summary>
-	void Update();
+	void Update() override;
 
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw();
+	void Draw()   override;
 
 	
 	void PlayAnimation(Animation* animation);
@@ -63,13 +63,13 @@ public:
 	// Getter / Setter
 	// -------------------------------------------------
 
-	const Vector3& GetScale() const{ return scale_; }
-	const Vector3& GetRotation() const{ return rotation_; }
-	const Vector3& GetTranslation() const{ return translate_; }
+	const Vector3& GetScale() const override { return scale_; }
+	const Vector3& GetRotation() const override { return rotation_; }
+	const Vector3& GetTranslation() const override { return translate_; }
 
-	void SetScale(const Vector3& scale){ scale_ = scale; }
-	void SetRotation(const Vector3& rotation){ rotation_ = rotation; }
-	void SetTranslation(const Vector3& translate){ translate_ = translate; }
+	void SetScale (const Vector3& scale) override { scale_ = scale; }
+	void SetRotation(const Vector3& rotation) override { rotation_ = rotation; }
+	void SetTranslation(const Vector3& translate) override { translate_ = translate; }
 
 	// モデルを差し替えるための関数
 	void SetModel(Model* model){ model_ = model; }
@@ -86,6 +86,10 @@ public:
 	const TransformationMatrix& GetMatrixData() const { return matrixData_; }
 
 	Model* GetModel() const { return model_; }
+
+	// UI表示用の名前
+	const std::string& GetName() const override { return name_; }
+	void SetName(const std::string& name) override { name_ = name; }
 
 private:
 
@@ -123,4 +127,7 @@ private:
 
 	// 座標
 	TransformationMatrix matrixData_;
+
+	// UI表示用の名前
+	std::string name_ = "Obj3d";
 };

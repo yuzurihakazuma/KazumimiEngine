@@ -22,7 +22,12 @@ struct Vector4 {
 struct Quaternion{
 	float x, y, z, w;
 };
-
+// クォータニオンを使った変換用データ
+struct QuaternionTransform {
+	Vector3    scale;
+	Quaternion rotate;
+	Vector3    translate;
+};
 
 // 3x3行列
 struct Matrix3x3 {
