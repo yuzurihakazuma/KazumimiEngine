@@ -205,8 +205,10 @@ void GamePlayScene::Initialize(){
 	TextManager::GetInstance()->SetPosition("PlayerCost", 40, 600);
 	TextManager::GetInstance()->SetPosition("PlayerLevel", 40, 640);
 	TextManager::GetInstance()->SetPosition("PlayerEXP", 40, 680);
-	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
-
+	blockGroup_ = std::make_unique<InstancedGroup>(); // 1. まずインスタンスを作る
+	blockGroup_->Initialize("block");                // 2. モデル名を指定して初期化
+	blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex); // 3. その後でテクスチャをセット
+	
 	// 画面サイズ取得
 	float screenW = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
 	float screenH = static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
@@ -247,10 +249,10 @@ void GamePlayScene::Initialize(){
 	levelUpBonusManager_.Initialize();
 }
 
-void GamePlayScene::Update(){
+void GamePlayScene::Update() {
 
 	// デバッグカメラ更新
-	if ( debugCamera_ ) {
+	if (debugCamera_) {
 		debugCamera_->Update(camera_.get());
 	}
 
@@ -265,13 +267,13 @@ void GamePlayScene::Update(){
 	Sprite* bossHpFillSprite = bossManager_ ? bossManager_->GetBossHpFillSprite() : nullptr;
 
 	// ポーズ切り替え
-	if ( input->Triggerkey(DIK_ESCAPE) ) {
+	if (input->Triggerkey(DIK_ESCAPE)) {
 		isPaused_ = !isPaused_;
 		pauseSelection_ = 0; // 開くたびに先頭へ戻す
 	}
 
 	// ポーズ中は専用更新だけして止める
-	if ( isPaused_ ) {
+	if (isPaused_) {
 		UpdatePause(input);
 		return;
 	}
@@ -280,10 +282,10 @@ void GamePlayScene::Update(){
 // FadeOut中だけゲーム更新を止める
 // 真っ黒になったら階層切り替えして、FadeInから更新再開
 // ==========================================
-	if ( transitionState_ == TransitionState::FadeOut ) {
+	if (transitionState_ == TransitionState::FadeOut) {
 		fadeAlpha_ += kFadeSpeed;
 
-		if ( fadeAlpha_ >= 1.0f ) {
+		if (fadeAlpha_ >= 1.0f) {
 			fadeAlpha_ = 1.0f;
 
 			// 真っ黒になった瞬間に階層切り替え
@@ -298,7 +300,8 @@ void GamePlayScene::Update(){
 			transitionState_ = TransitionState::FadeIn;
 		}
 
-	} else if (transitionState_ == TransitionState::FadeIn) {
+	}
+	else if (transitionState_ == TransitionState::FadeIn) {
 		fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
 
 		if (fadeAlpha_ <= 0.0f) {
@@ -319,17 +322,18 @@ void GamePlayScene::Update(){
 	}
 
 	// マップ切り替えがあったら戦闘ごとリセット
-	if ( mapManager_ && mapManager_->ConsumeMapChanged() ) {
+	if (mapManager_ && mapManager_->ConsumeMapChanged()) {
 
 		// GUI切り替えでも、ボス部屋になったら登場演出を開始する
-		if ( mapManager_->IsBossMap() ) {
-			if ( bossManager_ ) {
+		if (mapManager_->IsBossMap()) {
+			if (bossManager_) {
 				bossManager_->SetBossIntroPlaying(true);
 				bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::PlayerFocus);
 				bossManager_->SetBossIntroTimer(60);
 			}
-		} else {
-			if ( bossManager_ ) {
+		}
+		else {
+			if (bossManager_) {
 				bossManager_->SetBossIntroPlaying(false);
 				bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::None);
 				bossManager_->SetBossIntroTimer(0);
@@ -340,7 +344,7 @@ void GamePlayScene::Update(){
 		return;
 	}
 
-	if ( isCardSwapMode_ ) {
+	if (isCardSwapMode_) {
 		UpdateCardSwapMode(input);
 		return;
 	}
@@ -361,17 +365,17 @@ void GamePlayScene::Update(){
 	}
 
 	// デバッグ用リセット
-	if ( input->Triggerkey(DIK_R) ) {
+	if (input->Triggerkey(DIK_R)) {
 		ResetBattleDebug();
 	}
 
 	// BGM再生
-	if ( input->Triggerkey(DIK_SPACE) ) {
+	if (input->Triggerkey(DIK_SPACE)) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 
 	// タイトルシーンへ移動
-	if ( input->Triggerkey(DIK_T) ) {
+	if (input->Triggerkey(DIK_T)) {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 
@@ -388,7 +392,7 @@ void GamePlayScene::Update(){
 	// ==========================================
 	if (playerManager_) {
 
-		
+
 
 		// デバッグ用の無限モード切り替え
 		if (input->Triggerkey(DIK_F1)) {
@@ -401,7 +405,7 @@ void GamePlayScene::Update(){
 		// プレイヤー本体の更新を任せる
 		playerManager_->Update(input, mapManager_.get(), debugCamera_.get(), bossManager_.get());
 
-	
+
 
 		// 他の処理でも使うので位置とスケールを同期
 		playerPos_ = playerManager_->GetPosition();
@@ -423,12 +427,12 @@ void GamePlayScene::Update(){
 
 	if (player && mapManager_) {
 		const LevelData& level = mapManager_->GetLevelData();
-		int gridX = static_cast< int >( std::round(playerPos_.x / level.tileSize) );
-		int gridZ = static_cast< int >( std::round(playerPos_.z / level.tileSize) );
+		int gridX = static_cast<int>(std::round(playerPos_.x / level.tileSize));
+		int gridZ = static_cast<int>(std::round(playerPos_.z / level.tileSize));
 
-		if ( gridX >= 0 && gridX < level.width && gridZ >= 0 && gridZ < level.height ) {
-			if ( level.tiles[gridZ][gridX] == 3 ) {
-				if ( transitionState_ == TransitionState::None ) {
+		if (gridX >= 0 && gridX < level.width && gridZ >= 0 && gridZ < level.height) {
+			if (level.tiles[gridZ][gridX] == 3) {
+				if (transitionState_ == TransitionState::None) {
 					transitionState_ = TransitionState::FadeOut;
 					fadeAlpha_ = 0.0f;
 				}
@@ -442,14 +446,14 @@ void GamePlayScene::Update(){
 
 	// ターゲットを決める！
 	Vector3 targetPos = playerPos_; // 基本はプレイヤーの位置を狙う
-	if ( playerCardSystem_ && playerCardSystem_->IsDecoyActive() ) {
+	if (playerCardSystem_ && playerCardSystem_->IsDecoyActive()) {
 		targetPos = playerCardSystem_->GetDecoyPosition(); // 身代わりがいたら身代わりを狙う！
 	}
 
 	// EnemyManager に更新をお願いする
 	if (enemyManager_) {
 
-	
+
 
 		enemyManager_->Update(player, &cardPickupManager_, mapManager_.get(), boss);
 	}
@@ -461,7 +465,7 @@ void GamePlayScene::Update(){
 	// ボス関連の更新をまとめてBossManagerに任せる
 	if (bossManager_) {
 
-		
+
 		bossManager_->Update(
 			player,
 			enemyManager_.get(),
@@ -474,7 +478,7 @@ void GamePlayScene::Update(){
 	}
 
 	// ボスを倒していたらゲームクリアへ遷移
-	if ( bossManager_ && bossManager_->ShouldTriggerGameClear(mapManager_.get()) ) {
+	if (bossManager_ && bossManager_->ShouldTriggerGameClear(mapManager_.get())) {
 		SceneManager::GetInstance()->ChangeScene("GAMECLEAR");
 		return;
 	}
@@ -488,8 +492,8 @@ void GamePlayScene::Update(){
 	// カメラ・各種オブジェクトの更新
 	// ==========================================
 	// メインカメラの更新（プレイヤーに追従）
-	if ( camera_ ) {
-		if ( debugCamera_ && !debugCamera_->IsActive() ) {
+	if (camera_) {
+		if (debugCamera_ && !debugCamera_->IsActive()) {
 
 			// 今のカメラ位置と回転を取得
 			Vector3 currentPos = camera_->GetTranslation();
@@ -505,12 +509,12 @@ void GamePlayScene::Update(){
 			Vector3 targetRot = currentRot;
 
 			// ボス部屋突入時の演出カメラ
-			if ( isBossIntroPlaying && mapManager_ && mapManager_->IsBossMap() && boss ) {
+			if (isBossIntroPlaying && mapManager_ && mapManager_->IsBossMap() && boss) {
 
 				Vector3 bossPos = boss->GetPosition();
 
 				// 最初はプレイヤー側を見る
-				if ( bossIntroState == BossManager::IntroCameraState::PlayerFocus ) {
+				if (bossIntroState == BossManager::IntroCameraState::PlayerFocus) {
 
 					targetPos = {
 						playerPos_.x,
@@ -523,11 +527,11 @@ void GamePlayScene::Update(){
 					};
 
 					bossIntroTimer--;
-					if ( bossManager_ ) {
+					if (bossManager_) {
 						bossManager_->SetBossIntroTimer(bossIntroTimer);
 					}
-					if ( bossIntroTimer <= 0 ) {
-						if ( bossManager_ ) {
+					if (bossIntroTimer <= 0) {
+						if (bossManager_) {
 							bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::BossFocus);
 							bossManager_->SetBossIntroTimer(75);
 						}
@@ -535,7 +539,7 @@ void GamePlayScene::Update(){
 				}
 
 				// 次にボス側を見る
-				else if ( bossIntroState == BossManager::IntroCameraState::BossFocus ) {
+				else if (bossIntroState == BossManager::IntroCameraState::BossFocus) {
 
 					targetPos = {
 						bossPos.x,
@@ -548,11 +552,11 @@ void GamePlayScene::Update(){
 					};
 
 					bossIntroTimer--;
-					if ( bossManager_ ) {
+					if (bossManager_) {
 						bossManager_->SetBossIntroTimer(bossIntroTimer);
 					}
-					if ( bossIntroTimer <= 0 ) {
-						if ( bossManager_ ) {
+					if (bossIntroTimer <= 0) {
+						if (bossManager_) {
 							bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::ToBattle);
 							bossManager_->SetBossIntroTimer(30);
 						}
@@ -560,12 +564,12 @@ void GamePlayScene::Update(){
 				}
 
 				// 最後に通常のボス戦カメラへ戻す
-				else if ( bossIntroState == BossManager::IntroCameraState::ToBattle ) {
+				else if (bossIntroState == BossManager::IntroCameraState::ToBattle) {
 
 					Vector3 center = {
-						( playerPos_.x + bossPos.x ) * 0.5f,
-						( playerPos_.y + bossPos.y ) * 0.5f,
-						( playerPos_.z + bossPos.z ) * 0.5f
+						(playerPos_.x + bossPos.x) * 0.5f,
+						(playerPos_.y + bossPos.y) * 0.5f,
+						(playerPos_.z + bossPos.z) * 0.5f
 					};
 
 					Vector3 diff = {
@@ -577,16 +581,16 @@ void GamePlayScene::Update(){
 					float distance = Length(diff);
 
 					float t = distance / 20.0f;
-					if ( t > 1.0f ) t = 1.0f;
+					if (t > 1.0f) t = 1.0f;
 					t = t * t;
 
 					float height = 8.0f + t * 14.0f;
 					float back = 6.0f + t * 22.0f;
 
-					if ( height < 8.0f ) height = 8.0f;
-					if ( back < 6.0f ) back = 6.0f;
-					if ( height > 22.0f ) height = 22.0f;
-					if ( back > 28.0f ) back = 28.0f;
+					if (height < 8.0f) height = 8.0f;
+					if (back < 6.0f) back = 6.0f;
+					if (height > 22.0f) height = 22.0f;
+					if (back > 28.0f) back = 28.0f;
 
 					targetPos = {
 						center.x,
@@ -599,15 +603,15 @@ void GamePlayScene::Update(){
 					};
 
 					bossIntroTimer--;
-					if ( bossManager_ ) {
+					if (bossManager_) {
 						bossManager_->SetBossIntroTimer(bossIntroTimer);
 					}
-					if ( bossIntroTimer <= 0 ) {
-						if ( bossManager_ ) {
+					if (bossIntroTimer <= 0) {
+						if (bossManager_) {
 							bossManager_->SetBossIntroPlaying(false);
 							bossManager_->SetBossIntroCameraState(BossManager::IntroCameraState::None);
 						}
-						if ( boss && !boss->IsDead() ) {
+						if (boss && !boss->IsDead()) {
 							boss->SetState(Boss::State::Chase);
 						}
 					}
@@ -615,14 +619,14 @@ void GamePlayScene::Update(){
 			}
 
 			// 通常のボス戦カメラ
-			else if ( mapManager_ && mapManager_->IsBossMap() && boss && !boss->IsDead() ) {
+			else if (mapManager_ && mapManager_->IsBossMap() && boss && !boss->IsDead()) {
 
 				Vector3 bossPos = boss->GetPosition();
 
 				Vector3 center = {
-					( playerPos_.x + bossPos.x ) * 0.5f,
-					( playerPos_.y + bossPos.y ) * 0.5f,
-					( playerPos_.z + bossPos.z ) * 0.5f
+					(playerPos_.x + bossPos.x) * 0.5f,
+					(playerPos_.y + bossPos.y) * 0.5f,
+					(playerPos_.z + bossPos.z) * 0.5f
 				};
 
 				Vector3 diff = {
@@ -634,16 +638,16 @@ void GamePlayScene::Update(){
 				float distance = Length(diff);
 
 				float t = distance / 20.0f;
-				if ( t > 1.0f ) t = 1.0f;
+				if (t > 1.0f) t = 1.0f;
 				t = t * t;
 
 				float height = 8.0f + t * 14.0f;
 				float back = 6.0f + t * 22.0f;
 
-				if ( height < 8.0f ) height = 8.0f;
-				if ( back < 6.0f ) back = 6.0f;
-				if ( height > 22.0f ) height = 22.0f;
-				if ( back > 28.0f ) back = 28.0f;
+				if (height < 8.0f) height = 8.0f;
+				if (back < 6.0f) back = 6.0f;
+				if (height > 22.0f) height = 22.0f;
+				if (back > 28.0f) back = 28.0f;
 
 				targetPos = {
 					center.x,
@@ -673,19 +677,19 @@ void GamePlayScene::Update(){
 			float followRate = 0.08f;
 
 			// 演出中はちょっと速めに動かす
-			if ( isBossIntroPlaying ) {
+			if (isBossIntroPlaying) {
 				followRate = 0.12f;
 			}
 
 			// 位置をなめらかに移動
-			currentPos.x += ( targetPos.x - currentPos.x ) * followRate;
-			currentPos.y += ( targetPos.y - currentPos.y ) * followRate;
-			currentPos.z += ( targetPos.z - currentPos.z ) * followRate;
+			currentPos.x += (targetPos.x - currentPos.x) * followRate;
+			currentPos.y += (targetPos.y - currentPos.y) * followRate;
+			currentPos.z += (targetPos.z - currentPos.z) * followRate;
 
 			// 回転もなめらかに移動
-			currentRot.x += ( targetRot.x - currentRot.x ) * followRate;
-			currentRot.y += ( targetRot.y - currentRot.y ) * followRate;
-			currentRot.z += ( targetRot.z - currentRot.z ) * followRate;
+			currentRot.x += (targetRot.x - currentRot.x) * followRate;
+			currentRot.y += (targetRot.y - currentRot.y) * followRate;
+			currentRot.z += (targetRot.z - currentRot.z) * followRate;
 
 			camera_->SetTranslation(currentPos);
 			camera_->SetRotation(currentRot);
@@ -701,8 +705,8 @@ void GamePlayScene::Update(){
 
 	cardPickupManager_.Update();
 
-	for ( auto& pickup : cardPickupManager_.GetPickups() ) {
-		if ( !pickup.isActive ) {
+	for (auto& pickup : cardPickupManager_.GetPickups()) {
+		if (!pickup.isActive) {
 			continue;
 		}
 
@@ -718,10 +722,11 @@ void GamePlayScene::Update(){
 		// プレイヤーが拾う処理
 		if (player && !player->IsDead() && playerDist < 2.0f) {
 			bool success = handManager_.AddCard(pickup.card);
-			if ( success ) {
+			if (success) {
 				pickup.isActive = false;
 				continue;
-			} else {
+			}
+			else {
 				// 手札が一杯ならカード交換モードへ移行
 				isCardSwapMode_ = true;
 				pendingCard_ = pickup.card;
@@ -735,8 +740,8 @@ void GamePlayScene::Update(){
 	}
 
 	// ボス頭上HPバー更新
-	if ( boss && !boss->IsDead() && mapManager_ && mapManager_->IsBossMap() &&
-		bossHpBackSprite && bossHpFillSprite && camera_ ) {
+	if (boss && !boss->IsDead() && mapManager_ && mapManager_->IsBossMap() &&
+		bossHpBackSprite && bossHpFillSprite && camera_) {
 
 		Vector3 bossHeadPos = boss->GetPosition();
 		bossHeadPos.y += 2.8f; // 高すぎたので少し下げる
@@ -751,11 +756,11 @@ void GamePlayScene::Update(){
 
 		// HP割合
 		float hpRate = 0.0f;
-		if ( boss->GetMaxHP() > 0 ) {
-			hpRate = static_cast< float >( boss->GetHP() ) / static_cast< float >( boss->GetMaxHP() );
+		if (boss->GetMaxHP() > 0) {
+			hpRate = static_cast<float>(boss->GetHP()) / static_cast<float>(boss->GetMaxHP());
 		}
-		if ( hpRate < 0.0f ) hpRate = 0.0f;
-		if ( hpRate > 1.0f ) hpRate = 1.0f;
+		if (hpRate < 0.0f) hpRate = 0.0f;
+		if (hpRate > 1.0f) hpRate = 1.0f;
 
 		// 背景バーは中央基準でそのまま配置
 		bossHpBackSprite->SetPosition(screenPos);
@@ -763,12 +768,14 @@ void GamePlayScene::Update(){
 		bossHpBackSprite->Update();
 
 		// HP割合で色変更
-		Vector4 hpColor {};
-		if ( hpRate > 0.6f ) {
+		Vector4 hpColor{};
+		if (hpRate > 0.6f) {
 			hpColor = { 0.2f, 1.0f, 0.2f, 1.0f }; // 緑
-		} else if ( hpRate > 0.3f ) {
+		}
+		else if (hpRate > 0.3f) {
 			hpColor = { 1.0f, 0.9f, 0.2f, 1.0f }; // 黄
-		} else {
+		}
+		else {
 			hpColor = { 1.0f, 0.2f, 0.2f, 1.0f }; // 赤
 		}
 
@@ -792,25 +799,25 @@ void GamePlayScene::Update(){
 		bossHpFillSprite->Update();
 	}
 	// その他3Dオブジェクトの更新
-	for ( auto& obj : object3ds_ ) {
+	for (auto& obj : object3ds_) {
 		obj->Update();
 	}
 
 	// スプライトの更新
-	if ( sprite_ ) {
+	if (sprite_) {
 		sprite_->SetPosition(spritePos_);
 		sprite_->Update();
 	}
 
 	// ステータス背景更新
-	if ( playerStatusBgSprite_ ) {
+	if (playerStatusBgSprite_) {
 		playerStatusBgSprite_->Update();
 	}
 
 	// テストオブジェクトの更新
-	if ( testObj_ ) {
+	if (testObj_) {
 		testObj_->Update();
-
+	}
 	// レベル(マップ)・ポストエフェクトの更新
 	mapManager_->Update(playerPos_);
 	PostEffect::GetInstance()->Update();
@@ -824,11 +831,12 @@ void GamePlayScene::Update(){
 	}
 
 	// コスト不足メッセージ更新 ←ここ追加
-	if ( costLackMessageTimer_ > 0 ) {
+	if (costLackMessageTimer_ > 0) {
 		costLackMessageTimer_--;
 
 		TextManager::GetInstance()->SetText("CostLack", "コスト不足です");
-	} else {
+	}
+	else {
 		TextManager::GetInstance()->SetText("CostLack", "");
 	}
 
@@ -859,9 +867,9 @@ void GamePlayScene::Update(){
 
 
 	Boss* targetBoss = nullptr;
-	Vector3 bossPos {};
+	Vector3 bossPos{};
 
-	if ( boss && !boss->IsDead() ) {
+	if (boss && !boss->IsDead()) {
 		targetBoss = boss;
 		bossPos = boss->GetPosition();
 	}
@@ -871,51 +879,53 @@ void GamePlayScene::Update(){
 	// ==========================================
 	// 攻撃カードの「撃ち放題」タイマーと発動処理
 	// ==========================================
-	if ( isCardReady_ ) {
+	if (isCardReady_) {
 		cardReadyTimer_--; // 毎フレーム時間を減らす
 
 		// 画面に表示する文字を作る
 		std::string displayText = "Eキーで発動：" + readiedCard_.name;
 
-		if ( cardReadyTimer_ > 120 ) {
+		if (cardReadyTimer_ > 120) {
 			// 【残り2秒(120フレーム)より多いとき】
 			// まだ余裕があるので、ずっと常時表示しておく
 			TextManager::GetInstance()->SetText("ReadyCardT", displayText);
 
-		} else {
+		}
+		else {
 			// 【残り2秒以下になったとき】
 			// 時間切れが近いので、チカチカ点滅させてプレイヤーを焦らす！
 			// （% 20 >= 10 にすることで、少し早めのスピードで点滅します）
-			if ( cardReadyTimer_ % 20 >= 10 ) {
+			if (cardReadyTimer_ % 20 >= 10) {
 				TextManager::GetInstance()->SetText("ReadyCardT", displayText);
-			} else {
+			}
+			else {
 				TextManager::GetInstance()->SetText("ReadyCardT", "");
 			}
 		}
 	}
 
 
-		// Eキーで構え中の攻撃カードを発動
-		if (input->Triggerkey(DIK_E)) {
-			if (playerCardSystem_ && playerManager_) {
-				playerCardSystem_->UseCard(
-					readiedCard_,
-					playerPos_,
-					playerManager_->GetRotationY(),
-					true,
-					playerManager_->GetPlayer()
-				);
-			}
-		}
-
-		// 時間切れになったら構え状態（撃ち放題）を終了する
-		if ( cardReadyTimer_ <= 0 ) {
-			isCardReady_ = false;
-
-			// 時間切れになったら文字を空（非表示）にする
-			TextManager::GetInstance()->SetText("ReadyCardT", "");
+	// Eキーで構え中の攻撃カードを発動
+	if (input->Triggerkey(DIK_E)) {
+		if (playerCardSystem_ && playerManager_) {
+			playerCardSystem_->UseCard(
+				readiedCard_,
+				playerPos_,
+				playerManager_->GetRotationY(),
+				true,
+				playerManager_->GetPlayer()
+			);
 		}
 	}
+
+	// 時間切れになったら構え状態（撃ち放題）を終了する
+	if (cardReadyTimer_ <= 0) {
+		isCardReady_ = false;
+
+		// 時間切れになったら文字を空（非表示）にする
+		TextManager::GetInstance()->SetText("ReadyCardT", "");
+	}
+
 
 	// プレイヤー用カードシステム更新
 	if (playerCardSystem_) {
@@ -929,16 +939,23 @@ void GamePlayScene::Update(){
 			mapManager_->GetLevelData()
 		);
 	}
-	for ( auto& block : blocks_ ) {
+	for (auto& block : blocks_) {
 		block->Update();
+	} 
+	if (blockGroup_) {
+		blockGroup_->PreUpdate(); // カウントをリセット
+		for (auto& block : blocks_) {
+			blockGroup_->AddObject(block.get()); // データを配列に詰め込む
+		}
+	}
 
 	// 背景枠の更新
-	if ( descBgSprite_ ) {
+	if (descBgSprite_) {
 		descBgSprite_->Update();
 	}
 
 	// 手札がある時だけ処理
-	if ( handManager_.GetHandSize() > 0 ) {
+	if (handManager_.GetHandSize() > 0) {
 		// 1. 今選んでいるカードの番号を取得
 		int selectedIdx = handManager_.GetSelectedCardIndex();
 
@@ -949,22 +966,22 @@ void GamePlayScene::Update(){
 		std::string displayText = selectedCard.description;
 
 		size_t pos = displayText.find("\\n");
-		while ( pos != std::string::npos ) {
+		while (pos != std::string::npos) {
 			displayText.replace(pos, 2, "\n");
 			pos = displayText.find("\\n", pos + 1);
 		}
-	}
 
 		// 4. テキストオブジェクトに文字を流し込む！
-		// ※ textObj_ の部分は、チームメンバーさんが作ったテキスト管理の変数名に直してください
 		TextManager::GetInstance()->SetText("CardT", displayText);
 
-
-	} else {
+	}
+	else {
 		// 手札がない時は文字を消す
 		TextManager::GetInstance()->SetText("CardT", "");
 	}
-}
+
+} 
+
 
 void GamePlayScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
@@ -1237,6 +1254,7 @@ void GamePlayScene::DrawDebugUI(){
 			// 例：手札を使用する処理
 		}
 	}
+	 ImGui::EndChild();
 
 	ImGui::End();
 

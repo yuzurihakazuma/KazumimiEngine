@@ -29,7 +29,7 @@ public:
     // マップの読み込み＆生成
     void LoadAndCreateMap(const std::string& fileName);
     // カメラのセット
-    void SetCamera(const Camera* camera){ camera_ = camera; }
+    void SetCamera(const Camera* camera);
 
     // デバッグ用UIの描画
     void DrawDebugUI();
