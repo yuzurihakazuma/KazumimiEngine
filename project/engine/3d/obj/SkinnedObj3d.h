@@ -11,13 +11,14 @@
 #include "engine/3d/animation/Skeleton.h"
 #include "engine/3d/animation/SkinCluster.h"
 #include "engine/3d/animation/Animation.h"
+#include "IAnimatable.h"
 
 // 前方宣言
 class Obj3dCommon;
 class Model;
 class Camera;
 
-class SkinnedObj3d {
+class SkinnedObj3d : public IAnimatable {
 public:
     //  WVP 構造体
     struct TransformationMatrix {
@@ -50,21 +51,27 @@ public:
         const std::string& animFilename
     );
 
-    void Update();
-    void Draw();
+    void Update() override;
+    void Draw()   override;
 
-    // --- Getter / Setter ---
+
+public:  // --- Getter / Setter ---
+
+   
     void SetCamera(const Camera* camera) { camera_ = camera; }
-    void SetTranslation(const Vector3& t) { translate_ = t; }
-    void SetRotation(const Vector3& r) { rotation_ = r; }
-    void SetScale(const Vector3& s) { scale_ = s; }
+    void SetTranslation(const Vector3& translate) override { translate_ = translate; }
+    void SetRotation(const Vector3& rotation )override { rotation_ = rotation; }
+    void SetScale(const Vector3& scale)override { scale_ = scale; }
     void SetLoopAnimation(bool loop) { isLoop_ = loop; }
     void SetNoiseTexture(uint32_t index) { noiseTextureIndex_ = index; }
     void SetDissolveThreshold(float threshold);
 
-    const Vector3& GetTranslation() const { return translate_; }
-    const Vector3& GetRotation()    const { return rotation_; }
-    const Vector3& GetScale()       const { return scale_; }
+    const Vector3& GetTranslation() const override { return translate_; }
+    const Vector3& GetRotation()    const  override { return rotation_; }
+    const Vector3& GetScale()       const override { return scale_; }
+
+    const std::string& GetName() const override { return name_; }
+    void SetName(const std::string& name) override { name_ = name; }
 
 private:
     // トランスフォーム
@@ -94,4 +101,6 @@ private:
     Animation animation_;
     float     animationTime_ = 0.0f;
     bool      isLoop_ = true;
+
+    std::string name_ = "SkinnedObj3d";
 };
