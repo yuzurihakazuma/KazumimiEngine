@@ -74,6 +74,8 @@ void GamePlayScene::Initialize(){
 	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
 	ModelManager::GetInstance()->LoadModel("human", "resources/human", "walk.gltf");
 
+	// 保存済みアニメーションを読み込んで再生するだけ
+	skinnedAnimTrack_.LoadFromJson("resources/human_anim.json");
 
 	// カメラ生成
 	camera_ = std::make_unique<Camera>(windowProc->GetClientWidth(), windowProc->GetClientHeight(), dxCommon);
@@ -175,21 +177,18 @@ void GamePlayScene::Update(){
 	}
 
 	if (skinnedObj_) {
-		// 再生中なら時間を進めて、計算したTransformを適用
-		if (isAnimPlaying_ && myAnimTrack_.duration > 0.0f) {
-			animCurrentTime_ += 1.0f / 60.0f; // 60FPS想定
-			if (animCurrentTime_ > myAnimTrack_.duration) {
-				animCurrentTime_ = 0.0f; // ループ再生
+		// 再生するだけ（編集UIなし）
+		if (skinnedAnimTrack_.duration > 0.0f) {
+			skinnedAnimTime_ += 1.0f / 60.0f;
+			if (skinnedAnimTime_ > skinnedAnimTrack_.duration) {
+				skinnedAnimTime_ = 0.0f;
 			}
-
-			Vector3 animPos, animRot, animScale;
-			myAnimTrack_.UpdateTransformAtTime(animCurrentTime_, animPos, animRot, animScale);
-
-			skinnedObj_->SetTranslation(animPos);
-			skinnedObj_->SetRotation(animRot);
-			skinnedObj_->SetScale(animScale);
+			Vector3 pos, rot, scale;
+			skinnedAnimTrack_.UpdateTransformAtTime(skinnedAnimTime_, pos, rot, scale);
+			skinnedObj_->SetTranslation(pos);
+			skinnedObj_->SetRotation(rot);
+			skinnedObj_->SetScale(scale);
 		}
-
 		skinnedObj_->Update();
 	}
 
@@ -324,46 +323,7 @@ void GamePlayScene::DrawDebugUI(){
 
 	ImGui::End();
 
-	if (skinnedObj_) {
-		ImGui::Begin("Skinned Model Control");
-
-		Vector3 pos = skinnedObj_->GetTranslation();
-		if (ImGui::DragFloat3("Position", &pos.x, 0.1f)) { 
-			skinnedObj_->SetTranslation(pos); 
-		}
-
-		Vector3 rot = skinnedObj_->GetRotation();
-		if (ImGui::DragFloat3("Rotation", &rot.x, 0.05f)) { 
-			skinnedObj_->SetRotation(rot); 
-		}
-
-		Vector3 scale = skinnedObj_->GetScale();
-		if (ImGui::DragFloat3("Scale", &scale.x, 0.05f)) { 
-			skinnedObj_->SetScale(scale); 
-		}
-
-		ImGui::Separator();
-		ImGui::Text("--- Custom Animation ---");
-
-		// タイムライン
-		ImGui::SliderFloat("Time(sec)", &animCurrentTime_, 0.0f, 10.0f); // とりあえず最大10秒
-
-		// 再生/停止ボタン
-		if (ImGui::Button(isAnimPlaying_ ? "Stop" : "Play")) {
-			isAnimPlaying_ = !isAnimPlaying_;
-		}
-		ImGui::SameLine();
-
-		// キーフレーム追加ボタン
-		if (ImGui::Button("Add Keyframe")) {
-			myAnimTrack_.AddKeyframe(animCurrentTime_, pos, rot, scale);
-		}
-
-		// 記録されているキーフレーム数の表示
-		ImGui::Text("Keyframes: %zu", myAnimTrack_.keyframes.size());
-
-		ImGui::End();
-	}
+	
 
 #endif
 

@@ -8,6 +8,7 @@
 #include "engine/3d/animation/Animation.h"
 #include "engine/3d/animation/CustomAnimation.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
+#include "engine/3d/animation/CustomAnimation.h"
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -86,8 +87,8 @@ private: // メンバ変数
 
 	std::unique_ptr<SkinnedObj3d> skinnedObj_ = nullptr;
 
-	// アニメーション作成用に追加
-	CustomAnimationTrack myAnimTrack_; 
-	float animCurrentTime_ = 0.0f;     // 現在のシークバーの時間
-	bool isAnimPlaying_ = false;       // 再生中フラグ
+	// アニメーション再生用（編集なし・読み込みのみ）
+	CustomAnimationTrack skinnedAnimTrack_;
+	float skinnedAnimTime_ = 0.0f;
+	
 };
