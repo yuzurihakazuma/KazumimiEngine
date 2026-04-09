@@ -46,3 +46,6 @@ Skeleton CreateSkeleton(const Node& rootNode);
 
 // Skeletonのジョイント配列をアニメーションのノードアニメーションと照らし合わせて、各ジョイントのローカル変換行列を更新する関数
 void UpdateSkeleton(Skeleton& skeleton, const Animation& animation, float time);
+
+// Skeletonの現在のtransformからスケルトン空間行列を更新する関数
+void UpdateSkeleton(Skeleton& skeleton);

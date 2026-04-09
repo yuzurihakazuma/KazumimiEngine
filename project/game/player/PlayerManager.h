@@ -3,7 +3,6 @@
 #include "engine/math/VectorMath.h"
 
 class Player;
-class Obj3d;
 class Camera;
 class Input;
 class DebugCamera;
@@ -37,9 +36,6 @@ public:
 
     // プレイヤー本体取得
     Player* GetPlayer() const { return player_.get(); }
-
-    // プレイヤー描画オブジェクト取得
-    Obj3d* GetPlayerObj() const { return playerObj_.get(); }
 
     // 現在位置取得
     const Vector3& GetPosition() const { return playerPos_; }
@@ -92,7 +88,6 @@ public:
 
 private:
     std::unique_ptr<Player> player_ = nullptr;
-    std::unique_ptr<Obj3d> playerObj_ = nullptr;
 
     Vector3 playerPos_ = { 5.0f, 0.0f, 5.0f };
     Vector3 playerScale_ = { 1.0f, 1.0f, 1.0f };

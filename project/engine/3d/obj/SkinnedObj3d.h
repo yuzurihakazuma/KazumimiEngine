@@ -73,6 +73,8 @@ public:  // --- Getter / Setter ---
     const std::string& GetName() const override { return name_; }
     void SetName(const std::string& name) override { name_ = name; }
 
+    void SetIsWalking(bool isWalking) { isWalking_ = isWalking; } // 歩き状態切り替え
+
 private:
     // トランスフォーム
     Vector3 scale_ = { 1.0f, 1.0f, 1.0f };
@@ -101,6 +103,13 @@ private:
     Animation animation_;
     float     animationTime_ = 0.0f;
     bool      isLoop_ = true;
+
+    // プログラム歩きアニメ用
+    float walkTimer_ = 0.0f;      // 歩き用タイマー
+    bool  isWalking_ = true;      // 歩きアニメを有効にするか
+    float walkSpeed_ = 6.0f;      // 歩く速さ
+    float walkAmplitude_ = 0.6f;  // 腕足の振り幅
+
 
     std::string name_ = "SkinnedObj3d";
 };

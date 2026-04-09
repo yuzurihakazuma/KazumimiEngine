@@ -3,7 +3,6 @@
 
 #include "game/player/PlayerManager.h"
 #include "game/player/Player.h"
-#include "Engine/3D/Obj/Obj3d.h"
 #include "Engine/Base/Input.h"
 #include "Engine/Camera/Camera.h"
 #include "Engine/Camera/DebugCamera.h"
@@ -14,24 +13,16 @@
 using namespace VectorMath;
 
 void PlayerManager::Initialize(Camera* camera) {
-    // プレイヤー表示用オブジェクトを作成
-    playerObj_ = Obj3d::Create("player");
-    if (playerObj_) {
-        playerObj_->SetCamera(camera);
-        playerObj_->SetTranslation(playerPos_);
-        playerObj_->SetScale(playerScale_);
-    }
-
     // プレイヤー本体を作成
     player_ = std::make_unique<Player>();
     player_->Initialize();
     player_->SetPosition(playerPos_);
     player_->SetScale(playerScale_);
+    player_->SetCamera(camera);
 }
 
 void PlayerManager::Finalize() {
     // プレイヤー関連を解放
-    playerObj_.reset();
     player_.reset();
 }
 
@@ -108,20 +99,12 @@ void PlayerManager::Update(
 
     // プレイヤーの現在スケールを保存
     playerScale_ = player_->GetScale();
-
-    // 表示用オブジェクトにプレイヤーの状態を反映
-    if (playerObj_) {
-        playerObj_->SetTranslation(playerPos_);
-        playerObj_->SetRotation(player_->GetRotation());
-        playerObj_->SetScale(playerScale_);
-        playerObj_->Update();
-    }
 }
 
 void PlayerManager::Draw() {
     // 死亡しておらず表示可能なら描画
-    if (playerObj_ && player_ && !player_->IsDead() && player_->IsVisible()) {
-        playerObj_->Draw();
+    if (player_ && !player_->IsDead() && player_->IsVisible()) {
+        player_->Draw();
     }
 }
 
@@ -143,17 +126,10 @@ void PlayerManager::RespawnInRoom(MapManager* mapManager, Camera* camera) {
     // スケールを初期値に戻す
     playerScale_ = { 1.0f, 1.0f, 1.0f };
 
-    // プレイヤー本体に位置とスケールを反映
+    // プレイヤー本体に位置とスケールと回転を反映
     player_->SetPosition(playerPos_);
     player_->SetScale(playerScale_);
-
-    // 表示用オブジェクトにも反映
-    if (playerObj_) {
-        playerObj_->SetTranslation(playerPos_);
-        playerObj_->SetRotation({ 0.0f, 0.0f, 0.0f });
-        playerObj_->SetScale(playerScale_);
-        playerObj_->Update();
-    }
+    player_->SetRotation({ 0.0f, 0.0f, 0.0f });
 
     // カメラもプレイヤー初期位置に合わせる
     if (camera) {
@@ -164,6 +140,9 @@ void PlayerManager::RespawnInRoom(MapManager* mapManager, Camera* camera) {
             });
         camera->SetRotation({ 0.9f, 0.0f, 0.0f });
         camera->Update();
+
+        // プレイヤー側にも使用カメラを再設定
+        player_->SetCamera(camera);
     }
 }
 
@@ -175,15 +154,6 @@ void PlayerManager::SetPosition(const Vector3& pos) {
     if (player_) {
         player_->SetPosition(pos);
     }
-
-    // 表示用オブジェクトにも反映
-    if (playerObj_) {
-        playerObj_->SetTranslation(playerPos_);
-        if (player_) {
-            playerObj_->SetRotation(player_->GetRotation());
-        }
-        playerObj_->Update();
-    }
 }
 
 void PlayerManager::SetScale(const Vector3& scale) {
@@ -193,12 +163,6 @@ void PlayerManager::SetScale(const Vector3& scale) {
     // プレイヤー本体にも反映
     if (player_) {
         player_->SetScale(scale);
-    }
-
-    // 表示用オブジェクトにも反映
-    if (playerObj_) {
-        playerObj_->SetScale(playerScale_);
-        playerObj_->Update();
     }
 }
 
@@ -297,12 +261,4 @@ void PlayerManager::Reset() {
 
     // 保存位置を現在のプレイヤー座標に合わせる
     playerPos_ = player_->GetPosition();
-
-    // 表示用オブジェクトにも反映
-    if (playerObj_) {
-        playerObj_->SetTranslation(playerPos_);
-        playerObj_->SetRotation(player_->GetRotation());
-        playerObj_->SetScale(playerScale_);
-        playerObj_->Update();
-    }
 }
