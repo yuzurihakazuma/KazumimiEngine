@@ -49,4 +49,9 @@ private:
     float playbackSpeed_ = 1.0f;  // 再生速度倍率
     bool  isLoop_ = true;  // ループ再生フラグ
     int   draggingKeyframe_ = -1;    // タイムライン上でドラッグ中のキーフレーム番号
+
+    std::string saveFilePath_;
+
+    int copiedKeyframeIndex_ = -1; // コピー元のキーフレーム番号
+    bool snapToFrame_ = true;
 };
