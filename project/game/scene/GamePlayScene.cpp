@@ -323,8 +323,6 @@ void GamePlayScene::DrawDebugUI(){
 
 	ImGui::End();
 
-	
-
 #endif
 
 }
