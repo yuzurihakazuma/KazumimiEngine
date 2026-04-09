@@ -102,32 +102,14 @@ void MapManager::RebuildMapObjects() {
 
 // 更新処理
 void MapManager::Update(const Vector3& playerPos) {
+
     if (floorGroup_) floorGroup_->PreUpdate();
     if (wallGroup_) wallGroup_->PreUpdate();
     if (stairsGroup_) stairsGroup_->PreUpdate();
 
-    const float tileSize = levelData_.tileSize;
+    for (int z = 0; z < levelData_.height; ++z) {
+        for (int x = 0; x < levelData_.width; ++x) {
 
-    int centerX = static_cast<int>(std::round(playerPos.x / tileSize));
-    int centerZ = static_cast<int>(std::round(playerPos.z / tileSize));
-
-    const bool isBossMap = (mapType_ == 1);
-
-    int minX = 0;
-    int maxX = levelData_.width - 1;
-    int minZ = 0;
-    int maxZ = levelData_.height - 1;
-
-    if (!isBossMap) {
-        const int range = 16;
-        minX = std::max(0, centerX - range);
-        maxX = std::min(levelData_.width - 1, centerX + range);
-        minZ = std::max(0, centerZ - range);
-        maxZ = std::min(levelData_.height - 1, centerZ + range);
-    }
-
-    for (int z = minZ; z <= maxZ; ++z) {
-        for (int x = minX; x <= maxX; ++x) {
             if (floorObjects_[z][x]) {
                 floorObjects_[z][x]->Update();
                 floorGroup_->AddObject(floorObjects_[z][x].get());
@@ -146,7 +128,6 @@ void MapManager::Update(const Vector3& playerPos) {
         }
     }
 }
-
 
 // 描画
 void MapManager::Draw(const Vector3& playerPos) {
