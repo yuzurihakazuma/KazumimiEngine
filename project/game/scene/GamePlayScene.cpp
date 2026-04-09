@@ -127,15 +127,7 @@ void GamePlayScene::Initialize(){
 	//blockGroup_->Initialize("block", 10000); // 最大1万個まで対応！
 	//blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
-	// 試しに20x20 = 400個のブロックを床のように敷き詰めてみます
-	for (int x = -100; x < 100; ++x) {
-		for (int z = 0; z < 20; ++z) {
-			auto block = Obj3d::Create("block");
-			block->SetTranslation({ x * 2.0f, -2.0f, z * 2.0f });
-			block->SetCamera(camera_.get());
-			blocks_.push_back(std::move(block));
-		}
-	}
+	
 
 
 }
