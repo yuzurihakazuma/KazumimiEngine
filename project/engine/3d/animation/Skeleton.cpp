@@ -85,3 +85,30 @@ void UpdateSkeleton(Skeleton& skeleton, const Animation& animation, float time) 
         }
     }
 }
+
+void UpdateSkeleton(Skeleton& skeleton) {
+
+    // 各ジョイントの現在のtransformから localMatrix を再計算
+    for (Joint& joint : skeleton.joints) {
+        joint.localMatrix = MakeAffineMatrix(
+            joint.transform.scale,
+            joint.transform.rotate,
+            joint.transform.translate
+        );
+    }
+
+    // 親 → 子の順にスケルトン空間行列を計算
+    for (Joint& joint : skeleton.joints) {
+
+        if (joint.parent) {
+            // 親がいる場合：自分のローカル行列 × 親のスケルトン空間行列
+            joint.skeletonSpaceMatrix = Multiply(
+                joint.localMatrix,
+                skeleton.joints[*joint.parent].skeletonSpaceMatrix
+            );
+        } else {
+            // ルートジョイントはローカル行列がそのままスケルトン空間行列になる
+            joint.skeletonSpaceMatrix = joint.localMatrix;
+        }
+    }
+}

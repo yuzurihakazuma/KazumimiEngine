@@ -1,10 +1,17 @@
 #pragma once
+#include <memory>
 #include "engine/math/VectorMath.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
+
+class Camera;
 
 class Player {
 public:
     void Initialize();  // 初期化
     void Update();      // 更新
+    void Draw();        // 描画
+
+    void SetCamera(const Camera* camera); // カメラ設定
 
     // 各Transform取得
     const Vector3& GetPosition() const { return pos_; }      // 位置取得
@@ -44,7 +51,7 @@ public:
 
     void TakeDamage(int damage, const Vector3& attackFrom); // ダメージ処理
 
-	void SetInputEnable(bool enable){ isInputEnabled_ = enable; } // 入力有効/無効切り替え
+    void SetInputEnable(bool enable) { isInputEnabled_ = enable; } // 入力有効/無効切り替え
 
     void ApplySpeedBuff(float multiplier, int durationFrames); // スピードバフ適用の関数
 
@@ -52,11 +59,10 @@ public:
 
     void Heal(int amount); // HP回復処理
 
-
     bool IsShieldActive() const { return isShieldActive_; }  // シールド状態の取得
 
     void AddShieldHits(int hits) { shieldHitCount_ = hits; }  // シールドの回数をセットする関数
-   
+
     int GetShieldHits() const { return shieldHitCount_; }  // 今のシールドの残り回数を取得する関数
 
     bool IsActionLocked() const { return isActionLocked_; }
@@ -64,6 +70,7 @@ public:
     void SetMaxCost(int cost) { maxCost_ = cost; }
     void SetCost(int cost) { cost_ = cost; }
     void SetHP(int hp) { hp_ = hp; }
+
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
@@ -72,6 +79,9 @@ private:
     Vector3 pos_{ 0.0f, 0.0f, 0.0f };     // 位置
     Vector3 rot_{ 0.0f, 0.0f, 0.0f };     // 回転
     Vector3 scale_{ 1.0f, 1.0f, 1.0f };   // スケール
+
+    std::unique_ptr<SkinnedObj3d> model_ = nullptr; // プレイヤーのアニメーションモデル
+    const Camera* camera_ = nullptr;                // 使用カメラ
 
     float moveSpeed_ = 0.2f;              // 通常移動速度
 
@@ -118,14 +128,13 @@ private:
     const int knockbackDuration_ = 10;            // ノックバック時間
     Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f }; // ノックバック速度
 
+    bool isInputEnabled_ = true; // 入力有効フラグ
 
-	bool isInputEnabled_ = true; // 入力有効フラグ
-
-    //速度
-    float speedMultiplier_ = 1.0f; //　移動速度倍率
+    // 速度
+    float speedMultiplier_ = 1.0f; // 移動速度倍率
     int speedBuffTimer_ = 0; // スピードアップの残り時間
 
-    //　シールド管理
+    // シールド管理
     bool isShieldActive_ = false; // シールド展開中か
     int shieldHitCount_ = 0;
 };

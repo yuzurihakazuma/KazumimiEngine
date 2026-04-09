@@ -62,7 +62,13 @@ void SkinnedObj3d::Initialize(
     // スケルトンの作成
     skeleton_ = CreateSkeleton(model_->GetRootNode());
 
-    // スキンクラスターの作成（inverseBindPose も設定される）
+    // ボーン情報が無いモデルはスキニングしない
+    if (model_->GetBoneOrder().empty()) {
+        assert(false && "SkinnedObj3d::Initialize: this model has no bones");
+        return;
+    }
+
+    // スキンクラスターの作成
     skinCluster_ = CreateSkinCluster(
         skeleton_,
         model_->GetInverseBindPoseMap(),
@@ -70,8 +76,9 @@ void SkinnedObj3d::Initialize(
         dxCommon
     );
 
-    // アニメーションの読み込み
-    animation_ = LoadAnimationFromFile(directoryPath, animFilename);
+    // アニメーションはプログラムで制御するので、ここでは読み込まない
+    animation_.duration = 0.0f;
+    animation_.nodeAnimations.clear();
 }
 
 // --------------------------------------------------
@@ -79,34 +86,101 @@ void SkinnedObj3d::Initialize(
 // --------------------------------------------------
 void SkinnedObj3d::Update() {
 
-    // --- アニメーション時間を進める ---
-    animationTime_ += 1.0f / 60.0f;
-    if (isLoop_) {
-        // ループ再生
-        animationTime_ = std::fmod(animationTime_, animation_.duration);
-    }
-    else {
-        // 終端でとめる
-        if (animationTime_ > animation_.duration) {
-            animationTime_ = animation_.duration;
+    // アニメーションがある時だけ時間を進める
+    if (animation_.duration > 0.0f) {
+
+        animationTime_ += 1.0f / 60.0f;
+
+        if (isLoop_) {
+            // ループ再生
+            animationTime_ = std::fmod(animationTime_, animation_.duration);
+        } else {
+            // 終端でとめる
+            if (animationTime_ > animation_.duration) {
+                animationTime_ = animation_.duration;
+            }
         }
+
+        // スケルトンにアニメーションを適用して行列を更新
+        UpdateSkeleton(skeleton_, animation_, animationTime_);
+    } else {
+        // プログラムで歩きアニメーションを作る
+        if (isWalking_) {
+            walkTimer_ += 1.0f / 60.0f;
+
+            // 歩きより少し速く
+            float t = walkTimer_ * (walkSpeed_ * 1.35f);
+
+            float swingL = std::sinf(t);
+            float swingR = std::sinf(t + 3.14159f);
+
+            // 腕は少し強め
+            float armAmplitude = walkAmplitude_ * 0.5f;
+
+            // 足は前に大きく、後ろは小さく
+            float legAmplitude = walkAmplitude_ * 0.65f;
+            float legBackScale = 0.35f;
+
+            // 腕
+            auto armLIt = skeleton_.jointMap.find("UpperArm.L");
+            auto armRIt = skeleton_.jointMap.find("UpperArm.R");
+
+            if (armLIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[armLIt->second].transform.rotate.x = -swingL * armAmplitude;
+            }
+            if (armRIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[armRIt->second].transform.rotate.x = -swingR * armAmplitude;
+            }
+
+            // 足
+            auto legLIt = skeleton_.jointMap.find("UpperLeg.L");
+            auto legRIt = skeleton_.jointMap.find("UpperLeg.R");
+
+            float legL = (swingL > 0.0f) ? (swingL * legAmplitude) : (swingL * legAmplitude * legBackScale);
+            float legR = (swingR > 0.0f) ? (swingR * legAmplitude) : (swingR * legAmplitude * legBackScale);
+
+            if (legLIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[legLIt->second].transform.rotate.z = legL;
+            }
+            if (legRIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[legRIt->second].transform.rotate.z = -legR;
+            }
+
+        } else {
+            auto armLIt = skeleton_.jointMap.find("UpperArm.L");
+            auto armRIt = skeleton_.jointMap.find("UpperArm.R");
+            auto legLIt = skeleton_.jointMap.find("UpperLeg.L");
+            auto legRIt = skeleton_.jointMap.find("UpperLeg.R");
+
+            if (armLIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[armLIt->second].transform.rotate.x = 0.0f;
+            }
+            if (armRIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[armRIt->second].transform.rotate.x = 0.0f;
+            }
+            if (legLIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[legLIt->second].transform.rotate.z = 0.0f;
+            }
+            if (legRIt != skeleton_.jointMap.end()) {
+                skeleton_.joints[legRIt->second].transform.rotate.z = 0.0f;
+            }
+        }
+
+        // 現在のローカル姿勢から行列だけ更新
+        UpdateSkeleton(skeleton_);
     }
 
-    // --- スケルトンにアニメーションを適用して行列を更新 ---
-    UpdateSkeleton(skeleton_, animation_, animationTime_);
-
-    // --- MatrixPalette を計算して GPU バッファに書き込む ---
+    // MatrixPalette を計算して GPU バッファに書き込む
     UpdateSkinCluster(skinCluster_, skeleton_, model_->GetBoneOrder());
 
-    // --- WVP 行列の計算（Obj3d と同じ処理） ---
+    // WVP 行列の計算
     Matrix4x4 worldMatrix = MakeAffine(scale_, rotation_, translate_);
 
     Matrix4x4 worldViewProjectionMatrix;
     if (camera_) {
         const Matrix4x4& viewProjectionMatrix = camera_->GetViewProjectionMatrix();
         worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
-    }
-    else {
+    } else {
         worldViewProjectionMatrix = worldMatrix;
     }
 

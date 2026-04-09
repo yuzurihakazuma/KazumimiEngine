@@ -3,6 +3,7 @@
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/math/Matrix4x4.h"
+#include <assert.h>
 
 using namespace MatrixMath;
 
@@ -15,7 +16,13 @@ SkinCluster CreateSkinCluster(
     SkinCluster cluster;
     int boneCount = static_cast<int>(boneOrder.size());
 
-    // inverseBindPose を skeleton の各 Joint にセット（既存処理）
+    // ボーンが無いモデルはスキニング不可
+    if (boneCount <= 0) {
+        assert(false && "CreateSkinCluster: boneCount is 0");
+        return cluster;
+    }
+
+    // inverseBindPose を skeleton の各 Joint にセット
     for (auto& joint : skeleton.joints) {
         auto it = inverseBindPoseMap.find(joint.name);
         if (it != inverseBindPoseMap.end()) {
@@ -24,7 +31,10 @@ SkinCluster CreateSkinCluster(
     }
 
     // GPU バッファを boneCount のサイズで作成
-    cluster.paletteResource = dxCommon->GetResourceFactory()->CreateBufferResource(sizeof(Matrix4x4) * boneCount);
+    cluster.paletteResource =
+        dxCommon->GetResourceFactory()->CreateBufferResource(sizeof(Matrix4x4) * boneCount);
+    assert(cluster.paletteResource != nullptr);
+
     cluster.paletteResource->Map(0, nullptr, reinterpret_cast<void**>(&cluster.mappedPalette));
 
     cluster.matrixPalette.resize(boneCount, MakeIdentity4x4());
@@ -38,6 +48,7 @@ SkinCluster CreateSkinCluster(
 
     return cluster;
 }
+
 void UpdateSkinCluster(SkinCluster& cluster, const Skeleton& skeleton, const std::vector<std::string>& boneOrder) {
     for (int i = 0; i < static_cast<int>(boneOrder.size()); ++i) {
         auto it = skeleton.jointMap.find(boneOrder[i]);

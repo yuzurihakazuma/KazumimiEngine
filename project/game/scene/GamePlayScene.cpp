@@ -60,7 +60,7 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
 
 	// プレイヤーモデル読み込み
-	ModelManager::GetInstance()->LoadModel("player", "resources/player", "player.obj");
+	ModelManager::GetInstance()->LoadModel("player", "resources/player", "player.gltf");
 
 	// 敵モデル読み込み
 	ModelManager::GetInstance()->LoadModel("enemy", "resources/enemy", "enemy.obj");

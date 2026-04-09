@@ -1,5 +1,6 @@
 #include "game/player/Player.h"
 #include "Engine/Base/Input.h"
+#include "Engine/Camera/Camera.h"
 #include "engine/math/VectorMath.h"
 #include <cmath>
 
@@ -24,7 +25,7 @@ void Player::Initialize() {
     cost_ = 3;                // 現在コスト初期化
     maxCost_ = 3;             // 最大コスト初期化
 
-    costRecoveryTimer_ = 0;   // コスト回復タイマー初期化
+    costRecoveryTimer_ = 0;      // コスト回復タイマー初期化
     costRecoveryInterval_ = 180; // コスト回復速度初期化
 
     hp_ = 8;                // 現在HP初期化
@@ -34,21 +35,42 @@ void Player::Initialize() {
     isInvincible_ = false;  // 無敵状態リセット
     invincibleTimer_ = 0;   // 無敵時間リセット
 
-    isHit_ = false;           // 被弾状態リセット
-    hitTimer_ = 0;            // 被弾時間リセット
+    isHit_ = false;         // 被弾状態リセット
+    hitTimer_ = 0;          // 被弾時間リセット
 
     // ノックバック初期化
-    isKnockback_ = false;                          // ノックバック状態リセット
-    knockbackTimer_ = 0;                           // ノックバック時間リセット
-    knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };    // ノックバック速度リセット
+    isKnockback_ = false;                       // ノックバック状態リセット
+    knockbackTimer_ = 0;                        // ノックバック時間リセット
+    knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック速度リセット
 
-    //速度
+    // 速度
     speedMultiplier_ = 1.0f;
     speedBuffTimer_ = 0;
 
-    //シールド
+    // シールド
     isShieldActive_ = false;
-   
+    shieldHitCount_ = 0;
+
+    // プレイヤーのアニメーションモデルを生成
+    // ※ モデル名とファイル名は GamePlayScene 側の LoadModel と合わせる
+    model_ = SkinnedObj3d::Create(
+        "player",
+        "resources/player",
+        "player.gltf"
+    );
+
+    if (model_) {
+        model_->SetName("Player");
+        model_->SetTranslation(pos_);
+        model_->SetRotation(rot_);
+        model_->SetScale(scale_);
+        model_->SetLoopAnimation(true);
+
+        // 先にカメラが設定されていれば反映
+        if (camera_) {
+            model_->SetCamera(camera_);
+        }
+    }
 }
 
 void Player::Update() {
@@ -59,7 +81,7 @@ void Player::Update() {
 
     Input* input = Input::GetInstance();
 
-    Vector3 move{ 0.0f,0.0f,0.0f };
+    Vector3 move{ 0.0f, 0.0f, 0.0f };
 
     UpdateCost(); // コスト自然回復
 
@@ -72,7 +94,6 @@ void Player::Update() {
             invincibleTimer_ = 0;
         }
     }
-
 
     // 被弾演出時間の更新
     if (isHit_) {
@@ -99,13 +120,22 @@ void Player::Update() {
     }
 
     // 行動ロック中は操作不可
-    if ( !isInputEnabled_ || isActionLocked_ ) {
-        if ( isActionLocked_ ) {
+    if (!isInputEnabled_ || isActionLocked_) {
+        if (isActionLocked_) {
             actionLockTimer_--;
-            if ( actionLockTimer_ <= 0 ) {
+            if (actionLockTimer_ <= 0) {
                 isActionLocked_ = false;
             }
         }
+
+        // モデルだけは更新しておく
+        if (model_) {
+            model_->SetTranslation(pos_);
+            model_->SetRotation(rot_);
+            model_->SetScale(scale_);
+            model_->Update();
+        }
+
         return; // ここでリターンすればWASD入力は処理されない
     }
 
@@ -123,12 +153,12 @@ void Player::Update() {
     // 回避開始
     if (!isDodging_ && input->Triggerkey(DIK_LSHIFT)) {
 
-        isDodging_ = true;             // 回避状態
-        dodgeTimer_ = dodgeDuration_;  // 回避時間
+        isDodging_ = true;            // 回避状態
+        dodgeTimer_ = dodgeDuration_; // 回避時間
 
         if (Length(move) > 0.0f) {
             dodgeDirection_ = move;                 // 入力方向へ回避
-            rot_.y = std::atan2f(move.x, move.z);   // 回避方向へ向く
+            rot_.y = std::atan2f(move.x, move.z);  // 回避方向へ向く
         } else {
             dodgeDirection_ = {
                 std::sinf(rot_.y),
@@ -154,8 +184,8 @@ void Player::Update() {
     } else {
 
         if (Length(move) > 0.0f) {
-            pos_ += move * (moveSpeed_*speedMultiplier_);            // 通常移動
-            rot_.y = std::atan2f(move.x, move.z); // 移動方向へ向く
+            pos_ += move * (moveSpeed_ * speedMultiplier_); // 通常移動
+            rot_.y = std::atan2f(move.x, move.z);           // 移動方向へ向く
         }
     }
 
@@ -168,7 +198,40 @@ void Player::Update() {
         }
     }
 
-    
+    float speed = Length(move);
+
+    // モデルに現在のTransformを反映して更新
+    if (model_) {
+        model_->SetIsWalking(speed > 0.0f);
+
+        model_->SetTranslation(pos_);
+        model_->SetRotation(rot_);
+        model_->SetScale(scale_);
+        model_->Update();
+    }
+}
+
+// 描画
+void Player::Draw() {
+
+    if (!model_) {
+        return;
+    }
+
+    if (!IsVisible()) {
+        return;
+    }
+
+    model_->Draw();
+}
+
+// カメラ設定
+void Player::SetCamera(const Camera* camera) {
+    camera_ = camera;
+
+    if (model_) {
+        model_->SetCamera(camera_);
+    }
 }
 
 // 指定フレームの間プレイヤー操作をロック
@@ -215,7 +278,6 @@ void Player::Heal(int amount) {
         hp_ = maxHp_;
     }
 }
-
 
 void Player::LevelUp() {
 
