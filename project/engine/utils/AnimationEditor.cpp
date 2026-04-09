@@ -21,7 +21,7 @@ void AnimationEditor::Update() {
     IAnimatable* target = targets_[selectedTargetIndex_];
     CustomAnimationTrack& track = animTracks_[target->GetName()];
 
-    // 再生中かつキーフレームが存在する場合のみ時間を進める
+    // 再生中かつキーフレームが存在する場合のみ時間を進めるボタン
     if (isAnimPlaying_ && track.duration > 0.0f) {
         animCurrentTime_ += (1.0f / 60.0f) * playbackSpeed_;
 
@@ -53,7 +53,7 @@ void AnimationEditor::DrawDebugUI() {
     ImGui::Begin("アニメーションエディター");
 
     if (!targets_.empty()) {
-
+            ImGui::PushItemWidth(-150.0f);
         // -----------------------------------------------
         // [0] 編集対象オブジェクトの選択
         // -----------------------------------------------
@@ -76,7 +76,101 @@ void AnimationEditor::DrawDebugUI() {
         Vector3 scale = target->GetScale();
         if (ImGui::DragFloat3("スケール", &scale.x, 0.05f)) target->SetScale(scale);
 
+        if (ImGui::Button("位置リセット")) { target->SetTranslation({ 0,0,0 }); }
+        ImGui::SameLine();
+        if (ImGui::Button("回転リセット")) { target->SetRotation({ 0,0,0 }); }
+        ImGui::SameLine();
+        if (ImGui::Button("スケールリセット")) { target->SetScale({ 1,1,1 }); }
+
         ImGui::Separator();
+
+		// 先頭に戻るボタン
+        if (ImGui::Button("|◀")) {
+			animCurrentTime_ = 0.0f;
+			currentFrame_ = 0;
+			isAnimPlaying_ = false;
+			// トランスフォームを先頭のキーフレームに合わせる
+            if (!track.keyframes.empty()){
+                target->SetTranslation(track.keyframes.front().position);
+                target->SetRotation(track.keyframes.front().rotation);
+				target->SetScale(track.keyframes.front().scale);
+
+            }
+
+        }
+        
+
+		ImGui::SameLine();
+
+        if (ImGui::Button("◀")) {
+			float best = -1.0f;
+			int bestIndex = -1;
+            for (int i = 0; i < (int)track.keyframes.size();i++) {
+                float time = track.keyframes[i].time;
+                if (time< animCurrentTime_ -0.001f && time > best){
+					best = time; bestIndex = i;
+                }
+            }
+            if (bestIndex>=0) {
+				selectedKeyframeIndex_ = bestIndex;
+				animCurrentTime_ = track.keyframes[bestIndex].time;
+				currentFrame_ = (int)(animCurrentTime_ * fps_);
+				target->SetTranslation(track.keyframes[bestIndex].position);
+				target->SetRotation(track.keyframes[bestIndex].rotation);
+				target->SetScale(track.keyframes[bestIndex].scale);
+                
+            }
+        }
+		ImGui::SameLine();
+        if (ImGui::Button("▶|")) {
+            float best = -1.0f;
+            int bestIndex = -1;
+            for (int i = 0; i < (int)track.keyframes.size(); i++) {
+                float time = track.keyframes[i].time;
+                if (time > animCurrentTime_ + 0.001f && (best < 0.0f || time < best)) {
+                    best = time; bestIndex = i;
+                }
+            }
+            if (bestIndex >= 0) {
+                selectedKeyframeIndex_ = bestIndex;
+                animCurrentTime_ = track.keyframes[bestIndex].time;
+                currentFrame_ = (int)(animCurrentTime_ * fps_);
+                target->SetTranslation(track.keyframes[bestIndex].position);
+                target->SetRotation(track.keyframes[bestIndex].rotation);
+                target->SetScale(track.keyframes[bestIndex].scale);
+            }
+        }
+
+        if (selectedKeyframeIndex_>=0 && selectedKeyframeIndex_<(int)track.keyframes.size()){
+            if (ImGui::Button("キーフレーム更新")) {
+				auto& kf = track.keyframes[selectedKeyframeIndex_];
+				kf.position = target->GetTranslation();
+				kf.rotation = target->GetRotation();
+				kf.scale = target->GetScale();
+
+            }
+
+        }
+        ImGui::SameLine();
+        if (selectedKeyframeIndex_ >= 0 && selectedKeyframeIndex_ < (int)track.keyframes.size()) {
+            if (ImGui::Button("コピー")) {
+                copiedKeyframeIndex_ = selectedKeyframeIndex_;
+            }
+        }
+        ImGui::SameLine();
+        if (copiedKeyframeIndex_ >= 0 && copiedKeyframeIndex_ < (int)track.keyframes.size()) {
+            if (ImGui::Button("ペースト")) {
+                auto kf = track.keyframes[copiedKeyframeIndex_]; // コピー
+                kf.time = animCurrentTime_; // 現在時刻に配置
+                track.AddKeyframe(kf.time, kf.position, kf.rotation, kf.scale);
+                std::sort(track.keyframes.begin(), track.keyframes.end(),
+                    [](const TransformKeyframe& a, const TransformKeyframe& b) {
+                        return a.time < b.time;
+                    });
+                if (!track.keyframes.empty()) track.duration = track.keyframes.back().time;
+            }
+        }
+
 
         // -----------------------------------------------
         // [2] 再生コントロール
@@ -96,7 +190,7 @@ void AnimationEditor::DrawDebugUI() {
 
         ImGui::SliderFloat("再生速度", &playbackSpeed_, 0.1f, 3.0f);
         ImGui::SliderFloat("タイムライン長 (秒)", &timelineDuration_, 1.0f, 30.0f);
-
+       
         // 再生/停止・ループ・キーフレーム追加
         if (ImGui::Button(isAnimPlaying_ ? "停止" : "再生")) {
             isAnimPlaying_ = !isAnimPlaying_;
@@ -104,6 +198,8 @@ void AnimationEditor::DrawDebugUI() {
         ImGui::SameLine();
         ImGui::Checkbox("ループ", &isLoop_);
         ImGui::SameLine();
+        ImGui::SameLine();
+        ImGui::Checkbox("スナップ", &snapToFrame_);
         if (ImGui::Button("キーフレーム追加")) {
             track.AddKeyframe(animCurrentTime_, pos, rot, scale);
             if (track.duration < animCurrentTime_) track.duration = animCurrentTime_;
@@ -130,6 +226,32 @@ void AnimationEditor::DrawDebugUI() {
         draw->AddRectFilled(barPos,
             ImVec2(barPos.x + barWidth, barPos.y + barHeight),
             IM_COL32(50, 50, 50, 255));
+
+		// タイムラインの目盛り（1秒ごと）
+        float tickStop = 1.0f;
+        if (timelineDuration_ > 20.0f){
+    
+            tickStop = 5.0f;
+        // タイムラインが長い場合は目盛りを粗くする
+		}else if(timelineDuration_>10.0f) {
+			tickStop = 2.0f;
+        }
+		// 目盛りとラベル
+        for (float t = 0.0f; t <= timelineDuration_ + 0.001f; t+= tickStop){
+			float x = barPos.x + (t / timelineDuration_) * barWidth;
+			// 目盛り線
+            draw->AddLine(
+                ImVec2(x, barPos.y),
+                ImVec2(x, barPos.y + 6.0f),
+                IM_COL32(150, 150, 150, 255));
+			// ラベル
+			char tickLabel[16];
+			// 小数点以下は表示しない
+			snprintf(tickLabel, sizeof(tickLabel), "%.0f", t);
+            draw->AddText(ImVec2(x + 2.0f, barPos.y + 1.0f),
+                IM_COL32(180, 180, 180, 255), tickLabel);
+
+        }
 
         // バー全体を1つのInvisibleButtonで管理（複数ボタン競合を防ぐため）
         ImGui::SetCursorScreenPos(barPos);
@@ -164,6 +286,12 @@ void AnimationEditor::DrawDebugUI() {
             if (draggingKeyframe_ >= 0 && draggingKeyframe_ < (int)track.keyframes.size()) {
                 // キーフレームの時間を移動
                 track.keyframes[draggingKeyframe_].time = ratio * timelineDuration_;
+				// スナップ有効ならフレーム単位に丸める
+                if (snapToFrame_) {
+                    float frameTime = 1.0f / fps_;
+                    track.keyframes[draggingKeyframe_].time =
+                        roundf(track.keyframes[draggingKeyframe_].time / frameTime) * frameTime;
+                }
                 // 移動後は時間順にソート
                 std::sort(track.keyframes.begin(), track.keyframes.end(),
                     [](const TransformKeyframe& a, const TransformKeyframe& b) {
@@ -207,6 +335,21 @@ void AnimationEditor::DrawDebugUI() {
             ImVec2(cx, barPos.y),
             ImVec2(cx, barPos.y + barHeight),
             IM_COL32(255, 50, 50, 255), 2.0f);
+
+
+        if (!track.keyframes.empty()) {
+            int prevKf = -1, nextKf = -1;
+            for (int i = 0; i < (int)track.keyframes.size(); i++) {
+                if (track.keyframes[i].time <= animCurrentTime_) prevKf = i;
+                if (track.keyframes[i].time > animCurrentTime_ && nextKf < 0) nextKf = i;
+            }
+            if (prevKf >= 0 && nextKf >= 0)
+                ImGui::Text("補間中: KF[%d] → KF[%d]", prevKf, nextKf);
+            else if (prevKf >= 0)
+                ImGui::Text("最終キーフレーム: KF[%d]", prevKf);
+            else
+                ImGui::Text("キーフレーム前");
+        }
 
         ImGui::Separator();
 
@@ -287,13 +430,27 @@ void AnimationEditor::DrawDebugUI() {
             // フレーム番号で時間を指定
             int kfFrame = (int)(kf.time * fps_);
             if (ImGui::InputInt("フレーム番号", &kfFrame)) {
-                kf.time = kfFrame / (float)fps_;
-                if (!track.keyframes.empty())
+                if (kfFrame<0){
+                    kfFrame = 0;
+                }
+				// 入力されたフレーム番号から時間を逆算して更新
+				kf.time = kfFrame / (float)fps_;
+
+                std::sort(track.keyframes.begin(), track.keyframes.end(),
+                    [](const TransformKeyframe& a, const TransformKeyframe& b) {
+                        return a.time < b.time;
+					});
+                if (!track.keyframes.empty()){
                     track.duration = track.keyframes.back().time;
+					selectedKeyframeIndex_ = -1; // フレーム番号変更で順序が変わる可能性があるため選択解除
+                }
+
             }
-            if (ImGui::DragFloat3("位置##kf", &kf.position.x, 0.1f))  target->SetTranslation(kf.position);
-            if (ImGui::DragFloat3("回転##kf", &kf.rotation.x, 0.05f)) target->SetRotation(kf.rotation);
-            if (ImGui::DragFloat3("スケール##kf", &kf.scale.x, 0.05f)) target->SetScale(kf.scale);
+            if (selectedKeyframeIndex_ >= 0) {
+                if (ImGui::DragFloat3("位置##kf", &kf.position.x, 0.1f))  target->SetTranslation(kf.position);
+                if (ImGui::DragFloat3("回転##kf", &kf.rotation.x, 0.05f)) target->SetRotation(kf.rotation);
+                if (ImGui::DragFloat3("スケール##kf", &kf.scale.x, 0.05f)) target->SetScale(kf.scale);
+            }
         }
 
         ImGui::Separator();
@@ -375,13 +532,33 @@ void AnimationEditor::DrawDebugUI() {
         // [7] JSONファイルへの保存 / 読み込み
         //     ファイル名: resources/{オブジェクト名}_anim.json
         // -----------------------------------------------
+
+		// 最初の表示時にファイルパスをセット（以降は変更しない）
+        if (saveFilePath_.empty()){
+			saveFilePath_ = "resources/" + target->GetName() + "_anim.json";
+
+        }
+		// ファイルパス表示（編集不可）
+		char pathBuffer[256];
+		// 安全にコピー（_TRUNCATEでバッファサイズを超える場合は切り捨て）
+        strncpy_s(pathBuffer, sizeof(pathBuffer), saveFilePath_.c_str(), _TRUNCATE);
+        if (ImGui::InputText("ファイルパス", pathBuffer, sizeof(pathBuffer))) {
+			saveFilePath_ = pathBuffer; // ユーザーがファイルパスを編集した場合は更新
+        }
+
+
         if (ImGui::Button("保存")) {
-            track.SaveToJson("resources/" + target->GetName() + "_anim.json");
+            track.SaveToJson(saveFilePath_);
         }
         ImGui::SameLine();
+        if (ImGui::Button("全オブジェクト保存")) {
+            for (auto* t : targets_) {
+                animTracks_[t->GetName()].SaveToJson(
+                    "resources/" + t->GetName() + "_anim.json");
+            }
+        }
         if (ImGui::Button("読み込み")) {
-            track.LoadFromJson("resources/" + target->GetName() + "_anim.json");
-            // 読み込み後は状態をリセット
+            track.LoadFromJson(saveFilePath_);
             animCurrentTime_ = 0.0f;
             currentFrame_ = 0;
             isAnimPlaying_ = false;
@@ -389,6 +566,42 @@ void AnimationEditor::DrawDebugUI() {
             float minDuration = track.duration + 1.0f;
             timelineDuration_ = (5.0f > minDuration) ? 5.0f : minDuration;
         }
+		ImGui::SameLine();
+        static bool confirmClear = false;
+        if (ImGui::Button("クリア")) { confirmClear = true; }
+        if (confirmClear) {
+            ImGui::OpenPopup("クリア確認");
+            confirmClear = false;
+        }
+        if (ImGui::BeginPopupModal("クリア確認", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("全キーフレームを削除しますか？");
+            if (ImGui::Button("はい")) {
+                track.keyframes.clear();
+                track.duration = 0.0f;
+                animCurrentTime_ = 0.0f;
+                currentFrame_ = 0;
+                isAnimPlaying_ = false;
+                selectedKeyframeIndex_ = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("キャンセル")) { ImGui::CloseCurrentPopup(); }
+            ImGui::EndPopup();
+        }
+        if (ImGui::Button("x2速")) {
+            for (auto& kf : track.keyframes) kf.time *= 0.5f;
+            track.duration *= 0.5f;
+            animCurrentTime_ = 0.0f;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("x0.5速")) {
+            for (auto& kf : track.keyframes) kf.time *= 2.0f;
+            track.duration *= 2.0f;
+            float minDuration = track.duration + 1.0f;
+            if (timelineDuration_ < minDuration) timelineDuration_ = minDuration;
+            animCurrentTime_ = 0.0f;
+        }
+        ImGui::PopItemWidth();
     }
 
     ImGui::End();
