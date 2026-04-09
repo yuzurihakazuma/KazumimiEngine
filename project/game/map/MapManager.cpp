@@ -90,10 +90,8 @@ void MapManager::ResizeObjectGrids() {
 // マップ再構築
 void MapManager::RebuildMapObjects() {
 
-    // サイズ調整
     ResizeObjectGrids();
 
-    // 全タイル更新
     for (int z = 0; z < levelData_.height; ++z) {
         for (int x = 0; x < levelData_.width; ++x) {
             UpdateTileObject(x, z);
@@ -101,39 +99,40 @@ void MapManager::RebuildMapObjects() {
     }
 }
 
+
 // 更新処理
 void MapManager::Update(const Vector3& playerPos) {
-
-    // インスタンス初期化
     if (floorGroup_) floorGroup_->PreUpdate();
     if (wallGroup_) wallGroup_->PreUpdate();
     if (stairsGroup_) stairsGroup_->PreUpdate();
 
     const float tileSize = levelData_.tileSize;
 
-    // プレイヤー中心タイル
     int centerX = static_cast<int>(std::round(playerPos.x / tileSize));
     int centerZ = static_cast<int>(std::round(playerPos.z / tileSize));
 
-    // 描画範囲
-    const int range = 16;
+    const bool isBossMap = (mapType_ == 1);
 
-    int minX = std::max(0, centerX - range);
-    int maxX = std::min(levelData_.width - 1, centerX + range);
-    int minZ = std::max(0, centerZ - range);
-    int maxZ = std::min(levelData_.height - 1, centerZ + range);
+    int minX = 0;
+    int maxX = levelData_.width - 1;
+    int minZ = 0;
+    int maxZ = levelData_.height - 1;
 
-    // 範囲内だけ更新
+    if (!isBossMap) {
+        const int range = 16;
+        minX = std::max(0, centerX - range);
+        maxX = std::min(levelData_.width - 1, centerX + range);
+        minZ = std::max(0, centerZ - range);
+        maxZ = std::min(levelData_.height - 1, centerZ + range);
+    }
+
     for (int z = minZ; z <= maxZ; ++z) {
         for (int x = minX; x <= maxX; ++x) {
-
-            // 床更新
             if (floorObjects_[z][x]) {
                 floorObjects_[z][x]->Update();
                 floorGroup_->AddObject(floorObjects_[z][x].get());
             }
 
-            // 壁・階段更新
             if (wallObjects_[z][x]) {
                 wallObjects_[z][x]->Update();
 
@@ -147,6 +146,7 @@ void MapManager::Update(const Vector3& playerPos) {
         }
     }
 }
+
 
 // 描画
 void MapManager::Draw(const Vector3& playerPos) {
@@ -485,53 +485,51 @@ void MapManager::PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoid
 void MapManager::UpdateTileObject(int x, int z) {
     if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
 
-    // モデル取得
     Model* model = ModelManager::GetInstance()->FindModel("block");
     if (model == nullptr) return;
 
     const float tileSize = levelData_.tileSize;
     const int tile = levelData_.tiles[z][x];
 
-    // 床
     if (tile == 0) {
+        wallObjects_[z][x].reset();
+
         if (!floorObjects_[z][x]) {
             floorObjects_[z][x] = std::make_unique<Obj3d>();
             floorObjects_[z][x]->Initialize(model);
             floorObjects_[z][x]->SetCamera(camera_);
         }
 
-        Vector3 pos = { x * tileSize, levelData_.baseY, z * tileSize };
-        floorObjects_[z][x]->SetTranslation(pos);
+        floorObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY, z * tileSize });
         floorObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
         floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
-
-        floorObjects_[z][x]->Update();
+        return;
     }
 
-    // 壁 or 階段
     if (tile == 1 || tile == 3) {
+        floorObjects_[z][x].reset();
+
         if (!wallObjects_[z][x]) {
             wallObjects_[z][x] = std::make_unique<Obj3d>();
             wallObjects_[z][x]->Initialize(model);
             wallObjects_[z][x]->SetCamera(camera_);
         }
 
-        // 壁
         if (tile == 1) {
-            Vector3 pos = { x * tileSize, levelData_.baseY + tileSize, z * tileSize };
-            wallObjects_[z][x]->SetTranslation(pos);
+            wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + tileSize, z * tileSize });
             wallObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
-        }
-        // 階段
-        else {
-            Vector3 pos = { x * tileSize, levelData_.baseY + 2.5f, z * tileSize };
-            wallObjects_[z][x]->SetTranslation(pos);
+        } else {
+            wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + 2.5f, z * tileSize });
             wallObjects_[z][x]->SetScale({ 1.0f, 2.0f, 1.0f });
         }
-
-        wallObjects_[z][x]->Update();
+        wallObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
+        return;
     }
+
+    floorObjects_[z][x].reset();
+    wallObjects_[z][x].reset();
 }
+
 
 // 階段配置＋座標取得
 std::pair<int, int> MapManager::PlaceStairsTileRandomAndGetTile(const Vector3& avoidWorldPos, float avoidDistance) {
