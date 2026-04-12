@@ -263,26 +263,45 @@ Vector3 DungeonGenerator::GetRandomRoomWorldPosition(const LevelData& levelData,
 	std::uniform_int_distribution<int> roomDist(0, static_cast<int>(rooms_.size()) - 1);
 	const Room& room = rooms_[roomDist(randomEngine_)];
 
+	std::vector<std::pair<int, int>> candidates;
+
 	int minX = room.x + 1;
 	int maxX = room.x + room.width - 2;
 	int minZ = room.z + 1;
 	int maxZ = room.z + room.height - 2;
 
-	// 小部屋対策
-	if (minX > maxX) {
-		minX = room.x;
-		maxX = room.x + room.width - 1;
-	}
-	if (minZ > maxZ) {
-		minZ = room.z;
-		maxZ = room.z + room.height - 1;
+	for (int z = minZ; z <= maxZ; ++z) {
+		for (int x = minX; x <= maxX; ++x) {
+			if (x < 0 || x >= levelData.width || z < 0 || z >= levelData.height) {
+				continue;
+			}
+
+			if (levelData.tiles[z][x] == 0) {
+				candidates.push_back({ x, z });
+			}
+		}
 	}
 
-	std::uniform_int_distribution<int> xDist(minX, maxX);
-	std::uniform_int_distribution<int> zDist(minZ, maxZ);
+	if (candidates.empty()) {
+		for (int z = room.z; z < room.z + room.height; ++z) {
+			for (int x = room.x; x < room.x + room.width; ++x) {
+				if (x < 0 || x >= levelData.width || z < 0 || z >= levelData.height) {
+					continue;
+				}
 
-	int tileX = xDist(randomEngine_);
-	int tileZ = zDist(randomEngine_);
+				if (levelData.tiles[z][x] == 0) {
+					candidates.push_back({ x, z });
+				}
+			}
+		}
+	}
+
+	if (candidates.empty()) {
+		return { 0.0f, levelData.baseY + 1.0f + y, 0.0f };
+	}
+
+	std::uniform_int_distribution<int> dist(0, static_cast<int>(candidates.size()) - 1);
+	auto [tileX, tileZ] = candidates[dist(randomEngine_)];
 
 	Vector3 worldPos;
 	worldPos.x = tileX * levelData.tileSize;
