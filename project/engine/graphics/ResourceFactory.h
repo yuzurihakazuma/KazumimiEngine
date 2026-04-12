@@ -26,6 +26,11 @@ public:
 	/// 指定された幅・高さ・フォーマットのテクスチャリソース（Default Heap）を生成する
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateRenderTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, const Vector4& clearColor);
 
+	/// <summary>
+	/// 指定されたバイトサイズのバッファリソース（Default Heap）を生成する
+	// UAV バッファは、GPU から書き込み可能なバッファで、Compute Shader や Pixel Shader などで使用されることが多いです。
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVBuffer(size_t sizeInBytes);
+
 
 
     // -------------------- デバイス設定 --------------------

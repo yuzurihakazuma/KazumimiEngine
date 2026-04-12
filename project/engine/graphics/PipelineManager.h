@@ -34,6 +34,12 @@ public:
 	void SetPostEffectPipeline(ID3D12GraphicsCommandList* commandList, PostEffectType effectType);
 
 
+	// Computeパイプラインをセット
+	void SetGPUParticleComputePipeline(ID3D12GraphicsCommandList* commandList);
+	// Draw用パイプラインをセット
+	void SetGPUParticleDrawPipeline(ID3D12GraphicsCommandList* commandList);
+
+
 private:
 	PipelineManager() = default;
 
@@ -59,6 +65,12 @@ private:
 	void CreateSkinningObject3DRootSignature();
 	void CreateSkinningObject3DGraphicsPipeline();
 
+	// GPUパーティクル用の初期化関数
+	void CreateGPUParticleComputeRootSignature();
+	
+	void CreateGPUParticleComputePipeline();
+	void CreateGPUParticleDrawRootSignature();
+	void CreateGPUParticleDrawGraphicsPipeline();
 
 
 	// 汎用グラフィックスパイプライン生成
@@ -107,6 +119,14 @@ private:
 
 	// ポストエフェクトの種類ごとのパイプラインステートを格納する配列
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineStates_[10];
+
+
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> gpuParticleComputeRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState>  gpuParticleComputePipelineState_;
+
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> gpuParticleDrawRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState>  gpuParticleDrawPipelineState_;
+
 
 
 };

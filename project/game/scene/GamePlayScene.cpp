@@ -29,6 +29,7 @@
 #include "engine/3d/model/Model.h"
 #include "engine/utils/EditorManager.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
+#include "engine/particle/GPUParticleManager.h"
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -122,12 +123,16 @@ void GamePlayScene::Initialize(){
 
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	
+
 	
 	//blockGroup_ = std::make_unique<InstancedGroup>();
 	//blockGroup_->Initialize("block", 10000); // 最大1万個まで対応！
 	//blockGroup_->SetNoiseTexture(textures_["noise0"].srvIndex);
 
 	
+	  // GPUパーティクル初期化 (テクスチャを指定する)
+	GPUParticleManager::GetInstance()->Initialize(
+		dxCommon, SrvManager::GetInstance(), "resources/circle.png");
 
 
 }
@@ -194,6 +199,21 @@ void GamePlayScene::Update(){
 	for (auto& block : blocks_) {
 		block->Update();
 	}
+
+	// GPUパーティクル更新
+	GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+
+	// Pキーで発生テスト
+	if (input->Triggerkey(DIK_G)) {
+		GPUParticleManager::GetInstance()->Emit(
+			{ 0.0f, 0.0f, 0.0f },   // 位置
+			{ 0.0f, 0.05f, 0.0f },  // 速度
+			2.0f,                  // 寿命(秒)
+			0.3f,                  // サイズ
+			{ 1.0f, 0.5f, 0.0f, 1.0f } // 色(オレンジ)
+		);
+	}
+
 	//// InstancedGroup に「最新のデータをお願い！」と渡すだけ
 	//if (blockGroup_) {
 	//	blockGroup_->Update(blocks_);
@@ -204,6 +224,10 @@ void GamePlayScene::Update(){
 void GamePlayScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = dxCommon->GetCommandList();
+
+	// GPUパーティクルの描画準備（DispatchでComputeシェーダーを実行して、描画に必要なデータをGPU側で更新してもらう）
+	GPUParticleManager::GetInstance()->Dispatch(commandList);
+
 
 	// 1. 【MRT開始】キャンバスを2枚(色用とマスク用)セットする！
 	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
@@ -232,6 +256,9 @@ void GamePlayScene::Draw(){
 	// --- パーティクル描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
+
+	// --- GPUパーティクル描画 ---
+	GPUParticleManager::GetInstance()->Draw(commandList);
 
 
 	// 2. 【MRT終了】3Dの描画が終わったので、2枚のキャンバスを読み込みモードに戻す
@@ -327,7 +354,8 @@ void GamePlayScene::Finalize(){
 	
 
 	object3ds_.clear();
-	
+	GPUParticleManager::GetInstance()->Finalize();
+
 	textures_.clear();
 	depthStencilResource_.Reset();
 }

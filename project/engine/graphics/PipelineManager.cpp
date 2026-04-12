@@ -28,9 +28,14 @@ void PipelineManager::Finalize(){
 	// ポストエフェクト用のリソースも忘れずに解放
 	postEffectPipelineState_.Reset();
 	postEffectRootSignature_.Reset();
-	
+	// スキニングメッシュ用のリソースも忘れずに解放
 	skinningObject3DRootSignature_.Reset();
 	skinningObject3DPipelineState_.Reset();
+	// GPUパーティクル用のリソースも忘れずに解放
+	gpuParticleComputeRootSignature_.Reset();
+	gpuParticleComputePipelineState_.Reset();
+	gpuParticleDrawRootSignature_.Reset();
+	gpuParticleDrawPipelineState_.Reset();
 
 	// ポストエフェクトの種類ごとのパイプラインステートも忘れずに解放
 	for (int i = 0; i < 10; ++i) {
@@ -79,6 +84,14 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateSkinningObject3DRootSignature();
 	// スキニングメッシュ用グラフィックスパイプラインの作成
 	CreateSkinningObject3DGraphicsPipeline();
+
+	// GPUパーティクル用のルートシグネチャとパイプラインの作成
+	CreateGPUParticleComputeRootSignature();
+	CreateGPUParticleComputePipeline();
+
+	// Draw用のルートシグネチャとパイプラインの作成
+	CreateGPUParticleDrawRootSignature();
+	CreateGPUParticleDrawGraphicsPipeline();
 
 }
 
@@ -346,7 +359,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 	}
 }
 
-
+// ルートシグネチャの生成 スキニングメッシュ用
 void PipelineManager::CreateSkinningObject3DRootSignature() {
 	RootSignatureBuilder builder;
 	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
@@ -363,6 +376,7 @@ void PipelineManager::CreateSkinningObject3DRootSignature() {
 	builder.Build(dxCommon_->GetDevice(), skinningObject3DRootSignature_);
 }
 
+// グラフィックスパイプラインの生成 スキニングメッシュ用
 void PipelineManager::CreateSkinningObject3DGraphicsPipeline() {
 	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(
 		L"resources/shaders/Object3d/SkinningObject3d.VS.hlsl", L"vs_6_0");
@@ -388,6 +402,68 @@ void PipelineManager::CreateSkinningObject3DGraphicsPipeline() {
 		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB });
 
 	builder.Build(dxCommon_->GetDevice(), skinningObject3DPipelineState_);
+}
+
+// ルートシグネチャの生成 GPUパーティクル用 Computeシェーダー用
+void PipelineManager::CreateGPUParticleComputeRootSignature(){
+	RootSignatureBuilder builder;
+	builder.AddDescriptorTableUAV(0);                          // [0]: u0 (RWStructuredBuffer)
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_ALL);            // [1]: b0 (deltaTime等)
+	builder.BuildForCompute(dxCommon_->GetDevice(), gpuParticleComputeRootSignature_);
+}
+
+// グラフィックスパイプラインの生成 GPUパーティクル用 Computeシェーダー用
+void PipelineManager::CreateGPUParticleComputePipeline(){
+	auto csBlob = dxCommon_->GetShaderCompiler().CompileShader(
+		L"resources/shaders/Particle/ParticleUpdate.CS.hlsl", L"cs_6_0");
+	assert(csBlob);
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = gpuParticleComputeRootSignature_.Get();
+	psoDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
+
+	HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
+		&psoDesc, IID_PPV_ARGS(&gpuParticleComputePipelineState_));
+	assert(SUCCEEDED(hr));
+}
+
+// ルートシグネチャの生成 GPUパーティクル用 Drawシェーダー用
+void PipelineManager::CreateGPUParticleDrawRootSignature(){
+	RootSignatureBuilder builder;
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                 // [0]: マテリアル (b0)
+	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_VERTEX); // [1]: パーティクルデータ (t1)
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL);  // [2]: テクスチャ (t0)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                 // [3]: ライト (b1)
+	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_VERTEX);                // [4]: カメラ行列 (b1 VERTEX)
+	builder.AddDefaultSampler(0);
+	builder.Build(dxCommon_->GetDevice(), gpuParticleDrawRootSignature_);
+}
+
+// グラフィックスパイプラインの生成 GPUパーティクル用 Drawシェーダー用
+void PipelineManager::CreateGPUParticleDrawGraphicsPipeline(){
+	CreateGraphicsPipelineCommon(
+		L"resources/shaders/Particle/GPUParticle.VS.hlsl",
+		L"resources/shaders/Particle/Particle.PS.hlsl",
+		gpuParticleDrawRootSignature_.Get(),
+		BlendMode::kAdd,
+		D3D12_CULL_MODE_NONE,
+		false,
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
+		gpuParticleDrawPipelineState_
+	);
+}
+
+// GPUパーティクル用のComputeシェーダーパイプラインをコマンドリストにセットする関数
+void PipelineManager::SetGPUParticleComputePipeline(ID3D12GraphicsCommandList* commandList){
+	commandList->SetComputeRootSignature(gpuParticleComputeRootSignature_.Get());
+	commandList->SetPipelineState(gpuParticleComputePipelineState_.Get());
+}
+
+// GPUパーティクル用のDrawシェーダーパイプラインをコマンドリストにセットする関数
+void PipelineManager::SetGPUParticleDrawPipeline(ID3D12GraphicsCommandList* commandList){
+	commandList->SetGraphicsRootSignature(gpuParticleDrawRootSignature_.Get());
+	commandList->SetPipelineState(gpuParticleDrawPipelineState_.Get());
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 
