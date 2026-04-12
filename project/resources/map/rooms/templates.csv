@@ -1,3 +1,4 @@
 id,name,spanX,spanZ,file,weight
-1,small_square,1,1,resources/map/rooms/smallRoom.csv,8
-2,big_hall,2,2,resources/map/rooms/bigRoom.csv,2
+1,small_square,1,1,resources/map/rooms/smallRoom.csv,50
+2,big_hall,2,2,resources/map/rooms/bigRoom.csv,20
+3,small_square,1,1,resources/map/rooms/smallRoom1.csv,30

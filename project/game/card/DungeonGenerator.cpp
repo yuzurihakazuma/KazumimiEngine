@@ -42,10 +42,13 @@ void DungeonGenerator::CarveHorizontalCorridor(LevelData& levelData, int x1, int
 				continue;
 			}
 
-			levelData.tiles[zz][x] = 0;
+			if (levelData.tiles[zz][x] == 1) {
+				levelData.tiles[zz][x] = 0;
+			}
 		}
 	}
 }
+
 
 void DungeonGenerator::CarveVerticalCorridor(LevelData& levelData, int z1, int z2, int x, int width) {
 	if (z1 > z2) {
@@ -60,10 +63,13 @@ void DungeonGenerator::CarveVerticalCorridor(LevelData& levelData, int z1, int z
 				continue;
 			}
 
-			levelData.tiles[z][xx] = 0;
+			if (levelData.tiles[z][xx] == 1) {
+				levelData.tiles[z][xx] = 0;
+			}
 		}
 	}
 }
+
 
 Vector2 DungeonGenerator::GetRoomCenter(const Room& room) const {
 	Vector2 center{};
@@ -241,7 +247,7 @@ void DungeonGenerator::Generate(LevelData& levelData, int roomCount) {
 	ConnectAllRooms(levelData, 2);
 
 	// 少しだけ余分な接続を足してポケダンっぽい枝や交差を増やす
-	AddExtraConnections(levelData, 2, 0);
+	AddExtraConnections(levelData, 2, 1);
 }
 
 void DungeonGenerator::GenerateRooms(LevelData& levelData, int roomCount) {
@@ -388,16 +394,6 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 		templates.push_back(&roomTemplate);
 	}
 
-	std::sort(templates.begin(), templates.end(),
-		[](const RoomTemplate* a, const RoomTemplate* b) {
-			const int areaA = a->spanX * a->spanZ;
-			const int areaB = b->spanX * b->spanZ;
-			if (areaA != areaB) {
-				return areaA > areaB;
-			}
-			return a->weight > b->weight;
-		});
-
 	if (templates.empty()) {
 		return false;
 	}
@@ -412,20 +408,27 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 
 		bool placed = false;
 
-		for (const RoomTemplate* roomTemplate : templates) {
-			std::vector<std::pair<int, int>> positions;
-			for (int gz = 0; gz < gridRows; ++gz) {
-				for (int gx = 0; gx < gridCols; ++gx) {
-					positions.push_back({ gx, gz });
-				}
+		std::vector<std::pair<int, int>> positions;
+		for (int gz = 0; gz < gridRows; ++gz) {
+			for (int gx = 0; gx < gridCols; ++gx) {
+				positions.push_back({ gx, gz });
 			}
+		}
 
-			std::shuffle(positions.begin(), positions.end(), randomEngine_);
+		std::shuffle(positions.begin(), positions.end(), randomEngine_);
 
-			for (const auto& position : positions) {
-				int startGX = position.first;
-				int startGZ = position.second;
+		for (const auto& position : positions) {
+			int startGX = position.first;
+			int startGZ = position.second;
 
+			struct Candidate {
+				const RoomTemplate* roomTemplate;
+				GridRect area;
+			};
+
+			std::vector<Candidate> candidates;
+
+			for (const RoomTemplate* roomTemplate : templates) {
 				if (!CanPlaceTemplate(occupied, startGX, startGZ, *roomTemplate, gridCols, gridRows)) {
 					continue;
 				}
@@ -453,21 +456,48 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 					continue;
 				}
 
-				rooms_.push_back(PlaceTemplateRoom(levelData, *roomTemplate, area));
+				candidates.push_back({ roomTemplate, area });
+			}
 
-				for (int gz = startGZ; gz < startGZ + roomTemplate->spanZ; ++gz) {
-					for (int gx = startGX; gx < startGX + roomTemplate->spanX; ++gx) {
-						occupied[gz][gx] = true;
-					}
+			if (candidates.empty()) {
+				continue;
+			}
+
+			int totalWeight = 0;
+			for (const auto& candidate : candidates) {
+				totalWeight += std::clamp(candidate.roomTemplate->weight, 1, 100);
+			}
+
+			std::uniform_int_distribution<int> dist(1, totalWeight);
+			int roll = dist(randomEngine_);
+
+			const RoomTemplate* selectedTemplate = nullptr;
+			GridRect selectedArea{};
+
+			int accumulatedWeight = 0;
+			for (const auto& candidate : candidates) {
+				accumulatedWeight += std::clamp(candidate.roomTemplate->weight, 1, 100);
+				if (roll <= accumulatedWeight) {
+					selectedTemplate = candidate.roomTemplate;
+					selectedArea = candidate.area;
+					break;
 				}
-
-				placed = true;
-				break;
 			}
 
-			if (placed) {
-				break;
+			if (!selectedTemplate) {
+				continue;
 			}
+
+			rooms_.push_back(PlaceTemplateRoom(levelData, *selectedTemplate, selectedArea));
+
+			for (int gz = startGZ; gz < startGZ + selectedTemplate->spanZ; ++gz) {
+				for (int gx = startGX; gx < startGX + selectedTemplate->spanX; ++gx) {
+					occupied[gz][gx] = true;
+				}
+			}
+
+			placed = true;
+			break;
 		}
 
 		if (!placed) {
@@ -477,4 +507,3 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 
 	return !rooms_.empty();
 }
-
