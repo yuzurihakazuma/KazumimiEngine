@@ -303,6 +303,7 @@ void GPUParticleManager::Finalize(){
         cameraCBData_ = nullptr;
     }
 
+    initBuffer_.Reset();
     particleBuffer_.Reset();
     emitUploadBuffer_.Reset();
     updateCBResource_.Reset();

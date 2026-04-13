@@ -132,7 +132,7 @@ void GamePlayScene::Initialize(){
 	
 	  // GPUパーティクル初期化 (テクスチャを指定する)
 	GPUParticleManager::GetInstance()->Initialize(
-		dxCommon, SrvManager::GetInstance(), "resources/circle.png");
+		dxCommon, SrvManager::GetInstance(), "resources/uvChecker.png");
 
 
 }
@@ -203,7 +203,7 @@ void GamePlayScene::Update(){
 	// GPUパーティクル更新
 	GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
 
-	// Pキーで発生テスト
+	// Gキーで発生テスト
 	if (input->Triggerkey(DIK_G)) {
 		GPUParticleManager::GetInstance()->Emit(
 			{ 0.0f, 0.0f, 0.0f },   // 位置
