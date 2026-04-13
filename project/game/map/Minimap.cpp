@@ -330,3 +330,15 @@ void Minimap::Draw() {
 		playerSprite_->Draw();
 	}
 }
+
+void Minimap::RevealAllMap() {
+	for (Chunk& chunk : chunks_) {
+		chunk.discovered = true;
+	}
+}
+
+void Minimap::ResetDiscoveryMap() {
+	for (Chunk& chunk : chunks_) {
+		chunk.discovered = false;
+	}
+}

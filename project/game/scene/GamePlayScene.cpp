@@ -1176,6 +1176,21 @@ void GamePlayScene::DrawDebugUI() {
 	}
 
 	ImGui::Separator();
+	ImGui::Text("[Minimap Debug]");
+
+	if (minimap_ && ImGui::Button("Reveal Full Minimap")) {
+		minimap_->RevealAllMap();
+	}
+
+	if (minimap_) {
+		ImGui::SameLine();
+		if (ImGui::Button("Reset Minimap Discovery")) {
+			minimap_->ResetDiscoveryMap();
+		}
+	}
+
+
+	ImGui::Separator();
 	ImGui::Text("[Dungeon Floor]");
 
 	ImGui::Text("Current Floor: %d F", mapManager_ ? mapManager_->GetCurrentFloor() : 0);
@@ -1188,6 +1203,8 @@ void GamePlayScene::DrawDebugUI() {
 			[this]() { ResetBattleDebug(); }
 		); // ボタンを押したら次の階層へ
 	}
+
+
 
 	// 図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
 	ImGui::SameLine();

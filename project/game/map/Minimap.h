@@ -22,6 +22,9 @@ public:
 
 	void SetVisible(bool visible) { visible_ = visible; }
 
+	void RevealAllMap();
+	void ResetDiscoveryMap();
+
 private:
 	struct Chunk {
 		int startX = 0;
