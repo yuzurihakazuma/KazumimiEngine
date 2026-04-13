@@ -78,7 +78,7 @@ LevelUpResult LevelUpBonusManager::Update(PlayerManager *playerManager, HandMana
         }
 
         // 決定（スペースキー）
-        if (input->Triggerkey(DIK_RETURN)) {
+        if (input->Triggerkey(DIK_SPACE)) {
             // 選択されたボーナスを適用
             finalResult = ApplyBonus(handManager, currentSelectedChoice_);
 
