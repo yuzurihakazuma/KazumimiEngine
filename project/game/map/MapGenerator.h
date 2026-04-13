@@ -39,6 +39,7 @@ public:
 
     // 階段配置＋座標取得
     std::pair<int, int> PlaceStairsTileRandomAndGetTile(LevelData& levelData, const Vector3& avoidWorldPos, float avoidDistance = 6.0f);
+    const std::vector<DungeonGenerator::Room>& GetGeneratedRooms() const;
 
 private:
     // ダンジョン生成本体

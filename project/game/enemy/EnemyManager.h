@@ -41,6 +41,9 @@ public:
 	// 敵のリストを取得
 	const std::vector<std::unique_ptr<Enemy>> &GetEnemies() const { return enemies_; }
 
+	// 指定したワールド座標に敵をスポーンさせる
+	void SpawnEnemyAt(const Vector3& worldPos, Camera* camera);
+
 private:
 
 	// 敵のリスト

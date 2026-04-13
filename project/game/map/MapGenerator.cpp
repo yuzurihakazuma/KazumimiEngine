@@ -189,3 +189,11 @@ std::pair<int, int> MapGenerator::PlaceStairsTileRandomAndGetTile(LevelData& lev
 
     return { tileX, tileZ }; // 座標返す
 }
+
+const std::vector<DungeonGenerator::Room>& MapGenerator::GetGeneratedRooms() const {
+    static const std::vector<DungeonGenerator::Room> emptyRooms;
+    if (!dungeonGenerator_) {
+        return emptyRooms;
+    }
+    return dungeonGenerator_->GetRooms();
+}

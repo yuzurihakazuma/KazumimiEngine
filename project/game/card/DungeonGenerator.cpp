@@ -366,6 +366,14 @@ DungeonGenerator::Room DungeonGenerator::PlaceTemplateRoom(
 	room.z = offsetZ;
 	room.width = templateWidth;
 	room.height = templateHeight;
+
+	room.templateId = roomTemplate.id;
+	room.templateName = roomTemplate.name;
+	room.enemySpawnMax = roomTemplate.enemySpawnMax;
+	room.enemySpawnPercent = roomTemplate.enemySpawnPercent;
+	room.cardSpawnMax = roomTemplate.cardSpawnMax;
+	room.cardSpawnPercent = roomTemplate.cardSpawnPercent;
+
 	return room;
 }
 

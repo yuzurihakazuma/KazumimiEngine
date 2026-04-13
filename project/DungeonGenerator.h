@@ -8,11 +8,20 @@
 class DungeonGenerator {
 public:
 	struct Room {
-		int x;
-		int z;
-		int width;
-		int height;
+		int x = 0;
+		int z = 0;
+		int width = 0;
+		int height = 0;
+
+		int templateId = -1;
+		std::string templateName;
+
+		int enemySpawnMax = 0;
+		int enemySpawnPercent = 0;
+		int cardSpawnMax = 0;
+		int cardSpawnPercent = 0;
 	};
+
 
 	struct CorridorPoint {
 		int x;

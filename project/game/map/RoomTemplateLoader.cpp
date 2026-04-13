@@ -41,7 +41,7 @@ bool RoomTemplateLoader::LoadFromCsv(const std::string& filePath) {
         }
 
         std::vector<std::string> columns = SplitCsvLine(line);
-        if (columns.size() < 6) {
+        if (columns.size() < 10) {
             continue;
         }
 
@@ -52,6 +52,11 @@ bool RoomTemplateLoader::LoadFromCsv(const std::string& filePath) {
         roomTemplate.spanZ = std::max(1, std::stoi(columns[3]));
         roomTemplate.weight = std::max(1, std::stoi(columns[5]));
 
+        roomTemplate.enemySpawnMax = std::max(0, std::stoi(columns[6]));
+        roomTemplate.enemySpawnPercent = std::clamp(std::stoi(columns[7]), 0, 100);
+        roomTemplate.cardSpawnMax = std::max(0, std::stoi(columns[8]));
+        roomTemplate.cardSpawnPercent = std::clamp(std::stoi(columns[9]), 0, 100);
+
         if (!LoadTemplateTiles(columns[4], roomTemplate)) {
             continue;
         }
@@ -61,6 +66,7 @@ bool RoomTemplateLoader::LoadFromCsv(const std::string& filePath) {
 
     return !templates_.empty();
 }
+
 
 bool RoomTemplateLoader::LoadTemplateTiles(const std::string& filePath, RoomTemplate& roomTemplate) {
     std::ifstream file(filePath);

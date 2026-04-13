@@ -427,3 +427,30 @@ void EnemyManager::CheckCollisions(Player *player) {
 		}
 	}
 }
+
+// 指定したワールド座標に敵をスポーンさせる
+void EnemyManager::SpawnEnemyAt(const Vector3& worldPos, Camera* camera) {
+	auto enemy = std::make_unique<Enemy>();
+	enemy->Initialize();
+	enemy->SetPosition(worldPos);
+	enemy->SetScale({ 1.0f, 1.0f, 1.0f });
+
+	// 敵の見た目（3Dモデル）を生成
+	auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));
+	if (enemyObj) {
+		enemyObj->SetCamera(camera);
+		enemyObj->SetTranslation(worldPos);
+		enemyObj->SetScale({ 1.0f, 1.0f, 1.0f });
+		enemyObj->Update();
+	}
+
+	// 敵の魔法システムを生成
+	auto enemyCardSystem = std::make_unique<CardUseSystem>();
+	enemyCardSystem->Initialize(camera);
+
+	// リストに追加
+	enemies_.push_back(std::move(enemy));
+	enemyObjs_.push_back(std::move(enemyObj));
+	enemyDeadHandled_.push_back(false);
+	enemyCardSystems_.push_back(std::move(enemyCardSystem));
+}

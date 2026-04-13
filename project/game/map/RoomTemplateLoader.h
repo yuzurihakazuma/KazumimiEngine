@@ -10,8 +10,15 @@ struct RoomTemplate {
     int spanX = 1;
     int spanZ = 1;
     int weight = 1;
+
+    int enemySpawnMax = 0;
+    int enemySpawnPercent = 0;
+    int cardSpawnMax = 0;
+    int cardSpawnPercent = 0;
+
     std::vector<std::vector<int>> tiles;
 };
+
 
 class RoomTemplateLoader {
 public:

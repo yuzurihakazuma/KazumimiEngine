@@ -753,23 +753,53 @@ void MapManager::RegenerateDungeonAndRespawnPlayer(
     ClearEnemiesAndCards(enemyManager, cardPickupManager, camera);
 
     if (!IsBossMap() && enemyManager && spawnManager) {
-        enemyManager->SpawnEnemiesRandom(
-            enemySpawnCount,
-            enemySpawnMargin,
-            spawnManager,
-            this,
-            playerPos,
-            camera
-        );
+        if (!IsBossMap() && enemyManager && spawnManager) {
+            const auto& rooms = mapGenerator_->GetGeneratedRooms();
 
-        SpawnCardsRandom(
-            cardSpawnCount,
-            cardSpawnMargin,
-            spawnManager,
-            cardPickupManager,
-            enemyManager,
-            camera
-        );
+            std::random_device rd;
+            std::mt19937 mt(rd());
+
+            for (const auto& room : rooms) {
+                auto roomTilesForEnemy = GetSpawnTilesInRoom(room, enemySpawnMargin);
+                auto roomTilesForCard = GetSpawnTilesInRoom(room, cardSpawnMargin);
+
+                if (room.enemySpawnMax > 0 && room.enemySpawnPercent > 0 && !roomTilesForEnemy.empty()) {
+                    std::uniform_int_distribution<int> percentDist(1, 100);
+                    if (percentDist(mt) <= room.enemySpawnPercent) {
+                        std::shuffle(roomTilesForEnemy.begin(), roomTilesForEnemy.end(), mt);
+
+                        int spawnCount = std::min(room.enemySpawnMax, static_cast<int>(roomTilesForEnemy.size()));
+                        for (int i = 0; i < spawnCount; ++i) {
+                            int tileX = roomTilesForEnemy[i].first;
+                            int tileZ = roomTilesForEnemy[i].second;
+
+                            Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
+                            enemyManager->SpawnEnemyAt(worldPos, camera);
+                        }
+                    }
+                }
+
+                if (room.cardSpawnMax > 0 && room.cardSpawnPercent > 0 && !roomTilesForCard.empty()) {
+                    std::uniform_int_distribution<int> percentDist(1, 100);
+                    if (percentDist(mt) <= room.cardSpawnPercent) {
+                        std::shuffle(roomTilesForCard.begin(), roomTilesForCard.end(), mt);
+
+                        int spawnCount = std::min(room.cardSpawnMax, static_cast<int>(roomTilesForCard.size()));
+                        for (int i = 0; i < spawnCount; ++i) {
+                            int tileX = roomTilesForCard[i].first;
+                            int tileZ = roomTilesForCard[i].second;
+
+                            Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
+                            worldPos.y = -0.99f;
+
+                            Card dropCard = CardDatabase::GetRandomPlayerCard();
+                            cardPickupManager->AddPickup(worldPos, dropCard);
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     RespawnBossInRoom(bossManager);
@@ -798,4 +828,55 @@ void MapManager::UpdateMinimap(
 
     minimap->SetCardPositions(cardPositions);
     minimap->Update();
+}
+
+std::vector<std::pair<int, int>> MapManager::GetSpawnTilesInRoom(
+    const DungeonGenerator::Room& room,
+    int margin
+) const {
+    std::vector<std::pair<int, int>> result;
+
+    const LevelData& level = GetLevelData();
+
+    for (int z = room.z + 1; z < room.z + room.height - 1; ++z) {
+        for (int x = room.x + 1; x < room.x + room.width - 1; ++x) {
+            if (x < 0 || x >= level.width || z < 0 || z >= level.height) {
+                continue;
+            }
+
+            if (level.tiles[z][x] != 0) {
+                continue;
+            }
+
+            bool ok = true;
+            for (int dz = -margin; dz <= margin && ok; ++dz) {
+                for (int dx = -margin; dx <= margin; ++dx) {
+                    int cx = x + dx;
+                    int cz = z + dz;
+
+                    if (cx < 0 || cx >= level.width || cz < 0 || cz >= level.height) {
+                        ok = false;
+                        break;
+                    }
+
+                    if (level.tiles[cz][cx] != 0) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!ok) {
+                continue;
+            }
+
+            if (IsNearStairsTile(x, z)) {
+                continue;
+            }
+
+            result.push_back({ x, z });
+        }
+    }
+
+    return result;
 }
