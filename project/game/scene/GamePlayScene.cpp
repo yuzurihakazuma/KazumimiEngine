@@ -165,6 +165,7 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("CardDecoy", "resources/card", "CardDecoy.obj");
 	ModelManager::GetInstance()->LoadModel("CardAtkDown", "resources/card", "CardAtkDown.obj");
 	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
+	ModelManager::GetInstance()->LoadModel("CardScanner", "resources/card", "MapOpen.obj");
 
 	// CSVからカードデータベースを初期化
 	CardDatabase::Initialize("resources/card/CardData.csv");
@@ -188,6 +189,11 @@ void GamePlayScene::Initialize() {
 	// 初期ロード時のマップ変更通知を消す
 	if (mapManager_) {
 		mapManager_->ConsumeMapChanged();
+	}
+
+	// ★追加：カードシステムにミニマップを教える
+	if (playerCardSystem_ && minimap_) {
+		playerCardSystem_->SetMinimap(minimap_.get());
 	}
 
 	TextManager::GetInstance()->Initialize();
@@ -1230,8 +1236,8 @@ void GamePlayScene::DrawDebugUI() {
 		handManager_.AddCard(CardDatabase::GetCardData(8));
 	}
 
-	if (ImGui::Button("Pick Up (ID: 10)")) {
-		handManager_.AddCard(CardDatabase::GetCardData(10));
+	if (ImGui::Button("Pick Up (ID: 11)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(11));
 	}
 
 	ImGui::Separator();

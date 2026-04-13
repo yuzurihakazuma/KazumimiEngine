@@ -9,6 +9,7 @@
 #include "engine/collision/Collision.h"
 #include "game/card/ICardEffect.h"
 
+
 // 前方宣言
 class Camera;
 class Obj3d;
@@ -16,6 +17,7 @@ class Player;
 class Enemy;
 class Boss;
 class EnemyManager;
+class Minimap;
 
 // カード使用システム
 class CardUseSystem {
@@ -35,6 +37,9 @@ public:
 
 	// カード使用（ここでは即発動ではなく詠唱開始）
 	void UseCard(const Card& card, const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Player* player = nullptr);
+
+	// ★追加：ミニマップを外部（Scene）から受け取るための関数
+	void SetMinimap(Minimap *minimap) { minimap_ = minimap; }
 
 	// リセット
 	void Reset();
@@ -71,7 +76,8 @@ private:
 	static constexpr int kCommonCastTime_ = 20;
 
 	
-
+	// 受け取ったミニマップを保持しておく変数
+	Minimap *minimap_ = nullptr;
 
 	// カメラを保存しておくための変数
 	Camera *camera_ = nullptr;

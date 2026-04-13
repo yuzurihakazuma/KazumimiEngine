@@ -269,6 +269,9 @@
     <ClCompile Include="engine\utils\AnimationEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\card\MapOpen.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -292,7 +295,6 @@
     <ClCompile Include="game\card\CardDatabase.cpp" />
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\card\CardPickupManager.cpp" />
-    <ClCompile Include="engine\3d\Animation.cpp" />
     <ClCompile Include="engine\collision\Collision.cpp" />
     <ClCompile Include="engine\3d\model\Model.cpp" />
     <ClCompile Include="engine\3d\model\ModelCommon.cpp" />
@@ -555,7 +557,6 @@
     <ClInclude Include="game\enemy\Enemy.h" />
     <ClInclude Include="game\card\CardPickupManager.h" />
     <ClInclude Include="game\card\CardPickup.h" />
-    <ClInclude Include="engine\3d\Animation.h" />
     <ClInclude Include="engine\collision\Collision.h" />
     <ClInclude Include="engine\3d\model\Model.h" />
     <ClInclude Include="engine\3d\model\ModelCommon.h" />
@@ -674,6 +675,9 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\utils\AnimationEditor.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\card\MapOpen.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
