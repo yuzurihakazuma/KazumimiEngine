@@ -154,6 +154,8 @@ void Enemy::DecideNextState() {
     };
 
     float playerDist = Length(toPlayer); // プレイヤーとの距離
+    float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
+    float exitRange = useRange + 1.5f; // 射程から少し離れたら追跡に戻す
 
     // 詰まっていたら一旦巡回に戻して方向転換
     if (IsStuck()) {
@@ -171,7 +173,7 @@ void Enemy::DecideNextState() {
         if (state_ == State::UseCard) {
             if (playerDist < retreatEnterRange_) {
                 state_ = State::Retreat;
-            } else if (playerDist > cardUseExitRange_) {
+            } else if (playerDist > exitRange) {
                 state_ = State::ChasePlayer;
             }
             return;
@@ -186,7 +188,7 @@ void Enemy::DecideNextState() {
 
         if (playerDist < retreatEnterRange_) {
             state_ = State::Retreat;
-        } else if (playerDist <= cardUseEnterRange_) {
+        } else if (playerDist <= useRange) {
             state_ = State::UseCard;
         } else if (playerDist <= chaseRange_) {
             state_ = State::ChasePlayer;
@@ -197,10 +199,10 @@ void Enemy::DecideNextState() {
         return;
     }
 
-    // 拾ったカードを持っていない場合は、近くのカードを優先して拾いに行く
+    // 拾ったカードを持っていない場合
     if (hasTargetCard_) {
         state_ = State::MoveToCard;
-    } else if (playerDist <= cardUseEnterRange_) {
+    } else if (playerDist <= useRange) {
         state_ = State::UseCard;
     } else if (playerDist <= chaseRange_) {
         state_ = State::ChasePlayer;
@@ -264,9 +266,10 @@ void Enemy::UpdateUseCard() {
     };
 
     float dist = Length(dir); // プレイヤーとの距離
+    float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
 
-    // 十分離れたら追跡へ戻す
-    if (dist > cardUseExitRange_) {
+    // 射程外なら撃たずに追跡へ戻す
+    if (dist > useRange + 1.5f) {
         state_ = State::ChasePlayer;
         thinkTimer_ = 0;
         isCasting_ = false;
@@ -286,7 +289,16 @@ void Enemy::UpdateUseCard() {
         return;
     }
 
-    // 詠唱中はその場で止まる
+    // 詠唱中に射程外になったら中断
+    if (dist > useRange) {
+        state_ = State::ChasePlayer;
+        thinkTimer_ = 0;
+        isCasting_ = false;
+        castTimer_ = 0;
+        return;
+    }
+
+    // 詠唱中
     if (castTimer_ > 0) {
         castTimer_--;
         return;
@@ -303,12 +315,12 @@ void Enemy::UpdateUseCard() {
 
     // 今回使うカードを決定
     if (usedPickupCard) {
-        currentUseCard_ = pickupCard_; // 拾ったカード優先
+        currentUseCard_ = pickupCard_;
     } else {
-        currentUseCard_ = baseCard_;   // なければパンチカード
+        currentUseCard_ = baseCard_;
     }
 
-    // カード使用発生
+    // カード使用
     cardUseRequest_ = true;
     cardCooldownTimer_ = cardCooldown_;
 
@@ -408,4 +420,16 @@ bool Enemy::IsVisible() const {
     if (!isHit_) return true; // 通常時は常に表示
 
     return (hitTimer_ % 2) == 0; // ヒット中は1フレームおきに表示
+}
+
+float Enemy::GetUseRangeForCurrentCard() const {
+    const Card& card = hasPickupCard_ ? pickupCard_ : baseCard_;
+
+    // パンチは近接距離
+    if (card.id == 1) {
+        return 1.8f;
+    }
+
+    // それ以外はいったん共通距離
+    return cardUseEnterRange_;
 }

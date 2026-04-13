@@ -83,6 +83,8 @@ private:
     void DecideNextState();     // 次の状態を決める
     bool IsStuck() const;       // 詰まり判定
 
+	float GetUseRangeForCurrentCard() const; // 現在のカードに応じた使用範囲を取得
+
     void UpdatePatrol();        // 巡回処理
     void UpdateMoveToCard();    // カードへ向かう処理
     void UpdateChasePlayer();   // プレイヤー追跡処理

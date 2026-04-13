@@ -201,29 +201,27 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 }
 
 
-void EnemyManager::Draw(Camera *camera, Minimap *minimap) {
+void EnemyManager::Draw(Camera* camera, Minimap* minimap) {
 	std::vector<Vector3> enemyPositions;
 
-	// 1. 敵の見た目（3Dモデル）の描画 ＆ ミニマップ用の座標集め
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		if (enemies_[i] && !enemies_[i]->IsDead()) {
-			// 生きている敵だけモデルを描画する
-			if (enemyObjs_[i]) {
-				enemyObjs_[i]->Draw(); // ※引数が必要な場合は camera を渡す
+
+			// 点滅中は表示するフレームだけ描画
+			if (enemyObjs_[i] && enemies_[i]->IsVisible()) {
+				enemyObjs_[i]->Draw();
 			}
-			// ミニマップ用の座標を保存
+
 			enemyPositions.push_back(enemies_[i]->GetPosition());
 		}
 	}
 
-	// 2. 魔法（カード効果）の描画
-	for (auto &cardSystem : enemyCardSystems_) {
+	for (auto& cardSystem : enemyCardSystems_) {
 		if (cardSystem) {
 			cardSystem->Draw();
 		}
 	}
 
-	// 3. ミニマップへ座標を渡す
 	if (minimap) {
 		minimap->SetEnemyPositions(enemyPositions);
 	}
@@ -400,30 +398,192 @@ void EnemyManager::Clear() {
 	enemyDeadHandled_.clear();
 }
 
-void EnemyManager::CheckCollisions(Player *player) {
-	if (!player || player->IsDead()) {
+void EnemyManager::CheckCollisions(Player* player, MapManager* mapManager) {
+	if (!player || player->IsDead() || !mapManager) {
 		return;
 	}
 
-	// 1. プレイヤーの当たり判定
-	Vector3 pPos = player->GetPosition();
-	AABB playerAABB;
-	playerAABB.min = { pPos.x - 0.5f, pPos.y - 0.5f, pPos.z - 0.5f };
-	playerAABB.max = { pPos.x + 0.5f, pPos.y + 0.5f, pPos.z + 0.5f };
+	const LevelData& level = mapManager->GetLevelData();
 
-	// 2. 敵との接触判定
-	for (auto &enemy : enemies_) {
-		if (!enemy || enemy->IsDead()) continue;
+	const float playerRadius = 0.6f;
+	const float enemyRadius = 0.6f;
 
-		Vector3 ePos = enemy->GetPosition();
+	// 指定位置の敵が壁に当たるか
+	auto IsEnemyHitWall = [&](const Vector3& pos) -> bool {
 		AABB enemyAABB;
-		enemyAABB.min = { ePos.x - 0.5f, ePos.y - 0.5f, ePos.z - 0.5f };
-		enemyAABB.max = { ePos.x + 0.5f, ePos.y + 0.5f, ePos.z + 0.5f };
+		enemyAABB.min = { pos.x - 0.5f, pos.y - 0.5f, pos.z - 0.5f };
+		enemyAABB.max = { pos.x + 0.5f, pos.y + 0.5f, pos.z + 0.5f };
 
-		// 体と体がぶつかったら
-		if (Collision::IsCollision(enemyAABB, playerAABB)) {
-			// 例：プレイヤーに接触ダメージ（必要であれば）
-			// player->TakeDamage(1);
+		int gridX = static_cast<int>(std::round(pos.x / level.tileSize));
+		int gridZ = static_cast<int>(std::round(pos.z / level.tileSize));
+		int startX = (std::max)(0, gridX - 1);
+		int endX = (std::min)(level.width - 1, gridX + 1);
+		int startZ = (std::max)(0, gridZ - 1);
+		int endZ = (std::min)(level.height - 1, gridZ + 1);
+
+		for (int z = startZ; z <= endZ; z++) {
+			for (int x = startX; x <= endX; x++) {
+				if (level.tiles[z][x] != 1) {
+					continue;
+				}
+
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				if (Collision::IsCollision(enemyAABB, blockAABB)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+		};
+
+	// 指定位置のプレイヤーが壁に当たるか
+	auto IsPlayerHitWall = [&](const Vector3& pos) -> bool {
+		AABB playerAABB;
+		playerAABB.min = { pos.x - 0.5f, pos.y - 0.5f, pos.z - 0.5f };
+		playerAABB.max = { pos.x + 0.5f, pos.y + 0.5f, pos.z + 0.5f };
+
+		int gridX = static_cast<int>(std::round(pos.x / level.tileSize));
+		int gridZ = static_cast<int>(std::round(pos.z / level.tileSize));
+		int startX = (std::max)(0, gridX - 1);
+		int endX = (std::min)(level.width - 1, gridX + 1);
+		int startZ = (std::max)(0, gridZ - 1);
+		int endZ = (std::min)(level.height - 1, gridZ + 1);
+
+		for (int z = startZ; z <= endZ; z++) {
+			for (int x = startX; x <= endX; x++) {
+				if (level.tiles[z][x] != 1) {
+					continue;
+				}
+
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				if (Collision::IsCollision(playerAABB, blockAABB)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+		};
+
+	Vector3 playerPos = player->GetPosition();
+
+	// プレイヤーと敵の押し出し
+	for (auto& enemy : enemies_) {
+		if (!enemy || enemy->IsDead()) {
+			continue;
+		}
+
+		Vector3 enemyPos = enemy->GetPosition();
+
+		Vector3 diff = {
+			enemyPos.x - playerPos.x,
+			0.0f,
+			enemyPos.z - playerPos.z
+		};
+
+		float dist = Length(diff);
+		float pushRange = playerRadius + enemyRadius;
+
+		if (dist > 0.001f && dist < pushRange) {
+			Vector3 pushDir = Normalize(diff);
+			float pushAmount = pushRange - dist;
+
+			Vector3 newPlayerPos = playerPos;
+			Vector3 newEnemyPos = enemyPos;
+
+			newPlayerPos.x -= pushDir.x * (pushAmount * 0.5f);
+			newPlayerPos.z -= pushDir.z * (pushAmount * 0.5f);
+
+			newEnemyPos.x += pushDir.x * (pushAmount * 0.5f);
+			newEnemyPos.z += pushDir.z * (pushAmount * 0.5f);
+
+			bool playerHitWall = IsPlayerHitWall(newPlayerPos);
+			bool enemyHitWall = IsEnemyHitWall(newEnemyPos);
+
+			// 両方とも壁に当たらない時だけ反映
+			if (!playerHitWall && !enemyHitWall) {
+				playerPos = newPlayerPos;
+				enemy->SetPositionOnly(newEnemyPos);
+			}
+			// プレイヤーだけ安全ならプレイヤーだけ動かす
+			else if (!playerHitWall && enemyHitWall) {
+				playerPos = newPlayerPos;
+			}
+			// 敵だけ安全なら敵だけ動かす
+			else if (playerHitWall && !enemyHitWall) {
+				enemy->SetPositionOnly(newEnemyPos);
+			}
+		}
+	}
+
+	player->SetPosition(playerPos);
+
+	// 敵同士の押し出し
+	for (size_t i = 0; i < enemies_.size(); ++i) {
+		if (!enemies_[i] || enemies_[i]->IsDead()) {
+			continue;
+		}
+
+		for (size_t j = i + 1; j < enemies_.size(); ++j) {
+			if (!enemies_[j] || enemies_[j]->IsDead()) {
+				continue;
+			}
+
+			Vector3 posA = enemies_[i]->GetPosition();
+			Vector3 posB = enemies_[j]->GetPosition();
+
+			Vector3 diff = {
+				posB.x - posA.x,
+				0.0f,
+				posB.z - posA.z
+			};
+
+			float dist = Length(diff);
+			float pushRange = enemyRadius + enemyRadius;
+
+			if (dist > 0.001f && dist < pushRange) {
+				Vector3 pushDir = Normalize(diff);
+				float pushAmount = pushRange - dist;
+
+				Vector3 newPosA = posA;
+				Vector3 newPosB = posB;
+
+				newPosA.x -= pushDir.x * (pushAmount * 0.5f);
+				newPosA.z -= pushDir.z * (pushAmount * 0.5f);
+
+				newPosB.x += pushDir.x * (pushAmount * 0.5f);
+				newPosB.z += pushDir.z * (pushAmount * 0.5f);
+
+				bool aHitWall = IsEnemyHitWall(newPosA);
+				bool bHitWall = IsEnemyHitWall(newPosB);
+
+				// 両方とも安全な時だけ両方反映
+				if (!aHitWall && !bHitWall) {
+					enemies_[i]->SetPositionOnly(newPosA);
+					enemies_[j]->SetPositionOnly(newPosB);
+				}
+				// Aだけ安全ならAだけ動かす
+				else if (!aHitWall && bHitWall) {
+					enemies_[i]->SetPositionOnly(newPosA);
+				}
+				// Bだけ安全ならBだけ動かす
+				else if (aHitWall && !bHitWall) {
+					enemies_[j]->SetPositionOnly(newPosB);
+				}
+			}
 		}
 	}
 }

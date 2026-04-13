@@ -36,7 +36,7 @@ public:
 	void Clear();
 
 	// 当たり判定のチェック
-	void CheckCollisions(Player *player);
+	void CheckCollisions(Player* player, MapManager* mapManager);
 
 	// 敵のリストを取得
 	const std::vector<std::unique_ptr<Enemy>> &GetEnemies() const { return enemies_; }
