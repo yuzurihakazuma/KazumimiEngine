@@ -11,6 +11,8 @@ public:
 		// 毎フレーム更新 (GPUParticleManagerにEmitする)
 	void Update(float deltaTime);
 
+	// 一気に大量発生させる（エディタの「Burst」ボタンから呼ぶ）
+	void Burst();
 
 	// データをファイルに保存
 	void SaveToFile(const std::string& filePath);

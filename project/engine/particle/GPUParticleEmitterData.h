@@ -17,7 +17,7 @@ struct GPUParticleEmitterData{
 
 
 	Vector3 velocity { 0.0f, 1.0f, 0.0f }; // 初速
-	float velocitySpeed = 0.0f; // 速度にランダム値を加えるときの最大値 (0ならランダムなし)
+	float velocitySpread = 0.0f; // 速度にランダム値を加えるときの最大値 (0ならランダムなし)
 
 
 	// パーティクルの寿命
@@ -36,5 +36,5 @@ struct GPUParticleEmitterData{
 
 	float gravityY = -0.098f; // 重力の強さ (Y方向)
 
-
+	int burstCount = 10;
 };

@@ -1,10 +1,9 @@
 #include "GPUParticleEditor.h"
-#include "GPUParticleEmitter.h"
-
+#include "engine/particle/GPUParticleEmitter.h"  
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
-
+#include "engine/particle/GPUParticleManager.h"
 
 // 編集対象のエミッターをセット（GamePlaySceneから渡してもらう）
 void GPUParticleEditor::SetEmitter(GPUParticleEmitter* emitter){
@@ -92,7 +91,7 @@ void GPUParticleEditor::DrawDebugUI(){
     ImGui::DragFloat3("初速 (velocity)", &d.velocity.x, 0.01f);
 
     // ばらつきのスライダー（0なら完全固定、大きいほどランダム）
-    ImGui::SliderFloat("ばらつき (spread)", &d.velocitySpeed, 0.0f, 2.0f);
+    ImGui::SliderFloat("ばらつき (spread)", &d.velocitySpread, 0.0f, 2.0f);
 
     ImGui::Separator();
 
@@ -130,6 +129,73 @@ void GPUParticleEditor::DrawDebugUI(){
     // =========================================================
     ImGui::Text("[ 物理 ]");
     ImGui::DragFloat("重力 Y", &d.gravityY, 0.01f, -5.0f, 5.0f);
+
+    ImGui::Separator();
+
+    // =========================================================
+// バースト
+// =========================================================
+    ImGui::Text("[ バースト ]");
+
+    // 発生数（1〜1000個）
+    ImGui::SliderInt("バースト数", &d.burstCount, 1, 1000);
+
+    // ボタンを押した瞬間だけ一気に発生
+    if ( ImGui::Button("バースト発生！") ) {
+        emitter_->Burst();
+    }
+
+    ImGui::Separator();
+
+
+
+    // =========================================================
+    // パーティクル情報（読み取り専用）
+    // =========================================================
+    ImGui::Text("[ パーティクル情報 ]");
+
+    uint32_t emitCount = GPUParticleManager::GetInstance()->GetLastFrameEmitCount();
+    uint32_t maxCount = GPUParticleManager::GetInstance()->GetMaxParticles();
+    uint32_t total = GPUParticleManager::GetInstance()->GetTotalEmitted();
+
+    // ---- 今フレームの発生数 ----
+    ImGui::Text("今フレーム発生数 : %u 個", emitCount);
+
+    // ---- 生存数の推定（発生レート × 平均寿命） ----
+    float avgLifeTime = ( d.lifeTimeMin + d.lifeTimeMax ) * 0.5f;
+    uint32_t estimatedAlive = static_cast< uint32_t >( d.emitRate * avgLifeTime );
+    if ( estimatedAlive > maxCount ) { estimatedAlive = maxCount; }
+
+    float aliveRate = static_cast< float >( estimatedAlive ) / static_cast< float >( maxCount );
+    if ( aliveRate > 0.8f ) {
+        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f),
+            "推定生存数 (概算) : %u 個  ！バッファ残りわずか！", estimatedAlive);
+    } else if ( aliveRate > 0.5f ) {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f),
+            "推定生存数 (概算) : %u 個  やや多め", estimatedAlive);
+    } else {
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
+            "推定生存数 (概算) : %u 個  余裕あり", estimatedAlive);
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(%.1f個/秒 × 平均%.1f秒)", d.emitRate, avgLifeTime);
+
+    // ---- バッファ使用状況 ----
+    uint32_t filled = ( total < maxCount ) ? total : maxCount;
+    float    fillRate = static_cast< float >(filled) / static_cast< float >(maxCount);
+
+    ImGui::Spacing();
+    ImGui::Text("バッファ使用状況 :");
+
+    ImVec4 barColor;
+    if ( fillRate > 0.8f ) { barColor = ImVec4(1.0f, 0.2f, 0.2f, 1.0f); } else if ( fillRate > 0.5f ) { barColor = ImVec4(1.0f, 0.7f, 0.0f, 1.0f); } else                         { barColor = ImVec4(0.2f, 0.8f, 0.2f, 1.0f); }
+
+    char barLabel[64];
+    snprintf(barLabel, sizeof(barLabel), "%u / %u スロット", filled, maxCount);
+
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barColor);
+    ImGui::ProgressBar(fillRate, ImVec2(-1.0f, 0.0f), barLabel);
+    ImGui::PopStyleColor();
 
     ImGui::End();
 

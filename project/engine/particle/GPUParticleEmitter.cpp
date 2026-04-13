@@ -23,14 +23,16 @@ void GPUParticleEmitter::Update(float deltaTime){
 	// 発生間隔を計算
 	float emitInterval = 1.0f / data_.emitRate;
 
+	// 重力の強さをGPUParticleManagerにセット
+    GPUParticleManager::GetInstance()->SetGravity(data_.gravityY);
 
     while ( emitTimer_ >= emitInterval ){
 		emitTimer_ -= emitInterval; // タイマーを減らす（複数回発生する可能性があるのでwhile）
 
         Vector3 vel = {
-            data_.velocity.x + RandomRange(-data_.velocitySpeed, data_.velocitySpeed),
-            data_.velocity.y + RandomRange(-data_.velocitySpeed, data_.velocitySpeed),
-            data_.velocity.z + RandomRange(-data_.velocitySpeed, data_.velocitySpeed),
+            data_.velocity.x + RandomRange(-data_.velocitySpread, data_.velocitySpread),
+            data_.velocity.y + RandomRange(-data_.velocitySpread, data_.velocitySpread),
+            data_.velocity.z + RandomRange(-data_.velocitySpread, data_.velocitySpread),
         };
     
 		// スケールもランダムにする
@@ -46,6 +48,21 @@ void GPUParticleEmitter::Update(float deltaTime){
     }
 
 
+}
+
+void GPUParticleEmitter::Burst(){
+    for ( int i = 0; i < data_.burstCount; i++ ) {
+        Vector3 vel = {
+            data_.velocity.x + RandomRange(-data_.velocitySpread, data_.velocitySpread),
+            data_.velocity.y + RandomRange(-data_.velocitySpread, data_.velocitySpread),
+            data_.velocity.z + RandomRange(-data_.velocitySpread, data_.velocitySpread),
+        };
+        float lifeTime = RandomRange(data_.lifeTimeMin, data_.lifeTimeMax);
+        float scale = RandomRange(data_.scaleMin, data_.scaleMax);
+
+        GPUParticleManager::GetInstance()->Emit(
+            data_.position, vel, lifeTime, scale, data_.startColor);
+    }
 }
 
 // ここで発生タイミングを管理して、GPUParticleManagerにEmitする
@@ -74,7 +91,7 @@ void GPUParticleEmitter::SaveToFile(const std::string& filePath){
     j["loop"] = data_.loop;
     j["active"] = data_.active;
     j["velocity"] = { data_.velocity.x,  data_.velocity.y,  data_.velocity.z };
-    j["velocitySpeed"] = data_.velocitySpeed;
+    j["velocitySpeed"] = data_.velocitySpread;
     j["lifeTimeMin"] = data_.lifeTimeMin;
     j["lifeTimeMax"] = data_.lifeTimeMax;
     j["scaleMin"] = data_.scaleMin;
@@ -82,6 +99,7 @@ void GPUParticleEmitter::SaveToFile(const std::string& filePath){
     j["startColor"] = { data_.startColor.x, data_.startColor.y, data_.startColor.z, data_.startColor.w };
     j["endColor"] = { data_.endColor.x,   data_.endColor.y,   data_.endColor.z,   data_.endColor.w };
     j["gravityY"] = data_.gravityY;
+    j["burstCount"] = data_.burstCount;
 
     std::ofstream file(filePath);
     if ( file.is_open() ) {
@@ -103,13 +121,14 @@ void GPUParticleEmitter::LoadFromFile(const std::string& filePath){
     data_.emitRate = j.value("emitRate", 10.0f);
     data_.loop = j.value("loop", true);
     data_.active = j.value("active", true);
-    data_.velocitySpeed = j.value("velocitySpeed", 0.0f);
+    data_.velocitySpread = j.value("velocitySpeed", 0.0f);
 
     data_.lifeTimeMin = j.value("lifeTimeMin", 1.0f);
     data_.lifeTimeMax = j.value("lifeTimeMax", 2.0f);
     data_.scaleMin = j.value("scaleMin", 0.1f);
     data_.scaleMax = j.value("scaleMax", 0.3f);
     data_.gravityY = j.value("gravityY", -0.098f);
+    data_.burstCount = j.value("burstCount", 10);
 
     if ( j.contains("position") ) {
         data_.position = { j["position"][0], j["position"][1], j["position"][2] };

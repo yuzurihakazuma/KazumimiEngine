@@ -58,6 +58,8 @@ public:
     // 毎フレーム更新 (定数バッファに書き込む)
     void Update(float deltaTime, Camera* camera);
 
+
+
     // Computeシェーダー実行 (描画の前に呼ぶ)
     void Dispatch(ID3D12GraphicsCommandList* commandList);
 
@@ -70,6 +72,13 @@ public:
     // パーティクルを発生させる
     void Emit(const Vector3& position, const Vector3& velocity,
         float lifeTime, float scale, const Vector4& color);
+
+    void SetGravity(float gravityY){ gravityY_ = gravityY; }
+
+
+    uint32_t GetLastFrameEmitCount() const{ return lastFrameEmitCount_; }
+    uint32_t GetMaxParticles() const{ return kMaxParticles; }
+    uint32_t GetTotalEmitted() const{ return totalEmitted_; }
 
 private:
     GPUParticleManager() = default;
@@ -125,4 +134,10 @@ private:
 
 	// 初期化用バッファ (全パーティクルをalive=0で初期化するための一時バッファ)
     Microsoft::WRL::ComPtr<ID3D12Resource> initBuffer_;
+
+    float gravityY_ = -0.098f;
+
+   
+    uint32_t lastFrameEmitCount_ = 0;  // 直前フレームのEmit数
+    uint32_t totalEmitted_ = 0;  // 累計Emit数
 };

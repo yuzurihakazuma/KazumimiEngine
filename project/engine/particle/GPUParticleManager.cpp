@@ -142,7 +142,7 @@ void GPUParticleManager::CreateVertexBuffer(){
 // -------------------------------------------------------
 void GPUParticleManager::Update(float deltaTime, Camera* camera){
     updateCBData_->deltaTime = deltaTime;
-    updateCBData_->gravityY = -0.098f;
+    updateCBData_->gravityY = gravityY_;
     updateCBData_->maxParticles = kMaxParticles;
 
     cameraCBData_->view = camera->GetViewMatrix();
@@ -154,6 +154,9 @@ void GPUParticleManager::Update(float deltaTime, Camera* camera){
 // -------------------------------------------------------
 void GPUParticleManager::Emit(const Vector3& position, const Vector3& velocity,
     float lifeTime, float scale, const Vector4& color){
+   
+    
+    
     if (emitQueue_.size() >= kMaxEmitPerFrame) return; // 上限チェック
 
     GPUParticleData p = {};
@@ -175,6 +178,10 @@ void GPUParticleManager::Emit(const Vector3& position, const Vector3& velocity,
 //  Emitキューをアップロード
 // -------------------------------------------------------
 void GPUParticleManager::UploadEmitQueue(ID3D12GraphicsCommandList* commandList){
+   
+    lastFrameEmitCount_ = static_cast< uint32_t >( emitQueue_.size() ); 
+    totalEmitted_ += lastFrameEmitCount_;
+    
     if (emitQueue_.empty()) return;
 
     // UAV → COPY_DEST

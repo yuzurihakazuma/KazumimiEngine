@@ -30,6 +30,8 @@
 #include "engine/utils/EditorManager.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
 #include "engine/particle/GPUParticleManager.h"
+#include "engine/particle/GPUParticleEmitter.h"
+
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -135,6 +137,15 @@ void GamePlayScene::Initialize(){
 		dxCommon, SrvManager::GetInstance(), "resources/uvChecker.png");
 
 
+	// エミッターの初期設定
+	GPUParticleEmitterData emitterData;
+	emitterData.position = { 0.0f, 0.0f, 0.0f };
+	emitterData.emitRate = 20.0f;
+	emitter_.SetData(emitterData);
+
+	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
+	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
+
 }
 
 void GamePlayScene::Update(){
@@ -203,16 +214,8 @@ void GamePlayScene::Update(){
 	// GPUパーティクル更新
 	GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
 
-	// Gキーで発生テスト
-	if (input->Triggerkey(DIK_G)) {
-		GPUParticleManager::GetInstance()->Emit(
-			{ 0.0f, 0.0f, 0.0f },   // 位置
-			{ 0.0f, 0.05f, 0.0f },  // 速度
-			2.0f,                  // 寿命(秒)
-			0.3f,                  // サイズ
-			{ 1.0f, 0.5f, 0.0f, 1.0f } // 色(オレンジ)
-		);
-	}
+
+	emitter_.Update(1.0f / 60.0f);
 
 	//// InstancedGroup に「最新のデータをお願い！」と渡すだけ
 	//if (blockGroup_) {
