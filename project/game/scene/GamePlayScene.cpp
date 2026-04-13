@@ -473,7 +473,7 @@ void GamePlayScene::Update() {
 
 	// 敵とプレイヤーの当たり判定
 	if (enemyManager_) {
-		enemyManager_->CheckCollisions(player);
+		enemyManager_->CheckCollisions(player, mapManager_.get());
 	}
 
 	// ==========================================
