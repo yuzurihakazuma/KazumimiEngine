@@ -47,6 +47,8 @@ private:
     std::unique_ptr<Sprite> blackOverlay_; 
     // 2つの選択肢のスプライト（[手札上限], [カード獲得]）
     std::unique_ptr<Sprite> choiceVisuals_[(int)Choice::Count];
+    // UI
+    std::unique_ptr<Sprite> UISprite_;
 
     // ボーナスの実処理
     LevelUpResult ApplyBonus(HandManager *handManager, Choice choice);
