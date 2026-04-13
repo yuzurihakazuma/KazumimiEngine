@@ -764,39 +764,60 @@ void MapManager::RegenerateDungeonAndRespawnPlayer(
                 auto roomTilesForCard = GetSpawnTilesInRoom(room, cardSpawnMargin);
 
                 if (room.enemySpawnMax > 0 && room.enemySpawnPercent > 0 && !roomTilesForEnemy.empty()) {
+                    std::shuffle(roomTilesForEnemy.begin(), roomTilesForEnemy.end(), mt);
+
+                    int maxTryCount = std::min(room.enemySpawnMax, static_cast<int>(roomTilesForEnemy.size()));
                     std::uniform_int_distribution<int> percentDist(1, 100);
-                    if (percentDist(mt) <= room.enemySpawnPercent) {
-                        std::shuffle(roomTilesForEnemy.begin(), roomTilesForEnemy.end(), mt);
 
-                        int spawnCount = std::min(room.enemySpawnMax, static_cast<int>(roomTilesForEnemy.size()));
-                        for (int i = 0; i < spawnCount; ++i) {
-                            int tileX = roomTilesForEnemy[i].first;
-                            int tileZ = roomTilesForEnemy[i].second;
+                    int tileIndex = 0;
+                    for (int i = 0; i < maxTryCount; ++i) {
+                        if (percentDist(mt) > room.enemySpawnPercent) {
+                            continue;
+                        }
 
-                            Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
-                            enemyManager->SpawnEnemyAt(worldPos, camera);
+                        int tileX = roomTilesForEnemy[tileIndex].first;
+                        int tileZ = roomTilesForEnemy[tileIndex].second;
+                        tileIndex++;
+
+                        Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
+                        enemyManager->SpawnEnemyAt(worldPos, camera);
+
+                        if (tileIndex >= maxTryCount) {
+                            break;
                         }
                     }
                 }
+
 
                 if (room.cardSpawnMax > 0 && room.cardSpawnPercent > 0 && !roomTilesForCard.empty()) {
+                    std::shuffle(roomTilesForCard.begin(), roomTilesForCard.end(), mt);
+
+                    int maxTryCount = std::min(room.cardSpawnMax, static_cast<int>(roomTilesForCard.size()));
                     std::uniform_int_distribution<int> percentDist(1, 100);
-                    if (percentDist(mt) <= room.cardSpawnPercent) {
-                        std::shuffle(roomTilesForCard.begin(), roomTilesForCard.end(), mt);
 
-                        int spawnCount = std::min(room.cardSpawnMax, static_cast<int>(roomTilesForCard.size()));
-                        for (int i = 0; i < spawnCount; ++i) {
-                            int tileX = roomTilesForCard[i].first;
-                            int tileZ = roomTilesForCard[i].second;
+                    int tileIndex = 0;
+                    for (int i = 0; i < maxTryCount; ++i) {
+                        if (percentDist(mt) > room.cardSpawnPercent) {
+                            continue;
+                        }
 
-                            Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
-                            worldPos.y = -0.99f;
+                        int tileX = roomTilesForCard[tileIndex].first;
+                        int tileZ = roomTilesForCard[tileIndex].second;
+                        tileIndex++;
 
-                            Card dropCard = CardDatabase::GetRandomPlayerCard();
-                            cardPickupManager->AddPickup(worldPos, dropCard);
+                        Vector3 worldPos = spawnManager->TileToWorldPosition(tileX, tileZ, 0.0f);
+                        worldPos.y = -0.99f;
+
+                        Card dropCard = CardDatabase::GetRandomPlayerCard();
+                        cardPickupManager->AddPickup(worldPos, dropCard);
+
+                        if (tileIndex >= maxTryCount) {
+                            break;
                         }
                     }
                 }
+
+                
             }
         }
 
