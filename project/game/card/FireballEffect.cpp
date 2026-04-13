@@ -48,7 +48,7 @@ void FireballEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
 }
 
 void FireballEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
-	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
+	 const Vector3& bossPos, const LevelData& level) {
 
 	// 終了済みなら何もしない
 	if (isFinished_) {
@@ -76,9 +76,9 @@ void FireballEffect::Update(Player* player, EnemyManager *enemyManager, Boss* bo
 
 					// Y軸を無視してXZ平面で距離判定する
 					Vector3 diff = {
-						enemyPos.x - pos_.x,
+						ePos.x - pos_.x,
 						0.0f,
-						enemyPos.z - pos_.z
+						ePos.z - pos_.z
 					};
 
 					if (Length(diff) < 1.8f) {

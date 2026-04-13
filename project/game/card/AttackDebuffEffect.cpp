@@ -7,7 +7,7 @@ void AttackDebuffEffect::Start(const Vector3 &casterPos, float casterYaw, bool i
 	isFinished_ = false;
 }
 
-void AttackDebuffEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) {
+void AttackDebuffEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,  const Vector3 &bossPos, const LevelData &level) {
 	if (isFinished_) {
 		return;
 	}

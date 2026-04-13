@@ -8,7 +8,7 @@ public:
 
 	// 毎フレーム更新
 	void Update(Player* player, EnemyManager *enemyManager, Boss* boss,
-		const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) override;
+		 const Vector3& bossPos, const LevelData& level) override;
 
 	// 描画
 	void Draw() override;

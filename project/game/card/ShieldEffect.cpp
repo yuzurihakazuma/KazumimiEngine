@@ -20,7 +20,7 @@ void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlaye
 	}
 }
 
-void ShieldEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enmeyPos, const Vector3 &bossPos, const LevelData &level) {
+void ShieldEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,  const Vector3 &bossPos, const LevelData &level) {
 
 	// すでに演出が終わっている場合は何もせずに返す
 	if (isFinished_) {

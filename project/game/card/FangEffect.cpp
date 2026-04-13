@@ -44,7 +44,7 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 }
 
 void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
-	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
+	 const Vector3& bossPos, const LevelData& level) {
 
 	// 終了済みなら何もしない
 	if (isFinished_) {
@@ -87,9 +87,9 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 							Vector3 ePos = enemy->GetPosition();
 
 							Vector3 diff = {
-								enemyPos.x - fang.pos.x,
+								ePos.x - fang.pos.x,
 								0.0f,
-								enemyPos.z - fang.pos.z
+								ePos.z - fang.pos.z
 							};
 
 							if (Length(diff) < 1.5f) {

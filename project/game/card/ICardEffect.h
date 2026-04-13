@@ -17,7 +17,7 @@ public:
 	virtual void Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *caemra) = 0;
 
 	// 毎フレームの更新処理
-	virtual void Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &enemyPos, const Vector3 &bossPos, const LevelData &level) = 0;
+	virtual void Update(Player *player, EnemyManager *enemyManager, Boss *boss, const Vector3 &bossPos, const LevelData &level) = 0;
 
 	// 描画処理
 	virtual void Draw() = 0;

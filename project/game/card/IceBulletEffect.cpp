@@ -42,7 +42,7 @@ void IceBulletEffect::Start(const Vector3& casterPos, float casterYaw, bool isPl
 }
 
 void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
-	const Vector3& enemyPos, const Vector3& bossPos, const LevelData& level) {
+	 const Vector3& bossPos, const LevelData& level) {
 
 	// 終了済みなら何もしない
 	if (isFinished_) {
@@ -69,9 +69,9 @@ void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* b
 					Vector3 ePos = enemy->GetPosition();
 
 					Vector3 diff = {
-						enemyPos.x - pos_.x,
+						ePos.x - pos_.x,
 						0.0f,
-						enemyPos.z - pos_.z
+						ePos.z - pos_.z
 					};
 
 					if (Length(diff) < 1.5f) {

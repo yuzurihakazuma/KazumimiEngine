@@ -64,7 +64,7 @@ void CardUseSystem::Update(Player* player, EnemyManager* enemyManager, Boss* bos
 	// システム（クラス化した魔法）の更新・お掃除処理
 	for (auto it = activeEffects_.begin(); it != activeEffects_.end(); ) {
 		// リストの中の魔法を更新
-		(*it)->Update(player, enemyManager, boss, enemyPos, bossPos, level);
+		(*it)->Update(player, enemyManager, boss,  bossPos, level);
 
 		// もし終わっていたらリストから削除
 		if ((*it)->IsFinished()) {
