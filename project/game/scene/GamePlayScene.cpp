@@ -231,7 +231,7 @@ void GamePlayScene::Initialize() {
 	
 	  // GPUパーティクル初期化 (テクスチャを指定する)
 	GPUParticleManager::GetInstance()->Initialize(
-		dxCommon, SrvManager::GetInstance(), "resources/uvChecker.png");
+		dxCommon, SrvManager::GetInstance(), "resources/circle.png");
 
 	fadeSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
 	// 画面サイズに合わせる (ウィンドウサイズに合わせて変更してください)
