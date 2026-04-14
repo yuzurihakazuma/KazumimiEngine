@@ -276,7 +276,7 @@ void DungeonGenerator::Generate(LevelData& levelData, int roomCount) {
 	ConnectAllRooms(levelData, 2);
 
 	// 少しだけ余分な接続を足してポケダンっぽい枝や交差を増やす
-	AddExtraConnections(levelData, 2, 1);
+	AddExtraConnections(levelData, 2, 5);
 }
 
 void DungeonGenerator::GenerateRooms(LevelData& levelData, int roomCount) {
