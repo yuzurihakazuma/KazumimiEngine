@@ -40,6 +40,11 @@
 #include "Bloom.h"
 #include "engine/3d/model/Model.h"
 #include "engine/utils/EditorManager.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
+#include "engine/particle/GPUParticleManager.h"
+#include "engine/particle/GPUParticleEmitter.h"
+
+
 using namespace VectorMath;
 using namespace MatrixMath;
 
@@ -223,6 +228,10 @@ void GamePlayScene::Initialize() {
 
 	// 色を半透明の黒にする（Vector4 で R, G, B, A）
 	descBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.75f });// 画面全体を覆うフェード用スプライトの作成 (座標0,0)
+	
+	  // GPUパーティクル初期化 (テクスチャを指定する)
+	GPUParticleManager::GetInstance()->Initialize(
+		dxCommon, SrvManager::GetInstance(), "resources/uvChecker.png");
 
 	fadeSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
 	// 画面サイズに合わせる (ウィンドウサイズに合わせて変更してください)
@@ -241,6 +250,15 @@ void GamePlayScene::Initialize() {
 	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
 	levelUpBonusManager_.Initialize();
+	// エミッターの初期設定
+	GPUParticleEmitterData emitterData;
+	emitterData.position = { 0.0f, 0.0f, 0.0f };
+	emitterData.emitRate = 20.0f;
+	emitter_.SetData(emitterData);
+
+	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
+	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
+
 }
 
 void GamePlayScene::Update() {
@@ -937,6 +955,20 @@ void GamePlayScene::Update() {
 		block->Update();
 	}
 
+	if ( input->Triggerkey(DIK_G) ){
+		// GPUパーティクル更新
+		GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+
+	}
+	
+
+	emitter_.Update(1.0f / 60.0f);
+
+	//// InstancedGroup に「最新のデータをお願い！」と渡すだけ
+	//if (blockGroup_) {
+	//	blockGroup_->Update(blocks_);
+	//}
+
 	// 背景枠の更新
 	if (descBgSprite_) {
 		descBgSprite_->Update();
@@ -977,9 +1009,11 @@ void GamePlayScene::Draw() {
 
 	Boss* boss = bossManager_ ? bossManager_->GetBoss() : nullptr;
 
-	// =========================================
-	// 1. MRT開始（色用 + マスク用の2枚同時）
-	// =========================================
+	// GPUパーティクルの描画準備（DispatchでComputeシェーダーを実行して、描画に必要なデータをGPU側で更新してもらう）
+	GPUParticleManager::GetInstance()->Dispatch(commandList);
+
+
+	// 1. 【MRT開始】キャンバスを2枚(色用とマスク用)セットする！
 	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
 
 	// 3D描画の前準備
@@ -1028,6 +1062,9 @@ void GamePlayScene::Draw() {
 
 	// マップ描画
 	mapManager_->Draw(playerPos_);
+
+	// --- GPUパーティクル描画 ---
+	GPUParticleManager::GetInstance()->Draw(commandList);
 
 
 
@@ -1498,6 +1535,9 @@ void GamePlayScene::Finalize() {
 	pauseBgSprite_.reset();
 
 	TextManager::GetInstance()->Finalize();
+
+	
+	GPUParticleManager::GetInstance()->Finalize();
 
 	textures_.clear();
 	depthStencilResource_.Reset();

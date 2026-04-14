@@ -38,6 +38,13 @@ public:
 		return descriptorHeaps_.Get();
 	}
 
+	// UAV用のディスクリプタを登録する
+	void CreateUAVForStructuredBuffer(uint32_t index, ID3D12Resource* resource,
+		UINT numElements, UINT stride);
+
+	// ComputeシェーダーにDescriptorTableをセット
+	void SetComputeRootDescriptorTable(UINT rootParamIndex, uint32_t srvIndex);
+
 private:
 
 

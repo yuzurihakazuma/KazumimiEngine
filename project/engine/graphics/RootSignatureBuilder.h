@@ -22,6 +22,16 @@ public:
 
     // 構築してルートシグネチャを生成
     void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig);
+
+    // Computeシェーダー専用 (IAフラグなし)
+    void BuildForCompute(ID3D12Device* device,
+        Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig);
+
+
+    // UAVをDescriptorTableで追加 (Computeシェーダー用)
+    void AddDescriptorTableUAV(UINT baseShaderRegister,
+        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+
 private:
 	// ルートパラメータ、ディスクリプタレンジ、サンプラーの情報を保持
     std::vector<D3D12_ROOT_PARAMETER> parameters_;

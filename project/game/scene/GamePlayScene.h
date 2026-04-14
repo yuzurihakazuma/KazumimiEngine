@@ -16,6 +16,8 @@
 #include "engine/3d/animation/CustomAnimation.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
 #include "engine/3d/animation/CustomAnimation.h"
+#include "engine/particle/GPUParticleEmitter.h"
+
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -229,5 +231,9 @@ private: // メンバ変数
 	// アニメーション再生用（編集なし・読み込みのみ）
 	CustomAnimationTrack skinnedAnimTrack_;
 	float skinnedAnimTime_ = 0.0f;
+
+	
+	// GPUパーティクルエミッター
+	GPUParticleEmitter emitter_;
 	
 };

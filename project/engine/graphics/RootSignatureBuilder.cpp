@@ -75,3 +75,46 @@ void RootSignatureBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID
     hr = device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&outRootSig));
     assert(SUCCEEDED(hr));
 }
+
+void RootSignatureBuilder::BuildForCompute(
+	ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig){
+	D3D12_ROOT_SIGNATURE_DESC desc = {};
+	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE; // IAフラグ不要
+	desc.NumParameters = static_cast<UINT>(parameters_.size());
+	desc.pParameters = parameters_.data();
+	desc.NumStaticSamplers = static_cast<UINT>(samplers_.size());
+	desc.pStaticSamplers = samplers_.data();
+
+	Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob, errorBlob;
+	HRESULT hr = D3D12SerializeRootSignature(
+		&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
+	if (FAILED(hr)) {
+		OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		assert(false);
+	}
+	hr = device->CreateRootSignature(
+		0, signatureBlob->GetBufferPointer(),
+		signatureBlob->GetBufferSize(), IID_PPV_ARGS(&outRootSig));
+	assert(SUCCEEDED(hr));
+}
+
+
+// Computeシェーダー用にUAVをDescriptorTableで追加
+void RootSignatureBuilder::AddDescriptorTableUAV(
+	UINT baseShaderRegister, D3D12_SHADER_VISIBILITY visibility){
+	auto range = std::make_unique<D3D12_DESCRIPTOR_RANGE>();
+	range->RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; // UAV
+	range->NumDescriptors = 1;
+	range->BaseShaderRegister = baseShaderRegister;
+	range->RegisterSpace = 0;
+	range->OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER param = {};
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param.ShaderVisibility = visibility;
+	param.DescriptorTable.NumDescriptorRanges = 1;
+	param.DescriptorTable.pDescriptorRanges = range.get();
+
+	ranges_.push_back(std::move(range));
+	parameters_.push_back(param);
+}

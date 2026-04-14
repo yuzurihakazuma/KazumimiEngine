@@ -9,6 +9,7 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/scene/SceneManager.h"
 #include "engine/utils/Level/LevelEditor.h" 
+#include "engine/particle/GPUParticleEditor.h" 
 
 // シングルトンインスタンスの取得
 EditorManager* EditorManager::GetInstance(){
@@ -24,6 +25,8 @@ void EditorManager::Initialize(){
     // LevelEditor の生成と初期化
     levelEditor_ = std::make_unique<LevelEditor>();
     levelEditor_->Initialize();
+
+    gpuParticleEditor_ = std::make_unique<GPUParticleEditor>();
 }
 
 
@@ -121,6 +124,10 @@ void EditorManager::Update(){
         levelEditor_->DrawDebugUI();
     }
 
+    if ( gpuParticleEditor_ ) {
+        gpuParticleEditor_->DrawDebugUI();
+    }
+
     // 7. パフォーマンスモニター
     ImGui::Begin("パフォーマンスモニター");
     float fps = ImGui::GetIO().Framerate;
@@ -169,4 +176,11 @@ void EditorManager::End(){
 
 void EditorManager::Finalize(){
     levelEditor_.reset();
+    gpuParticleEditor_.reset();
+}
+
+void EditorManager::SetParticleEmitter(GPUParticleEmitter* emitter){
+    if ( gpuParticleEditor_ ) {
+        gpuParticleEditor_->SetEmitter(emitter);
+    }
 }

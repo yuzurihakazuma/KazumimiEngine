@@ -2,7 +2,9 @@
 #include <memory>  
 
 class LevelEditor;      
-class Camera;           
+class Camera;  
+class GPUParticleEditor;
+class GPUParticleEmitter;
 
 class EditorManager{
 public:
@@ -37,6 +39,8 @@ public:
 	// Game View に表示するテクスチャのSRVインデックスをSceneManagerから受け取るためのセッター
     void SetGameViewSrvIndex(uint32_t srvIndex) { gameViewSrvIndex_ = srvIndex; }
 
+    void SetParticleEmitter(GPUParticleEmitter* emitter);
+
     // エディタがアクティブかどうか
     bool IsActive() const{ return isEditorActive_; }
 
@@ -62,4 +66,6 @@ private:
 
 	// Game View に表示するテクスチャのSRVインデックス（SceneManagerから渡してもらう）
     uint32_t gameViewSrvIndex_ = 0;
+
+    std::unique_ptr<GPUParticleEditor> gpuParticleEditor_ = nullptr;
 };

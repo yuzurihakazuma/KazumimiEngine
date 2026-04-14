@@ -104,6 +104,28 @@ void SrvManager::SetGraphicsRootDescriptorTable(UINT RootParameterIndex, uint32_
 			GetGPUDescriptorHandle(srvIndex));
 }
 
+void SrvManager::CreateUAVForStructuredBuffer(
+	uint32_t index, ID3D12Resource* resource, UINT numElements, UINT stride){
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.NumElements = numElements;
+	uavDesc.Buffer.StructureByteStride = stride;
+
+	dxCommon_->GetDevice()->CreateUnorderedAccessView(
+		resource, nullptr, &uavDesc,
+		GetCPUDescriptorHandle(index)
+	);
+}
+
+void SrvManager::SetComputeRootDescriptorTable(UINT rootParamIndex, uint32_t srvIndex){
+	// SrvManagerのヒープはGraphics/Compute両用で使える
+	dxCommon_->GetCommandList()->SetComputeRootDescriptorTable(
+		rootParamIndex,
+		GetGPUDescriptorHandle(srvIndex)
+	);
+}
+
 
 void SrvManager::Finalize() {
 	descriptorHeaps_.Reset(); // ヒープを解放
