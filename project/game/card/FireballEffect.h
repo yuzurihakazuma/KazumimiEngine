@@ -24,4 +24,7 @@ private:
 
 	bool isPlayerCaster_ = true;              // 使用者がプレイヤーか
 	bool isFinished_ = false;                 // 終了したか
+
+	float rotAngle_ = 0.0f;                  // 炎のカードエフェクト
+
 };
