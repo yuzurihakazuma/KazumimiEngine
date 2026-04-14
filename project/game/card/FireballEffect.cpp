@@ -59,10 +59,14 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 	// 弾を進める
 	pos_ += velocity_;
 
+	const float kPI = 3.14159265f;
+	rotAngle_ += 0.15f;   // 1フレームあたりの回転速度（大きいほど速く回る）
+
+
+	// GPUパーティクル放出
+
 	// 炎パーティクルを回転させながら放出
 	{
-		const float kPI = 3.14159265f;
-		rotAngle_ += 0.15f;   // 1フレームあたりの回転速度（大きいほど速く回る）
 
 		// 円周上の3点からパーティクルを出す
 		const int kEmitCount = 5;
@@ -80,23 +84,100 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 
 			// 接線方向（回転方向）＋上向きの速度
 			Vector3 vel = {
-		-std::sinf(angle) * 1.5f,
-		0.3f + static_cast< float >( rand() % 5 ) * 0.1f,  // 1.5f → 0.3f（ゆっくり上昇）
-		std::cosf(angle) * 1.5f
+			  -std::sinf(angle) * 1.5f,
+			  0.3f + static_cast< float >( rand() % 5 ) * 0.1f,  // 1.5f → 0.3f（ゆっくり上昇）
+			  std::cosf(angle) * 1.5f
 			};
 
 			// 炎の色（オレンジ〜赤）
 			Vector4 color = {
-				1.0f,                                             // R
-				0.2f + static_cast< float >( rand() % 5 ) * 0.1f,   // G（0.2〜0.6）
-				0.0f,                                             // B
-				1.0f                                              // A
+					1.0f,
+					0.2f + static_cast< float >( rand() % 5 ) * 0.1f,
+					0.0f,
+					1.0f
 			};
 
 			float lifeTime = 0.5f + static_cast< float >( rand() % 3 ) * 0.1f; // 0.2〜0.4秒
 			float scale = 0.5f + static_cast< float >( rand() % 3 ) * 0.05f;  // 0.15〜0.25
 
 			GPUParticleManager::GetInstance()->Emit(emitPos, vel, lifeTime, scale, color);
+
+
+			// コアの中心 白から黄色の明るい色
+			{
+
+
+				for ( int i = 0; i < 3; i++ ){
+
+
+					Vector3 corePos = {
+						pos_.x + ( rand() % 3 - 1 ) * 0.1f,
+						pos_.y,
+						pos_.z + ( rand() % 3 - 1 ) * 0.1f,
+
+					};
+
+
+					Vector3 coreVel = {
+						( rand() % 3 - 1 ) * 0.3f,
+						0.8f + static_cast< float >( rand() % 5 ) * 0.1f,
+						( rand() % 3 - 1 ) * 0.3f
+					};
+
+					Vector4 coreColor = { 1.0f,1.0f,0.3f,1.0f }; // 白から黄色
+					
+					GPUParticleManager::GetInstance()->Emit(corePos, coreVel, 0.2f, 0.3f, coreColor);
+
+
+				}
+
+
+			}
+
+			// --- Layer3: 軌跡（トレイル）― 進行方向と逆側に暗い炎を残す ---
+			{
+				Vector3 trailBase = {
+					pos_.x - velocity_.x * 3.0f,
+					pos_.y,
+					pos_.z - velocity_.z * 3.0f
+				};
+				for ( int i = 0; i < 4; i++ ) {
+					Vector3 trailPos = {
+						trailBase.x + ( rand() % 5 - 2 ) * 0.2f,
+						trailBase.y,
+						trailBase.z + ( rand() % 5 - 2 ) * 0.2f
+					};
+					Vector3 trailVel = {
+						( rand() % 3 - 1 ) * 0.2f,
+						0.5f + static_cast< float >(rand() % 5) * 0.1f,
+						( rand() % 3 - 1 ) * 0.2f
+					};
+					float g = 0.1f + static_cast< float >( rand() % 3 ) * 0.1f;
+					Vector4 trailColor = { 0.8f, g, 0.0f, 0.9f }; // 暗い赤〜オレンジ
+					float trailScale = 0.6f + static_cast< float >( rand() % 4 ) * 0.1f;
+					GPUParticleManager::GetInstance()->Emit(trailPos, trailVel, 0.6f, trailScale, trailColor);
+				}
+			}
+
+			// --- Layer4: 火の粉（スパーク）― 4フレームに1回飛び散る ---
+			{
+				sparkTimer_++;
+				if ( sparkTimer_ % 4 == 0 ) {
+					for ( int i = 0; i < 6; i++ ) {
+						float sparkAngle = static_cast< float >(rand() % 628) * 0.01f;
+						Vector3 sparkVel = {
+							std::cosf(sparkAngle) * ( 1.5f + static_cast< float >(rand() % 5) * 0.3f ),
+							1.0f + static_cast< float >(rand() % 8) * 0.2f,
+							std::sinf(sparkAngle) * ( 1.5f + static_cast< float >(rand() % 5) * 0.3f )
+						};
+						Vector4 sparkColor = { 1.0f, 0.8f + static_cast< float >(rand() % 2) * 0.2f, 0.0f, 1.0f };
+						GPUParticleManager::GetInstance()->Emit(pos_, sparkVel, 0.3f, 0.15f, sparkColor);
+					}
+				}
+			}
+
+
+
 		}
 	}
 
