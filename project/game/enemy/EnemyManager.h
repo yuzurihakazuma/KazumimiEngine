@@ -54,5 +54,8 @@ private:
 
 	// 魔法システムのリストもこちらで持つ
 	std::vector<std::unique_ptr<CardUseSystem>> enemyCardSystems_;
+
+	// 演出用のカードモデル
+	std::unique_ptr<Obj3d> castCardObj_ = nullptr;
 };
 

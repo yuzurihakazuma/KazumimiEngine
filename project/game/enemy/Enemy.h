@@ -89,6 +89,10 @@ public:
     // 現在デバフ状態かどうかを返す関数
     bool IsAttackDebuffed() const { return isAttackDebuffed_; }
 
+    // 詠唱状態
+    bool IsCasting() const { return isCasting_; }
+    int GetCastTimer()const { return castTimer_; }
+
 private:
     void DecideNextState();     // 次の状態を決める
     bool IsStuck() const;       // 詰まり判定
@@ -174,6 +178,6 @@ private:
 
     bool isCasting_ = false;
     int castTimer_ = 0;
-    const int castTime_ = 8;
+    const int castTime_ = 10;
     int strafeDirection_ = 1;
 };

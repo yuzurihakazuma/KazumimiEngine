@@ -86,6 +86,26 @@ void GamePlayScene::Initialize() {
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 
+	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
+	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
+	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
+	ModelManager::GetInstance()->LoadModel("cardF", "resources/card", "cardF.obj");
+	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");
+	ModelManager::GetInstance()->LoadModel("cardPotion", "resources/card", "CardPotion.obj");
+	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
+	ModelManager::GetInstance()->LoadModel("CardShield", "resources/card", "CardShield.obj");
+	ModelManager::GetInstance()->LoadModel("CardIce", "resources/card", "CardIce.obj");
+	ModelManager::GetInstance()->LoadModel("CardFang", "resources/card", "CardFang.obj");
+	ModelManager::GetInstance()->LoadModel("CardDecoy", "resources/card", "CardDecoy.obj");
+	ModelManager::GetInstance()->LoadModel("CardAtkDown", "resources/card", "CardAtkDown.obj");
+	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
+	ModelManager::GetInstance()->LoadModel("CardScanner", "resources/card", "MapOpen.obj");
+
+	// CSVからカードデータベースを初期化
+	CardDatabase::Initialize("resources/card/CardData.csv");
+
+	CardDatabase::LoadAdditionalCards("resources/card/BossCardData.csv");
+
 	// モデル読み込み (シングルトン)
 	// アニメーション
 	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
@@ -157,25 +177,7 @@ void GamePlayScene::Initialize() {
 
 
 
-	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
-	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
-	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
-	ModelManager::GetInstance()->LoadModel("cardF", "resources/card", "cardF.obj");
-	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");
-	ModelManager::GetInstance()->LoadModel("cardPotion", "resources/card", "CardPotion.obj");
-	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
-	ModelManager::GetInstance()->LoadModel("CardShield", "resources/card", "CardShield.obj");
-	ModelManager::GetInstance()->LoadModel("CardIce", "resources/card", "CardIce.obj");
-	ModelManager::GetInstance()->LoadModel("CardFang", "resources/card", "CardFang.obj");
-	ModelManager::GetInstance()->LoadModel("CardDecoy", "resources/card", "CardDecoy.obj");
-	ModelManager::GetInstance()->LoadModel("CardAtkDown", "resources/card", "CardAtkDown.obj");
-	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
-	ModelManager::GetInstance()->LoadModel("CardScanner", "resources/card", "MapOpen.obj");
-
-	// CSVからカードデータベースを初期化
-	CardDatabase::Initialize("resources/card/CardData.csv");
-
-	CardDatabase::LoadAdditionalCards("resources/card/BossCardData.csv");
+	
 
 	// 手札マネージャーの初期化
 	handManager_.Initialize(uiCamera_.get(), textures_["noise0"].srvIndex);

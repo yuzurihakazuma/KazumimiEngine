@@ -22,10 +22,15 @@ void EnemyManager::Initialize() {
 	enemyObjs_.clear();
 	enemyDeadHandled_.clear();
 	enemyCardSystems_.clear();
+
+	// カードモデルの生成
+	castCardObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("cardR"));
 }
 
 void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss) {
 	if (!player || !cardPickupManager || !mapManager) return;
+
+	
 
 	Vector3 targetPos = player->GetPosition();
 	const LevelData &level = mapManager->GetLevelData();
@@ -219,6 +224,39 @@ void EnemyManager::Draw(Camera* camera, Minimap* minimap) {
 	for (auto& cardSystem : enemyCardSystems_) {
 		if (cardSystem) {
 			cardSystem->Draw();
+		}
+	}
+
+	// 詠唱（カード準備）中の、頭上での回転演出
+	for (const auto &enemy : enemies_) {
+		if (enemy && !enemy->IsDead() && enemy->IsCasting()) {
+			Vector3 ePos = enemy->GetPosition();
+
+			if (castCardObj_) {
+				// --- 演出パラメータの設定 ---
+				float height = 3.5f;   // 敵の頭からの高さ（固定）
+				float timer = static_cast<float>(enemy->GetCastTimer());
+				float rotateSpeed = 0.1f; // 回転する速さ
+
+				// 1. 座標の設定（移動せず、敵の真上の固定位置）
+				castCardObj_->SetCamera(camera);
+				castCardObj_->SetTranslation({
+					ePos.x,             // Xは敵と同じ
+					ePos.y + height,    // Yは敵の頭上
+					ePos.z              // Zは敵と同じ
+					});
+
+				// 2. 回転の設定（その場でY軸を中心に回転）
+				// モデルが元々立っている（CardR.obj）場合は X=0.0f でOK
+				castCardObj_->SetRotation({
+					0.0f,               // X軸
+					timer * rotateSpeed, // Y軸：ここが回転のメイン
+					0.0f                // Z軸
+					});
+
+				castCardObj_->Update();
+				castCardObj_->Draw();
+			}
 		}
 	}
 

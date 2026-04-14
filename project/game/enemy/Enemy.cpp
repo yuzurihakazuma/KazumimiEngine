@@ -48,6 +48,12 @@ void Enemy::Update() {
 
     if (isDead_) return; // 死亡していたら何もしない
 
+    // もし「カード使用状態」じゃないのに詠唱フラグが残っていたら強制解除！
+    if (state_ != State::UseCard && isCasting_) {
+        isCasting_ = false;
+        castTimer_ = 0;
+    }
+
     cardUseRequest_ = false;  // 毎フレームカード使用フラグ初期化
 
     // 拾ったカードの使用可能時間を減らす
