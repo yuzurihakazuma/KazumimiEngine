@@ -161,8 +161,8 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 				// 距離が近ければ拾う
 				if (Length(diff) < 2.0f) {
 					Card pickedCard = pickup.card;
-					// 敵が使えないカードなら、使えるカードにすり替える
-					if (!pickedCard.canEnemyUse) {
+					// 敵が使えないカード、または攻撃カードじゃないなら、攻撃カードにすり替える
+					if (!pickedCard.canEnemyUse || pickedCard.effectType != CardEffectType::Attack) {
 						pickedCard = CardDatabase::GetRandomEnemyUsableCard();
 					}
 					enemy->SetPickupCard(pickedCard);

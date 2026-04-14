@@ -42,9 +42,20 @@ public:
     State GetState() const { return state_; }      // 状態取得
 
     bool HasPickupCard() const { return hasPickupCard_; }
-    void SetPickupCard(const Card& card) { pickupCard_ = card; hasPickupCard_ = true; }
+
+    void SetPickupCard(const Card& card) {
+        pickupCard_ = card;
+        hasPickupCard_ = true;
+        pickupCardTimer_ = pickupCardDuration_; // 拾った瞬間に使用可能時間をセット
+    }
+
     const Card& GetPickupCard() const { return pickupCard_; }
-    void ClearPickupCard() { hasPickupCard_ = false; pickupCard_ = { -1, "", 0 }; }
+
+    void ClearPickupCard() {
+        hasPickupCard_ = false;
+        pickupCard_ = { -1, "", 0 };
+        pickupCardTimer_ = 0; // タイマーもリセット
+    }
 
     const Card& GetBaseCard() const { return baseCard_; }
     const Card& GetCurrentUseCard() const { return currentUseCard_; }
@@ -55,7 +66,7 @@ public:
     int GetHP() const { return hp_; }       // HP取得
 
     // 行動ロック関連
-    void SetActionLock(int frame);                          // 一定時間行動ロック
+    void SetActionLock(int frame);                           // 一定時間行動ロック
     bool IsActionLocked() const { return isActionLocked_; } // 行動ロック中か
 
     // ヒット演出関連
@@ -63,9 +74,8 @@ public:
     bool IsVisible() const;               // 描画するか
 
     // カード使用リクエスト
-    bool GetCardUseRequest() const { return cardUseRequest_; }    // カード使用発生取得
-
-    void ClearCardUseRequest() { cardUseRequest_ = false; }       // カード使用発生クリア
+    bool GetCardUseRequest() const { return cardUseRequest_; } // カード使用発生取得
+    void ClearCardUseRequest() { cardUseRequest_ = false; }    // カード使用発生クリア
 
     // 敵を凍らせる関数
     void Freeze(int durationFrames);
@@ -83,7 +93,8 @@ private:
     void DecideNextState();     // 次の状態を決める
     bool IsStuck() const;       // 詰まり判定
 
-	float GetUseRangeForCurrentCard() const; // 現在のカードに応じた使用範囲を取得
+    float GetUseRangeForCurrentCard() const;          // 現在のカードに応じた使用範囲を取得
+    float GetRetreatEnterRangeForCurrentCard() const; // 現在のカードに応じた離脱開始距離を取得
 
     void UpdatePatrol();        // 巡回処理
     void UpdateMoveToCard();    // カードへ向かう処理
@@ -117,10 +128,13 @@ private:
     Vector3 targetCardPos_{ 0.0f, 0.0f, 0.0f }; // 目標カード位置
     bool hasTargetCard_ = false;                // 目標カードがあるか
 
-    Card baseCard_{ -1, "", 0 };              // 固定のパンチカード
-    bool hasPickupCard_ = false;              // 拾ったカードを持っているか
-    Card pickupCard_{ -1, "", 0 };            // 拾ったカード
-    Card currentUseCard_{ -1, "", 0 };        // 今回使うカード
+    Card baseCard_{ -1, "", 0 };           // 固定のパンチカード
+    bool hasPickupCard_ = false;           // 拾ったカードを持っているか
+    Card pickupCard_{ -1, "", 0 };         // 拾ったカード
+    Card currentUseCard_{ -1, "", 0 };     // 今回使うカード
+
+    int pickupCardTimer_ = 0;              // 拾ったカードを使える残り時間
+    const int pickupCardDuration_ = 180;   // 拾ったカードを使える時間
 
     int hp_ = 3;                            // 敵HP
     bool isDead_ = false;                   // 死亡フラグ
@@ -140,8 +154,7 @@ private:
 
     // クールダウン
     int cardCooldownTimer_ = 0;             // カード使用クールダウン
-
-    const int cardCooldown_ = 60;           // カード使用クールダウン時間
+    const int cardCooldown_ = 30;           // カード使用クールダウン時間
 
     // 詰まり判定用
     Vector3 prevPos_{ 5.0f, 0.0f, 5.0f };   // 前フレーム位置
@@ -161,6 +174,6 @@ private:
 
     bool isCasting_ = false;
     int castTimer_ = 0;
-    const int castTime_ = 20;
+    const int castTime_ = 8;
     int strafeDirection_ = 1;
 };
