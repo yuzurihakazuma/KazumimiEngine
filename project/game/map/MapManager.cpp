@@ -275,7 +275,8 @@ void MapManager::DrawDebugUI() {
 
         // 部屋数入力
         ImGui::InputInt("部屋数", &randomRoomCount);
-        if (randomRoomCount < 1) { randomRoomCount = 1; }
+        if (randomRoomCount < 8) { randomRoomCount = 8; }
+        if (randomRoomCount > 10) { randomRoomCount = 10; }
 
         // 部屋だけ生成
         if (ImGui::Button("部屋だけ生成")) {
@@ -391,6 +392,13 @@ void MapManager::CreateRoom(int startX, int startZ, int roomWidth, int roomHeigh
 void MapManager::GenerateRandomDungeon(int roomCount) {
     if (!mapGenerator_) {
         return;
+    }
+
+    if (roomCount < 8) {
+        roomCount = 8;
+    }
+    if (roomCount > 10) {
+        roomCount = 10;
     }
 
     mapGenerator_->GenerateRandomDungeon(levelData_, roomCount);
