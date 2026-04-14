@@ -18,6 +18,13 @@ enum class CardRarity {
 	Legendary = 3  // レジェンダリー
 };
 
+//---------攻撃距離の種類---------
+enum class CardAttackRangeType {
+	Melee = 0, // 近距離
+	Mid = 1,   // 中距離
+	Long = 2   // 遠距離
+};
+
 //---------カードのデータ構造---------
 struct Card {
 	int id;                    //ID
@@ -31,6 +38,7 @@ struct Card {
 	std::string seName;        // 効果音名
 	CardRarity rarity;         // レア度
 	bool canEnemyUse;          // 敵も使用可能か
+	CardAttackRangeType attackRangeType;
 };
 
 class CardDatabase {

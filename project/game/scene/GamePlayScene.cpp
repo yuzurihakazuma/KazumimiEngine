@@ -919,7 +919,7 @@ void GamePlayScene::Update() {
 
 		// Eキーで構え中の攻撃カードを発動
 		if (input->Triggerkey(DIK_E)) {
-			if (playerCardSystem_ && playerManager_) {
+			if (playerCardSystem_ && playerManager_ && !playerManager_->IsDodging()) {
 				playerCardSystem_->UseCard(
 					readiedCard_,
 					playerPos_,

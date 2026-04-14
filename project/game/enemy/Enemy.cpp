@@ -16,6 +16,7 @@ void Enemy::Initialize() {
     hasPickupCard_ = false;
     pickupCard_ = { -1, "", 0 };
     currentUseCard_ = { -1, "", 0 };
+    pickupCardTimer_ = 0;                     // 拾ったカードタイマー初期化
 
     hp_ = 3;                 // 敵HP初期化
     isDead_ = false;         // 死亡状態リセット
@@ -48,6 +49,16 @@ void Enemy::Update() {
     if (isDead_) return; // 死亡していたら何もしない
 
     cardUseRequest_ = false;  // 毎フレームカード使用フラグ初期化
+
+    // 拾ったカードの使用可能時間を減らす
+    if (hasPickupCard_) {
+        pickupCardTimer_--;
+
+        // 時間切れになったら拾ったカードを消す
+        if (pickupCardTimer_ <= 0) {
+            ClearPickupCard();
+        }
+    }
 
     if (isActionLocked_) {
         actionLockTimer_--;          // 残り時間を減らす
@@ -156,6 +167,7 @@ void Enemy::DecideNextState() {
     float playerDist = Length(toPlayer); // プレイヤーとの距離
     float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
     float exitRange = useRange + 1.5f; // 射程から少し離れたら追跡に戻す
+    float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 今使うカードの離脱開始距離
 
     // 詰まっていたら一旦巡回に戻して方向転換
     if (IsStuck()) {
@@ -171,7 +183,7 @@ void Enemy::DecideNextState() {
     if (hasPickupCard_) {
 
         if (state_ == State::UseCard) {
-            if (playerDist < retreatEnterRange_) {
+            if (playerDist < retreatEnter) {
                 state_ = State::Retreat;
             } else if (playerDist > exitRange) {
                 state_ = State::ChasePlayer;
@@ -186,7 +198,7 @@ void Enemy::DecideNextState() {
             return;
         }
 
-        if (playerDist < retreatEnterRange_) {
+        if (playerDist < retreatEnter) {
             state_ = State::Retreat;
         } else if (playerDist <= useRange) {
             state_ = State::UseCard;
@@ -326,13 +338,11 @@ void Enemy::UpdateUseCard() {
 
     isCasting_ = false;
 
-    // 拾ったカードは使ったら消す
-    if (usedPickupCard) {
-        ClearPickupCard();
-    }
+    // 拾ったカードは使ってもすぐ消さない
+    // 時間切れになるまで保持する
 
     // 発動後の硬直
-    SetActionLock(15);
+    SetActionLock(8);
 
     // 使用後の行動
     if (usedPickupCard) {
@@ -341,9 +351,8 @@ void Enemy::UpdateUseCard() {
         state_ = State::ChasePlayer;
     }
 
-    thinkTimer_ = 15;
+    thinkTimer_ = 5;
 }
-
 void Enemy::UpdateRetreat() {
 
     Vector3 dir = {
@@ -353,9 +362,11 @@ void Enemy::UpdateRetreat() {
     }; // プレイヤーから離れる方向
 
     float dist = Length(dir); // プレイヤーとの距離
+    float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
+    float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 今使うカードの離脱開始距離
 
     // 十分離れたらカード使用へ戻す
-    if (dist >= retreatExitRange_) {
+    if (dist >= retreatEnter + 0.5f) {
         state_ = State::UseCard;
         thinkTimer_ = 0;
         return;
@@ -425,11 +436,37 @@ bool Enemy::IsVisible() const {
 float Enemy::GetUseRangeForCurrentCard() const {
     const Card& card = hasPickupCard_ ? pickupCard_ : baseCard_;
 
-    // パンチは近接距離
-    if (card.id == 1) {
-        return 1.8f;
+    // カードの攻撃距離タイプで使用距離を変える
+    switch (card.attackRangeType) {
+    case CardAttackRangeType::Melee:
+        return 1.8f; // 近距離
+
+    case CardAttackRangeType::Mid:
+        return 4.0f; // 中距離
+
+    case CardAttackRangeType::Long:
+        return 7.0f; // 遠距離
     }
 
-    // それ以外はいったん共通距離
+    // 念のため
     return cardUseEnterRange_;
+}
+
+float Enemy::GetRetreatEnterRangeForCurrentCard() const {
+    const Card& card = hasPickupCard_ ? pickupCard_ : baseCard_;
+
+    // カードの攻撃距離タイプで離脱開始距離を変える
+    switch (card.attackRangeType) {
+    case CardAttackRangeType::Melee:
+        return 1.0f; // 近距離はあまり逃げない
+
+    case CardAttackRangeType::Mid:
+        return 2.5f; // 中距離は少し距離を取る
+
+    case CardAttackRangeType::Long:
+        return 4.0f; // 遠距離は近づかれたら逃げる
+    }
+
+    // 念のため
+    return retreatEnterRange_;
 }

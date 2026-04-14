@@ -7,7 +7,7 @@
 
 std::unordered_map<int, Card> CardDatabase::database_;
 
-void CardDatabase::Initialize(const std::string &filePath) {
+void CardDatabase::Initialize(const std::string& filePath) {
     database_.clear();
 
     // ファイルを開く
@@ -22,7 +22,7 @@ void CardDatabase::Initialize(const std::string &filePath) {
     bool isFirstLine = true;
 
     //ファイルを1行ずつ読み込む
-    while (std::getline(file,line)) {
+    while (std::getline(file, line)) {
         //最初の1行目はデータじゃないので飛ばす
         if (isFirstLine) {
             isFirstLine = false;
@@ -30,7 +30,7 @@ void CardDatabase::Initialize(const std::string &filePath) {
         }
 
         //空行あったら飛ばす
-        if (line.empty())continue;
+        if (line.empty()) continue;
 
         //読み込んだ1行を、カンマで分離する処理
         std::stringstream ss(line);
@@ -38,12 +38,12 @@ void CardDatabase::Initialize(const std::string &filePath) {
         std::vector<std::string> columns;
 
         //カンマで区切りで文字を取り出し、columnsに保存
-        while (std::getline(ss,token,',')) {
+        while (std::getline(ss, token, ',')) {
             columns.push_back(token);
         }
 
-        //正しく分離できたかチェック
-        if (columns.size() >= 11) {
+        // attackRangeType追加で12列必要
+        if (columns.size() >= 12) {
             Card card;
             card.id = std::stoi(columns[0]);
             card.name = columns[1];
@@ -59,17 +59,18 @@ void CardDatabase::Initialize(const std::string &filePath) {
             // CSVの11番目のデータ(インデックス10)が "0" じゃなければ true にする！
             card.canEnemyUse = (std::stoi(columns[10]) != 0);
 
+            // 攻撃距離タイプ（0=近距離, 1=中距離, 2=遠距離）
+            card.attackRangeType = static_cast<CardAttackRangeType>(std::stoi(columns[11]));
+
             //辞典に登録
             database_[card.id] = card;
         }
     }
 
-    //使い終わったらファイルは閉じる
     file.close();
-
 }
 
-void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
+void CardDatabase::LoadAdditionalCards(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
         return;
@@ -93,7 +94,8 @@ void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
             columns.push_back(token);
         }
 
-        if (columns.size() >= 11) {
+        // attackRangeType追加で12列必要
+        if (columns.size() >= 12) {
             Card card;
             card.id = std::stoi(columns[0]);
             card.name = columns[1];
@@ -109,36 +111,40 @@ void CardDatabase::LoadAdditionalCards(const std::string &filePath) {
             // CSVの11番目のデータ(インデックス10)が "0" じゃなければ true にする！
             card.canEnemyUse = (std::stoi(columns[10]) != 0);
 
-            // 辞書に追加！（ID101などがここに入ります）
+            // 攻撃距離タイプ
+            card.attackRangeType = static_cast<CardAttackRangeType>(std::stoi(columns[11]));
+
+            // 辞書に追加
             database_[card.id] = card;
         }
     }
 }
 
-
 Card CardDatabase::GetCardData(int id) {
     if (database_.find(id) != database_.end()) {
         return database_[id];
     }
-    return { -1, "Unknwon", 0, CardEffectType::Special, 0, "Error", "None", "None", "None", CardRarity::Common, false };
+
+    // エラー用（距離タイプも追加）
+    return { -1, "Unknwon", 0, CardEffectType::Special, 0, "Error", "None", "None", "None", CardRarity::Common, false, CardAttackRangeType::Mid };
 }
 
 Card CardDatabase::GetRandomEnemyUsableCard() {
     std::vector<Card> usableCards;
 
     // データベース内の全カードをチェックして、敵が使えるやつだけリストに入れる
-    for (const auto &pair : database_) {
+    for (const auto& pair : database_) {
         if (pair.second.canEnemyUse) {
             usableCards.push_back(pair.second);
         }
     }
 
-    // 万が一、使えるカードが1枚も設定されていなかった時の保険（ID:1を返す）
+    // 万が一、使えるカードが1枚も設定されていなかった時の保険
     if (usableCards.empty()) {
         return GetCardData(1);
     }
 
-    // リストの中からランダムに1つ選ぶ
+    // ランダム選択
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dist(0, (int)usableCards.size() - 1);
@@ -149,20 +155,18 @@ Card CardDatabase::GetRandomEnemyUsableCard() {
 Card CardDatabase::GetRandomPlayerCard() {
     std::vector<Card> dropCards;
 
-	// データベースの中身を全部チェックする
-    for (const auto &pair : database_) {
-        // IDが100未満、かつ「IDが1ではない」カードだけをリストに入れる
+    // データベースの中身を全部チェック
+    for (const auto& pair : database_) {
         if (pair.second.id > 1 && pair.second.id < 100) {
             dropCards.push_back(pair.second);
         }
     }
 
-    // 万が一拾えるカードがなかったら、エラーで回避でID2枚選ぶ
+    // 保険
     if (dropCards.empty()) {
         return GetCardData(2);
     }
 
-    // プレイヤー用リストの中からランダムに1枚選らぶ
     int randomIndex = rand() % dropCards.size();
     return dropCards[randomIndex];
 }
