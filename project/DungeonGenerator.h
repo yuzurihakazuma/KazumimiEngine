@@ -12,6 +12,8 @@ public:
 		int z = 0;
 		int width = 0;
 		int height = 0;
+		int spanX = 1;
+		int spanZ = 1;
 
 		int templateId = -1;
 		std::string templateName;
@@ -69,6 +71,7 @@ private:
 	void AddExtraConnections(LevelData& levelData, int corridorWidth, int count);
 
 	Vector2 GetRoomCenter(const Room& room) const;
+	CorridorPoint GetRoomConnectionPoint(const Room& room, const Room& targetRoom) const;
 
 private:
 	std::vector<Room> rooms_;

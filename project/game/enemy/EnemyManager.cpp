@@ -94,7 +94,7 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 		bool isEnemyHit = false;
 		for (int z = eStartZ; z <= eEndZ && !isEnemyHit; z++) {
 			for (int x = eStartX; x <= eEndX; x++) {
-				if (level.tiles[z][x] != 1) {
+				if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
 					continue;
 				}
 
@@ -423,7 +423,7 @@ void EnemyManager::CheckCollisions(Player* player, MapManager* mapManager) {
 
 		for (int z = startZ; z <= endZ; z++) {
 			for (int x = startX; x <= endX; x++) {
-				if (level.tiles[z][x] != 1) {
+				if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
 					continue;
 				}
 

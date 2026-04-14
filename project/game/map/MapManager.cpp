@@ -120,7 +120,7 @@ void MapManager::Update(const Vector3& playerPos) {
                 wallObjects_[z][x]->Update();
 
                 int tile = levelData_.tiles[z][x];
-                if (tile == 1) {
+                if (tile == 1 || tile == 2) {
                     wallGroup_->AddObject(wallObjects_[z][x].get());
                 } else if (tile == 3) {
                     stairsGroup_->AddObject(wallObjects_[z][x].get());
@@ -333,6 +333,9 @@ void MapManager::DrawDebugUI() {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
                 }
                 // 階段色
+                else if (tile == 2) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.45f, 0.2f, 1.0f));
+                }
                 else if (tile == 3) {
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 1.0f, 1.0f, 1.0f));
                 }
@@ -491,7 +494,7 @@ void MapManager::UpdateTileObject(int x, int z) {
         return;
     }
 
-    if (tile == 1 || tile == 3) {
+    if (tile == 1 || tile == 2 || tile == 3) {
         floorObjects_[z][x].reset();
 
         if (!wallObjects_[z][x]) {
@@ -500,7 +503,7 @@ void MapManager::UpdateTileObject(int x, int z) {
             wallObjects_[z][x]->SetCamera(camera_);
         }
 
-        if (tile == 1) {
+        if (tile == 1 || tile == 2) {
             wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + tileSize, z * tileSize });
             wallObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
         } else {
