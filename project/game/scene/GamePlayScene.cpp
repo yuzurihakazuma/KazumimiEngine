@@ -1147,7 +1147,10 @@ void GamePlayScene::DrawDebugUI() {
 
 	TextManager::GetInstance()->DrawDebugUI();
 
-	MapManager::GetInstance()->DrawDebugUI();
+	if (mapManager_) {
+		mapManager_->DrawDebugUI();
+	}
+
 
 	ImGui::Begin("Block Dissolve Test");
 

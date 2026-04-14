@@ -20,15 +20,15 @@ MapManager::~MapManager() = default;
 
 // 初期化
 void MapManager::Initialize() {
-	// 初期階層と階段タイル位置
+    // 初期階層と階段タイル位置
     int currentFloor_ = 1;
     std::pair<int, int> stairsTile_ = { -1, -1 };
 
-    // サイズ同期
+    // サイズ初期化
     editWidth_ = levelData_.width;
     editHeight_ = levelData_.height;
 
-    // マップ生成初期化
+    // マップ生成器の初期化
     mapGenerator_ = std::make_unique<MapGenerator>();
     mapGenerator_->Initialize();
 
@@ -37,21 +37,22 @@ void MapManager::Initialize() {
     mapType_ = 0;
     saveFileName_ = "map01.json";
 
-    // 床インスタンス
+    // 床インスタンスグループ
     floorGroup_ = std::make_unique<InstancedGroup>();
-    floorGroup_->Initialize("block", 10000);
+    floorGroup_->Initialize("plane", 10000);
 
-    // 壁インスタンス
+    // 壁インスタンスグループ
     wallGroup_ = std::make_unique<InstancedGroup>();
     wallGroup_->Initialize("block", 10000);
 
-    // 階段インスタンス
+    // 階段インスタンスグループ
     stairsGroup_ = std::make_unique<InstancedGroup>();
     stairsGroup_->Initialize("block", 10000);
 
     // マップ読み込み
     LoadAndCreateMap(currentMapFile_);
 }
+
 
 // マップ読み込み＋生成
 void MapManager::LoadAndCreateMap(const std::string& fileName) {
@@ -466,8 +467,9 @@ void MapManager::PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoid
 void MapManager::UpdateTileObject(int x, int z) {
     if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
 
-    Model* model = ModelManager::GetInstance()->FindModel("block");
-    if (model == nullptr) return;
+    Model* floorModel = ModelManager::GetInstance()->FindModel("plane");
+    Model* wallModel = ModelManager::GetInstance()->FindModel("block");
+    if (floorModel == nullptr || wallModel == nullptr) return;
 
     const float tileSize = levelData_.tileSize;
     const int tile = levelData_.tiles[z][x];
@@ -477,12 +479,14 @@ void MapManager::UpdateTileObject(int x, int z) {
 
         if (!floorObjects_[z][x]) {
             floorObjects_[z][x] = std::make_unique<Obj3d>();
-            floorObjects_[z][x]->Initialize(model);
+            floorObjects_[z][x]->Initialize(floorModel);
             floorObjects_[z][x]->SetCamera(camera_);
         }
 
-        floorObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY, z * tileSize });
-        floorObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
+        floorObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + 1.0f, z * tileSize });
+
+        floorObjects_[z][x]->SetRotation({ -1.57f, 0.0f, 0.0f });
+
         floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
         return;
     }
@@ -492,7 +496,7 @@ void MapManager::UpdateTileObject(int x, int z) {
 
         if (!wallObjects_[z][x]) {
             wallObjects_[z][x] = std::make_unique<Obj3d>();
-            wallObjects_[z][x]->Initialize(model);
+            wallObjects_[z][x]->Initialize(wallModel);
             wallObjects_[z][x]->SetCamera(camera_);
         }
 

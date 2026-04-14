@@ -47,6 +47,7 @@ void TitleScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
+	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
 
 	// 球モデル作成
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
