@@ -608,7 +608,7 @@ void DirectXCommon::InitializeInfoQueue(){
 		D3D12_MESSAGE_ID denyIds[] = {
 			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
 			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
-			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,D3D12_MESSAGE_ID_LIVE_DEVICE, };
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,D3D12_MESSAGE_ID_LIVE_DEVICE, D3D12_MESSAGE_ID_LIVE_SHADERCACHESESSION, };
 		// 抑制するレベル
 		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
 		D3D12_INFO_QUEUE_FILTER filter {};
