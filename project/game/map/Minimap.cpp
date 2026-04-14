@@ -139,13 +139,14 @@ void Minimap::BuildChunkSprites() {
 			int x = chunk.startX;
 
 			while (x <= chunk.endX) {
-				if (levelData_->tiles[z][x] != 1) {
+				if (levelData_->tiles[z][x] != 1 && levelData_->tiles[z][x] != 2) {
 					++x;
 					continue;
 				}
 
 				const int startX = x;
-				while (x <= chunk.endX && levelData_->tiles[z][x] == 1) {
+				while (x <= chunk.endX &&
+					(levelData_->tiles[z][x] == 1 || levelData_->tiles[z][x] == 2)) {
 					++x;
 				}
 				const int endX = x - 1;

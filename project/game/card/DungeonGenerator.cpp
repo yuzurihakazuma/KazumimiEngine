@@ -34,8 +34,11 @@ void DungeonGenerator::CarveHorizontalCorridor(LevelData& levelData, int x1, int
 		std::swap(x1, x2);
 	}
 
+	const int minOffset = -(width / 2);
+	const int maxOffset = minOffset + width - 1;
+
 	for (int x = x1; x <= x2; ++x) {
-		for (int offset = 0; offset < width; ++offset) {
+		for (int offset = minOffset; offset <= maxOffset; ++offset) {
 			int zz = z + offset;
 
 			if (x <= 0 || x >= levelData.width - 1 || zz <= 0 || zz >= levelData.height - 1) {
@@ -55,8 +58,11 @@ void DungeonGenerator::CarveVerticalCorridor(LevelData& levelData, int z1, int z
 		std::swap(z1, z2);
 	}
 
+	const int minOffset = -(width / 2);
+	const int maxOffset = minOffset + width - 1;
+
 	for (int z = z1; z <= z2; ++z) {
-		for (int offset = 0; offset < width; ++offset) {
+		for (int offset = minOffset; offset <= maxOffset; ++offset) {
 			int xx = x + offset;
 
 			if (xx <= 0 || xx >= levelData.width - 1 || z <= 0 || z >= levelData.height - 1) {
@@ -76,6 +82,29 @@ Vector2 DungeonGenerator::GetRoomCenter(const Room& room) const {
 	center.x = static_cast<float>(room.x + room.width / 2);
 	center.y = static_cast<float>(room.z + room.height / 2);
 	return center;
+}
+
+DungeonGenerator::CorridorPoint DungeonGenerator::GetRoomConnectionPoint(const Room& room, const Room& targetRoom) const {
+	CorridorPoint point{};
+
+	const int splitX = std::max(1, room.spanX);
+	const int splitZ = std::max(1, room.spanZ);
+
+	const Vector2 roomCenter = GetRoomCenter(room);
+	const Vector2 targetCenter = GetRoomCenter(targetRoom);
+
+	const int segmentX = (targetCenter.x < roomCenter.x) ? 0 : (splitX - 1);
+	const int segmentZ = (targetCenter.y < roomCenter.y) ? 0 : (splitZ - 1);
+
+	const int startX = room.x + (room.width * segmentX) / splitX;
+	const int endX = room.x + (room.width * (segmentX + 1)) / splitX - 1;
+	const int startZ = room.z + (room.height * segmentZ) / splitZ;
+	const int endZ = room.z + (room.height * (segmentZ + 1)) / splitZ - 1;
+
+	point.x = (startX + endX) / 2;
+	point.z = (startZ + endZ) / 2;
+
+	return point;
 }
 
 void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
@@ -179,13 +208,13 @@ void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 }
 
 void DungeonGenerator::ConnectRooms(LevelData& levelData, const Room& a, const Room& b, int corridorWidth) {
-	Vector2 centerA = GetRoomCenter(a);
-	Vector2 centerB = GetRoomCenter(b);
+	const CorridorPoint pointA = GetRoomConnectionPoint(a, b);
+	const CorridorPoint pointB = GetRoomConnectionPoint(b, a);
 
-	int ax = static_cast<int>(centerA.x);
-	int az = static_cast<int>(centerA.y);
-	int bx = static_cast<int>(centerB.x);
-	int bz = static_cast<int>(centerB.y);
+	const int ax = pointA.x;
+	const int az = pointA.z;
+	const int bx = pointB.x;
+	const int bz = pointB.z;
 
 	// ポケダンっぽく素直なL字
 	std::uniform_int_distribution<int> orderDist(0, 1);
@@ -366,6 +395,8 @@ DungeonGenerator::Room DungeonGenerator::PlaceTemplateRoom(
 	room.z = offsetZ;
 	room.width = templateWidth;
 	room.height = templateHeight;
+	room.spanX = std::max(1, roomTemplate.spanX);
+	room.spanZ = std::max(1, roomTemplate.spanZ);
 
 	room.templateId = roomTemplate.id;
 	room.templateName = roomTemplate.name;

@@ -34,7 +34,7 @@ bool SpawnManager::IsWallTile(int x, int z) const {
 		return false;
 	}
 
-	return levelData_->tiles[z][x] == 1;
+	return levelData_->tiles[z][x] == 1 || levelData_->tiles[z][x] == 2;
 }
 
 bool SpawnManager::HasEnoughSpaceFromWalls(int x, int z, int margin) const {
