@@ -955,11 +955,10 @@ void GamePlayScene::Update() {
 		block->Update();
 	}
 
-	if ( input->Triggerkey(DIK_G) ){
 		// GPUパーティクル更新
 		GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
 
-	}
+	
 	
 
 	emitter_.Update(1.0f / 60.0f);
