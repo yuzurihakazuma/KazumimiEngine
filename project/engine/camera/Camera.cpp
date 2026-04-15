@@ -63,6 +63,11 @@ Camera::Camera(int windowWidth, int windowHeight, DirectXCommon* dxcmmon)
 
 void Camera::Update(){
 
+	// アスペクト比を計算
+	aspectRatio = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() ) /
+		static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
+
+
 	// 1. ワールド行列の更新 (カメラの場所・角度)
 	worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
 

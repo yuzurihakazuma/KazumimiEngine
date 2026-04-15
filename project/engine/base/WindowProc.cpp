@@ -125,8 +125,21 @@ LRESULT WindowProc::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam){
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
-	}
 
+	case WM_SIZE:
+		// ウィンドウのサイズが変更されたときの処理
+		if ( wparam!=SIZE_MINIMIZED ){
+			kClientWidth_ = LOWORD(lparam);  // クライアント領域の横幅を更新
+			kClientHeight_ = HIWORD(lparam); // クライアント領域の縦幅を更新
+			isResized_ = true; // ウィンドウサイズ変更フラグを立てる
+		}
+		break;
+	case WM_ENTERSIZEMOVE:
+
+		isResized_ = true; // ウィンドウサイズ変更フラグを立てる
+		break;
+
+	}
 	// デフォルトのウィンドウプロシージャを呼び出す
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }

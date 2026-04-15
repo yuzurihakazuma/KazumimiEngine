@@ -14,13 +14,13 @@
 using json = nlohmann::json;
 
 // 初期化
-void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height) {
+void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height){
 	// 1. 抽出結果を保存するキャンバスの用意
 	extractTexture_ = std::make_unique<RenderTexture>();
 	extractTexture_->Initialize(dxCommon, srvManager, width, height);
 
 	bloomDataResource_ = ResourceFactory::GetInstance()->CreateBufferResource(sizeof(BloomData));
-	bloomDataResource_->Map(0, nullptr, reinterpret_cast<void**>(&bloomData_));
+	bloomDataResource_->Map(0, nullptr, reinterpret_cast< void** >( &bloomData_ ));
 	bloomData_->threshold = 1.0f; // 最初は「1.0」以上の明るさを抽出
 	RootSignatureBuilder rsBuilder;
 	rsBuilder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -33,7 +33,7 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 	// パイプラインステートの構築
 	GraphicsPipelineBuilder psoBuilder;
 	psoBuilder.SetRootSignature(rootSignature_.Get()) // PSOの共通設定はここで行う（ルートシグネチャやブレンドモードなど）！
-		.SetShaders( vsBlob.Get(), psBlob.Get()) // シェーダーはVSは「Fullscreen」を使い回し、PSは「BloomExtract」を使う！
+		.SetShaders(vsBlob.Get(), psBlob.Get()) // シェーダーはVSは「Fullscreen」を使い回し、PSは「BloomExtract」を使う！
 		.SetInputLayoutEmpty() // 頂点を使わない（フルスクリーンポストエフェクトなので）ので、InputLayoutは空でOK
 		.SetBlendMode(BlendMode::kNormal) // ブレンドは特にしないのでNormalでOK
 		.SetCullMode(D3D12_CULL_MODE_NONE) // カリングはしないのでNONE
@@ -97,9 +97,23 @@ void Bloom::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t
 
 }
 
+// リサイズ
+void Bloom::OnResize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height){
+
+	extractTexture_->Resize(dxCommon, srvManager, width, height);
+	blurTextures_[0]->Resize(dxCommon, srvManager, width, height);
+	blurTextures_[1]->Resize(dxCommon, srvManager, width, height);
+	combineTexture_->Resize(dxCommon, srvManager, width, height);
+
+	blurData_->texelSize[0] = 1.0f / static_cast< float >( width );
+	blurData_->texelSize[1] = 1.0f / static_cast< float >( height );
+
+
+}
+
 
 // 工程①：高輝度抽出を描画する
-void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
+void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList){
 	// 共通設定
 	commandList->SetGraphicsRootSignature(blurRootSignature_.Get());
 	commandList->SetPipelineState(blurPipelineState_.Get());
@@ -123,11 +137,11 @@ void Bloom::DrawBlur(ID3D12GraphicsCommandList* commandList) {
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(1, blurTextures_[0]->GetSrvIndex());
 	commandList->DrawInstanced(3, 1, 0, 0);
 	// 描画終了
-	blurTextures_[1]->PostDrawScene(commandList, DirectXCommon::GetInstance()); 
+	blurTextures_[1]->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
 // 工程①：高輝度抽出を描画する
-void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex) {
+void Bloom::DrawExtract(ID3D12GraphicsCommandList* commandList, uint32_t maskSrvIndex){
 	// 1. 描画先を「Bloomの抽出用キャンバス」に切り替え
 	extractTexture_->PreDrawScene(commandList, DirectXCommon::GetInstance());
 
@@ -167,7 +181,7 @@ void Bloom::DrawCombine(ID3D12GraphicsCommandList* commandList, uint32_t mainSrv
 	combineTexture_->PostDrawScene(commandList, DirectXCommon::GetInstance());
 }
 
-void Bloom::DrawDebugUI() {
+void Bloom::DrawDebugUI(){
 #ifdef USE_IMGUI
 
 	ImGui::Checkbox("発光 (Bloom)", &isEnabled_);
@@ -210,21 +224,21 @@ void Bloom::Render(ID3D12GraphicsCommandList* commandList, uint32_t colorSrvInde
 	resultSrvIndex_ = combineTexture_->GetSrvIndex();
 }
 
-void Bloom::Save(const std::string& filePath) {
+void Bloom::Save(const std::string& filePath){
 	json j;
 	j["isEnabled"] = isEnabled_;
 	j["threshold"] = bloomData_->threshold;
 
 	std::ofstream file(filePath);
-	if (file.is_open()) {
+	if ( file.is_open() ) {
 		file << j.dump(4);
 		file.close();
 	}
 }
 
-void Bloom::Load(const std::string& filePath) {
+void Bloom::Load(const std::string& filePath){
 	std::ifstream file(filePath);
-	if (file.is_open()) {
+	if ( file.is_open() ) {
 		json j;
 		file >> j;
 		isEnabled_ = j.value("isEnabled", true);
@@ -233,22 +247,22 @@ void Bloom::Load(const std::string& filePath) {
 }
 
 
-void Bloom::Finalize() {
+void Bloom::Finalize(){
 	// 抽出用のリソース解放
-	if (extractTexture_) { extractTexture_.reset(); }
+	if ( extractTexture_ ) { extractTexture_.reset(); }
 	bloomDataResource_.Reset();
 	rootSignature_.Reset();
 	pipelineState_.Reset();
 
 	// ブラー用のリソース解放
-	if (blurTextures_[0]) { blurTextures_[0].reset(); }
-	if (blurTextures_[1]) { blurTextures_[1].reset(); }
+	if ( blurTextures_[0] ) { blurTextures_[0].reset(); }
+	if ( blurTextures_[1] ) { blurTextures_[1].reset(); }
 	blurDataResource_.Reset();
 	blurRootSignature_.Reset();
 	blurPipelineState_.Reset();
 
 	// 合成用のリソース解放
-	if (combineTexture_) { combineTexture_.reset(); }
+	if ( combineTexture_ ) { combineTexture_.reset(); }
 	combineRootSignature_.Reset();
 	combinePipelineState_.Reset();
 }

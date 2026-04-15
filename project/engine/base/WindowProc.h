@@ -22,6 +22,14 @@ public:
 	/// </summary>
 	static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
+
+	// -------------------- ウィンドウ状態管理 --------------------
+	bool IsResized() const{ return isResized_; }
+
+	/// <summary> ウィンドウサイズ変更フラグのクリア </summary>
+	void ClearResizeFlag(){ isResized_ = false; }
+
+
 	// -------------------- Getter 系 --------------------
 
    /// <summary> ウィンドウハンドルの取得 </summary>
@@ -68,13 +76,14 @@ private:
 	WNDCLASS wc_ = {};     // ウィンドウクラス
 	RECT wrc_ = {};         // ウィンドウサイズ調整用 RECT
 
-	static constexpr int kDefaultClientWidth = 1280;   // デフォルト横幅
-	static constexpr int kDefaultClientHeight = 720;   // デフォルト縦幅
+	static constexpr int kDefaultClientWidth = 1920;   // デフォルト横幅
+	static constexpr int kDefaultClientHeight = 1080;   // デフォルト縦幅
 
-	int32_t kClientWidth_ = kDefaultClientWidth;       // 現在のクライアント横幅
-	int32_t kClientHeight_ = kDefaultClientHeight;     // 現在のクライアント縦幅
+	static inline int32_t kClientWidth_ = kDefaultClientWidth;       // 現在のクライアント横幅
+	static inline int32_t kClientHeight_ = kDefaultClientHeight;     // 現在のクライアント縦幅
 
 	HWND hwnd_ = nullptr;          // ウィンドウハンドル
 	static inline bool isClosed_ = false;  // ウィンドウが閉じられたかどうか
+	static inline bool isResized_ = false; // ウィンドウサイズが変更されたかどうか
 };
 

@@ -133,9 +133,24 @@ void PostEffect::Draw(ID3D12GraphicsCommandList* commandList) {
 	// もしエフェクトが1つもかかっていないなら、最初から画面に出す（ピンポン描画をしない）
 	finalResultIndex_ = src;
 
-	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
+	/*PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, renderTextures_[src]->GetSrvIndex());
-	commandList->DrawInstanced(3, 1, 0, 0);
+	commandList->DrawInstanced(3, 1, 0, 0);*/
+}
+
+// ウィンドウサイズが変わったときの処理（画用紙のサイズも変える）
+
+void PostEffect::OnResize(uint32_t width, uint32_t height){
+
+	SrvManager* srvMgr = SrvManager::GetInstance();
+
+	// 2枚の画用紙のサイズを変える
+	for ( int i = 0; i < 2; ++i ){
+		renderTextures_[i]->Resize(dxCommon_, srvMgr, width, height);
+	}
+	maskTexture_->Resize(dxCommon_, srvMgr, width, height);
+
+	Bloom::GetInstance()->OnResize(dxCommon_, srvMgr, width, height);
 }
 
 

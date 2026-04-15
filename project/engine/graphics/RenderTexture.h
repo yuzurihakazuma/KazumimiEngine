@@ -27,6 +27,11 @@ public:
 	// 描画先をメイン画面（スワップチェーン）に戻す
 	void PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon);
 
+
+	// ウィンドウサイズが変わったときの処理（テクスチャのサイズも変える）
+	void Resize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height); 
+
+
 public: // ゲッター・セッター
 
 	// 解放

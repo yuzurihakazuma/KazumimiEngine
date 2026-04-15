@@ -14,6 +14,9 @@
 #include "Engine/Graphics/SrvManager.h"
 #include "Engine/Graphics/TextureManager.h"
 #include "engine/graphics/ResourceFactory.h"
+#include "engine/base/WindowProc.h"
+
+
 using namespace MatrixMath;
 
 
@@ -99,14 +102,21 @@ void Sprite::Initialize(){
 
 void Sprite::Update(){
 
+	// 位置、回転、スケールからワールド行列を作る
 	transform.translate = { position_.x, position_.y, 0.0f };
 	transform.rotate = { 0.0f, 0.0f, rotation_ };
 	transform.scale = { 1.0f, 1.0f, 1.0f };
 
-
+	// ワールド行列を作る
 	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
-	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, width_, height_, 0.0f, 100.0f);
+
+	// 画面の幅と高さを取得
+	float screenW = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
+	float screenH = static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
+
+
+	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, screenW, screenH, 0.0f, 100.0f);
 	Matrix4x4 viewProjection = Multiply(viewMatrix, projectionMatrix);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjection);
 	transformationMatirxData_->WVP = worldViewProjectionMatrix;

@@ -36,6 +36,8 @@ public:
 
 	void Finalize(); // 終了処理
 
+	void OnResize(); // ウィンドウサイズ変更時の処理
+
 	// <summary>描画前処理
 	void PreDraw();
 	// <summary>描画後処理
