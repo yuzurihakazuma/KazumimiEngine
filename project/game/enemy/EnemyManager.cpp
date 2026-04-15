@@ -23,8 +23,12 @@ void EnemyManager::Initialize() {
 	enemyDeadHandled_.clear();
 	enemyCardSystems_.clear();
 
-	// カードモデルの生成
-	castCardObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("cardR"));
+
+	castCardObjs_.clear();
+	castCardObjs_[1] = std::unique_ptr<Obj3d>(Obj3d::Create("cardF"));
+	castCardObjs_[2] = std::unique_ptr<Obj3d>(Obj3d::Create("cardFire"));
+	castCardObjs_[7] = std::unique_ptr<Obj3d>(Obj3d::Create("CardFang"));
+	castCardObjs_[10] = std::unique_ptr<Obj3d>(Obj3d::Create("CardClaw"));
 }
 
 void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss) {
@@ -232,30 +236,59 @@ void EnemyManager::Draw(Camera* camera, Minimap* minimap) {
 		if (enemy && !enemy->IsDead() && enemy->IsCasting()) {
 			Vector3 ePos = enemy->GetPosition();
 
-			if (castCardObj_) {
+			// 敵が今使おうとしているカードのIDを取得する
+			int currentCardId = enemy->GetCurrentUseCard().id;
+
+			// 辞書の中にそのIDのモデルが存在すれば描画処理を行う
+			if (castCardObjs_.count(currentCardId) && castCardObjs_[currentCardId]) {
+				// 使うモデルを取り出す
+				auto &cardObj = castCardObjs_[currentCardId];
+
 				// --- 演出パラメータの設定 ---
-				float height = 3.5f;   // 敵の頭からの高さ（固定）
+				float height = 3.5f;   // 敵の頭からの高さ
 				float timer = static_cast<float>(enemy->GetCastTimer());
 				float rotateSpeed = 0.1f; // 回転する速さ
 
-				// 1. 座標の設定（移動せず、敵の真上の固定位置）
-				castCardObj_->SetCamera(camera);
-				castCardObj_->SetTranslation({
-					ePos.x,             // Xは敵と同じ
-					ePos.y + height,    // Yは敵の頭上
-					ePos.z              // Zは敵と同じ
+				// 1. 座標の設定
+				cardObj->SetCamera(camera);
+				cardObj->SetTranslation({
+					ePos.x,
+					ePos.y + height,
+					ePos.z
 					});
 
-				// 2. 回転の設定（その場でY軸を中心に回転）
-				// モデルが元々立っている（CardR.obj）場合は X=0.0f でOK
-				castCardObj_->SetRotation({
-					0.0f,               // X軸
-					timer * rotateSpeed, // Y軸：ここが回転のメイン
-					0.0f                // Z軸
+				// ==========================================
+				// ★ ① 表面を描画する
+				// ==========================================
+				cardObj->SetRotation({
+					0.0f,
+					timer * rotateSpeed, // Y軸で回転
+					0.0f
 					});
+				cardObj->Update();
+				cardObj->Draw();
 
-				castCardObj_->Update();
-				castCardObj_->Draw();
+				// ==========================================
+				// ★ ② 裏面を描画する（180度反転させて上書き）
+				// ==========================================
+				// 180度はラジアン（円周率）で 3.14159f です
+				cardObj->SetRotation({
+					0.0f,
+					(timer * rotateSpeed) + 3.14159f, // Y軸に180度足して裏返す！
+					0.0f
+					});
+				cardObj->Update();
+				cardObj->Draw();
+
+				//// 2. 回転の設定
+				//cardObj->SetRotation({
+				//	0.0f,                // X軸
+				//	timer * rotateSpeed, // Y軸で回転
+				//	0.0f                 // Z軸
+				//	});
+
+				//cardObj->Update();
+				//cardObj->Draw();
 			}
 		}
 	}

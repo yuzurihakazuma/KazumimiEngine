@@ -178,6 +178,6 @@ private:
 
     bool isCasting_ = false;
     int castTimer_ = 0;
-    const int castTime_ = 10;
+    const int castTime_ = 30;
     int strafeDirection_ = 1;
 };

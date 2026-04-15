@@ -104,6 +104,12 @@ void CardUseSystem::Draw() {
 // カード使用（詠唱開始）
 void CardUseSystem::UseCard(const Card& card, const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Player* player) {
 
+	// 敵（isPlayerCaster が false）の場合は、詠唱を待たずに即発動！
+	if (!isPlayerCaster) {
+		ExecuteCard(card, casterPos, casterYaw, isPlayerCaster, player);
+		return;
+	}
+
 	// すでに詠唱中なら新しく使わない
 	if (isCasting_) {
 		return;

@@ -164,6 +164,11 @@ void Enemy::Freeze(int durationFrames) {
 // 次の状態を決める
 void Enemy::DecideNextState() {
 
+    if (isCasting_) {
+        stuckTimer_ = 0; // 詰まりタイマーを常にリセット
+        return;          // ここで処理を終わらせて、元の状態をキープ！
+    }
+
     Vector3 toPlayer = {
         playerPos_.x - pos_.x,
         0.0f,
@@ -286,6 +291,27 @@ void Enemy::UpdateUseCard() {
     float dist = Length(dir); // プレイヤーとの距離
     float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
 
+    // ★ 修正1：クールダウン（前回の攻撃の疲れ）が残っているなら、
+    // そもそも詠唱を始めず、プレイヤーの追跡に戻る！
+    // =========================================================
+    if (cardCooldownTimer_ > 0) {
+        state_ = State::ChasePlayer;
+        thinkTimer_ = 0;
+        isCasting_ = false;
+        castTimer_ = 0;
+        return;
+    }
+
+    // =========================================================
+    // ★ 修正2：「詠唱が始まる前」にプレイヤーが射程外にいたら追跡に戻る。
+    // （一度詠唱を始めたら、途中で逃げられてもキャンセルしない！）
+    // =========================================================
+    if (!isCasting_ && dist > useRange + 1.5f) {
+        state_ = State::ChasePlayer;
+        thinkTimer_ = 0;
+        return;
+    }
+
     // 射程外なら撃たずに追跡へ戻す
     if (dist > useRange + 1.5f) {
         state_ = State::ChasePlayer;
@@ -304,17 +330,25 @@ void Enemy::UpdateUseCard() {
     if (!isCasting_) {
         isCasting_ = true;
         castTimer_ = castTime_;
+
+        // 詠唱が始まった瞬間に「今回使うカード」をセットしておく！
+        if (hasPickupCard_) {
+            currentUseCard_ = pickupCard_;
+        } else {
+            currentUseCard_ = baseCard_;
+        }
+
         return;
     }
 
-    // 詠唱中に射程外になったら中断
-    if (dist > useRange) {
-        state_ = State::ChasePlayer;
-        thinkTimer_ = 0;
-        isCasting_ = false;
-        castTimer_ = 0;
-        return;
-    }
+    //// 詠唱中に射程外になったら中断
+    //if (dist > useRange) {
+    //    state_ = State::ChasePlayer;
+    //    thinkTimer_ = 0;
+    //    isCasting_ = false;
+    //    castTimer_ = 0;
+    //    return;
+    //}
 
     // 詠唱中
     if (castTimer_ > 0) {
@@ -322,21 +356,11 @@ void Enemy::UpdateUseCard() {
         return;
     }
 
-    // クールダウン中は撃たずに追跡へ戻る
-    if (cardCooldownTimer_ > 0) {
-        isCasting_ = false;
-        state_ = State::ChasePlayer;
-        return;
-    }
+   
 
     bool usedPickupCard = hasPickupCard_;
 
-    // 今回使うカードを決定
-    if (usedPickupCard) {
-        currentUseCard_ = pickupCard_;
-    } else {
-        currentUseCard_ = baseCard_;
-    }
+    
 
     // カード使用
     cardUseRequest_ = true;
