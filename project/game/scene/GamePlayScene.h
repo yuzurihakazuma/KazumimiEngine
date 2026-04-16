@@ -78,6 +78,10 @@ private: // メンバ変数
 	std::vector<std::unique_ptr<Sprite>> sprites_;
 	std::unique_ptr<Sprite> sprite_ = nullptr;
 
+	// 交換フェイズ中のスプライト
+	std::unique_ptr<Sprite> swapDarkOverlay_ = nullptr;
+	std::unique_ptr<Sprite> swapUiSprite_ = nullptr;
+
 	Vector2 spritePos_ = { 100.0f, 100.0f };
 
 	// テクスチャデータ
