@@ -20,8 +20,15 @@ public:
 
 
 private:
+
+	float speedRatio_ = 1.5f;   // 移動速度の倍率
+
 	float multiplier_ = 1.0f; // 速度倍率
 	bool isPlayerCaster_ = true;
 	bool isFinished_ = false;
+
+	int durationTimer_ = 300;   // バフの持続時間（例: 5秒間 = 60fps * 5）
+	Vector3 currentPos_ = { 0,0,0 };
+
 };
 
