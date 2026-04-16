@@ -86,6 +86,15 @@ void GamePlayScene::Initialize() {
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 
+	// 交換フェイズ用の暗転スプライト作成
+	textures_["white"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/block/white1x1.png", commandList);
+	swapDarkOverlay_ = Sprite::Create(textures_["white"].srvIndex, { 0.0f, 0.0f });
+	if (swapDarkOverlay_) {
+		swapDarkOverlay_->SetColor({ 0.0f, 0.0f, 0.0f, 0.7f }); // 黒色で透明度70%
+	}
+	textures_["ChangeUI"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/UI/ChangeUI.png", commandList);
+	swapUiSprite_ = Sprite::Create(textures_["ChangeUI"].srvIndex, { 0.0f, 0.0f });
+
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
 	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
 	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
@@ -366,6 +375,28 @@ void GamePlayScene::Update() {
 	}
 
 	if (isCardSwapMode_) {
+
+		// 追加：暗転背景を画面サイズに合わせる
+		if (swapDarkOverlay_) {
+			float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+			float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+			swapDarkOverlay_->SetPosition({ screenW * 0.5f, screenH * 0.5f });
+			swapDarkOverlay_->SetSize({ screenW, screenH });
+			swapDarkOverlay_->Update();
+		}
+
+		if (swapUiSprite_) {
+			float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+			float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+
+			// 画面の中央に配置
+			swapUiSprite_->SetPosition({ screenW * 0.5f, screenH * 0.5f });
+			// 画面全体のサイズに引き伸ばす（ピッタリ合わせる）
+			swapUiSprite_->SetSize({ screenW, screenH });
+
+			swapUiSprite_->Update();
+		}
+
 		UpdateCardSwapMode(input);
 		return;
 	}
@@ -1074,8 +1105,7 @@ void GamePlayScene::Draw() {
 		blockGroup_->Draw(camera_.get());
 	}
 
-	// 手札カード(3D)
-	handManager_.Draw();
+	
 
 	// マップ描画
 	mapManager_->Draw(playerPos_);
@@ -1140,6 +1170,24 @@ void GamePlayScene::Draw() {
 	// レベルアップ選択
 	levelUpBonusManager_.Draw();
 
+	if (isCardSwapMode_ && swapDarkOverlay_) {
+		swapDarkOverlay_->Draw();
+	}
+
+	if (isCardSwapMode_ && swapUiSprite_) {
+		swapUiSprite_->Draw();
+	}
+
+	// 背景の3Dモデルにカードが埋まらないように、奥行き情報をリセット
+	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	// 3D用の描画設定をセット
+	Obj3dCommon::GetInstance()->PreDraw(commandList);
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+
+	// 手札カード(3D)
+	handManager_.Draw();
+	SpriteCommon::GetInstance()->PreDraw(commandList);
 	TextManager::GetInstance()->Draw();
 
 	// =========================================

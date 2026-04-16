@@ -13,46 +13,58 @@ void HandManager::Initialize(Camera* camera, uint32_t noiseTextureIndex) {
 }
 
 bool HandManager::AddCard(const Card& newCard) {
-	//拾えたらtrue、拾えなかったらfalse
-	if (hand_.size() < maxHandSize_) {
-		// 1. まずモデルのデータを探す
-		Model* cardModelData = ModelManager::GetInstance()->FindModel(newCard.modelName);
+	// 1. まずモデルのデータを探す
+	Model *cardModelData = ModelManager::GetInstance()->FindModel(newCard.modelName);
 
-		// ★超重要：もしモデルが見つからなかったら、絶対にここで弾く！！
-		// これがないと空っぽのモデルを描画しようとしてDirectX12がクラッシュします
-		if (cardModelData == nullptr) {
-			return false;
+	// もしモデルが見つからなかったら弾く
+	if (cardModelData == nullptr) {
+		return false;
+	}
+
+	// =========================================================
+	// ★ 修正ポイント①：消えかかっている（ディゾルブ中の）枠を再利用する！
+	// =========================================================
+	for (size_t i = 0; i < hand_.size(); ++i) {
+		if (isDissolving_[i]) {
+			// ディゾルブ中のカードを、拾った新しいカードで上書きする
+			hand_[i] = newCard;
+
+			auto model = std::make_unique<Obj3d>();
+			model->Initialize(cardModelData);
+			model->SetCamera(camera_);
+			model->SetNoiseTexture(noiseTextureIndex_);
+			model->SetDissolveThreshold(0.0f);
+
+			handModels_[i] = std::move(model);
+
+			// ディゾルブをキャンセルして、新しいカードを実体化させる
+			isDissolving_[i] = false;
+			dissolveThresholds_[i] = 0.0f;
+
+			return true; // 取得成功！
 		}
+	}
 
-		// 2. 無事にモデルが見つかった場合だけ、手札に追加する
+	// =========================================================
+	// ★ 修正ポイント②：ディゾルブ中の枠がなく、まだ上限に達していなければ普通に追加
+	// =========================================================
+	if (hand_.size() < maxHandSize_) {
 		hand_.push_back(newCard);
 
 		auto model = std::make_unique<Obj3d>();
-		model->Initialize(cardModelData); // ここは絶対に通るようになる
+		model->Initialize(cardModelData);
 		model->SetCamera(camera_);
-
-		// ディゾルブ用の設定
 		model->SetNoiseTexture(noiseTextureIndex_);
 		model->SetDissolveThreshold(0.0f);
 
-		if (newCard.effectType == CardEffectType::Attack) {
-			model->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
-		} else if (newCard.effectType == CardEffectType::Heal) {
-			model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
-		} else if (newCard.effectType == CardEffectType::Defense) {
-			model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
-		} else if (newCard.effectType == CardEffectType::Special) {
-			model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
-		}
-
 		handModels_.push_back(std::move(model));
-
-		// ディゾルブ状態も追加
 		isDissolving_.push_back(false);
 		dissolveThresholds_.push_back(0.0f);
 
-		return true;
+		return true; // 取得成功！
 	}
+
+	// 完全に満杯なら拾えない（交換フェイズへ）
 	return false;
 }
 
