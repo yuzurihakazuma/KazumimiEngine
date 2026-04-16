@@ -58,6 +58,45 @@ void DirectXCommon::Finalize(){
 #endif
 }
 
+// ウィンドウサイズ変更時の処理
+void DirectXCommon::OnResize(){
+
+	// GPU完了待ち
+	WaitForGPU();
+
+
+	// バックバッファの解放
+	for ( UINT i = 0; i < kBackBufferCount; ++i ){
+		// バックバッファの解放
+		backBuffers_[i].Reset();
+
+	}
+
+	
+	// ステンシルリソースの解放
+	depthStencilResource_.Reset(); 
+
+	// 深度バッファもリサイズするためにいったん解放
+	depthBuffer_.Reset(); 
+
+	// スワップチェーンのリサイズ
+	hr_=swapChain_->ResizeBuffers(
+		kBackBufferCount, // バッファ数
+		windowProc_->GetClientWidth(), // 横幅
+		windowProc_->GetClientHeight(), // 縦幅
+		DXGI_FORMAT_R8G8B8A8_UNORM, // フォーマット
+		0); // オプション
+
+	assert(SUCCEEDED(hr_));
+
+	CreateRenderTargetViews(); // バックバッファのRTV再作成
+	CreateDepthBuffer(); // 深度バッファの再作成
+	CreateDepthStencilView(); // 深度ステンシルビューの再作成
+	InitializeScissorRect(); // シザー矩形の再設定
+
+
+}
+
 void DirectXCommon::Initialize(WindowProc* windowProc){
 	// NULLチェック
 	assert(windowProc);

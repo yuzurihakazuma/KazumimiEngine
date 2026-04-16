@@ -53,7 +53,8 @@ public:
 	// ポストエフェクトの描画（巨大な三角形を描く）
 	void Draw(ID3D12GraphicsCommandList* commandList);
 
-	
+	// ウィンドウサイズが変わったときの処理（画用紙のサイズも変える）
+	void OnResize(uint32_t width, uint32_t height);
 
 	// MRT（2枚同時書き込み）を開始する関数
 	void PreDrawSceneMRT(ID3D12GraphicsCommandList* commandList);

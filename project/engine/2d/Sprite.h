@@ -146,9 +146,7 @@ private:
 
 	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
-	float width_ = 1280.0f; // 仮置き
-	float height_ = 720.0f; //
-
+	
 	// indexSprite用の頂点indexを作る1つ辺りのindexのサイズは32bit
 	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
 

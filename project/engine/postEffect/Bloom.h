@@ -37,6 +37,8 @@ public:
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
 
+	void OnResize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
+
 	// 終了処理
 	void Finalize();
 	// 高輝度抽出を描画する関数

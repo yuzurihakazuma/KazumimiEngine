@@ -34,6 +34,8 @@ void Framework::Initialize(){
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 	DirectXCommon::GetInstance()->Initialize(windowProc);
 
+	
+
 	// Input
 	Input::GetInstance()->Initialize(windowProc->GetHwnd());
 
@@ -124,6 +126,17 @@ void Framework::Update(){
 	WindowProc::GetInstance()->Update();
 	// 入力更新
 	Input::GetInstance()->Update();
+
+	// シーン更新
+	if ( WindowProc::GetInstance()->IsResized() ) {
+		DirectXCommon::GetInstance()->OnResize();
+		uint32_t w = static_cast< uint32_t >( WindowProc::GetInstance()->GetClientWidth() );
+		uint32_t h = static_cast< uint32_t >( WindowProc::GetInstance()->GetClientHeight() );
+		PostEffect::GetInstance()->OnResize(w, h);
+
+		WindowProc::GetInstance()->ClearResizeFlag();
+	}
+
 
 	// ウィンドウが閉じられたら終了フラグを立てる
 	if ( WindowProc::GetInstance()->GetIsClosed() ) {
