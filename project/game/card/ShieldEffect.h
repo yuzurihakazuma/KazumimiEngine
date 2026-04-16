@@ -23,5 +23,7 @@ private:
 	bool  isFirstFrame_ = false;
 	bool isPlayerCaster_ = true;
 	bool isFinished_ = false;
+
+	float rotAngle_ = 0.0f;
 };
 
