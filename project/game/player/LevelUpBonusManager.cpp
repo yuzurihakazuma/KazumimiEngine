@@ -6,6 +6,7 @@
 #include "engine/2d/Sprite.h"
 #include "engine/utils/TextManager.h"
 #include <stdlib.h>
+#include <WindowProc.h>
 
 void LevelUpBonusManager::Initialize() {
     isSelecting_ = false;
@@ -96,37 +97,40 @@ void LevelUpBonusManager::Draw() {
         return;
     }
 
-    const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
-    const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+    // 今の画面サイズを取得する
+    float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+    float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+    float centerX = screenW * 0.5f;
+    float centerY = screenH * 0.5f;
 
     // 1. 暗転幕（背景）を描画
     if (blackOverlay_) {
+        blackOverlay_->SetPosition({ centerX, centerY });
+        blackOverlay_->SetSize({ screenW, screenH });
         blackOverlay_->Update();
         blackOverlay_->Draw();
     }
 
-    // ★2. 選択肢のスプライトを描画
+    // 選択肢の描画
     for (int i = 0; i < (int)Choice::Count; ++i) {
         if (choiceVisuals_[i]) {
-            // 現在カーソルが合っている選択肢を強調する
-            if (i == (int)currentSelectedChoice_) {
-                choiceVisuals_[i]->SetSize({ 220.0f, 320.0f }); // 少し大きく
-              
-                if (i == (int)Choice::IncreaseMaxHandSize) {
-                    // 大きくなった分、左上に座標をズラして中心を合わせる
-                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f - 150.0f, screenH * 0.5f });
-                    
-                } else {
-                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f + 250.0f, screenH * 0.5f });
-                    }
+            // 画面横幅の 20% 程度を中央からオフセットさせる
+            float offsetX = screenW * 0.15f;
+            Vector2 basePos;
+
+            if (i == (int)Choice::IncreaseMaxHandSize) {
+                basePos = { centerX - offsetX, centerY }; // 左側
             } else {
-                
-                // 選択されていない方は暗くする（グレーがかった色に）
-                if (i == (int)Choice::IncreaseMaxHandSize) {
-                    choiceVisuals_[i]->SetPosition({ 550.0f, 390.0f }); // 元の座標
-                    } else {
-                    choiceVisuals_[i]->SetPosition({ 950.0f, 390.0f }); // 元の座標
-                   }
+                basePos = { centerX + offsetX, centerY }; // 右側
+            }
+
+            // 選択中の演出（大きさや位置の微調整）
+            if (i == (int)currentSelectedChoice_) {
+                choiceVisuals_[i]->SetSize({ 264.0f, 396.0f });
+                choiceVisuals_[i]->SetPosition({ basePos.x, basePos.y - 10.0f });
+            } else {
+                choiceVisuals_[i]->SetSize({ 240.0f, 360.0f });
+                choiceVisuals_[i]->SetPosition(basePos);
             }
 
             if (i != (int)currentSelectedChoice_) {
@@ -144,7 +148,7 @@ void LevelUpBonusManager::Draw() {
 
     // UIスプライトの描画
     if (UISprite_) {
-        UISprite_->SetPosition({ screenW * 0.5f, screenH * 0.5f });
+        UISprite_->SetPosition({ centerX, screenH * 0.5f });
         UISprite_->Update();
         UISprite_->Draw();
     }
