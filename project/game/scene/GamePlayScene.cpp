@@ -366,11 +366,20 @@ void GamePlayScene::Update() {
 	// ==========================================
 	// ★ レベルアップの処理（フリーズしない正しい止め方）
 	// ==========================================
+	// ① Updateを呼ぶ「前」に、選択画面が開いているかを記憶しておく！
+	bool wasSelecting = levelUpBonusManager_.IsSelecting();
+
 	LevelUpResult levelUpResult = levelUpBonusManager_.Update(playerManager_.get(), &handManager_, input);
 	if (levelUpResult.needCardSwap) {
 		isCardSwapMode_ = true;
 		pendingCard_ = levelUpResult.droppedCard;
 		pendingPickup_ = nullptr;
+	}
+
+	// ② 今選択画面を開いている、または「このフレームで選択し終わったばかり」ならリターン！
+	// （これでボタンの入力がここで完全に吸収されて、下へ貫通しません）
+	if (wasSelecting) {
+		return;
 	}
 
 	// 選択画面中なら、以降のゲーム処理（プレイヤーや敵の移動など）をストップ！
