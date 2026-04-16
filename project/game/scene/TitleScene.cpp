@@ -26,6 +26,9 @@
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/EditorManager.h"
 
+#include "engine/graphics/SrvManager.h"
+#include "Bloom.h"
+
 using namespace VectorMath;
 using namespace MatrixMath;
 
@@ -159,35 +162,53 @@ void TitleScene::DrawDebugUI() {
 #endif
 }
 
-void TitleScene::Draw() {
+void TitleScene::Draw(){
 	auto dxCommon = DirectXCommon::GetInstance();
 	auto commandList = dxCommon->GetCommandList();
 
-	// 画用紙への切り替え
-	PostEffect::GetInstance()->PreDrawScene(commandList);
+	// 1. MRT開始（色とマスク用キャンバス）
+	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
 
-	// 3D描画前準備
+	// --- ここから3Dやパーティクルの描画 ---
 	Obj3dCommon::GetInstance()->PreDraw(commandList);
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 
-	// 3Dオブジェクト描画
-	for (auto& obj : object3ds_) {
-		if (obj) {
+	for ( auto& obj : object3ds_ ) {
+		if ( obj ) {
 			obj->Draw();
 		}
 	}
 
-	// パーティクル描画
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
+	// --- 描画ここまで ---
 
-	// テキスト描画
-	PostEffect::GetInstance()->PostDrawScene(commandList);
+	// 2. MRT終了
+	PostEffect::GetInstance()->PostDrawSceneMRT(commandList);
+
+	// 3. ポストエフェクト適用
 	PostEffect::GetInstance()->Draw(commandList);
+
+	// 4. Bloomパス
+	uint32_t colorSrv = PostEffect::GetInstance()->GetSrvIndex();
+	uint32_t maskSrv = PostEffect::GetInstance()->GetMaskSrvIndex();
+	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
+	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
+
+	// 5. バックバッファへ最終出力
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = dxCommon->GetBackBufferRtvHandle();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dxCommon->GetDsvHandle();
+	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+	PipelineManager::GetInstance()->SetPostEffectPipeline(commandList, PostEffectType::None);
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, finalSrv);
+	commandList->DrawInstanced(3, 1, 0, 0);
+
+	// 6. UI（テキスト）描画
 	TextManager::GetInstance()->Draw();
 
-	EditorManager::GetInstance()->SetGameViewSrvIndex(PostEffect::GetInstance()->GetSrvIndex());
-
+	// エディタ用の出力設定
+	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
 }
 
 void TitleScene::Finalize() {
