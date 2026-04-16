@@ -260,10 +260,10 @@ void GamePlayScene::Initialize() {
 
 	levelUpBonusManager_.Initialize();
 	// エミッターの初期設定
-	GPUParticleEmitterData emitterData;
-	emitterData.position = { 0.0f, 0.0f, 0.0f };
-	emitterData.emitRate = 20.0f;
-	emitter_.SetData(emitterData);
+	//GPUParticleEmitterData emitterData;
+	//emitterData.position = { 0.0f, 0.0f, 0.0f };
+	//emitterData.emitRate = 20.0f;
+	//emitter_.SetData(emitterData);
 
 	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
 	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
