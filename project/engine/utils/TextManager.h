@@ -20,6 +20,7 @@ struct TextData{
 	float x = 200.0f;
 	float y = 200.0f;
 	float scale = 1.0f;
+	bool isCentered = false;
 	float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };  // RGBAカラー (0.0f〜1.0f)
 };
 
@@ -52,6 +53,7 @@ public:
 
 	// 座標変更
 	void SetPosition(const std::string& key, float x, float y);
+	void SetCentered(const std::string& key, bool isCentered);
 
 private:
 	// 外部からのインスタンス生成を禁止

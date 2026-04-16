@@ -86,6 +86,11 @@ void TitleScene::Initialize() {
 
 	// タイトル用テキストを設定
 	TextManager::GetInstance()->Initialize();
+	const float screenW = static_cast<float>(windowProc->GetClientWidth());
+	const float screenH = static_cast<float>(windowProc->GetClientHeight());
+	// タイトルは複数行なので、画面中央付近に相対オフセットで置いて確実に見えるようにする
+	TextManager::GetInstance()->SetPosition("SceneMessage", screenW * 0.5f - 220.0f, screenH * 0.5f - 100.0f);
+	TextManager::GetInstance()->SetCentered("SceneMessage", false);
 	TextManager::GetInstance()->SetText("SceneMessage", "TITLE\n\nPRESS SPACE TO START");
 }
 
@@ -177,10 +182,9 @@ void TitleScene::Draw() {
 	ParticleManager::GetInstance()->Draw(commandList);
 
 	// テキスト描画
-	TextManager::GetInstance()->Draw();
-
 	PostEffect::GetInstance()->PostDrawScene(commandList);
 	PostEffect::GetInstance()->Draw(commandList);
+	TextManager::GetInstance()->Draw();
 
 	EditorManager::GetInstance()->SetGameViewSrvIndex(PostEffect::GetInstance()->GetSrvIndex());
 

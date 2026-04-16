@@ -109,14 +109,22 @@ void TextManager::Draw(){
 
 		try {
 			// 画面に描画！
+			DirectX::XMFLOAT2 origin = { 0.0f, 0.0f };
+			if ( data.isCentered ) {
+				DirectX::XMVECTOR measured = spriteFont_->MeasureString(wText.c_str());
+				DirectX::XMFLOAT2 measuredSize {};
+				DirectX::XMStoreFloat2(&measuredSize, measured);
+				origin = { measuredSize.x * 0.5f, measuredSize.y * 0.5f };
+			}
+
 			spriteFont_->DrawString(
 				spriteBatch_.get(),
 				wText.c_str(),
 				DirectX::XMFLOAT2(data.x, data.y),
 				color,
-				0.0f,                          
-				DirectX::XMFLOAT2(0.0f, 0.0f), 
-				data.scale                     
+				0.0f,
+				origin,
+				data.scale
 			);
 		} catch ( ... ) {
 			// ⚠️未対応の文字（今回なら日本語など）が来たときにクラッシュするのを防ぐ
@@ -212,6 +220,7 @@ void TextManager::Save(const std::string& filePath){
 		j[key]["x"] = data.x;
 		j[key]["y"] = data.y;
 		j[key]["scale"] = data.scale;
+		j[key]["isCentered"] = data.isCentered;
 		j[key]["color"] = { data.color[0], data.color[1], data.color[2], data.color[3] };
 	}
 
@@ -244,6 +253,12 @@ void TextManager::Load(const std::string& filePath){
 			data.scale = 1.0f;
 		}
 
+		if ( it.value().contains("isCentered") ) {
+			data.isCentered = it.value()["isCentered"];
+		} else {
+			data.isCentered = false;
+		}
+
 		auto colorArray = it.value()["color"];
 		data.color[0] = colorArray[0];
 		data.color[1] = colorArray[1];
@@ -262,6 +277,10 @@ void TextManager::SetText(const std::string& key, const std::string& text){
 void TextManager::SetPosition(const std::string& key, float x, float y) {
 	texts_[key].x = x;
 	texts_[key].y = y;
+}
+
+void TextManager::SetCentered(const std::string& key, bool isCentered) {
+	texts_[key].isCentered = isCentered;
 }
 
 void TextManager::Finalize(){

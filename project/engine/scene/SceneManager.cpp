@@ -9,6 +9,7 @@
 #include "engine/postEffect/PostEffect.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/base/Input.h"
+#include "engine/base/WindowProc.h"
 #include "engine/2d/Sprite.h"
 #include "engine/2d/SpriteCommon.h"
 #include "engine/graphics/TextureManager.h"
@@ -77,9 +78,13 @@ void SceneManager::Update(){
 
 					TextureData tex = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/white1x1.png", commandList);
 
-					fadeSprite_ = std::unique_ptr<Sprite>(Sprite::Create(tex.srvIndex, { 640.0f, 360.0f }));
+					const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+					const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+
+					// フェードは現在のクライアントサイズ基準で作って、画面サイズ変更後も全面を覆う
+					fadeSprite_ = std::unique_ptr<Sprite>(Sprite::Create(tex.srvIndex, { screenW * 0.5f, screenH * 0.5f }));
 					if ( fadeSprite_ ) {
-						fadeSprite_->SetSize({ 1280.0f, 720.0f });
+						fadeSprite_->SetSize({ screenW, screenH });
 						fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
 						fadeSprite_->Update();
 					}
@@ -107,6 +112,10 @@ void SceneManager::Update(){
 
 	// フェードスプライトの色を更新
 	if ( fadeSprite_ ) {
+		const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+		const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+		fadeSprite_->SetPosition({ screenW * 0.5f, screenH * 0.5f });
+		fadeSprite_->SetSize({ screenW, screenH });
 		fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, fadeAlpha_ });
 		fadeSprite_->Update();
 	}
@@ -142,6 +151,7 @@ void SceneManager::Draw(){
 		SpriteCommon::GetInstance()->PreDraw(commandList);
 		fadeSprite_->Draw();
 	}
+		// フェードの上に描いて、暗転中でもローディング表示が見えるようにする
 }
 
 // 文字列を使ってファクトリーにシーンを作ってもらう
@@ -184,6 +194,19 @@ void SceneManager::SetFirstScene(std::unique_ptr<IScene> scene) {
 	if (currentScene_) {
 		DirectXCommon* dxCommon = DirectXCommon::GetInstance();
 		dxCommon->BeginCommandRecording();
+		if ( !fadeSprite_ ) {
+			auto commandList = dxCommon->GetCommandList();
+			TextureData tex = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/white1x1.png", commandList);
+			const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+			const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+			// 最初のシーン開始時にフェード用スプライトを作っておき、初回遷移から確実に描けるようにする
+			fadeSprite_ = std::unique_ptr<Sprite>(Sprite::Create(tex.srvIndex, { screenW * 0.5f, screenH * 0.5f }));
+			if ( fadeSprite_ ) {
+				fadeSprite_->SetSize({ screenW, screenH });
+				fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
+				fadeSprite_->Update();
+			}
+		}
 		currentScene_->Initialize();
 		dxCommon->EndCommandRecording();
 	}

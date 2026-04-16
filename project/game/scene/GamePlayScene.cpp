@@ -116,7 +116,11 @@ void GamePlayScene::Initialize() {
 	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
 
 	//UI専用カメラの初期化
-	uiCamera_ = std::make_unique<Camera>(1280, 720, dxCommon);
+	uiCamera_ = std::make_unique<Camera>(
+		windowProc->GetClientWidth(),
+		windowProc->GetClientHeight(),
+		dxCommon
+	);
 
 	// デバッグカメラ生成
 	debugCamera_ = std::make_unique<DebugCamera>();
@@ -235,20 +239,23 @@ void GamePlayScene::Initialize() {
 	GPUParticleManager::GetInstance()->Initialize(
 		dxCommon, SrvManager::GetInstance(), "resources/circle.png");
 
-	fadeSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+	fadeSprite_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, screenH * 0.5f });
 	// 画面サイズに合わせる (ウィンドウサイズに合わせて変更してください)
-	fadeSprite_->SetSize({ 4000.0f, 4000.0f });
+	fadeSprite_->SetSize({ screenW, screenH });
 	// 初期状態は透明の黒
 	fadeSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	// ポーズ画面用の文字位置
-	TextManager::GetInstance()->SetPosition("PauseTitle", 560, 220);
-	TextManager::GetInstance()->SetPosition("PauseResume", 540, 320);
-	TextManager::GetInstance()->SetPosition("PauseToTitle", 540, 360);
+	TextManager::GetInstance()->SetPosition("PauseTitle", screenW * 0.5f, screenH * 0.5f - 140.0f);
+	TextManager::GetInstance()->SetPosition("PauseResume", screenW * 0.5f, screenH * 0.5f - 40.0f);
+	TextManager::GetInstance()->SetPosition("PauseToTitle", screenW * 0.5f, screenH * 0.5f);
+	TextManager::GetInstance()->SetCentered("PauseTitle", true);
+	TextManager::GetInstance()->SetCentered("PauseResume", true);
+	TextManager::GetInstance()->SetCentered("PauseToTitle", true);
 
 	// ポーズ中の半透明背景
-	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
-	pauseBgSprite_->SetSize({ 4000.0f, 4000.0f });
+	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, screenH * 0.5f });
+	pauseBgSprite_->SetSize({ screenW, screenH });
 	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 
 	levelUpBonusManager_.Initialize();

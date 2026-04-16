@@ -2,6 +2,7 @@
 #include "game/player/PlayerManager.h"
 #include "game/card/HandManager.h"
 #include "engine/base/Input.h"
+#include "engine/base/WindowProc.h"
 #include "engine/2d/Sprite.h"
 #include "engine/utils/TextManager.h"
 #include <stdlib.h>
@@ -10,15 +11,16 @@ void LevelUpBonusManager::Initialize() {
     isSelecting_ = false;
 	previousPlayerLevel_ = 1;
     currentSelectedChoice_ = Choice::IncreaseMaxHandSize;
+    const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+    const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
 
     //  暗転用の黒スプライトを作成（背景）
-    blackOverlay_ = Sprite::Create("resources/white1x1.png", { 0.0f, 0.0f });
+    blackOverlay_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, screenH * 0.5f });
     if (blackOverlay_) {
         // 画面全体を覆うサイズ（適当に大きく設定）
-        blackOverlay_->SetSize({ 4000.0f, 4000.0f });
+        blackOverlay_->SetSize({ screenW, screenH });
         blackOverlay_->SetColor({ 0.0f, 0.0f, 0.0f, 0.7f }); // 半透明の黒
     }
-
     // --- 選択肢1: 手札上限アップ (画面左側) ---
     // 画像がある場合は "resources/bonus_limit.png" などに書き換えてください。
     choiceVisuals_[(int)Choice::IncreaseMaxHandSize] = Sprite::Create("resources/UI/Change.png", { 0.0f, 0.0f });
@@ -26,7 +28,6 @@ void LevelUpBonusManager::Initialize() {
         choiceVisuals_[(int)Choice::IncreaseMaxHandSize]->SetAnchorPoint({ 0.5f, 0.5f }); // 中心基準
         choiceVisuals_[(int)Choice::IncreaseMaxHandSize]->SetPosition({ 340.0f, 250.0f }); // 中央から少し左
     }
-
     // --- 選択肢2: カード獲得 (画面右側) ---
     // 画像がある場合は "resources/bonus_card.png" などに書き換えてください。
     choiceVisuals_[(int)Choice::GetRandomCard] = Sprite::Create("resources/UI/LevelC.png", { 0.0f, 0.0f });
@@ -39,7 +40,7 @@ void LevelUpBonusManager::Initialize() {
     UISprite_ = Sprite::Create("resources/UI/LevelUpUi.png", { 0.0f,0.0f });
     if (UISprite_) {
         UISprite_->SetAnchorPoint({ 0.5f,0.5f });
-		UISprite_->SetPosition({ 640.0f, 360.0f }); // 画面中央
+        UISprite_->SetPosition({ screenW * 0.5f, screenH * 0.5f }); // 画面中央
     }
    
 }
@@ -95,6 +96,9 @@ void LevelUpBonusManager::Draw() {
         return;
     }
 
+    const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+    const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+
     // 1. 暗転幕（背景）を描画
     if (blackOverlay_) {
         blackOverlay_->Update();
@@ -110,10 +114,10 @@ void LevelUpBonusManager::Draw() {
               
                 if (i == (int)Choice::IncreaseMaxHandSize) {
                     // 大きくなった分、左上に座標をズラして中心を合わせる
-                    choiceVisuals_[i]->SetPosition({ 490.0f, 360.0f });
+                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f - 150.0f, screenH * 0.5f });
                     
                 } else {
-                    choiceVisuals_[i]->SetPosition({ 890.0f, 360.0f });
+                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f + 250.0f, screenH * 0.5f });
                     }
             } else {
                 
@@ -125,6 +129,14 @@ void LevelUpBonusManager::Draw() {
                    }
             }
 
+            if (i != (int)currentSelectedChoice_) {
+                if (i == (int)Choice::IncreaseMaxHandSize) {
+                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f - 90.0f, screenH * 0.5f + 30.0f });
+                } else {
+                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f + 310.0f, screenH * 0.5f + 30.0f });
+                }
+            }
+
             choiceVisuals_[i]->Update();
             choiceVisuals_[i]->Draw();
         }
@@ -132,6 +144,7 @@ void LevelUpBonusManager::Draw() {
 
     // UIスプライトの描画
     if (UISprite_) {
+        UISprite_->SetPosition({ screenW * 0.5f, screenH * 0.5f });
         UISprite_->Update();
         UISprite_->Draw();
     }
