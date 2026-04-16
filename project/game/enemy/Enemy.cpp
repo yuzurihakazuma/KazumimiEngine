@@ -153,9 +153,6 @@ void Enemy::Update() {
     }
 }
 
-
-
-
 void Enemy::Freeze(int durationFrames) {
     isFrozen_ = true;
     freezeTimer_ = durationFrames;

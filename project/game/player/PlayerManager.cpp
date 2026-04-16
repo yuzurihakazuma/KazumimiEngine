@@ -116,7 +116,8 @@ void PlayerManager::RespawnInRoom(MapManager* mapManager, Camera* camera) {
 
     // ボス部屋と通常部屋で出現位置を分ける
     if (mapManager->IsBossMap()) {
-        Vector3 center = mapManager->GetMapCenterPosition(1.5f);
+        // 通常部屋のスポーン高さ(baseY + 1.0f + 1.5f)とそろえる。
+        Vector3 center = mapManager->GetMapCenterFloorPosition(1.5f);
         playerPos_ = center;
         playerPos_.z -= 6.0f;
     } else {

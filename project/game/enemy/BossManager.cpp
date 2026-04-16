@@ -93,10 +93,10 @@ void BossManager::RespawnInRoom(MapManager* mapManager) {
     }
 
     // bossマップでは中央固定
-    Vector3 spawnPos = mapManager->GetMapCenterPosition(1.5f);
+    Vector3 spawnPos = mapManager->GetMapCenterFloorPosition(2.0f);
 
     boss_->Initialize();
-    boss_->SetPosition(spawnPos);
+    boss_->SetSpawnPosition(spawnPos);
     boss_->SetScale({ 2.0f, 2.0f, 2.0f });
     bossDeadHandled_ = false;
 
@@ -225,7 +225,7 @@ void BossManager::Update(
 			bossCardRainTimer_--;
 
 			if (bossCardRainTimer_ <= 0) {
-				Vector3 center = mapManager->GetMapCenterPosition(1.5f);
+				Vector3 center = mapManager->GetMapCenterFloorPosition(0.0f);
 				Vector3 dropPos = center;
 
 				// 他のカードに近すぎない位置を探す
@@ -274,9 +274,12 @@ void BossManager::Update(
 	// =========================================================
 	if (boss_->GetSummonRequest()) {
 		if (enemyManager && camera) {
+			Vector3 summonCenter = boss_->GetPosition();
+			// 召喚雑魚は通常湧きと同じ高さにそろえる。
+			summonCenter.y = 0.0f;
 			enemyManager->SpawnBossMinions(
 				boss_->GetSummonCount(),
-				boss_->GetPosition(),
+				summonCenter,
 				camera
 			);
 		}
@@ -302,9 +305,11 @@ void BossManager::Update(
 				// 召喚カードなら雑魚生成
 				if (useCard.id == 103) {
 					if (enemyManager && camera) {
+						Vector3 summonCenter = boss_->GetPosition();
+						summonCenter.y = 0.0f;
 						enemyManager->SpawnBossMinions(
 							boss_->GetSummonCount(),
-							boss_->GetPosition(),
+							summonCenter,
 							camera
 						);
 					}
@@ -338,8 +343,7 @@ void BossManager::Update(
 				Vector3 dropPos = boss_->GetPosition();
 
 				// 地面の高さに補正
-				const LevelData& level = mapManager->GetLevelData();
-				dropPos.y = level.baseY + 1.5f;
+				dropPos.y = mapManager->GetFloorSurfaceY(0.5f);
 
 				cardPickupManager->AddPickup(dropPos, dropCard);
 			}

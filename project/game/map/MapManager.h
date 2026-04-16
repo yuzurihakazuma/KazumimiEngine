@@ -136,6 +136,8 @@ public:
 
     // マップ中心座標取得
     Vector3 GetMapCenterPosition(float y = 0.0f) const;
+    float GetFloorSurfaceY(float yOffset = 0.0f) const;
+    Vector3 GetMapCenterFloorPosition(float yOffset = 0.0f) const;
 
     // ノイズテクスチャ設定
     void SetNoiseTexture(uint32_t index);
