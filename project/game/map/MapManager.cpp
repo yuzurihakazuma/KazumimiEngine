@@ -426,6 +426,18 @@ Vector3 MapManager::GetMapCenterPosition(float y) const {
     return pos;
 }
 
+float MapManager::GetFloorSurfaceY(float yOffset) const {
+    // 床メッシュは baseY + 1.0f に置いているので、
+    // キャラやドロップも同じ基準でそろえる。
+    return levelData_.baseY + 1.0f + yOffset;
+}
+
+Vector3 MapManager::GetMapCenterFloorPosition(float yOffset) const {
+    Vector3 pos = GetMapCenterPosition();
+    pos.y = GetFloorSurfaceY(yOffset);
+    return pos;
+}
+
 // マップ変更消費
 bool MapManager::ConsumeMapChanged() {
     if (mapChanged_) {
