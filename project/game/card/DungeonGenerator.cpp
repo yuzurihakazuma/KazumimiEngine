@@ -7,7 +7,6 @@ DungeonGenerator::DungeonGenerator()
 	templateLoader_.LoadFromCsv("resources/map/rooms/templates.csv");
 }
 
-
 void DungeonGenerator::FillAll(LevelData& levelData, int tileType) {
 	levelData.tiles.resize(levelData.height);
 	for (int z = 0; z < levelData.height; ++z) {
@@ -52,7 +51,6 @@ void DungeonGenerator::CarveHorizontalCorridor(LevelData& levelData, int x1, int
 	}
 }
 
-
 void DungeonGenerator::CarveVerticalCorridor(LevelData& levelData, int z1, int z2, int x, int width) {
 	if (z1 > z2) {
 		std::swap(z1, z2);
@@ -75,7 +73,6 @@ void DungeonGenerator::CarveVerticalCorridor(LevelData& levelData, int z1, int z
 		}
 	}
 }
-
 
 Vector2 DungeonGenerator::GetRoomCenter(const Room& room) const {
 	Vector2 center{};
@@ -107,13 +104,100 @@ DungeonGenerator::CorridorPoint DungeonGenerator::GetRoomConnectionPoint(const R
 	return point;
 }
 
+DungeonGenerator::CorridorPoint DungeonGenerator::GetGridCellCenter(const LevelData& levelData, int gx, int gz) const {
+	const int gridCols = 4;
+	const int gridRows = 4;
+
+	const int innerLeft = 1;
+	const int innerTop = 1;
+	const int innerRight = levelData.width - 2;
+	const int innerBottom = levelData.height - 2;
+
+	const int usableWidth = innerRight - innerLeft + 1;
+	const int usableHeight = innerBottom - innerTop + 1;
+
+	const int cellWidth = usableWidth / gridCols;
+	const int cellHeight = usableHeight / gridRows;
+
+	const int cellX = innerLeft + gx * cellWidth;
+	const int cellZ = innerTop + gz * cellHeight;
+
+	const int currentCellWidth = (gx == gridCols - 1) ? (innerRight - cellX + 1) : cellWidth;
+	const int currentCellHeight = (gz == gridRows - 1) ? (innerBottom - cellZ + 1) : cellHeight;
+
+	CorridorPoint point{};
+	point.x = cellX + currentCellWidth / 2;
+	point.z = cellZ + currentCellHeight / 2;
+	return point;
+}
+
+DungeonGenerator::CorridorPoint DungeonGenerator::GetRoomGridAnchor(const LevelData& levelData, const Room& room) const {
+	const int anchorGX = room.gridX + (std::max(1, room.spanX) - 1) / 2;
+	const int anchorGZ = room.gridZ + (std::max(1, room.spanZ) - 1) / 2;
+	return GetGridCellCenter(levelData, anchorGX, anchorGZ);
+}
+
+void DungeonGenerator::CarveGridPath(
+	LevelData& levelData,
+	const CorridorPoint& start,
+	const CorridorPoint& end,
+	int startGX,
+	int startGZ,
+	int endGX,
+	int endGZ,
+	int corridorWidth
+) {
+	int currentGX = startGX;
+	int currentGZ = startGZ;
+	CorridorPoint currentPoint = start;
+
+	std::uniform_int_distribution<int> orderDist(0, 1);
+	const bool horizontalFirst = orderDist(randomEngine_) == 0;
+
+	auto stepHorizontal = [&](int targetGX) {
+		while (currentGX != targetGX) {
+			const int nextGX = currentGX + ((targetGX > currentGX) ? 1 : -1);
+			const CorridorPoint nextPoint = GetGridCellCenter(levelData, nextGX, currentGZ);
+			CarveHorizontalCorridor(levelData, currentPoint.x, nextPoint.x, currentPoint.z, corridorWidth);
+			currentGX = nextGX;
+			currentPoint = nextPoint;
+		}
+	};
+
+	auto stepVertical = [&](int targetGZ) {
+		while (currentGZ != targetGZ) {
+			const int nextGZ = currentGZ + ((targetGZ > currentGZ) ? 1 : -1);
+			const CorridorPoint nextPoint = GetGridCellCenter(levelData, currentGX, nextGZ);
+			CarveVerticalCorridor(levelData, currentPoint.z, nextPoint.z, currentPoint.x, corridorWidth);
+			currentGZ = nextGZ;
+			currentPoint = nextPoint;
+		}
+	};
+
+	if (horizontalFirst) {
+		stepHorizontal(endGX);
+		stepVertical(endGZ);
+	} else {
+		stepVertical(endGZ);
+		stepHorizontal(endGX);
+	}
+
+	if (currentPoint.x != end.x) {
+		CarveHorizontalCorridor(levelData, currentPoint.x, end.x, currentPoint.z, corridorWidth);
+		currentPoint.x = end.x;
+	}
+	if (currentPoint.z != end.z) {
+		CarveVerticalCorridor(levelData, currentPoint.z, end.z, currentPoint.x, corridorWidth);
+	}
+}
+
 void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 	rooms_.clear();
 	FillAll(levelData, 1);
 	if (TryGenerateTemplateRooms(levelData, roomCount)) {
 		return;
 	}
-	// ポケダン風に区画分割
+
 	const int gridCols = 4;
 	const int gridRows = 4;
 
@@ -133,27 +217,24 @@ void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 	}
 
 	struct CellRoom {
-		bool hasRoom;
 		Room room;
-		int gx;
-		int gz;
 	};
 
 	std::vector<CellRoom> candidates;
 
 	for (int gz = 0; gz < gridRows; ++gz) {
 		for (int gx = 0; gx < gridCols; ++gx) {
-			int cellX = innerLeft + gx * cellWidth;
-			int cellZ = innerTop + gz * cellHeight;
+			const int cellX = innerLeft + gx * cellWidth;
+			const int cellZ = innerTop + gz * cellHeight;
 
-			int currentCellWidth = (gx == gridCols - 1) ? (innerRight - cellX + 1) : cellWidth;
-			int currentCellHeight = (gz == gridRows - 1) ? (innerBottom - cellZ + 1) : cellHeight;
+			const int currentCellWidth = (gx == gridCols - 1) ? (innerRight - cellX + 1) : cellWidth;
+			const int currentCellHeight = (gz == gridRows - 1) ? (innerBottom - cellZ + 1) : cellHeight;
 
-			int minRoomW = 10;
-			int minRoomH = 10;
+			const int minRoomW = 10;
+			const int minRoomH = 10;
 
-			int maxRoomW = std::max(minRoomW, currentCellWidth - 2);
-			int maxRoomH = std::max(minRoomH, currentCellHeight - 2);
+			const int maxRoomW = std::max(minRoomW, currentCellWidth - 2);
+			const int maxRoomH = std::max(minRoomH, currentCellHeight - 2);
 
 			if (maxRoomW < minRoomW || maxRoomH < minRoomH) {
 				continue;
@@ -162,13 +243,13 @@ void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 			std::uniform_int_distribution<int> roomWDist(minRoomW, std::min(maxRoomW, 16));
 			std::uniform_int_distribution<int> roomHDist(minRoomH, std::min(maxRoomH, 16));
 
-			int roomW = roomWDist(randomEngine_);
-			int roomH = roomHDist(randomEngine_);
+			const int roomW = roomWDist(randomEngine_);
+			const int roomH = roomHDist(randomEngine_);
 
-			int minX = cellX + 1;
-			int maxX = cellX + currentCellWidth - roomW - 1;
-			int minZ = cellZ + 1;
-			int maxZ = cellZ + currentCellHeight - roomH - 1;
+			const int minX = cellX + 1;
+			const int maxX = cellX + currentCellWidth - roomW - 1;
+			const int minZ = cellZ + 1;
+			const int maxZ = cellZ + currentCellHeight - roomH - 1;
 
 			if (minX > maxX || minZ > maxZ) {
 				continue;
@@ -182,14 +263,10 @@ void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 			room.z = roomZDist(randomEngine_);
 			room.width = roomW;
 			room.height = roomH;
+			room.gridX = gx;
+			room.gridZ = gz;
 
-			CellRoom cellRoom{};
-			cellRoom.hasRoom = true;
-			cellRoom.room = room;
-			cellRoom.gx = gx;
-			cellRoom.gz = gz;
-
-			candidates.push_back(cellRoom);
+			candidates.push_back({ room });
 		}
 	}
 
@@ -199,7 +276,7 @@ void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 
 	std::shuffle(candidates.begin(), candidates.end(), randomEngine_);
 
-	int createCount = std::min(roomCount, static_cast<int>(candidates.size()));
+	const int createCount = std::min(roomCount, static_cast<int>(candidates.size()));
 
 	for (int i = 0; i < createCount; ++i) {
 		rooms_.push_back(candidates[i].room);
@@ -210,22 +287,32 @@ void DungeonGenerator::GenerateGridRooms(LevelData& levelData, int roomCount) {
 void DungeonGenerator::ConnectRooms(LevelData& levelData, const Room& a, const Room& b, int corridorWidth) {
 	const CorridorPoint pointA = GetRoomConnectionPoint(a, b);
 	const CorridorPoint pointB = GetRoomConnectionPoint(b, a);
+	const CorridorPoint anchorA = GetRoomGridAnchor(levelData, a);
+	const CorridorPoint anchorB = GetRoomGridAnchor(levelData, b);
 
-	const int ax = pointA.x;
-	const int az = pointA.z;
-	const int bx = pointB.x;
-	const int bz = pointB.z;
+	if (pointA.x != anchorA.x) {
+		CarveHorizontalCorridor(levelData, pointA.x, anchorA.x, pointA.z, corridorWidth);
+	}
+	if (pointA.z != anchorA.z) {
+		CarveVerticalCorridor(levelData, pointA.z, anchorA.z, anchorA.x, corridorWidth);
+	}
 
-	// ポケダンっぽく素直なL字
-	std::uniform_int_distribution<int> orderDist(0, 1);
-	int order = orderDist(randomEngine_);
+	CarveGridPath(
+		levelData,
+		anchorA,
+		anchorB,
+		a.gridX + (std::max(1, a.spanX) - 1) / 2,
+		a.gridZ + (std::max(1, a.spanZ) - 1) / 2,
+		b.gridX + (std::max(1, b.spanX) - 1) / 2,
+		b.gridZ + (std::max(1, b.spanZ) - 1) / 2,
+		corridorWidth
+	);
 
-	if (order == 0) {
-		CarveHorizontalCorridor(levelData, ax, bx, az, corridorWidth);
-		CarveVerticalCorridor(levelData, az, bz, bx, corridorWidth);
-	} else {
-		CarveVerticalCorridor(levelData, az, bz, ax, corridorWidth);
-		CarveHorizontalCorridor(levelData, ax, bx, bz, corridorWidth);
+	if (anchorB.z != pointB.z) {
+		CarveVerticalCorridor(levelData, anchorB.z, pointB.z, anchorB.x, corridorWidth);
+	}
+	if (anchorB.x != pointB.x) {
+		CarveHorizontalCorridor(levelData, anchorB.x, pointB.x, pointB.z, corridorWidth);
 	}
 }
 
@@ -234,21 +321,94 @@ void DungeonGenerator::ConnectAllRooms(LevelData& levelData, int corridorWidth) 
 		return;
 	}
 
-	// 全部屋を左上寄り順に並べる
-	std::vector<Room> sortedRooms = rooms_;
-	std::sort(sortedRooms.begin(), sortedRooms.end(),
-		[](const Room& a, const Room& b) {
-			if (a.z == b.z) {
-				return a.x < b.x;
-			}
-			return a.z < b.z;
+	struct Edge {
+		int a;
+		int b;
+		int cost;
+	};
+
+	std::vector<Edge> edges;
+
+	for (int i = 0; i < static_cast<int>(rooms_.size()); ++i) {
+		for (int j = i + 1; j < static_cast<int>(rooms_.size()); ++j) {
+			const int ax = rooms_[i].gridX + (std::max(1, rooms_[i].spanX) - 1) / 2;
+			const int az = rooms_[i].gridZ + (std::max(1, rooms_[i].spanZ) - 1) / 2;
+			const int bx = rooms_[j].gridX + (std::max(1, rooms_[j].spanX) - 1) / 2;
+			const int bz = rooms_[j].gridZ + (std::max(1, rooms_[j].spanZ) - 1) / 2;
+
+			const int cost = std::abs(ax - bx) + std::abs(az - bz);
+			edges.push_back({ i, j, cost });
+		}
+	}
+
+	std::sort(edges.begin(), edges.end(), [](const Edge& l, const Edge& r) {
+		return l.cost < r.cost;
 		});
 
-	// まず最低限つなぐ
-	for (size_t i = 0; i + 1 < sortedRooms.size(); ++i) {
-		ConnectRooms(levelData, sortedRooms[i], sortedRooms[i + 1], corridorWidth);
+	struct UnionFind {
+		std::vector<int> parent;
+		std::vector<int> size;
+
+		explicit UnionFind(int n) : parent(n), size(n, 1) {
+			for (int i = 0; i < n; ++i) {
+				parent[i] = i;
+			}
+		}
+
+		int Find(int x) {
+			if (parent[x] == x) {
+				return x;
+			}
+			parent[x] = Find(parent[x]);
+			return parent[x];
+		}
+
+		bool Unite(int a, int b) {
+			a = Find(a);
+			b = Find(b);
+			if (a == b) {
+				return false;
+			}
+			if (size[a] < size[b]) {
+				std::swap(a, b);
+			}
+			parent[b] = a;
+			size[a] += size[b];
+			return true;
+		}
+	};
+
+	UnionFind uf(static_cast<int>(rooms_.size()));
+
+	int connectedCount = 0;
+	for (const Edge& edge : edges) {
+		if (uf.Unite(edge.a, edge.b)) {
+			ConnectRooms(levelData, rooms_[edge.a], rooms_[edge.b], corridorWidth);
+			++connectedCount;
+			if (connectedCount >= static_cast<int>(rooms_.size()) - 1) {
+				break;
+			}
+		}
+	}
+
+	int extraCount = 0;
+	for (const Edge& edge : edges) {
+		if (edge.cost > 2) {
+			continue;
+		}
+
+		std::uniform_int_distribution<int> extraDist(0, 99);
+		if (extraDist(randomEngine_) < 35) {
+			ConnectRooms(levelData, rooms_[edge.a], rooms_[edge.b], corridorWidth);
+			++extraCount;
+		}
+
+		if (extraCount >= 4) {
+			break;
+		}
 	}
 }
+
 
 void DungeonGenerator::AddExtraConnections(LevelData& levelData, int corridorWidth, int count) {
 	if (rooms_.size() < 3) {
@@ -258,8 +418,8 @@ void DungeonGenerator::AddExtraConnections(LevelData& levelData, int corridorWid
 	std::uniform_int_distribution<int> roomDist(0, static_cast<int>(rooms_.size()) - 1);
 
 	for (int i = 0; i < count; ++i) {
-		int a = roomDist(randomEngine_);
-		int b = roomDist(randomEngine_);
+		const int a = roomDist(randomEngine_);
+		const int b = roomDist(randomEngine_);
 
 		if (a == b) {
 			continue;
@@ -272,15 +432,11 @@ void DungeonGenerator::AddExtraConnections(LevelData& levelData, int corridorWid
 void DungeonGenerator::Generate(LevelData& levelData, int roomCount) {
 	GenerateGridRooms(levelData, roomCount);
 
-	// 通路幅は2マスのまま
 	ConnectAllRooms(levelData, 2);
-
-	// 少しだけ余分な接続を足してポケダンっぽい枝や交差を増やす
 	AddExtraConnections(levelData, 2, 5);
 }
 
 void DungeonGenerator::GenerateRooms(LevelData& levelData, int roomCount) {
-	// 外からは今まで通り呼べるようにしておく
 	Generate(levelData, roomCount);
 }
 
@@ -294,10 +450,10 @@ Vector3 DungeonGenerator::GetRandomRoomWorldPosition(const LevelData& levelData,
 
 	std::vector<std::pair<int, int>> candidates;
 
-	int minX = room.x + 1;
-	int maxX = room.x + room.width - 2;
-	int minZ = room.z + 1;
-	int maxZ = room.z + room.height - 2;
+	const int minX = room.x + 1;
+	const int maxX = room.x + room.width - 2;
+	const int minZ = room.z + 1;
+	const int maxZ = room.z + room.height - 2;
 
 	for (int z = minZ; z <= maxZ; ++z) {
 		for (int x = minX; x <= maxX; ++x) {
@@ -366,7 +522,9 @@ bool DungeonGenerator::CanPlaceTemplate(
 DungeonGenerator::Room DungeonGenerator::PlaceTemplateRoom(
 	LevelData& levelData,
 	const RoomTemplate& roomTemplate,
-	const GridRect& area
+	const GridRect& area,
+	int startGX,
+	int startGZ
 ) {
 	const int availableWidth = std::max(1, area.width);
 	const int availableHeight = std::max(1, area.height);
@@ -379,8 +537,8 @@ DungeonGenerator::Room DungeonGenerator::PlaceTemplateRoom(
 
 	for (int z = 0; z < templateHeight; ++z) {
 		for (int x = 0; x < templateWidth; ++x) {
-			int tileX = offsetX + x;
-			int tileZ = offsetZ + z;
+			const int tileX = offsetX + x;
+			const int tileZ = offsetZ + z;
 
 			if (tileX <= 0 || tileX >= levelData.width - 1 || tileZ <= 0 || tileZ >= levelData.height - 1) {
 				continue;
@@ -395,9 +553,10 @@ DungeonGenerator::Room DungeonGenerator::PlaceTemplateRoom(
 	room.z = offsetZ;
 	room.width = templateWidth;
 	room.height = templateHeight;
+	room.gridX = startGX;
+	room.gridZ = startGZ;
 	room.spanX = std::max(1, roomTemplate.spanX);
 	room.spanZ = std::max(1, roomTemplate.spanZ);
-
 	room.templateId = roomTemplate.id;
 	room.templateName = roomTemplate.name;
 	room.enemySpawnMax = roomTemplate.enemySpawnMax;
@@ -476,8 +635,8 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 		std::shuffle(positions.begin(), positions.end(), randomEngine_);
 
 		for (const auto& position : positions) {
-			int startGX = position.first;
-			int startGZ = position.second;
+			const int startGX = position.first;
+			const int startGZ = position.second;
 
 			struct Candidate {
 				const RoomTemplate* roomTemplate;
@@ -527,7 +686,7 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 			}
 
 			std::uniform_int_distribution<int> dist(1, totalWeight);
-			int roll = dist(randomEngine_);
+			const int roll = dist(randomEngine_);
 
 			const RoomTemplate* selectedTemplate = nullptr;
 			GridRect selectedArea{};
@@ -546,7 +705,7 @@ bool DungeonGenerator::TryGenerateTemplateRooms(LevelData& levelData, int roomCo
 				continue;
 			}
 
-			rooms_.push_back(PlaceTemplateRoom(levelData, *selectedTemplate, selectedArea));
+			rooms_.push_back(PlaceTemplateRoom(levelData, *selectedTemplate, selectedArea, startGX, startGZ));
 
 			for (int gz = startGZ; gz < startGZ + selectedTemplate->spanZ; ++gz) {
 				for (int gx = startGX; gx < startGX + selectedTemplate->spanX; ++gx) {

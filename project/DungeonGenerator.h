@@ -12,6 +12,8 @@ public:
 		int z = 0;
 		int width = 0;
 		int height = 0;
+		int gridX = 0;
+		int gridZ = 0;
 		int spanX = 1;
 		int spanZ = 1;
 
@@ -46,7 +48,13 @@ private:
 		int gridCols,
 		int gridRows
 	) const;
-	Room PlaceTemplateRoom(LevelData& levelData, const RoomTemplate& roomTemplate, const GridRect& area);
+	Room PlaceTemplateRoom(
+		LevelData& levelData,
+		const RoomTemplate& roomTemplate,
+		const GridRect& area,
+		int startGX,
+		int startGZ
+	);
 
 public:
 	DungeonGenerator();
@@ -72,6 +80,18 @@ private:
 
 	Vector2 GetRoomCenter(const Room& room) const;
 	CorridorPoint GetRoomConnectionPoint(const Room& room, const Room& targetRoom) const;
+	CorridorPoint GetGridCellCenter(const LevelData& levelData, int gx, int gz) const;
+	CorridorPoint GetRoomGridAnchor(const LevelData& levelData, const Room& room) const;
+	void CarveGridPath(
+		LevelData& levelData,
+		const CorridorPoint& start,
+		const CorridorPoint& end,
+		int startGX,
+		int startGZ,
+		int endGX,
+		int endGZ,
+		int corridorWidth
+	);
 
 private:
 	std::vector<Room> rooms_;
