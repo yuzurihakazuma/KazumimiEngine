@@ -277,6 +277,22 @@ void GamePlayScene::Initialize() {
 	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
 	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
 
+	// チュートリアルの初期化
+	tutorial_ = std::make_unique<Tutorial>();
+	tutorial_->Initialize({
+		.mapManager = mapManager_.get(),
+		.playerManager = playerManager_.get(),
+		.enemyManager = enemyManager_.get(),
+		.cardPickupManager = &cardPickupManager_,
+		.camera = camera_.get(),
+		.minimap = minimap_.get()
+		});
+
+	if (ConsumeTutorialStartRequest()) {
+		tutorial_->Start();
+	}
+
+
 }
 
 void GamePlayScene::Update() {
@@ -448,6 +464,18 @@ void GamePlayScene::Update() {
 	//// パーティクル更新
 	//ParticleManager::GetInstance()->Update(camera_.get());
 
+	// チュートリアルの更新と、ゴール判定
+	if (tutorial_ && tutorial_->IsActive()) {
+		tutorial_->Update();
+		tutorial_->CheckPlayerGoal(playerPos_);
+
+		if (tutorial_->ConsumeReturnToTitleRequest()) {
+			SceneManager::GetInstance()->ChangeScene("TITLE");
+			return;
+		}
+	}
+
+
 	// ==========================================
 	// プレイヤーの更新処理
 	// ==========================================
@@ -493,13 +521,15 @@ void GamePlayScene::Update() {
 
 		if (gridX >= 0 && gridX < level.width && gridZ >= 0 && gridZ < level.height) {
 			if (level.tiles[gridZ][gridX] == 3) {
-				if (transitionState_ == TransitionState::None) {
+				const bool tutorialActive = tutorial_ && tutorial_->IsActive();
+				if (!tutorialActive && transitionState_ == TransitionState::None) {
 					transitionState_ = TransitionState::FadeOut;
 					fadeAlpha_ = 0.0f;
 				}
 			}
 		}
 	}
+
 
 	// ==========================================
 	// 雑魚敵の更新処理
@@ -1604,6 +1634,11 @@ void GamePlayScene::Finalize() {
 
 	TextManager::GetInstance()->Finalize();
 
+	if (tutorial_) {
+		tutorial_->Finalize();
+		tutorial_.reset();
+	}
+
 	
 	GPUParticleManager::GetInstance()->Finalize();
 
@@ -1658,4 +1693,15 @@ void GamePlayScene::RegenerateDungeonAndRespawnPlayer(int roomCount) {
 		cardSpawnCount_,
 		cardSpawnMargin_
 	);
+}
+
+bool GamePlayScene::pendingTutorialStart_ = false;
+void GamePlayScene::RequestTutorialStart(bool enable) {
+	pendingTutorialStart_ = enable;
+}
+
+bool GamePlayScene::ConsumeTutorialStartRequest() {
+	const bool requested = pendingTutorialStart_;
+	pendingTutorialStart_ = false;
+	return requested;
 }

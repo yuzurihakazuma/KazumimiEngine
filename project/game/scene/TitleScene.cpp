@@ -94,7 +94,11 @@ void TitleScene::Initialize() {
 	// タイトルは複数行なので、画面中央付近に相対オフセットで置いて確実に見えるようにする
 	TextManager::GetInstance()->SetPosition("SceneMessage", screenW * 0.5f - 220.0f, screenH * 0.5f - 100.0f);
 	TextManager::GetInstance()->SetCentered("SceneMessage", false);
-	TextManager::GetInstance()->SetText("SceneMessage", "TITLE\n\nPRESS SPACE TO START");
+	TextManager::GetInstance()->SetText(
+		"SceneMessage",
+		"TITLE\n\nPRESS SPACE TO START\nPRESS 0 FOR TUTORIAL"
+	);
+
 }
 
 void TitleScene::Update() {
@@ -117,6 +121,12 @@ void TitleScene::Update() {
 
 	// SPACEでゲーム開始
 	if (input->Triggerkey(DIK_SPACE)) {
+		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+		return;
+	}
+
+	if (input->Triggerkey(DIK_0)) {
+		GamePlayScene::RequestTutorialStart(true);
 		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
 		return;
 	}

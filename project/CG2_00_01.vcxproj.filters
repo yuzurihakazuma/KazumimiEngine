@@ -281,6 +281,9 @@
     <ClCompile Include="engine\particle\GPUParticleEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\scene\Tutorial.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
@@ -699,6 +702,9 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\particle\GPUParticleEditor.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scene\Tutorial.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

@@ -17,6 +17,8 @@
 #include "engine/3d/obj/SkinnedObj3d.h"
 #include "engine/3d/animation/CustomAnimation.h"
 #include "engine/particle/GPUParticleEmitter.h"
+#include "Tutorial.h"
+
 
 // --- 標準ライブラリ ---
 #include <vector>
@@ -239,5 +241,16 @@ private: // メンバ変数
 	
 	// GPUパーティクルエミッター
 	GPUParticleEmitter emitter_;
+
+	// チュートリアル
+	std::unique_ptr<Tutorial> tutorial_ = nullptr;
+
+	// チュートリアル開始のリクエストを出すための静的関数とフラグ
+	static bool pendingTutorialStart_;
+	static bool ConsumeTutorialStartRequest();
+public:
+	// チュートリアル開始のリクエストを出すための静的関数
+	static void RequestTutorialStart(bool enable);
+
 	
 };
