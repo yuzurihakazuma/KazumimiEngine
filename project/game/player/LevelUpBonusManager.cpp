@@ -172,7 +172,7 @@ LevelUpResult LevelUpBonusManager::ApplyBonus(HandManager *handManager, Choice c
     // ①の処理でchoiceがGetRandomCardに変わった場合も含めて処理する
     if (choice == Choice::GetRandomCard) {
         // ② ランダムなカードを1枚獲得する
-        int randomId = 2 + (rand() % 11);
+        int randomId = 2 + (rand() % 10);
         Card randomCard = CardDatabase::GetCardData(randomId);
 
         // 手札に追加してみて、失敗したら交換モード用のフラグを立てる
