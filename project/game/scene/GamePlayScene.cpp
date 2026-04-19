@@ -900,8 +900,25 @@ void GamePlayScene::Update() {
 		sprite_->Update();
 	}
 
-	// ステータス背景更新
+	// ==========================================
+	// ★ プレイヤーステータスUIの更新
+	// ==========================================
+	float currentScreenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+
+	// ステータス背景（黒い帯）の更新
 	if (playerStatusBgSprite_) {
+		// 1. サイズの決定
+	// 横幅を 800px、高さを 50px に変更する例
+		float bgW = 900.0f;
+		float bgH = 50.0f;
+		playerStatusBgSprite_->SetSize({ bgW, bgH });
+
+		// 2. 位置の決定 (アンカーポイントが中心 0.5 の場合)
+		// 左端に寄せるなら、中心座標は「横幅の半分」にする
+		float posX = bgW * 0.5f + 250.0f; // 左に 20px の余白
+		float posY = bgH * 0.5f + 10.0f; // 上に 10px の余白
+
+		playerStatusBgSprite_->SetPosition({ posX, posY });
 		playerStatusBgSprite_->Update();
 	}
 
@@ -946,10 +963,22 @@ void GamePlayScene::Update() {
 		std::string expText =
 			"EXP : " + std::to_string(playerManager_->GetExp()) + " / " + std::to_string(playerManager_->GetNextLevelExp());
 
-		TextManager::GetInstance()->SetText("PlayerHP", hpText);
-		TextManager::GetInstance()->SetText("PlayerCost", costText);
-		TextManager::GetInstance()->SetText("PlayerLevel", levelText);
-		TextManager::GetInstance()->SetText("PlayerEXP", expText);
+		auto textMgr = TextManager::GetInstance();
+		textMgr->SetText("PlayerHP", hpText);
+		textMgr->SetText("PlayerCost", costText);
+		textMgr->SetText("PlayerLevel", levelText);
+		textMgr->SetText("PlayerEXP", expText);
+
+		// ★ 横並びに配置するための計算
+		float topY = 20.0f;     // 上端からのY座標
+		float startX = 260.0f;   // 左端からのX座標
+		float spacing = 200.0f; // ウィンドウ幅に合わせて項目間のスペースを自動計算
+
+		// テキストの座標を最新のウィンドウ幅に合わせて更新
+		textMgr->SetPosition("PlayerHP", startX, topY);
+		textMgr->SetPosition("PlayerCost", startX + spacing, topY);
+		textMgr->SetPosition("PlayerLevel", startX + spacing * 2+100, topY);
+		textMgr->SetPosition("PlayerEXP", startX + spacing * 3, topY);
 	}
 
 	// ==========================================
@@ -1061,23 +1090,55 @@ void GamePlayScene::Update() {
 		Card selectedCard = handManager_.GetCard(selectedIdx);
 
 		// 3. 説明文だけを変数に入れる
-		std::string displayText = selectedCard.description;
-
-		size_t pos = displayText.find("\\n");
+		std::string descText = selectedCard.description;
+		size_t pos = descText.find("\\n");
 		while (pos != std::string::npos) {
-			displayText.replace(pos, 2, "\n");
-			pos = displayText.find("\\n", pos + 1);
+			descText.replace(pos, 2, "\n");
+			pos = descText.find("\\n", pos + 1);
 		}
+
+		// カード名とコストを合体させた文字列を作る！
+		std::string displayText = "【" + selectedCard.name + "】\n  Cost : " + std::to_string(selectedCard.cost) + "\n" + descText;
 
 		// 4. テキストオブジェクトに文字を流し込む！
 		// ※ textObj_ の部分は、チームメンバーさんが作ったテキスト管理の変数名に直してください
 		TextManager::GetInstance()->SetText("CardT", displayText);
 
+		// ==========================================
+		// ★ 2. 右上への配置計算
+		// ==========================================
+		float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
 
+		// 枠のサイズ
+		float bgWidth = 390.0f;  // ミニマップの横幅に合わせると綺麗です
+		float bgHeight = 200.0f;
+
+		// 右端・上端からの余白
+		float marginRight = 20.0f;
+		float marginTop = 10.0f; // ミニマップの下に置く場合は 350.0f 前後に調整
+
+		// 背景枠の位置（中心座標）
+		float bgPosX = screenW - (bgWidth * 0.5f) - marginRight;
+		float bgPosY = marginTop + (bgHeight * 0.5f);
+
+		if (descBgSprite_) {
+			descBgSprite_->SetSize({ bgWidth, bgHeight });
+			descBgSprite_->SetPosition({ bgPosX, bgPosY });
+			descBgSprite_->Update();
+		}
+
+		// 3. 文字の位置（枠の左上に合わせる）
+		float textPosX = screenW - bgWidth - marginRight ;
+		float textPosY = marginTop + 15.0f;
+		TextManager::GetInstance()->SetPosition("CardT", textPosX, textPosY);
 	}
 	else {
 		// 手札がない時は文字を消す
 		TextManager::GetInstance()->SetText("CardT", "");
+		if (descBgSprite_) {
+			descBgSprite_->SetPosition({ -1000.0f, -1000.0f });
+			descBgSprite_->Update();
+		}
 	}
 }
 
