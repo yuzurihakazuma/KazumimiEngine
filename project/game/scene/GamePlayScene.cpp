@@ -96,7 +96,7 @@ void GamePlayScene::Initialize() {
 	swapUiSprite_ = Sprite::Create(textures_["ChangeUI"].srvIndex, { 0.0f, 0.0f });
 
 	// カード用の3Dモデルを読み込んでおく（※パスやファイル名はご自身の環境に合わせてください）
-	ModelManager::GetInstance()->LoadModel("plane", "resources/plane", "plane.obj");
+	ModelManager::GetInstance()->LoadModel("ground", "resources/Ground", "Ground.obj");
 	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
 	ModelManager::GetInstance()->LoadModel("cardF", "resources/card", "cardF.obj");
 	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");

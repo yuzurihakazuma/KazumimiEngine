@@ -39,7 +39,7 @@ void MapManager::Initialize() {
 
     // 床インスタンスグループ
     floorGroup_ = std::make_unique<InstancedGroup>();
-    floorGroup_->Initialize("plane", 10000);
+    floorGroup_->Initialize("ground", 10000);
 
     // 壁インスタンスグループ
     wallGroup_ = std::make_unique<InstancedGroup>();
@@ -490,7 +490,7 @@ void MapManager::PlaceStairsTileRandom(const Vector3& avoidWorldPos, float avoid
 void MapManager::UpdateTileObject(int x, int z) {
     if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
 
-    Model* floorModel = ModelManager::GetInstance()->FindModel("plane");
+    Model* floorModel = ModelManager::GetInstance()->FindModel("ground");
     Model* wallModel = ModelManager::GetInstance()->FindModel("block");
     if (floorModel == nullptr || wallModel == nullptr) return;
 
@@ -506,7 +506,7 @@ void MapManager::UpdateTileObject(int x, int z) {
             floorObjects_[z][x]->SetCamera(camera_);
         }
 
-        floorObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + 1.0f, z * tileSize });
+        floorObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY , z * tileSize });
 
         floorObjects_[z][x]->SetRotation({ -1.57f, 0.0f, 0.0f });
 
