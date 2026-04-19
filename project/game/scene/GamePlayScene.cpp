@@ -1023,7 +1023,20 @@ void GamePlayScene::Update() {
 				TextManager::GetInstance()->SetText("ReadyCardT", "");
 			}
 		}
+		float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
 
+		// カードUIと同じ設定値を使います
+		float bgWidth = 390.0f;
+		float bgHeight = 200.0f;
+		float marginRight = 50.0f;
+		float marginTop = 10.0f;
+
+		// X座標：カード説明の文字の左端に揃える
+		float textPosX = screenW - bgWidth - marginRight;
+		// Y座標：カードUIの黒枠の下端に、少し余白(20px)を足す
+		float textPosY = marginTop + bgHeight + 20.0f;
+
+		TextManager::GetInstance()->SetPosition("ReadyCardT", textPosX, textPosY);
 
 		// Eキーで構え中の攻撃カードを発動
 		if (input->Triggerkey(DIK_E)) {
