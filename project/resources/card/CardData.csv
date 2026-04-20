@@ -8,5 +8,5 @@ id,name,cost,effectType,sffectValue,description,modelName,effectName,seName,rari
 7,EvokerFangs,3,0,2,地面からトゲを出す,CardFang,nullptr,nullptr,0,1,2
 8,decoy,6,3,0,身代わりを出現させる,CardDecoy,nullptr,nullptr,0,0,1
 9,atkDown,6,3,0,敵の攻撃力を下げる,CardAtkDown,nullptr,nullptr,0,0,1
-10,Claw,8,0,10,１０ダメージ与える,CardClaw,nullptr,nullptr,0,1,0
+10,Claw,8,0,5,5ダメージ与える,CardClaw,nullptr,nullptr,0,1,0
 11,MapScanner,3,3,0,ミニマップを全て表示する,CardScanner,nullptr,nullptr,0,0,0

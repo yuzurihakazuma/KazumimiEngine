@@ -342,6 +342,12 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
         return; // ここで処理を抜けるのでダメージを受けない
     }
 
+    if (isEnemyAtkDebuffed_) {
+        damage /= 2;
+
+       
+    }
+
     // HP減少
     hp_ -= damage;
     if (hp_ < 0) {

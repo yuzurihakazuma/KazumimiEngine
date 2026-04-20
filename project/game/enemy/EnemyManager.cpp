@@ -31,12 +31,9 @@ void EnemyManager::Initialize() {
 	castCardObjs_[10] = std::unique_ptr<Obj3d>(Obj3d::Create("CardClaw"));
 }
 
-void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss) {
+void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss, const Vector3 &targetPos) {
 	if (!player || !cardPickupManager || !mapManager) return;
 
-	
-
-	Vector3 targetPos = player->GetPosition();
 	const LevelData &level = mapManager->GetLevelData();
 
 	// 敵全員分ループ
