@@ -17,6 +17,10 @@ void SpeedBuffEffect::Update(Player *player, EnemyManager *enemyManager, Boss *b
 
 	if ( isPlayerCaster_ && player ) {
 		currentPos_ = player->GetPosition();
+
+        if ( durationTimer_ == 300 ) {
+            player->ApplySpeedBuff(multiplier_, durationTimer_);
+        }
 	}
 
     // 毎フレーム1〜2個出すことで「常にまとっている」感を出します
