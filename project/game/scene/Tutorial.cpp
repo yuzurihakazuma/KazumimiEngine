@@ -1,4 +1,3 @@
-// Tutorial.cpp
 #include "Tutorial.h"
 
 #include <cmath>
@@ -309,15 +308,15 @@ bool Tutorial::AreAllEnemiesDefeated() const {
 
 void Tutorial::UpdateTexts() const {
 	TextManager* text = TextManager::GetInstance();
-	text->SetPosition("TutorialTitle", 40.0f, 40.0f);
-	text->SetPosition("TutorialBody", 40.0f, 90.0f);
+	text->SetPosition("TutorialTitle", 20.0f, 260.0f);
+	text->SetPosition("TutorialBody", 20.0f, 305.0f);
 	text->SetCentered("TutorialTitle", false);
 	text->SetCentered("TutorialBody", false);
 
 	switch (step_) {
 	case Step::MoveIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 1 / 5");
-		text->SetText("TutorialBody", "WASDで移動、LShiftで回避できます。");
+		text->SetText("TutorialBody", "WASD:移動\nLShift:回避\nSpace:攻撃\n回避中は無敵になる");
 		break;
 
 	case Step::PickCard:
