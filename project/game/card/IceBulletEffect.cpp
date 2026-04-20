@@ -38,7 +38,11 @@ void IceBulletEffect::Start(const Vector3& casterPos, float casterYaw, bool isPl
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
 		obj_->Update();
+
+		
+
 	}
+
 }
 
 void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,

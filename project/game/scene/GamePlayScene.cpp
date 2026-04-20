@@ -1432,45 +1432,41 @@ void GamePlayScene::DrawDebugUI() {
 		); // ボタンを押したら次の階層へ
 	}
 
+	ImGui::Separator();
 
 
 	// 図鑑（CardDatabase）からIDを指定して正しいデータを拾う！
 	ImGui::SameLine();
-	if (ImGui::Button("Pick Up (ID: 2)")) {
+	if (ImGui::Button("ファイヤーボール (ID: 2)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(2));
 	}
-	if (ImGui::Button("Pick Up (ID: 3)")) {
+	if (ImGui::Button(" ポーション (ID: 3)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(3));
 	}
-	if (ImGui::Button("Pick Up (ID: 4)")) {
+	if (ImGui::Button(" スピードアップ (ID: 4)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(4));
 	}
-
-	if (ImGui::Button("Pick Up (ID: 5)")) {
+	if ( ImGui::Button(" シールド (ID: 5)") ) {
 		handManager_.AddCard(CardDatabase::GetCardData(5));
 	}
-
-	if (ImGui::Button("Pick Up (ID: 6)")) {
+	if (ImGui::Button(" アイスボール (ID: 6)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(6));
 	}
-
-	if (ImGui::Button("Pick Up (ID: 7)")) {
+	if (ImGui::Button(" トゲ (ID: 7)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(7));
 	}
 
-	if (ImGui::Button("Pick Up (ID: 8)")) {
+	if (ImGui::Button(" 身代わり (ID: 8)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(8));
 	}
-
-	if (ImGui::Button("Pick Up (ID: 9)")) {
+	if ( ImGui::Button(" 攻撃力減少 (ID: 9)") ) {
 		handManager_.AddCard(CardDatabase::GetCardData(9));
 	}
-
-	if (ImGui::Button("Pick Up (ID: 10)")) {
+	if ( ImGui::Button(" クロー (ID: 10)") ) {
 		handManager_.AddCard(CardDatabase::GetCardData(10));
 	}
 
-	if (ImGui::Button("Pick Up (ID: 11)")) {
+	if (ImGui::Button(" マップ開示 (ID: 11)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(11));
 	}
 
