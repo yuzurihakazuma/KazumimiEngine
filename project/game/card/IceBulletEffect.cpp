@@ -5,6 +5,7 @@
 #include "game/enemy/EnemyManager.h"
 #include "engine/math/VectorMath.h"
 #include "engine/collision/Collision.h"
+#include "engine/particle/GPUParticleManager.h" 
 #include <cmath>
 
 using namespace VectorMath;
@@ -55,6 +56,83 @@ void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* b
 
 	// 弾を進める
 	pos_ += velocity_;
+
+	rotAngle_ += 0.15f;
+
+	// --- 1. コア (Core): 中心で輝く冷気の結晶 ---
+	for ( int i = 0; i < 3; i++ ) {
+		Vector3 corePos = {
+			pos_.x + ( rand() % 11 - 5 ) * 0.05f,
+			pos_.y + ( rand() % 11 - 5 ) * 0.05f,
+			pos_.z + ( rand() % 11 - 5 ) * 0.05f
+		};
+		// 外側へ向かう微小な速度
+		Vector3 coreVel = {
+			( rand() % 11 - 5 ) * 0.02f,
+			( rand() % 11 - 5 ) * 0.02f,
+			( rand() % 11 - 5 ) * 0.02f
+		};
+		Vector4 coreColor = { 0.8f, 0.9f, 1.0f, 1.0f }; // 白に近い水色
+		float coreLife = 0.1f + static_cast< float >( rand() % 3 ) * 0.05f;
+		float coreScale = 0.15f + static_cast< float >( rand() % 3 ) * 0.05f;
+
+		GPUParticleManager::GetInstance()->Emit(corePos, coreVel, coreLife, coreScale, coreColor);
+	}
+
+	// --- 2. トレイル (Trail): 通った後に残る冷気のモヤ ---
+	// 炎と違い、冷気は「下に沈む」ようにすると氷っぽくなります
+	for ( int i = 0; i < 8; i++ ) {
+		float angleX = static_cast< float >(rand() % 628) * 0.01f;
+		float angleY = static_cast< float >(rand() % 628) * 0.01f;
+		float radius = 0.5f;
+
+		Vector3 trailPos = {
+			pos_.x + std::cosf(angleX) * std::cosf(angleY) * radius,
+			pos_.y + std::sinf(angleY) * radius,
+			pos_.z + std::sinf(angleX) * std::cosf(angleY) * radius
+		};
+
+		// 進行方向と逆に少し戻りつつ、下に沈む
+		Vector3 trailVel = {
+			-velocity_.x * 0.5f + ( rand() % 11 - 5 ) * 0.01f,
+			-0.05f - static_cast< float >( rand() % 5 ) * 0.01f, // 💡 マイナスにして下へ落とす
+			-velocity_.z * 0.5f + ( rand() % 11 - 5 ) * 0.01f
+		};
+
+		// 外側に行くほど濃い青に
+		float b = 0.8f + static_cast< float >( rand() % 3 ) * 0.1f;
+		Vector4 trailColor = { 0.2f, 0.6f, b, 0.6f };
+
+		float trailLife = 0.4f + static_cast< float >( rand() % 5 ) * 0.1f;
+		float trailScale = 0.4f + static_cast< float >( rand() % 4 ) * 0.1f;
+
+		GPUParticleManager::GetInstance()->Emit(trailPos, trailVel, trailLife, trailScale, trailColor);
+	}
+
+	// --- 3. スパーク (Spark): たまに飛ぶ鋭い氷の破片 ---
+	sparkTimer_++;
+	if ( sparkTimer_ % 3 == 0 ) {
+		for ( int i = 0; i < 3; i++ ) {
+			Vector3 sparkVel = {
+				( rand() % 11 - 5 ) * 0.15f,
+				-0.1f - static_cast< float >(rand() % 5) * 0.05f, // 破片も少し下向きに重力を感じるように
+				( rand() % 11 - 5 ) * 0.15f
+			};
+			Vector4 sparkColor = { 0.5f, 0.9f, 1.0f, 1.0f }; // 鮮やかなシアン
+			float sparkLife = 0.2f + static_cast< float >(rand() % 3) * 0.1f;
+			float sparkScale = 0.05f + static_cast< float >(rand() % 2) * 0.05f;
+
+			GPUParticleManager::GetInstance()->Emit(pos_, sparkVel, sparkLife, sparkScale, sparkColor);
+		}
+	}
+
+
+	// 表示位置を更新
+	if ( obj_ ) {
+		obj_->SetTranslation(pos_);
+		obj_->Update();
+	}
+
 
 	// 表示位置を更新
 	if (obj_) {
@@ -144,8 +222,8 @@ void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* b
 }
 
 void IceBulletEffect::Draw() {
-	// 有効中だけ描画
-	if (!isFinished_ && obj_) {
-		obj_->Draw();
-	}
+	//// 有効中だけ描画
+	//if (!isFinished_ && obj_) {
+	//	obj_->Draw();
+	//}
 }
