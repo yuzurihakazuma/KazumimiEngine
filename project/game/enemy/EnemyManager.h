@@ -22,7 +22,7 @@ public:
 	void Initialize();
 
 	// 更新
-	void Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss);
+	void Update(Player *player, CardPickupManager *cardPickupManager, MapManager* mapManager,Boss *boss, const Vector3 &targetPos);
 
 	// 描画
 	void Draw(Camera *camera, Minimap *minimap = nullptr);

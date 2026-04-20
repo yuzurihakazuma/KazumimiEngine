@@ -549,10 +549,7 @@ void GamePlayScene::Update() {
 
 	// EnemyManager に更新をお願いする
 	if (enemyManager_) {
-
-
-
-		enemyManager_->Update(player, &cardPickupManager_, mapManager_.get(), boss);
+		enemyManager_->Update(player, &cardPickupManager_, mapManager_.get(), boss, targetPos);
 	}
 
 	// ==========================================
@@ -1501,6 +1498,10 @@ void GamePlayScene::ResetBattleDebug() {
 		playerManager_->Reset();
 		playerPos_ = playerManager_->GetPosition();
 		playerScale_ = playerManager_->GetScale();
+
+		if (playerManager_->GetPlayer()) {
+			playerManager_->GetPlayer()->SetEnemyAtkDebuffed(false);
+		}
 	}
 
 	if (bossManager_) {
@@ -1634,11 +1635,23 @@ void GamePlayScene::UpdateCardUse(Input* input) {
 				player
 			);
 		}
+
+		if (selectedCard.id == 9) {
+			player->SetEnemyAtkDebuffed(true);
+
+			// ※ 先ほど作成したデバフUIクラス等があれば、ここで一緒に呼び出して文字を表示します
+			floorEffectManager_.ActivateDebuff(selectedCard.name);
+		}
 	}
 
 	// 初期カード以外は使用後にディゾルブ開始
 	if (selectedCard.id != 1) {
 		handManager_.StartDissolveSelectedCard();
+	}
+
+	if (selectedCard.id == 9 || selectedCard.id == 11) {
+		// ★ デバフ発動をマネージャーに頼む！
+		floorEffectManager_.ActivateDebuff(selectedCard.name);
 	}
 }
 

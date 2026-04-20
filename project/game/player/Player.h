@@ -71,6 +71,9 @@ public:
     void SetCost(int cost) { cost_ = cost; }
     void SetHP(int hp) { hp_ = hp; }
 
+    void SetEnemyAtkDebuffed(bool isDebuffed) { isEnemyAtkDebuffed_ = isDebuffed; }
+    bool IsEnemyAtkDebuffed() const { return isEnemyAtkDebuffed_; }
+
 private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
@@ -137,4 +140,6 @@ private:
     // シールド管理
     bool isShieldActive_ = false; // シールド展開中か
     int shieldHitCount_ = 0;
+
+    bool isEnemyAtkDebuffed_ = false;
 };

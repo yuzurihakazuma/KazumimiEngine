@@ -7,6 +7,7 @@
 
 #include "game/card/HandManager.h"
 #include "game/card/CardPickupManager.h"
+#include "game/card/FloorEffectManager.h"
 #include "game/spawn/SpawnManager.h"
 #include "game/Player/LevelUpBonusManager.h"
 
@@ -46,6 +47,7 @@ class Minimap;
 class EnemyManager;
 class BossManager;
 class MapManager;
+class FloorEffectManager;
 
 // ゲームプレイシーン
 class GamePlayScene : public IScene {
@@ -248,6 +250,8 @@ private: // メンバ変数
 	// チュートリアル開始のリクエストを出すための静的関数とフラグ
 	static bool pendingTutorialStart_;
 	static bool ConsumeTutorialStartRequest();
+
+	FloorEffectManager floorEffectManager_; // クラスを持たせる
 public:
 	// チュートリアル開始のリクエストを出すための静的関数
 	static void RequestTutorialStart(bool enable);
