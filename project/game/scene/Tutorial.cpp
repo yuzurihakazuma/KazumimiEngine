@@ -1,4 +1,3 @@
-// Tutorial.cpp
 #include "Tutorial.h"
 
 #include <cmath>
@@ -9,6 +8,7 @@
 #include "engine/utils/TextManager.h"
 #include "game/card/CardDatabase.h"
 #include "game/card/CardPickupManager.h"
+#include "game/enemy/Enemy.h"
 #include "game/enemy/EnemyManager.h"
 #include "game/map/MapManager.h"
 #include "game/map/Minimap.h"
@@ -28,9 +28,14 @@ void Tutorial::Start() {
 
 	pickupSpawned_ = false;
 	enemySpawned_ = false;
+	swapPickupSpawned_ = false;
+	enemyCardTutorialSpawned_ = false;
 	stairsSpawned_ = false;
 	isPauseStep_ = false;
 	waitingForSpace_ = false;
+	isTextSuppressed_ = false;
+	consumedAdvanceInput_ = false;
+	tutorialAdvanceCooldown_ = 0;
 	stairsX_ = -1;
 	stairsZ_ = -1;
 	step_ = Step::MoveIntro;
@@ -59,11 +64,20 @@ void Tutorial::Update(Input* input) {
 		}
 	}
 
+	if (tutorialAdvanceCooldown_ > 0) {
+		tutorialAdvanceCooldown_--;
+	}
+
 	if (waitingForSpace_) {
+		if (tutorialAdvanceCooldown_ > 0) {
+			return;
+		}
+
 		if (!input || !input->Triggerkey(DIK_SPACE)) {
 			return;
 		}
 
+		consumedAdvanceInput_ = true;
 		waitingForSpace_ = false;
 
 		switch (step_) {
@@ -81,7 +95,21 @@ void Tutorial::Update(Input* input) {
 			UpdateTexts();
 			return;
 
-		case Step::FloorIntro:
+		case Step::CardSwapIntro:
+			step_ = Step::CardSwapPractice;
+			isPauseStep_ = false;
+			UpdateTexts();
+			return;
+
+		case Step::EnemyCardIntro:
+			step_ = Step::EnemyCardBattle;
+			isPauseStep_ = false;
+			UpdateTexts();
+			return;
+
+		case Step::LevelUpIntro:
+			OpenCorridor(corridor4_);
+			SpawnTutorialStairs();
 			step_ = Step::ReachStairs;
 			isPauseStep_ = false;
 			UpdateTexts();
@@ -97,16 +125,55 @@ void Tutorial::Update(Input* input) {
 		step_ = Step::StatusIntro;
 		isPauseStep_ = true;
 		waitingForSpace_ = true;
+		tutorialAdvanceCooldown_ = kAdvanceCooldownFrames_;
 		UpdateTexts();
 		return;
 	}
 
 	if (step_ == Step::DefeatEnemy && enemySpawned_ && AreAllEnemiesDefeated()) {
 		OpenCorridor(corridor2_);
-		SpawnTutorialStairs();
-		step_ = Step::FloorIntro;
+		SpawnCardSwapTutorialCards();
+		step_ = Step::CardSwapIntro;
 		isPauseStep_ = true;
 		waitingForSpace_ = true;
+		tutorialAdvanceCooldown_ = kAdvanceCooldownFrames_;
+		UpdateTexts();
+		return;
+	}
+
+	if (step_ == Step::CardSwapPractice && swapPickupSpawned_ && AreAllPickupsCollected()) {
+		OpenCorridor(corridor3_);
+		step_ = Step::EnemyCardWatch;
+		isPauseStep_ = false;
+		waitingForSpace_ = false;
+		UpdateTexts();
+		return;
+	}
+
+	if (step_ == Step::EnemyCardWatch && context_.playerManager && !enemyCardTutorialSpawned_) {
+		const Vector3 currentPos = context_.playerManager->GetPosition();
+		const LevelData& level = context_.mapManager->GetLevelData();
+		const int gridX = static_cast<int>(std::round(currentPos.x / level.tileSize));
+		const int gridZ = static_cast<int>(std::round(currentPos.z / level.tileSize));
+		if (IsInsideRect(gridX, gridZ, room4_)) {
+			SpawnEnemyCardTutorial();
+		}
+	}
+
+	if (step_ == Step::EnemyCardWatch && enemyCardTutorialSpawned_ && HasEnemyPickedTutorialCard()) {
+		step_ = Step::EnemyCardIntro;
+		isPauseStep_ = true;
+		waitingForSpace_ = true;
+		tutorialAdvanceCooldown_ = kAdvanceCooldownFrames_;
+		UpdateTexts();
+		return;
+	}
+
+	if (step_ == Step::EnemyCardBattle && enemyCardTutorialSpawned_ && AreAllEnemiesDefeated()) {
+		step_ = Step::LevelUpIntro;
+		isPauseStep_ = true;
+		waitingForSpace_ = true;
+		tutorialAdvanceCooldown_ = kAdvanceCooldownFrames_;
 		UpdateTexts();
 	}
 }
@@ -117,12 +184,34 @@ void Tutorial::Finalize() {
 	requestReturnToTitle_ = false;
 	isPauseStep_ = false;
 	waitingForSpace_ = false;
+	isTextSuppressed_ = false;
+	consumedAdvanceInput_ = false;
+	tutorialAdvanceCooldown_ = 0;
 }
 
 bool Tutorial::ConsumeReturnToTitleRequest() {
 	const bool requested = requestReturnToTitle_;
 	requestReturnToTitle_ = false;
 	return requested;
+}
+
+bool Tutorial::ConsumeAdvanceInputRequest() {
+	const bool requested = consumedAdvanceInput_;
+	consumedAdvanceInput_ = false;
+	return requested;
+}
+
+void Tutorial::SetTextSuppressed(bool suppressed) {
+	if (isTextSuppressed_ == suppressed) {
+		return;
+	}
+
+	isTextSuppressed_ = suppressed;
+	if (suppressed) {
+		ClearTexts();
+	} else {
+		UpdateTexts();
+	}
 }
 
 void Tutorial::CheckPlayerGoal(const Vector3& playerWorldPos) {
@@ -161,6 +250,8 @@ void Tutorial::BuildTutorialMap() {
 	CarveRect(room1_, 0);
 	CarveRect(room2_, 0);
 	CarveRect(room3_, 0);
+	CarveRect(room4_, 0);
+	CarveRect(room5_, 0);
 	CarveRect(room0_, 0);
 	CarveRect(corridor0_, 0);
 
@@ -257,13 +348,68 @@ void Tutorial::SpawnTutorialEnemy() {
 	enemySpawned_ = true;
 }
 
+void Tutorial::SpawnCardSwapTutorialCards() {
+	if (!context_.cardPickupManager) {
+		return;
+	}
+
+	const int centerX = room3_.CenterX();
+	const int centerZ = room3_.CenterZ();
+
+	context_.cardPickupManager->AddPickup(
+		GetTileWorldPosition(centerX - 2, centerZ, 0.01f),
+		CardDatabase::GetCardData(3)
+	);
+	context_.cardPickupManager->AddPickup(
+		GetTileWorldPosition(centerX, centerZ, 0.01f),
+		CardDatabase::GetCardData(4)
+	);
+	context_.cardPickupManager->AddPickup(
+		GetTileWorldPosition(centerX + 2, centerZ, 0.01f),
+		CardDatabase::GetCardData(5)
+	);
+
+	swapPickupSpawned_ = true;
+}
+
+void Tutorial::SpawnEnemyCardTutorial() {
+	if (!context_.enemyManager || !context_.cardPickupManager) {
+		return;
+	}
+
+	context_.enemyManager->Clear();
+
+	const int cardX = room4_.right - 2;
+	const int cardZ = room4_.CenterZ();
+	const int enemyX0 = cardX - 1;
+	const int enemyZ0 = cardZ - 1;
+	const int enemyX1 = cardX - 1;
+	const int enemyZ1 = cardZ + 1;
+
+	context_.enemyManager->SpawnEnemyAt(
+		GetTileWorldPosition(enemyX0, enemyZ0, 1.0f),
+		context_.camera
+	);
+	context_.enemyManager->SpawnEnemyAt(
+		GetTileWorldPosition(enemyX1, enemyZ1, 1.0f),
+		context_.camera
+	);
+
+	context_.cardPickupManager->AddPickup(
+		GetTileWorldPosition(cardX, cardZ, 0.01f),
+		CardDatabase::GetRandomEnemyUsableCard()
+	);
+
+	enemyCardTutorialSpawned_ = true;
+}
+
 void Tutorial::SpawnTutorialStairs() {
 	if (stairsSpawned_) {
 		return;
 	}
 
-	stairsX_ = room3_.CenterX();
-	stairsZ_ = room3_.CenterZ();
+	stairsX_ = room5_.CenterX();
+	stairsZ_ = room5_.CenterZ();
 
 	SetTile(stairsX_, stairsZ_, 3);
 	context_.mapManager->SetStairsTile({ stairsX_, stairsZ_ });
@@ -307,47 +453,91 @@ bool Tutorial::AreAllEnemiesDefeated() const {
 	return true;
 }
 
+bool Tutorial::HasEnemyPickedTutorialCard() const {
+	if (!context_.enemyManager) {
+		return false;
+	}
+
+	for (const auto& enemy : context_.enemyManager->GetEnemies()) {
+		if (enemy && !enemy->IsDead() && enemy->HasPickupCard()) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void Tutorial::UpdateTexts() const {
+	if (isTextSuppressed_) {
+		ClearTexts();
+		return;
+	}
+
 	TextManager* text = TextManager::GetInstance();
-	text->SetPosition("TutorialTitle", 40.0f, 40.0f);
-	text->SetPosition("TutorialBody", 40.0f, 90.0f);
+	text->SetPosition("TutorialTitle", 20.0f, 260.0f);
+	text->SetPosition("TutorialBody", 20.0f, 305.0f);
 	text->SetCentered("TutorialTitle", false);
 	text->SetCentered("TutorialBody", false);
 
 	switch (step_) {
 	case Step::MoveIntro:
-		text->SetText("TutorialTitle", "TUTORIAL 1 / 5");
-		text->SetText("TutorialBody", "WASDで移動、LShiftで回避できます。");
+		text->SetText("TutorialTitle", "TUTORIAL 1 / 8");
+		text->SetText("TutorialBody", "WASD:移動\nLShift:回避\nSpace:攻撃\n回避中は無敵になります。");
 		break;
 
 	case Step::PickCard:
-		text->SetText("TutorialTitle", "TUTORIAL 2 / 5");
+		text->SetText("TutorialTitle", "TUTORIAL 2 / 8");
 		text->SetText("TutorialBody", "部屋に置かれたカードを拾ってください。\n拾うまで次の部屋には進めません。");
 		break;
 
 	case Step::StatusIntro:
-		text->SetText("TutorialTitle", "TUTORIAL 3 / 5");
+		text->SetText("TutorialTitle", "TUTORIAL 3 / 8");
 		text->SetText("TutorialBody", "上にHP、コスト、レベル、経験値が表示されます。\nカード使用でコストを消費します。SPACEで再開します。");
 		break;
 
 	case Step::CombatIntro:
-		text->SetText("TutorialTitle", "TUTORIAL 4 / 5");
+		text->SetText("TutorialTitle", "TUTORIAL 4 / 8");
 		text->SetText("TutorialBody", "矢印キーで選びSPACEで選択中のカードを使います。\n準備したカードはEで発動します。SPACEで戦闘を始めます。");
 		break;
 
 	case Step::DefeatEnemy:
-		text->SetText("TutorialTitle", "TUTORIAL 4 / 5");
-		text->SetText("TutorialBody", "2つ目の部屋の敵を倒してください。\n倒すまで最後の部屋には進めません。");
+		text->SetText("TutorialTitle", "TUTORIAL 4 / 8");
+		text->SetText("TutorialBody", "2つ目の部屋の敵を倒してください。\n倒すまで次の部屋には進めません。");
 		break;
 
-	case Step::FloorIntro:
-		text->SetText("TutorialTitle", "TUTORIAL 5 / 5");
-		text->SetText("TutorialBody", "敵を倒して探索し、階段で次のフロアへ進みます。\nSPACEで再開して階段へ向かってください。");
+	case Step::CardSwapIntro:
+		text->SetText("TutorialTitle", "TUTORIAL 5 / 8");
+		text->SetText("TutorialBody", "次の部屋ではカード交換を練習します。\n持てるカードは3枚までで、レベルが上がるごとに上限が1枚ずつ増えます。SPACEで再開します。");
+		break;
+
+	case Step::CardSwapPractice:
+		text->SetText("TutorialTitle", "TUTORIAL 5 / 8");
+		text->SetText("TutorialBody", "部屋に3枚のカードがあります。\n手札がいっぱいの状態で拾うと交換になります。");
+		break;
+
+	case Step::EnemyCardWatch:
+		text->SetText("TutorialTitle", "TUTORIAL 6 / 8");
+		text->SetText("TutorialBody", "次の部屋に入ってください。\n敵がカードを拾う様子を見てみましょう。");
+		break;
+
+	case Step::EnemyCardIntro:
+		text->SetText("TutorialTitle", "TUTORIAL 6 / 8");
+		text->SetText("TutorialBody", "敵もカードを拾い、カード攻撃をしてきます。\nまずはこの部屋の敵を2体とも倒してください。SPACEで再開します。");
+		break;
+
+	case Step::EnemyCardBattle:
+		text->SetText("TutorialTitle", "TUTORIAL 6 / 8");
+		text->SetText("TutorialBody", "カードを拾った敵は強くなります。\nこの部屋の敵を2体とも倒してください。");
+		break;
+
+	case Step::LevelUpIntro:
+		text->SetText("TutorialTitle", "TUTORIAL 7 / 8");
+		text->SetText("TutorialBody", "敵を倒して経験値がたまるとレベルアップします。\nレベルアップではボーナスを選べます。SPACEで次の部屋へ進みます。");
 		break;
 
 	case Step::ReachStairs:
-		text->SetText("TutorialTitle", "TUTORIAL 5 / 5");
-		text->SetText("TutorialBody", "最後の部屋に階段が出ました。\n階段に乗るとチュートリアルを終えてタイトルへ戻ります。");
+		text->SetText("TutorialTitle", "TUTORIAL 8 / 8");
+		text->SetText("TutorialBody", "次の部屋に階段が出ました。\n階段に乗るとチュートリアルを終えてタイトルへ戻ります。");
 		break;
 	}
 }

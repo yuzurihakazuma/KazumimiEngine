@@ -396,6 +396,9 @@ void GamePlayScene::Update() {
 	}
 
 	if (isCardSwapMode_) {
+		if (tutorial_ && tutorial_->IsActive()) {
+			tutorial_->SetTextSuppressed(true);
+		}
 
 		// 追加：暗転背景を画面サイズに合わせる
 		if (swapDarkOverlay_) {
@@ -420,6 +423,10 @@ void GamePlayScene::Update() {
 
 		UpdateCardSwapMode(input);
 		return;
+	}
+
+	if (tutorial_ && tutorial_->IsActive()) {
+		tutorial_->SetTextSuppressed(false);
 	}
 
 	// ==========================================
@@ -474,6 +481,10 @@ void GamePlayScene::Update() {
 	if (tutorial_ && tutorial_->IsActive()) {
 		tutorial_->Update(input);
 		tutorial_->CheckPlayerGoal(playerPos_);
+
+		if (tutorial_->ConsumeAdvanceInputRequest()) {
+			return;
+		}
 
 		if (tutorial_->ConsumeReturnToTitleRequest()) {
 			SceneManager::GetInstance()->ChangeScene("TITLE");
