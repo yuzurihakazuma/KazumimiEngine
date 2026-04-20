@@ -28,4 +28,6 @@ private:
 	float rotAngle_ = 0.0f;                   // 炎のカードエフェクト
 	int sparkTimer_ = 0;                    // 火の粉のタイマー
 
+
+
 };
