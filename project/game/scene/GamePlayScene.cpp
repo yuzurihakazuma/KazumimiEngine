@@ -73,10 +73,11 @@ void GamePlayScene::Initialize() {
 	// ボスモデル読み込み
 	ModelManager::GetInstance()->LoadModel("boss", "resources/boss", "boss.obj");
 
-	// 球モデル作成 (シングルトン)
+	// 球モデル作成 (シングルトン) カード用テクスチャモデル
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 
 	ModelManager::GetInstance()->CreateSphereModel("shield_sphere", 16);
+	ModelManager::GetInstance()->CreateSphereModel("fireball_sphere", 8);
 
 	// パーティクルグループ作成 (シングルトン)
 	//ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");

@@ -38,13 +38,19 @@ void FireballEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
 		forward.z * 0.3f
 	};
 
-	// 表示用オブジェクトを生成
-	obj_ = Obj3d::Create("sphere");
+	obj_ = Obj3d::Create("fireball_sphere");
 	if ( obj_ ) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
 		obj_->Update();
+
+		// 色・テクスチャ・発光の設定
+		Model* model = obj_->GetModel();
+		if ( model ) {
+			// ベースを無地にする
+			model->SetTexture("resources/white1x1.png");
+		}
 	}
 }
 
@@ -269,8 +275,5 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 }
 
 void FireballEffect::Draw(){
-	// 有効中だけ描画
-	if ( !isFinished_ && obj_ ) {
-		obj_->Draw();
-	}
+	
 }
