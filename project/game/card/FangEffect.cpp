@@ -5,6 +5,7 @@
 #include "game/enemy/Boss.h"
 #include "engine/collision/Collision.h"
 #include "engine/math/VectorMath.h"
+#include "engine/particle/GPUParticleManager.h"
 #include <cmath>
 
 using namespace VectorMath;
@@ -36,10 +37,21 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 	}
 
 	// 表示用オブジェクトを生成
-	obj_ = Obj3d::Create("sphere");
-	if (obj_) {
+	obj_ = Obj3d::Create("fang_sphere");
+	if ( obj_ ) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
+
+		//  色とテクスチャの設定（岩や土をイメージした色）
+		Model* model = obj_->GetModel();
+		if ( model ) {
+			model->SetTexture("resources/white1x1.png"); // 無地にする
+			Model::Material* material = model->GetMaterial();
+			if ( material ) {
+				material->color = { 0.8f, 0.5f, 0.1f, 0.6f }; // 半透明のオレンジ/茶色
+				material->emissive = 1.0f; // 強く光らせる
+			}
+		}
 	}
 }
 
@@ -61,6 +73,56 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 			// 待機が終わったら有効化
 			if (fang.delayTimer <= 0) {
 				fang.isActive = true;
+
+				for ( int i = 0; i < 30; i++ ) { // 量を15→30に倍増
+					Vector3 breakPos = {
+						fang.pos.x + ( rand() % 11 - 5 ) * 0.1f, // 発生範囲も少し広げる
+						fang.pos.y + static_cast< float >(rand() % 20) * 0.1f,
+						fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
+					};
+					// 上に突き上げる力を強くする
+					Vector3 breakVel = {
+						( rand() % 11 - 5 ) * 0.05f,
+						0.2f + static_cast< float >(rand() % 5) * 0.1f, // 上方向の勢いを爆増
+						( rand() % 11 - 5 ) * 0.05f
+					};
+					Vector4 color = { 0.5f, 0.3f, 0.1f, 1.0f };
+					float life = 0.3f + static_cast< float >( rand() % 3 ) * 0.1f;
+					float scale = 0.3f + static_cast< float >( rand() % 3 ) * 0.1f; // 破片を少し大きく
+					GPUParticleManager::GetInstance()->Emit(breakPos, breakVel, life, scale, color);
+				}
+
+				//  【出現時】画面を切り裂く超高速のバチバチ火花！
+				int sparkCount = 100; // 量を40→100に激増
+				for ( int i = 0; i < sparkCount; i++ ) {
+					Vector3 sparkPos = {
+						fang.pos.x + ( rand() % 11 - 5 ) * 0.1f,
+						fang.pos.y + static_cast< float >(rand() % 20) * 0.1f,
+						fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
+					};
+
+					// 速度の係数を 0.1f → 0.4f（4倍）にして「弾け飛ぶ」ようにする！
+					Vector3 sparkVel = {
+						( rand() % 11 - 5 ) * 0.4f,
+						( rand() % 11 - 5 ) * 0.4f,
+						( rand() % 11 - 5 ) * 0.4f
+					};
+
+					Vector4 sparkColor;
+					if ( rand() % 100 < 50 ) {
+						sparkColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+					} else {
+						sparkColor = { 1.0f, 0.9f, 0.2f, 1.0f };
+					}
+
+					float sparkLife = 0.1f + static_cast< float >( rand() % 2 ) * 0.05f;
+					float sparkScale = 0.05f + static_cast< float >( rand() % 2 ) * 0.05f;
+					GPUParticleManager::GetInstance()->Emit(sparkPos, sparkVel, sparkLife, sparkScale, sparkColor);
+				}
+
+
+
+
 			}
 
 			allDone = false;
@@ -142,6 +204,49 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 			// 表示時間が終わったら非アクティブ化
 			if (fang.activeTimer <= 0) {
 				fang.isActive = false;
+
+				for ( int i = 0; i < 20; i++ ) { // 量を12→20に増加
+					Vector3 breakPos = {
+						fang.pos.x + ( rand() % 5 - 2 ) * 0.1f,
+						fang.pos.y + static_cast< float >(rand() % 20) * 0.1f,
+						fang.pos.z + ( rand() % 5 - 2 ) * 0.1f
+					};
+
+					// 💡勢い強化：下だけでなく、横にも散らす
+					Vector3 breakVel = {
+						( rand() % 11 - 5 ) * 0.05f, // 横に広がる勢いを追加
+						-0.05f - static_cast< float >(rand() % 5) * 0.05f,
+						( rand() % 11 - 5 ) * 0.05f
+					};
+
+					Vector4 color = { 0.6f, 0.4f, 0.2f, 1.0f };
+					GPUParticleManager::GetInstance()->Emit(breakPos, breakVel, 0.3f, 0.2f, color);
+				}
+
+				// 消える瞬間にもショートしたようにバチッと火花を散らす！
+				for ( int i = 0; i < 50; i++ ) { // 消滅時専用の火花
+					Vector3 sparkPos = {
+						fang.pos.x + ( rand() % 11 - 5 ) * 0.1f,
+						fang.pos.y + static_cast< float >(rand() % 20) * 0.1f,
+						fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
+					};
+					// 超高速で四方八方に爆散！
+					Vector3 sparkVel = {
+						( rand() % 11 - 5 ) * 0.3f,
+						( rand() % 11 - 5 ) * 0.3f,
+						( rand() % 11 - 5 ) * 0.3f
+					};
+
+					Vector4 sparkColor;
+					if ( rand() % 100 < 50 ) {
+						sparkColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+					} else {
+						sparkColor = { 1.0f, 0.9f, 0.2f, 1.0f };
+					}
+					// 一瞬で消えるようにする（残像を残さない）
+					GPUParticleManager::GetInstance()->Emit(sparkPos, sparkVel, 0.1f, 0.05f, sparkColor);
+				}
+
 			}
 
 			allDone = false;
