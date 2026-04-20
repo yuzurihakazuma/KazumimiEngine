@@ -266,6 +266,7 @@ void GamePlayScene::Initialize() {
 	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, screenH * 0.5f });
 	pauseBgSprite_->SetSize({ screenW, screenH });
 	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
+	pauseBgSprite_->Update();
 
 	levelUpBonusManager_.Initialize();
 	// エミッターの初期設定
@@ -466,11 +467,15 @@ void GamePlayScene::Update() {
 
 	// チュートリアルの更新と、ゴール判定
 	if (tutorial_ && tutorial_->IsActive()) {
-		tutorial_->Update();
+		tutorial_->Update(input);
 		tutorial_->CheckPlayerGoal(playerPos_);
 
 		if (tutorial_->ConsumeReturnToTitleRequest()) {
 			SceneManager::GetInstance()->ChangeScene("TITLE");
+			return;
+		}
+
+		if (tutorial_->IsGameplayPausedByTutorial()) {
 			return;
 		}
 	}
@@ -1267,6 +1272,10 @@ void GamePlayScene::Draw() {
 
 	if (minimap_) {
 		minimap_->Draw();
+	}
+
+	if (tutorial_ && tutorial_->IsActive() && tutorial_->IsGameplayPausedByTutorial() && pauseBgSprite_) {
+		pauseBgSprite_->Draw();
 	}
 
 	DrawPauseUI();

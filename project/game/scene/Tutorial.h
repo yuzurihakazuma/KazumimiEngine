@@ -10,6 +10,7 @@ class EnemyManager;
 class CardPickupManager;
 class Camera;
 class Minimap;
+class Input;
 
 class Tutorial {
 public:
@@ -24,11 +25,12 @@ public:
 
 	void Initialize(const Context& context);
 	void Start();
-	void Update();
+	void Update(Input* input);
 	void Finalize();
 
 	bool IsActive() const { return isActive_; }
 	bool IsNormalFloorTransitionBlocked() const { return isActive_; }
+	bool IsGameplayPausedByTutorial() const { return isPauseStep_; }
 	bool ConsumeReturnToTitleRequest();
 
 	// プレイヤー位置からタイル判定して、最後の階段に乗ったかを調べる
@@ -46,8 +48,12 @@ private:
 	};
 
 	enum class Step {
+		MoveIntro,
 		PickCard,
+		StatusIntro,
+		CombatIntro,
 		DefeatEnemy,
+		FloorIntro,
 		ReachStairs
 	};
 
@@ -65,6 +71,7 @@ private:
 	void SpawnTutorialEnemy();
 	void SpawnTutorialStairs();
 
+	bool IsInsideRect(int x, int z, const Rect& rect) const;
 	bool AreAllPickupsCollected() const;
 	bool AreAllEnemiesDefeated() const;
 
@@ -79,14 +86,19 @@ private:
 	bool pickupSpawned_ = false;
 	bool enemySpawned_ = false;
 	bool stairsSpawned_ = false;
+	bool isPauseStep_ = false;
+	bool waitingForSpace_ = false;
 
-	Step step_ = Step::PickCard;
+	Step step_ = Step::MoveIntro;
 	int stairsX_ = -1;
 	int stairsZ_ = -1;
 
-	const Rect room1_{ 4, 20, 13, 29 };
+	// 通常プレイの small room に近い 10x10 の床面積でそろえる
+	const Rect room0_{ 6, 6, 15, 15 };
+	const Rect room1_{ 6, 20, 15, 29 };
 	const Rect room2_{ 20, 20, 29, 29 };
-	const Rect room3_{ 36, 20, 45, 29 };
-	const Rect corridor1_{ 14, 23, 19, 26 };
-	const Rect corridor2_{ 30, 23, 35, 26 };
+	const Rect room3_{ 34, 20, 43, 29 };
+	const Rect corridor0_{ 9, 16, 12, 19 };
+	const Rect corridor1_{ 16, 23, 19, 26 };
+	const Rect corridor2_{ 30, 23, 33, 26 };
 };
