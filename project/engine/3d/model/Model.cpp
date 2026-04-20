@@ -139,6 +139,41 @@ void Model::Draw(uint32_t instanceCount) {
 
 }
 
+void Model::SetColor(const Vector4& color){
+	// マテリアルデータがGPUに作られていれば色を上書きする
+	if ( materialData_ ) {
+		materialData_->color = color;
+	}
+}
+// インデックスを指定して変更（すでにTextureManagerで読み込み済みのものを使う場合に高速）
+void Model::SetTexture(uint32_t textureIndex){
+	// インデックスを更新
+	modelData_.material.textureIndex = textureIndex;
+
+	// SrvManagerから新しいGPUハンドルを取得して、描画用の textureHandle_ を上書きする
+	textureHandle_ = modelCommon_->GetDxCommon()->GetSrvManager()->GetGPUDescriptorHandle(textureIndex);
+}
+
+// ファイルパスを指定して変更（新しく読み込む、またはパス指定で楽をしたい場合）
+void Model::SetTexture(const std::string& textureFilePath){
+	// ファイルパスを更新
+	modelData_.material.textureFilePath = textureFilePath;
+
+	auto dxCommon = modelCommon_->GetDxCommon();
+	auto commandList = dxCommon->GetCommandList();
+
+	// TextureManagerを使ってテクスチャを読み込み、新しいインデックスを取得
+	modelData_.material.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+		textureFilePath,
+		commandList
+	).srvIndex;
+
+	// SrvManagerから新しいGPUハンドルを取得して、描画用の textureHandle_ を上書きする
+	textureHandle_ = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(
+		modelData_.material.textureIndex
+	);
+}
+
 Node Model::ParseNode(const aiNode* node) {
 	Node result;
 

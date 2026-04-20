@@ -91,6 +91,17 @@ public: // メンバ関数
 	const std::vector<std::string>& GetBoneOrder() const { return modelData_.boneOrder; }
 
 
+	// 現在のテクスチャインデックスを取得
+	uint32_t GetTextureIndex() const{ return modelData_.material.textureIndex; }
+
+	void SetColor(const Vector4& color);
+
+	// テクスチャを「SRVインデックス」で上書き設定する
+	void SetTexture(uint32_t textureIndex);
+
+	// テクスチャを「ファイルパス」から読み込んで上書き設定する
+	void SetTexture(const std::string& textureFilePath);
+
 private: // 内部関数
 	 
 	// aiNodeからNode構造体を再帰的に作る関数
