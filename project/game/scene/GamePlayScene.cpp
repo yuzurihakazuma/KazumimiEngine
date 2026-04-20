@@ -429,6 +429,7 @@ void GamePlayScene::Update() {
 		isCardSwapMode_ = true;
 		pendingCard_ = levelUpResult.droppedCard;
 		pendingPickup_ = nullptr;
+		handManager_.AddPendingCard(pendingCard_);
 	}
 
 	// ② 今選択画面を開いている、または「このフレームで選択し終わったばかり」ならリターン！
@@ -828,6 +829,9 @@ void GamePlayScene::Update() {
 				pendingCard_ = pickup.card;
 				// フィールドのどのアイテムを拾おうとしているかを記憶しておく
 				pendingPickup_ = &pickup;
+
+				// 手札の右端に仮置きする
+				handManager_.AddPendingCard(pendingCard_);
 				break;
 			}
 		}
@@ -1442,6 +1446,10 @@ void GamePlayScene::DrawDebugUI() {
 		handManager_.AddCard(CardDatabase::GetCardData(4));
 	}
 
+	if (ImGui::Button("Pick Up (ID: 5)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(5));
+	}
+
 	if (ImGui::Button("Pick Up (ID: 6)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(6));
 	}
@@ -1452,6 +1460,14 @@ void GamePlayScene::DrawDebugUI() {
 
 	if (ImGui::Button("Pick Up (ID: 8)")) {
 		handManager_.AddCard(CardDatabase::GetCardData(8));
+	}
+
+	if (ImGui::Button("Pick Up (ID: 9)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(9));
+	}
+
+	if (ImGui::Button("Pick Up (ID: 10)")) {
+		handManager_.AddCard(CardDatabase::GetCardData(10));
 	}
 
 	if (ImGui::Button("Pick Up (ID: 11)")) {
@@ -1535,14 +1551,15 @@ void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 	if (input->Triggerkey(DIK_SPACE)) {
 		// 現在選んでいるカードを取得
-		Card selectedCard = handManager_.GetSelectedCard();
+		int selectedIdx = handManager_.GetSelectedCardIndex();
 
 		// 選んでいるカードがID: 1（初期カード)なら交換をしない
-		if (selectedCard.id == 1) {
+		if (handManager_.GetCard(selectedIdx).id == 1) {
 			return;
 		}
 
-		handManager_.SwapSelectedCard(pendingCard_);
+		handManager_.RemoveCardImmediate(selectedIdx);
+
 		// ★追加：交換成功したら、地面に落ちていたアイテムを消す！
 		if (pendingPickup_) {
 			pendingPickup_->isActive = false;
@@ -1551,11 +1568,7 @@ void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 		isCardSwapMode_ = false;
 	}
-	else if (input->Triggerkey(DIK_C)) {
-		// キャンセルした場合はアイテムは消さずにポインタだけリセット
-		pendingPickup_ = nullptr;
-		isCardSwapMode_ = false;
-	}
+	
 }
 
 void GamePlayScene::UpdateCardUse(Input* input) {

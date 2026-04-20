@@ -291,3 +291,55 @@ bool HandManager::IsSelectedCardDissolving() const {
 
 	return isDissolving_[selectedCardIndex_];
 }
+
+void HandManager::AddPendingCard(const Card &pendingCard) {
+	// 上限を無視して強制的に末尾に追加
+	hand_.push_back(pendingCard);
+
+	// モデルデータを探して作成
+	Model *cardModelData = ModelManager::GetInstance()->FindModel(pendingCard.modelName);
+	if (cardModelData == nullptr)return;
+
+	auto model = std::make_unique<Obj3d>();
+	model->Initialize(cardModelData);
+	model->SetCamera(camera_);
+	model->SetNoiseTexture(noiseTextureIndex_);
+	model->SetDissolveThreshold(0.0f);
+
+	// カードの種類による色設定
+	if (pendingCard.effectType == CardEffectType::Attack) {
+		model->SetDissolveColor({ 1.0f,0.2f,0.05f });
+	} else if (pendingCard.effectType == CardEffectType::Heal) {
+		model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+	} else if (pendingCard.effectType == CardEffectType::Defense) {
+		model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+	} else if (pendingCard.effectType == CardEffectType::Special) {
+		model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+	}
+
+	handModels_.push_back(std::move(model));
+	isDissolving_.push_back(false);
+	dissolveThresholds_.push_back(0.0f);
+
+	// ★ 拾ったカード（一番右）にカーソルを強制的に合わせておく
+	selectedCardIndex_ = static_cast<int>(hand_.size()) - 1;
+}
+
+	
+
+void HandManager::RemoveCardImmediate(int index) {
+	if (index < 0 || index >= static_cast<int>(hand_.size())) return;
+
+	hand_.erase(hand_.begin() + index);
+	handModels_.erase(handModels_.begin() + index);
+	isDissolving_.erase(isDissolving_.begin() + index);
+	dissolveThresholds_.erase(dissolveThresholds_.begin() + index);
+
+	// ★ 修正1：ここも selectedCardIndex_ に直しました
+	if (selectedCardIndex_ >= static_cast<int>(hand_.size())) {
+		selectedCardIndex_ = static_cast<int>(hand_.size()) - 1;
+	}
+	if (selectedCardIndex_ < 0) {
+		selectedCardIndex_ = 0;
+	}
+}

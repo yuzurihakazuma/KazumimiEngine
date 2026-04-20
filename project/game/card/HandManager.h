@@ -69,4 +69,10 @@ public:
 
 	// 手札の最大枚数を増やす
 	void IncreaseMaxHandSize(int amount = 1) { maxHandSize_ += amount; }
+
+	// 上限を無視して末尾に追加と削除
+	void AddPendingCard(const Card &pendingCard);
+
+	// 指定したインデックスのカードを即座に消す
+	void RemoveCardImmediate(int index);
 };
