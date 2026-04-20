@@ -75,6 +75,9 @@ void GamePlayScene::Initialize() {
 
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
+
+	ModelManager::GetInstance()->CreateSphereModel("shield_sphere", 16);
+
 	// パーティクルグループ作成 (シングルトン)
 	//ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 

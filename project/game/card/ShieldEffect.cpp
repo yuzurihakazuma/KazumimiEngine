@@ -15,7 +15,7 @@ void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlaye
 	isFirstFrame_ = true;
 
 	// シールド用オブジェクト生成
-	obj_ = Obj3d::Create("sphere");
+	obj_ = Obj3d::Create("shield_sphere");
 	if (obj_) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
@@ -27,8 +27,13 @@ void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlaye
 
 		if ( model ){
 
+
+			model->SetTexture("resources/white1x1.png"); // ← 任意のシールド画像に変えてください
+
 			Model::Material* material = model->GetMaterial();
 			if ( material ){
+
+
 
 				material->color = { 0.5f, 0.8f, 1.0f, 1.0f }; // 水色
 
