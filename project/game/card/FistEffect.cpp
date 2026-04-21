@@ -66,6 +66,9 @@ void FistEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 
 	// プレイヤーが使った攻撃
 	if (isPlayerCaster_) {
+
+		int randomDamage = damage_ + (rand() % 2);
+
 		if (enemyManager) {
 			for (auto &enemy : enemyManager->GetEnemies()) {
 				// 雑魚敵への判定
@@ -82,7 +85,7 @@ void FistEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 					};
 
 					if (Length(diff) < 2.0f) {
-						enemy->TakeDamage(1);
+						enemy->TakeDamage(randomDamage);
 						isFinished_ = true;
 						return;
 					}
@@ -99,7 +102,7 @@ void FistEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 			};
 
 			if (Length(diff) < 3.0f) {
-				boss->TakeDamage(1);
+				boss->TakeDamage(randomDamage);
 				isFinished_ = true;
 				return;
 			}
@@ -118,13 +121,13 @@ void FistEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 			};
 
 			if (Length(diff) < 2.0f) {
-				int damage = 1;
+				int randomDamage = damage_ + (rand() % 2);
 
 				if (boss && boss->IsAttackDebuffed()) {
-					damage = 0;
+					randomDamage = damage_ + (rand() % 2);
 				}
 
-				player->TakeDamage(damage, pos_);
+				player->TakeDamage(randomDamage, pos_);
 				isFinished_ = true;
 				return;
 			}

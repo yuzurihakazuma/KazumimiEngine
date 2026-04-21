@@ -15,6 +15,10 @@ struct FangData {
 
 class FangEffect : public ICardEffect {
 public:
+
+
+	FangEffect(int damage) : damage_(damage) {}
+
 	// 効果開始
 	void Start(const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Camera* camera) override;
 
@@ -35,4 +39,8 @@ private:
 
 	bool isPlayerCaster_ = true;          // 使用者がプレイヤーか
 	bool isFinished_ = false;             // 効果終了フラグ
+
+	int damage_ = 0;
+
+	Vector3 casterPos_ = { 0.0f, 0.0f, 0.0f }; //魔法を撃った人の位置を保存する変数
 };

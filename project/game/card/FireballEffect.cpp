@@ -195,6 +195,9 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 
 	// プレイヤーが使った弾
 	if ( isPlayerCaster_ ) {
+
+		int randomDamage = damage_ + (rand() % 3);
+
 		if ( enemyManager ) {
 			for ( auto& enemy : enemyManager->GetEnemies() ) {
 				// 雑魚敵への判定
@@ -211,7 +214,7 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 					};
 
 					if ( Length(diff) < 1.8f ) {
-						enemy->TakeDamage(1);
+						enemy->TakeDamage(randomDamage);
 						isFinished_ = true;
 						return;
 					}
@@ -229,7 +232,7 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 			};
 
 			if ( Length(diff) < 2.8f ) {
-				boss->TakeDamage(1);
+				boss->TakeDamage(randomDamage);
 				isFinished_ = true;
 				return;
 			}
@@ -243,6 +246,7 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 	}
 	// 敵またはボスが使った弾
 	else {
+
 		if ( player && !player->IsDead() ) {
 			Vector3 playerPos = player->GetPosition();
 
@@ -254,13 +258,13 @@ void FireballEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
 			};
 
 			if ( Length(diff) < 1.5f ) {
-				int damage = 3;
+				int randomDamage = damage_ + (rand() % 2);
 
 				if ( boss && boss->IsAttackDebuffed() ) {
-					damage = 1;
+					int randomDamage = damage_ + (rand() % 2);
 				}
 
-				player->TakeDamage(damage, pos_);
+				player->TakeDamage(randomDamage, pos_);
 				isFinished_ = true;
 				return;
 			}

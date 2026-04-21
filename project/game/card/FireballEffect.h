@@ -3,6 +3,10 @@
 
 class FireballEffect : public ICardEffect{
 public:
+
+	// コンストラクタでCSVのダメージを受け取る
+	FireballEffect(int damage) : damage_(damage) {}
+
 	// 効果開始
 	void Start(const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Camera* camera) override;
 
@@ -28,6 +32,7 @@ private:
 	float rotAngle_ = 0.0f;                   // 炎のカードエフェクト
 	int sparkTimer_ = 0;                    // 火の粉のタイマー
 
-
+	// ダメージを保存しておく変数
+	int damage_ = 0;
 
 };

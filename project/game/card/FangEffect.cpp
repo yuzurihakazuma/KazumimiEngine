@@ -16,6 +16,9 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 	isFinished_ = false;
 	fangs_.clear();
 
+	// 撃った人（敵）の位置を記憶しておく
+	casterPos_ = casterPos;
+
 	// 正面方向を計算
 	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 
@@ -140,6 +143,9 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 
 			// プレイヤーが使った場合
 			if (isPlayerCaster_) {
+
+				// ★ 事前にプレイヤーの座標を取得しておく
+				Vector3 playerPos = { 0,0,0 };
 				if (enemyManager) {
 					for (auto &enemy : enemyManager->GetEnemies()) {
 						// 雑魚敵への判定
@@ -155,7 +161,31 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 							};
 
 							if (Length(diff) < 1.5f) {
-								enemy->TakeDamage(2);
+								// 1. プレイヤーから敵までの距離を測る
+								Vector3 toEnemy = { ePos.x - playerPos.x, 0.0f, ePos.z - playerPos.z };
+								float distanceToPlayer = Length(toEnemy);
+
+								// 2. CSVから読み込んだ基本ダメージをセット
+								int finalDamage = damage_;
+
+								// 3. 距離によってダメージを足し引きする！
+								// （距離の数値やボーナス値は、ゲームのバランスに合わせて自由に変えてください）
+								if (distanceToPlayer <= 3.0f) {
+									finalDamage += 2;  // 3メートル以内ならダメージ +2 (近接ボーナス)
+								} else if (distanceToPlayer >= 8.0f) {
+									finalDamage -= 2;  // 8メートル以上離れていたらダメージ -2 (遠距離ペナルティ)
+								}
+
+								// 4. 少しのランダムなブレ (-1 ～ +1) も足す
+								finalDamage += (rand() % 3) - 1;
+
+								// 5. どんなに下がっても最低1ダメージは与えるようにする
+								if (finalDamage < 1) {
+									finalDamage = 1;
+								}
+
+								// 計算した最終ダメージを与える！
+								enemy->TakeDamage(finalDamage);
 								fang.hasHit = true;
 							}
 						}
@@ -171,7 +201,24 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 					};
 
 					if (Length(diff) < 2.5f) {
-						boss->TakeDamage(2);
+						// --- ボスとの距離を計算 ---
+						Vector3 toBoss = { bossPos.x - playerPos.x, 0.0f, bossPos.z - playerPos.z };
+						float distanceToPlayer = Length(toBoss);
+
+						int finalDamage = damage_;
+
+						// 距離ボーナス
+						if (distanceToPlayer <= 3.0f) {
+							finalDamage += 2;
+						} else if (distanceToPlayer >= 8.0f) {
+							finalDamage -= 2;
+						}
+
+						finalDamage += (rand() % 3) - 1;
+						if (finalDamage < 1) finalDamage = 1;
+
+						// --- ダメージを与える ---
+						boss->TakeDamage(finalDamage);
 						fang.hasHit = true;
 					}
 				}
@@ -189,13 +236,27 @@ void FangEffect::Update(Player* player, EnemyManager *enemyManager, Boss* boss,
 					};
 
 					if (Length(diff) < 1.5f) {
-						int damage = 2;
+						// 1. 「魔法を撃った敵(casterPos_)」と「プレイヤー」の距離を測る
+						Vector3 toCaster = { casterPos_.x - playerPos.x, 0.0f, casterPos_.z - playerPos.z };
+						float distanceToCaster = Length(toCaster);
 
-						if (boss && boss->IsAttackDebuffed()) {
-							damage = 1;
+						// 2. CSVから読み込んだ基本ダメージをセット
+						int finalDamage = damage_;
+
+						// 3. 距離によってダメージを増減！（敵が近ければ痛い、遠ければ痛くない）
+						if (distanceToCaster <= 3.0f) {
+							finalDamage += 2;
+						} else if (distanceToCaster >= 8.0f) {
+							finalDamage -= 2;
 						}
 
-						player->TakeDamage(damage, fang.pos);
+						// 4. ランダムなブレ (-1 ～ +1)
+						finalDamage += (rand() % 3) - 1;
+
+						// 5. 最低1ダメージは受けるようにする
+						if (finalDamage < 1) finalDamage = 1;
+
+						player->TakeDamage(finalDamage, fang.pos);
 						fang.hasHit = true;
 					}
 				}
