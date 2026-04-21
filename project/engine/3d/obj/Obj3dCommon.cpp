@@ -2,6 +2,7 @@
 
 // --- 標準ライブラリ ---
 #include <cassert>
+#include <string> // std::to_string用に追加
 #include "externals/imgui/imgui.h"
 #include <numbers>
 
@@ -23,11 +24,23 @@ void Obj3dCommon::DrawDebugUI(){
 
 			// --- 平行光源 (Directional Light) ---
 			if ( ImGui::TreeNode("平行光源 (Directional Light)") ) {
-				// クラス内のメンバ変数(構造体)を直接編集できるのでシンプルに書けます
-				ImGui::DragFloat3("向き (Direction)", &directionalLightData_->direction.x, 0.01f);
-				ImGui::ColorEdit3("色 (Color)", &directionalLightData_->color.x);
-				ImGui::DragFloat("強度 (Intensity)", &directionalLightData_->intensity, 0.01f, 0.0f, 10.0f);
-				directionalLightData_->direction = Normalize(directionalLightData_->direction);
+
+				// 有効なライトの数をスライダーで変更できるようにする
+				ImGui::SliderInt("有効なライト数", &directionalLightData_->activeCount, 0, MAX_DIRECTIONAL_LIGHTS);
+
+				// 有効な数だけ UI を表示する
+				for ( int i = 0; i < directionalLightData_->activeCount; ++i ) {
+					std::string label = "Light " + std::to_string(i); // "Light 0", "Light 1"...
+					if ( ImGui::TreeNode(label.c_str()) ) {
+						ImGui::DragFloat3("向き (Direction)", &directionalLightData_->lights[i].direction.x, 0.01f);
+						ImGui::ColorEdit3("色 (Color)", &directionalLightData_->lights[i].color.x);
+						ImGui::DragFloat("強度 (Intensity)", &directionalLightData_->lights[i].intensity, 0.01f, 0.0f, 10.0f);
+
+						directionalLightData_->lights[i].direction = Normalize(directionalLightData_->lights[i].direction);
+
+						ImGui::TreePop();
+					}
+				}
 				ImGui::TreePop();
 			}
 
@@ -71,19 +84,24 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 	assert(this->dxCommon_->GetResourceFactory() != nullptr && "SpriteCommon: Received dxCommon has NO Factory!");
 
 	directionalLightResource_ =
-		dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(DirectionalLight));
+		dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(DirectionalLightData));
 
 	directionalLightResource_->Map(
 		0, nullptr, reinterpret_cast< void** >( &directionalLightData_ )
 	);
-	// ライトの初期化
-	directionalLightData_->color = { 1,1,1,1 };
-	directionalLightData_->direction = Normalize({ -0.9f,-0.45f,0 });
-	directionalLightData_->intensity = 1.0f;
+
+	directionalLightData_->activeCount = 1; // 初期状態では1つだけ光らせる
+
+	for ( uint32_t i = 0; i < MAX_DIRECTIONAL_LIGHTS; ++i ) {
+		directionalLightData_->lights[i].color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		directionalLightData_->lights[i].direction = Normalize({ 0.0f, -1.0f, 0.0f });
+		// 最初のライトだけ強度を1、それ以外は0にしておく
+		directionalLightData_->lights[i].intensity = ( i == 0 ) ? 1.0f : 0.0f;
+	}
 
 	// 点光源のバッファ作成
 	pointLightResource_ = dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(PointLight));
-	pointLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&pointLightData_));
+	pointLightResource_->Map(0, nullptr, reinterpret_cast< void** >(&pointLightData_));
 
 	// 初期値（スライド資料の通り、位置を(0,2,0)にしておく）
 	pointLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -94,7 +112,7 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 
 	// スポットライトのバッファ作成
 	spotLightResource_ = dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(SpotLight));
-	spotLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&spotLightData_));
+	spotLightResource_->Map(0, nullptr, reinterpret_cast< void** >( &spotLightData_ ));
 
 	spotLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	spotLightData_->position = { 0.0f, 1.25f, 0.0f };
@@ -111,14 +129,14 @@ void Obj3dCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
 	// パイプラインセット
 	PipelineManager::GetInstance()->SetPipeline(
 		commandList,
-		PipelineType::Object3D 
+		PipelineType::Object3D
 	);
 }
 
 
-void Obj3dCommon::Finalize() {
+void Obj3dCommon::Finalize(){
 	directionalLightResource_.Reset();
 
-	 pointLightResource_.Reset();
-	 spotLightResource_.Reset();
+	pointLightResource_.Reset();
+	spotLightResource_.Reset();
 }

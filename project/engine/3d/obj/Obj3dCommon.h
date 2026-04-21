@@ -2,7 +2,7 @@
 // --- 標準ライブラリ ---
 #include <wrl.h>
 #include <d3d12.h>
-
+#include <cstdint>
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
@@ -19,7 +19,7 @@ public:
 		return &instance;
 	}
 	
-	
+	static const uint32_t MAX_DIRECTIONAL_LIGHTS = 4;
 	
 	// ライト構造体
 	struct DirectionalLight{
@@ -27,6 +27,13 @@ public:
 		Vector3 direction; // ライトの向き
 		float intensity;   // 輝度
 	};
+
+	struct DirectionalLightData{
+		DirectionalLight lights[MAX_DIRECTIONAL_LIGHTS];
+		int32_t activeCount; // 現在有効なライトの数
+		float padding[3];    // 16バイトアライメント用の空き箱（超重要）
+	};
+
 	// 点光源の構造体
 	struct PointLight {
 		Vector4 color;
@@ -52,7 +59,7 @@ public:
 
 public:
 	// ライトデータの取得
-	DirectionalLight* GetLightData(){ return directionalLightData_; }
+	DirectionalLightData* GetLightData(){ return directionalLightData_; }
 	// ライトリソースの取得
 	ID3D12Resource* GetLightResource() const{ return directionalLightResource_.Get(); }
 	// 点光源リソースの取得
@@ -87,9 +94,9 @@ private:
 private:
 	DirectXCommon* dxCommon_ = nullptr; // 所有しない参照
 
-	// 平行光源リソース
-	Microsoft::WRL::ComPtr<ID3D12Resource> directionalResourceLight_;
-	DirectionalLight* directionalLightData_ = nullptr;
+	
+	DirectionalLightData* directionalLightData_ = nullptr;
+
 	// ライト用リソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
 	// 点光源リソース

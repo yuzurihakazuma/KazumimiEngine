@@ -30,6 +30,13 @@ struct DirectionalLight
     float intensity;
 };
 
+struct DirectionalLightData
+{
+    DirectionalLight lights[4]; // MAX_DIRECTIONAL_LIGHTS = 4
+    int activeCount;
+    float3 padding; // 16バイトアライメント用の空き箱
+};
+
 struct PointLight
 {
     float4 color;
