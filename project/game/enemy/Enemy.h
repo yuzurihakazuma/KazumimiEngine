@@ -111,11 +111,12 @@ private:
     Vector3 rot_{ 0.0f, 0.0f, 0.0f };       // 回転
     Vector3 scale_{ 1.0f, 1.0f, 1.0f };     // スケール
 
-    float speed_ = 0.05f;                   // 巡回速度
-    float chaseSpeed_ = 0.08f;              // 追跡速度
+    float speed_ = 0.07f;          // 巡回速度
+    float chaseSpeed_ = 0.12f;     // 追跡速度
     float moveRange_ = 3.0f;                // 巡回範囲
 
-    float chaseRange_ = 15.0f;              // プレイヤーを追跡し始める距離
+
+    float chaseRange_ = 18.0f;     // プレイヤーを追跡し始める距離
 
     float cardUseEnterRange_ = 6.0f;        // カード使用に入る距離
     float cardUseExitRange_ = 7.5f;         // カード使用をやめる距離
@@ -138,7 +139,7 @@ private:
     Card currentUseCard_{ -1, "", 0 };     // 今回使うカード
 
     int pickupCardTimer_ = 0;              // 拾ったカードを使える残り時間
-    const int pickupCardDuration_ = 180;   // 拾ったカードを使える時間
+    const int pickupCardDuration_ = 300; // 拾ったカードを使える時間
 
     int hp_ = 3;                            // 敵HP
     bool isDead_ = false;                   // 死亡フラグ
@@ -180,4 +181,5 @@ private:
     int castTimer_ = 0;
     const int castTime_ = 30;
     int strafeDirection_ = 1;
+
 };

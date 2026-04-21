@@ -73,7 +73,7 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 			if (!pickup.isActive) continue;
 			Vector3 diff = { pickup.position.x - oldEnemyPos.x, 0.0f, pickup.position.z - oldEnemyPos.z };
 			float dist = Length(diff);
-			if (dist < 6.0f && dist < nearestCardDist) {
+			if (dist < 8.0f && dist < nearestCardDist) {
 				nearestCardDist = dist;
 				nearestCardPos = pickup.position;
 				foundCard = true;

@@ -229,6 +229,8 @@ void GamePlayScene::Initialize() {
 
 	// 中央に配置（少し上に出すなら -50 くらい）
 	TextManager::GetInstance()->SetPosition("CostLack", screenW * 0.5f - 100.0f, screenH * 0.5f - 50.0f);
+	TextManager::GetInstance()->SetScale("CostLack", 1.6f);
+	TextManager::GetInstance()->SetColor("CostLack", 1.0f, 0.2f, 0.2f, 1.0f);
 
 	// 左下のステータス背景
 	playerStatusBgSprite_ = Sprite::Create("resources/white1x1.png", { 170.0f, 625.0f });

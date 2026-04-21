@@ -14,6 +14,7 @@
 class DebugCamera;
 class Camera;
 class Obj3d;
+class Sprite;
 class RenderTexture;
 class PostEffect;
 class MapManager;
@@ -21,6 +22,32 @@ class MapManager;
 // タイトルシーン
 class TitleScene : public IScene {
 public:
+
+	// タイトル背景のカード雨用構造体
+	struct TitleRainCard {
+		std::unique_ptr<Obj3d> obj;
+		Vector3 position;
+		Vector3 rotation;
+		Vector3 rotationSpeed;
+		float fallSpeed = 0.08f;
+	};
+	// タイトル背景のカード雨
+	std::vector<std::string> titleRainCardModelNames_ = {
+		"cardR",
+		"cardF",
+		"cardFire",
+		"cardPotion",
+		"cardSpeedUp",
+		"CardShield",
+		"CardIce",
+		"CardFang",
+		"CardDecoy",
+		"CardAtkDown",
+		"CardClaw",
+		"CardScanner"
+	};
+
+
 	void Initialize() override;
 	void Finalize() override;
 	void Update() override;
@@ -29,6 +56,10 @@ public:
 
 	TitleScene();
 	~TitleScene();
+
+	void InitializeTitleCardRain();
+	void UpdateTitleCardRain();
+	void ResetTitleRainCard(TitleRainCard& card, bool randomY);
 
 private:
 	// カメラ
@@ -52,4 +83,30 @@ private:
 	std::unique_ptr<MapManager> mapManager_ = nullptr;
 
 	bool isEditorActive_ = true;
+
+	std::unique_ptr<Sprite> titleLogoSprite_ = nullptr;
+
+	// タイトル背景用
+	Vector3 titleBgCameraPos_ = { 9.0f, 35.0f, 9.0f };
+	Vector3 titleBgCameraRot_ = { 1.57f, 0.0f, 0.0f };
+	Vector3 titleBgPlayerPos_ = { 0.0f, 0.0f, 0.0f };
+
+	// タイトル背景のカード雨
+	std::vector<TitleRainCard> titleRainCards_;
+
+	// カード雨のパラメータ
+	int titleRainCardCount_ = 30;
+
+	float titleRainSpawnX_ = 28.0f;
+	float titleRainResetX_ = 78.0f;
+
+	float titleRainY_ = 7.0f;
+
+	float titleRainSpawnMinZ_ = 42.0f;
+	float titleRainSpawnMaxZ_ = 56.0f;
+
+	float titleRainScale_ = 1.1f;
+
+
+
 };
