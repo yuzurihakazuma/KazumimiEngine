@@ -103,7 +103,7 @@ void PlayerManager::Update(
 
 void PlayerManager::Draw() {
     // 死亡しておらず表示可能なら描画
-    if (player_ && !player_->IsDead() && player_->IsVisible()) {
+    if (player_ && player_->IsVisible()) {
         player_->Draw();
     }
 }
@@ -169,6 +169,10 @@ void PlayerManager::SetScale(const Vector3& scale) {
 
 bool PlayerManager::IsDead() const {
     return player_ ? player_->IsDead() : false;
+}
+
+bool PlayerManager::IsDeathAnimationFinished() const {
+    return player_ ? player_->IsDeathAnimationFinished() : false;
 }
 
 bool PlayerManager::IsVisible() const {

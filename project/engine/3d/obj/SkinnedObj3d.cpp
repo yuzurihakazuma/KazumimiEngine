@@ -16,10 +16,18 @@
 #include "engine/graphics/PipelineType.h"
 
 using namespace MatrixMath;
+using namespace QuaternionMath;
 
-// --------------------------------------------------
-// 静的生成関数
-// --------------------------------------------------
+namespace {
+// GUIから編集したEuler角をスケルトン用Quaternionへ変換する
+Quaternion MakeQuaternionFromEulerXYZ(const Vector3& rotation) {
+    Quaternion qx = MakeRotateAxisAngleQuaternion({ 1.0f, 0.0f, 0.0f }, rotation.x);
+    Quaternion qy = MakeRotateAxisAngleQuaternion({ 0.0f, 1.0f, 0.0f }, rotation.y);
+    Quaternion qz = MakeRotateAxisAngleQuaternion({ 0.0f, 0.0f, 1.0f }, rotation.z);
+    return Normalize(Multiply(Multiply(qx, qy), qz));
+}
+}
+
 std::unique_ptr<SkinnedObj3d> SkinnedObj3d::Create(
     const std::string& modelName,
     const std::string& directoryPath,
@@ -27,16 +35,15 @@ std::unique_ptr<SkinnedObj3d> SkinnedObj3d::Create(
 ) {
     // ModelManager から登録済みモデルを探す
     Model* model = ModelManager::GetInstance()->FindModel(modelName);
-    if (!model) { return nullptr; }
+    if (!model) {
+        return nullptr;
+    }
 
     auto obj = std::make_unique<SkinnedObj3d>();
     obj->Initialize(model, directoryPath, animFilename);
     return obj;
 }
 
-// --------------------------------------------------
-// 初期化
-// --------------------------------------------------
 void SkinnedObj3d::Initialize(
     Model* model,
     const std::string& directoryPath,
@@ -61,6 +68,16 @@ void SkinnedObj3d::Initialize(
 
     // スケルトンの作成
     skeleton_ = CreateSkeleton(model_->GetRootNode());
+    jointNames_.clear();
+    baseJointTransforms_.clear();
+    jointOffsets_.clear();
+    jointNames_.reserve(skeleton_.joints.size());
+    baseJointTransforms_.reserve(skeleton_.joints.size());
+    // デバッグポーズ用に初期姿勢を保持しておく
+    for (const Joint& joint : skeleton_.joints) {
+        jointNames_.push_back(joint.name);
+        baseJointTransforms_.push_back(joint.transform);
+    }
 
     // ボーン情報が無いモデルはスキニングしない
     if (model_->GetBoneOrder().empty()) {
@@ -81,50 +98,41 @@ void SkinnedObj3d::Initialize(
     animation_.nodeAnimations.clear();
 }
 
-// --------------------------------------------------
-// 更新（毎フレーム）
-// --------------------------------------------------
 void SkinnedObj3d::Update() {
-
-    // アニメーションがある時だけ時間を進める
+    // 基準姿勢を毎フレーム作り直してから、歩行やデバッグポーズを重ねる
     if (animation_.duration > 0.0f) {
-
         animationTime_ += 1.0f / 60.0f;
 
         if (isLoop_) {
-            // ループ再生
             animationTime_ = std::fmod(animationTime_, animation_.duration);
-        } else {
-            // 終端でとめる
-            if (animationTime_ > animation_.duration) {
-                animationTime_ = animation_.duration;
-            }
+        } else if (animationTime_ > animation_.duration) {
+            animationTime_ = animation_.duration;
         }
 
         // スケルトンにアニメーションを適用して行列を更新
         UpdateSkeleton(skeleton_, animation_, animationTime_);
     } else {
+        // 編集オフセットが乗る前の基準姿勢を毎フレーム復元する
+        if (baseJointTransforms_.size() == skeleton_.joints.size()) {
+            for (size_t i = 0; i < skeleton_.joints.size(); ++i) {
+                skeleton_.joints[i].transform = baseJointTransforms_[i];
+            }
+        }
+
         // プログラムで歩きアニメーションを作る
         if (isWalking_) {
             walkTimer_ += 1.0f / 60.0f;
 
-            // 歩きより少し速く
             float t = walkTimer_ * (walkSpeed_ * 1.35f);
-
             float swingL = std::sinf(t);
             float swingR = std::sinf(t + 3.14159f);
-
-            // 腕は少し強め
             float armAmplitude = walkAmplitude_ * 0.5f;
-
-            // 足は前に大きく、後ろは小さく
             float legAmplitude = walkAmplitude_ * 0.65f;
             float legBackScale = 0.35f;
 
             // 腕
             auto armLIt = skeleton_.jointMap.find("UpperArm.L");
             auto armRIt = skeleton_.jointMap.find("UpperArm.R");
-
             if (armLIt != skeleton_.jointMap.end()) {
                 skeleton_.joints[armLIt->second].transform.rotate.x = -swingL * armAmplitude;
             }
@@ -135,42 +143,40 @@ void SkinnedObj3d::Update() {
             // 足
             auto legLIt = skeleton_.jointMap.find("UpperLeg.L");
             auto legRIt = skeleton_.jointMap.find("UpperLeg.R");
-
             float legL = (swingL > 0.0f) ? (swingL * legAmplitude) : (swingL * legAmplitude * legBackScale);
             float legR = (swingR > 0.0f) ? (swingR * legAmplitude) : (swingR * legAmplitude * legBackScale);
-
             if (legLIt != skeleton_.jointMap.end()) {
                 skeleton_.joints[legLIt->second].transform.rotate.z = legL;
             }
             if (legRIt != skeleton_.jointMap.end()) {
                 skeleton_.joints[legRIt->second].transform.rotate.z = -legR;
             }
-
-        } else {
-            auto armLIt = skeleton_.jointMap.find("UpperArm.L");
-            auto armRIt = skeleton_.jointMap.find("UpperArm.R");
-            auto legLIt = skeleton_.jointMap.find("UpperLeg.L");
-            auto legRIt = skeleton_.jointMap.find("UpperLeg.R");
-
-            if (armLIt != skeleton_.jointMap.end()) {
-                skeleton_.joints[armLIt->second].transform.rotate.x = 0.0f;
-            }
-            if (armRIt != skeleton_.jointMap.end()) {
-                skeleton_.joints[armRIt->second].transform.rotate.x = 0.0f;
-            }
-            if (legLIt != skeleton_.jointMap.end()) {
-                skeleton_.joints[legLIt->second].transform.rotate.z = 0.0f;
-            }
-            if (legRIt != skeleton_.jointMap.end()) {
-                skeleton_.joints[legRIt->second].transform.rotate.z = 0.0f;
-            }
         }
-
-        // 現在のローカル姿勢から行列だけ更新
-        UpdateSkeleton(skeleton_);
     }
 
-    // MatrixPalette を計算して GPU バッファに書き込む
+    // デバッグポーズは最終的にジョイントへ上書きする
+    for (const JointTransformOffset& offset : jointOffsets_) {
+        auto jointIt = skeleton_.jointMap.find(offset.jointName);
+        if (jointIt == skeleton_.jointMap.end()) {
+            continue;
+        }
+
+        Joint& joint = skeleton_.joints[jointIt->second];
+
+        // GUIの回転値は「そのジョイント本来の姿勢に足す差分」として扱う
+        if (static_cast<size_t>(jointIt->second) < baseJointTransforms_.size()) {
+            const QuaternionTransform& baseTransform = baseJointTransforms_[jointIt->second];
+            Quaternion offsetRotation = MakeQuaternionFromEulerXYZ(offset.rotation);
+            joint.transform.rotate = Normalize(Multiply(baseTransform.rotate, offsetRotation));
+            joint.transform.translate = baseTransform.translate + offset.translation;
+        } else {
+            joint.transform.rotate = MakeQuaternionFromEulerXYZ(offset.rotation);
+            joint.transform.translate = offset.translation;
+        }
+    }
+
+    // 現在のローカル姿勢から行列だけ更新
+    UpdateSkeleton(skeleton_);
     UpdateSkinCluster(skinCluster_, skeleton_, model_->GetBoneOrder());
 
     // WVP 行列の計算
@@ -191,9 +197,6 @@ void SkinnedObj3d::Update() {
     transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
 }
 
-// --------------------------------------------------
-// 描画
-// --------------------------------------------------
 void SkinnedObj3d::Draw() {
     ID3D12GraphicsCommandList* commandList = obj3dCommon_->GetDxCommon()->GetCommandList();
     assert(commandList != nullptr);
@@ -203,7 +206,6 @@ void SkinnedObj3d::Draw() {
 
     // [1] WVP 定数バッファ
     commandList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
-
     // [3] 平行光源
     commandList->SetGraphicsRootConstantBufferView(3, obj3dCommon_->GetLightResource()->GetGPUVirtualAddress());
 
@@ -214,16 +216,12 @@ void SkinnedObj3d::Draw() {
 
     // [5] 点光源
     commandList->SetGraphicsRootConstantBufferView(5, Obj3dCommon::GetInstance()->GetPointLightResource()->GetGPUVirtualAddress());
-
     // [6] スポットライト
     commandList->SetGraphicsRootConstantBufferView(6, Obj3dCommon::GetInstance()->GetSpotLightResource()->GetGPUVirtualAddress());
-
     // [7] ノイズテクスチャ
     SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(7, noiseTextureIndex_);
-
     // [8] ディゾルブ
     commandList->SetGraphicsRootConstantBufferView(8, dissolveResource_->GetGPUVirtualAddress());
-
     // [9] MatrixPalette（スキニング用・ここが Obj3d との違い）
     commandList->SetGraphicsRootDescriptorTable(9, skinCluster_.srvHandle);
 
@@ -233,11 +231,81 @@ void SkinnedObj3d::Draw() {
     }
 }
 
-// --------------------------------------------------
-// Setter
-// --------------------------------------------------
 void SkinnedObj3d::SetDissolveThreshold(float threshold) {
     if (dissolveData_) {
         dissolveData_->threshold = threshold;
     }
+}
+
+bool SkinnedObj3d::HasJoint(const std::string& jointName) const {
+    return skeleton_.jointMap.find(jointName) != skeleton_.jointMap.end();
+}
+
+// 全ジョイントの編集オフセットをクリアする
+void SkinnedObj3d::ClearJointOffsets() {
+    jointOffsets_.clear();
+}
+
+// 指定ジョイントだけ編集オフセットを消す
+void SkinnedObj3d::ClearJointOffset(const std::string& jointName) {
+    for (auto it = jointOffsets_.begin(); it != jointOffsets_.end(); ++it) {
+        if (it->jointName == jointName) {
+            jointOffsets_.erase(it);
+            return;
+        }
+    }
+}
+
+// ジョイント回転オフセットを設定する
+void SkinnedObj3d::SetJointRotationOffset(const std::string& jointName, const Vector3& rotation) {
+    if (!HasJoint(jointName)) {
+        return;
+    }
+
+    for (JointTransformOffset& offset : jointOffsets_) {
+        if (offset.jointName == jointName) {
+            offset.rotation = rotation;
+            return;
+        }
+    }
+
+    jointOffsets_.push_back({ jointName, rotation, { 0.0f, 0.0f, 0.0f } });
+}
+
+// ジョイント移動オフセットを設定する
+void SkinnedObj3d::SetJointTranslationOffset(const std::string& jointName, const Vector3& translation) {
+    if (!HasJoint(jointName)) {
+        return;
+    }
+
+    for (JointTransformOffset& offset : jointOffsets_) {
+        if (offset.jointName == jointName) {
+            offset.translation = translation;
+            return;
+        }
+    }
+
+    jointOffsets_.push_back({ jointName, { 0.0f, 0.0f, 0.0f }, translation });
+}
+
+// ジョイント回転オフセットを取得する
+Vector3 SkinnedObj3d::GetJointRotationOffset(const std::string& jointName) const {
+    for (const JointTransformOffset& offset : jointOffsets_) {
+        if (offset.jointName == jointName) {
+            return offset.rotation;
+        }
+    }
+
+    return { 0.0f, 0.0f, 0.0f };
+}
+
+// ジョイント移動オフセットを取得する
+Vector3 SkinnedObj3d::GetJointTranslationOffset(const std::string& jointName) const {
+    for (const JointTransformOffset& offset : jointOffsets_) {
+        if (offset.jointName == jointName) {
+            return offset.translation;
+        }
+    }
+
+    return { 0.0f, 0.0f, 0.0f };
 }

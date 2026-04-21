@@ -6,6 +6,7 @@
 #include "Engine/Math/Matrix4x4.h"
 #include "Engine/Utils/ImGuiManager.h"
 #include "Engine/Utils/Color.h"
+#include "externals/imgui/imgui.h"
 #include "Engine/Audio/AudioManager.h"
 #include "Engine/3D/Model/ModelManager.h"
 #include "Engine/Particle/ParticleManager.h"
@@ -308,6 +309,11 @@ void GamePlayScene::Update() {
 	}
 
 	Input* input = Input::GetInstance();
+	bool isEditingDebugText = false;
+
+#ifdef USE_IMGUI
+	isEditingDebugText = ImGui::GetIO().WantTextInput;
+#endif
 
 	// プレイヤー本体を取得
 	Player* player = playerManager_ ? playerManager_->GetPlayer() : nullptr;
@@ -318,7 +324,7 @@ void GamePlayScene::Update() {
 	Sprite* bossHpFillSprite = bossManager_ ? bossManager_->GetBossHpFillSprite() : nullptr;
 
 	// ポーズ切り替え
-	if (input->Triggerkey(DIK_ESCAPE)) {
+	if (!isEditingDebugText && input->Triggerkey(DIK_ESCAPE)) {
 		isPaused_ = !isPaused_;
 		pauseSelection_ = 0; // 開くたびに先頭へ戻す
 	}
@@ -448,17 +454,17 @@ void GamePlayScene::Update() {
 	}
 
 	// デバッグ用リセット
-	if (input->Triggerkey(DIK_R)) {
+	if (!isEditingDebugText && input->Triggerkey(DIK_R)) {
 		ResetBattleDebug();
 	}
 
 	// BGM再生
-	if (input->Triggerkey(DIK_SPACE)) {
+	if (!isEditingDebugText && input->Triggerkey(DIK_SPACE)) {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 
 	// タイトルシーンへ移動
-	if (input->Triggerkey(DIK_T)) {
+	if (!isEditingDebugText && input->Triggerkey(DIK_T)) {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 
@@ -512,7 +518,7 @@ void GamePlayScene::Update() {
 	}
 
 	// プレイヤーが死亡したらゲームオーバーへ遷移
-	if (playerManager_ && playerManager_->IsDead()) {
+	if (playerManager_ && playerManager_->IsDeathAnimationFinished()) {
 		SceneManager::GetInstance()->ChangeScene("GAMEOVER");
 		return;
 	}
@@ -1330,6 +1336,10 @@ void GamePlayScene::DrawDebugUI() {
 
 
 	TextManager::GetInstance()->DrawDebugUI();
+
+	if (player) {
+		player->DrawAnimationDebugUI();
+	}
 
 	if (mapManager_) {
 		mapManager_->DrawDebugUI();
