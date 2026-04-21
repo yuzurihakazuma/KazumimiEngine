@@ -40,7 +40,7 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 	}
 
 	// 表示用オブジェクトを生成
-	obj_ = Obj3d::Create("fang_sphere");
+	obj_ = Obj3d::Create("Fang");
 	if ( obj_ ) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);

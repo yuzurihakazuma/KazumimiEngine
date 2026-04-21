@@ -78,7 +78,7 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 	);
 	// ライトの初期化
 	directionalLightData_->color = { 1,1,1,1 };
-	directionalLightData_->direction = Normalize({ 0,-1,0 });
+	directionalLightData_->direction = Normalize({ -0.9f,-0.45f,0 });
 	directionalLightData_->intensity = 1.0f;
 
 	// 点光源のバッファ作成
@@ -97,7 +97,7 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 	spotLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&spotLightData_));
 
 	spotLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	spotLightData_->position = { 2.0f, 1.25f, 0.0f };
+	spotLightData_->position = { 0.0f, 1.25f, 0.0f };
 	spotLightData_->distance = 7.0f;
 	spotLightData_->direction = Normalize({ -1.0f, -1.0f, 0.0f });
 	spotLightData_->intensity = 4.0f;
