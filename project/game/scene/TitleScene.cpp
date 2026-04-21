@@ -25,6 +25,7 @@
 #include "game/map/MapManager.h"
 #include"engine/utils/Level/LevelEditor.h"
 #include "engine/utils/EditorManager.h"
+#include <cstdlib>
 
 #include "engine/graphics/SrvManager.h"
 #include "Bloom.h"
@@ -89,6 +90,29 @@ void TitleScene::Initialize() {
 	mapManager_->SetCamera(camera_.get());
 	mapManager_->Initialize();
 
+	// タイトル背景用にマップ中央を真上から見る
+	const LevelData& level = mapManager_->GetLevelData();
+
+	titleBgCameraPos_ = {
+		((float)level.width - 1.0f) * level.tileSize * 0.5f,
+		35.0f,
+		((float)level.height - 1.0f) * level.tileSize * 0.5f
+	};
+
+	titleBgPlayerPos_ = mapManager_->GetMapCenterPosition();
+
+	camera_->SetTranslation(titleBgCameraPos_);
+	camera_->SetRotation(titleBgCameraRot_);
+	camera_->SetFovY(1.0f);
+	camera_->SetFarClip(200.0f);
+	camera_->Update();
+
+	titleBgCameraPos_ = { 49.0f, 7.4f, 49.1f };
+	titleBgCameraRot_ = { 1.57f, -1.57f, 0.0f };
+
+	// 全部壁ブロックで敷き詰めたい場合だけ使う
+	mapManager_->FillAllTiles(1);
+
 	// タイトル用テキストを設定
 	TextManager::GetInstance()->Initialize();
 	const float screenW = static_cast<float>(windowProc->GetClientWidth());
@@ -101,6 +125,23 @@ void TitleScene::Initialize() {
 		"TITLE\n\nPRESS SPACE TO START\nPRESS 0 FOR TUTORIAL"
 	);
 
+	// モデル読み込み（カード）
+	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
+	ModelManager::GetInstance()->LoadModel("cardF", "resources/card", "cardF.obj");
+	ModelManager::GetInstance()->LoadModel("cardFire", "resources/card", "CardFire.obj");
+	ModelManager::GetInstance()->LoadModel("cardPotion", "resources/card", "CardPotion.obj");
+	ModelManager::GetInstance()->LoadModel("cardSpeedUp", "resources/card", "CardSpeedUp.obj");
+	ModelManager::GetInstance()->LoadModel("CardShield", "resources/card", "CardShield.obj");
+	ModelManager::GetInstance()->LoadModel("CardIce", "resources/card", "CardIce.obj");
+	ModelManager::GetInstance()->LoadModel("CardFang", "resources/card", "CardFang.obj");
+	ModelManager::GetInstance()->LoadModel("CardDecoy", "resources/card", "CardDecoy.obj");
+	ModelManager::GetInstance()->LoadModel("CardAtkDown", "resources/card", "CardAtkDown.obj");
+	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
+	ModelManager::GetInstance()->LoadModel("CardScanner", "resources/card", "MapOpen.obj");
+
+	// CSVからカードデータベースを初期化
+	InitializeTitleCardRain();
+
 }
 
 void TitleScene::Update() {
@@ -109,10 +150,32 @@ void TitleScene::Update() {
 		debugCamera_->Update(camera_.get());
 	}
 
-	// カメラ更新
-	if (camera_) {
-		camera_->Update();
+	titleBgCameraPos_ = { 49.0f, 16.0f, 49.1f };
+	titleBgCameraRot_ = { 1.57f, -1.57f, 0.0f };
+
+	camera_->SetTranslation(titleBgCameraPos_);
+	camera_->SetRotation(titleBgCameraRot_);
+	camera_->SetFovY(1.0f);
+	camera_->SetFarClip(200.0f);
+	camera_->Update();
+
+
+
+	auto* light = Obj3dCommon::GetInstance()->GetLightData();
+	if (light) {
+		light->direction = Normalize({ 0.038f, -0.997f, -0.074f });
+		light->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		light->intensity = 0.43f;
 	}
+
+
+	// マップエディタ更新
+	if (mapManager_) {
+		mapManager_->Update(titleBgPlayerPos_);
+	}
+
+	// タイトル背景のカード雨更新
+	UpdateTitleCardRain();
 
 	Input* input = Input::GetInstance();
 
@@ -166,6 +229,8 @@ void TitleScene::DrawDebugUI() {
 		mapManager_->DrawDebugUI();
 	}
 
+
+
 	ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_FirstUseEver);
 	ImGui::Begin("TitleScene Debug");
 	ImGui::Text("Enter : Start Game");
@@ -191,6 +256,18 @@ void TitleScene::Draw(){
 		}
 	}
 
+	if (mapManager_) {
+		mapManager_->Draw(titleBgPlayerPos_);
+	}
+
+	Obj3dCommon::GetInstance()->PreDraw(commandList);
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+
+	for (auto& card : titleRainCards_) {
+		if (card.obj) {
+			card.obj->Draw();
+		}
+	}
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
 	ParticleManager::GetInstance()->Draw(commandList);
 	// --- 描画ここまで ---
@@ -233,4 +310,86 @@ void TitleScene::Finalize() {
 
 	textures_.clear();
 	depthStencilResource_.Reset();
+}
+
+// minValue以上maxValue未満の範囲でランダムなfloatを生成する関数
+float RandomRange(float minValue, float maxValue) {
+	float t = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+	return minValue + (maxValue - minValue) * t;
+}
+
+// タイトル背景のカード雨の初期化
+void TitleScene::InitializeTitleCardRain() {
+	titleRainCards_.clear();
+	titleRainCards_.resize(titleRainCardCount_);
+
+	for (auto& card : titleRainCards_) {
+		ResetTitleRainCard(card, true);
+	}
+}
+
+// タイトル背景のカード雨のリセット（位置や回転をランダムに再設定）
+void TitleScene::ResetTitleRainCard(TitleRainCard& card, bool randomY) {
+	if (titleRainCardModelNames_.empty()) {
+		return;
+	}
+
+	int modelIndex = rand() % static_cast<int>(titleRainCardModelNames_.size());
+	const std::string& modelName = titleRainCardModelNames_[modelIndex];
+
+	card.obj = Obj3d::Create(modelName);
+
+	card.position = {
+	randomY ? RandomRange(titleRainSpawnX_, titleRainResetX_) : titleRainSpawnX_,
+	titleRainY_,
+	RandomRange(titleRainSpawnMinZ_, titleRainSpawnMaxZ_)
+	};
+
+	card.rotation = {
+		RandomRange(0.0f, 6.28f),
+		RandomRange(0.0f, 6.28f),
+		RandomRange(0.0f, 6.28f)
+	};
+
+	card.rotationSpeed = {
+		RandomRange(-0.03f, 0.03f),
+		RandomRange(-0.05f, 0.05f),
+		RandomRange(-0.04f, 0.04f)
+	};
+
+	card.fallSpeed = RandomRange(0.04f, 0.12f);
+
+	if (card.obj) {
+		card.obj->SetCamera(camera_.get());
+		card.obj->SetTranslation(card.position);
+		card.obj->SetRotation(card.rotation);
+		card.obj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
+		card.obj->Update();
+	}
+}
+
+// タイトル背景のカード雨の更新（位置を落下させ、回転させる）
+void TitleScene::UpdateTitleCardRain() {
+	for (auto& card : titleRainCards_) {
+		if (!card.obj) {
+			ResetTitleRainCard(card, false);
+			continue;
+		}
+
+		card.position.x += card.fallSpeed;
+
+		card.rotation.x += card.rotationSpeed.x;
+		card.rotation.y += card.rotationSpeed.y;
+		card.rotation.z += card.rotationSpeed.z;
+
+		if (card.position.x > titleRainResetX_) {
+			ResetTitleRainCard(card, false);
+			continue;
+		}
+
+		card.obj->SetTranslation(card.position);
+		card.obj->SetRotation(card.rotation);
+		card.obj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
+		card.obj->Update();
+	}
 }
