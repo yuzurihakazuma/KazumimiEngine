@@ -35,7 +35,7 @@ public:
 private:
 	std::unique_ptr<Obj3d> obj_ = nullptr; // 表示用オブジェクト
 	std::vector<FangData> fangs_;         // トゲの配列
-	Vector3 scale_ = { 0.5f, 2.0f, 0.5f };// トゲの大きさ
+	Vector3 scale_ = { 0.9f, 2.0f, 1.0f };// トゲの大きさ
 
 	bool isPlayerCaster_ = true;          // 使用者がプレイヤーか
 	bool isFinished_ = false;             // 効果終了フラグ
