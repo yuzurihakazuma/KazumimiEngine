@@ -126,6 +126,7 @@ void CardUseSystem::UseCard(const Card& card, const Vector3& casterPos, float ca
 	// プレイヤーが使った場合のみ詠唱中ロック
 	if (isPlayerCaster && player) {
 		player->LockAction(castTimer_);
+		player->PlayCardUsePose(castTimer_ / 2); // 詠唱開始時にカード使用ポーズへ入る
 	}
 }
 
@@ -143,6 +144,11 @@ void CardUseSystem::ExecuteCard(const Card& card, const Vector3& casterPos, floa
 			newEffect->Start(casterPos, casterYaw, isPlayerCaster, camera_);
 			activeEffects_.push_back(std::move(newEffect));
 		}
+	}
+
+	// プレイヤー発動後は通常姿勢へ戻す
+	if (isPlayerCaster && player) {
+		player->PlayIdlePose(8);
 	}
 }
 

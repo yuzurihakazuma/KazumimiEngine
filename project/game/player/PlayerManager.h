@@ -51,6 +51,7 @@ public:
 
     // 死亡状態取得
     bool IsDead() const;
+    bool IsDeathAnimationFinished() const;
 
     // 表示状態取得
     bool IsVisible() const;

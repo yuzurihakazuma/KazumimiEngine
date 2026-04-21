@@ -1,5 +1,8 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
+
 #include "engine/math/VectorMath.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
 
@@ -7,21 +10,43 @@ class Camera;
 
 class Player {
 public:
+    // ポーズ編集で保存するジョイント情報
+    struct JointPoseData {
+        std::string jointName;
+        Vector3 rotation;
+        Vector3 translation;
+    };
+
+    struct NamedPoseData {
+        std::string name;
+        std::vector<JointPoseData> joints;
+    };
+
+    // 任意のポーズへ滑らかに遷移するための補間情報
+    struct PoseBlendJointData {
+        std::string jointName;
+        Vector3 startRotation;
+        Vector3 startTranslation;
+        Vector3 targetRotation;
+        Vector3 targetTranslation;
+    };
+
     void Initialize();  // 初期化
     void Update();      // 更新
     void Draw();        // 描画
+    void DrawAnimationDebugUI(); // プレイヤーアニメGUIの描画
 
     void SetCamera(const Camera* camera); // カメラ設定
 
     // 各Transform取得
-    const Vector3& GetPosition() const { return pos_; }      // 位置取得
-    const Vector3& GetScale() const { return scale_; }       // スケール取得
-    const Vector3& GetRotation() const { return rot_; }      // 回転取得
+    const Vector3& GetPosition() const { return pos_; }
+    const Vector3& GetScale() const { return scale_; }
+    const Vector3& GetRotation() const { return rot_; }
 
     // 各Transform設定
-    void SetPosition(const Vector3& pos) { pos_ = pos; }     // 位置設定
-    void SetScale(const Vector3& scale) { scale_ = scale; }  // スケール設定
-    void SetRotation(const Vector3& rot) { rot_ = rot; }     // 回転設定
+    void SetPosition(const Vector3& pos) { pos_ = pos; }
+    void SetScale(const Vector3& scale) { scale_ = scale; }
+    void SetRotation(const Vector3& rot) { rot_ = rot; }
 
     void LockAction(int frame); // 指定フレームの間プレイヤー操作をロック
 
@@ -34,36 +59,34 @@ public:
     int GetCost() const { return cost_; }
     int GetMaxCost() const { return maxCost_; }
 
-    void AddExp(int value);      // 経験値加算
-    bool CanUseCost(int value) const; // コスト使用可能判定
-    void UseCost(int value);     // コスト消費
+    void AddExp(int value);             // 経験値加算
+    bool CanUseCost(int value) const;   // コスト使用可能判定
+    void UseCost(int value);            // コスト消費
 
     int GetHP() const { return hp_; }         // 現在HP取得
     int GetMaxHP() const { return maxHp_; }   // 最大HP取得
     bool IsDead() const { return isDead_; }   // 死亡判定
+    bool IsDeathAnimationFinished() const { return isDead_ && deathAnimationTimer_ <= 0; } // 死亡演出が終わったか
     bool IsInvincible() const { return isInvincible_; } // 無敵状態判定
     bool IsDodging() const { return isDodging_; }       // 回避中判定
 
-    bool IsHit() const { return isHit_; }         // 被弾中か
-    bool IsVisible() const;                       // 描画するか
+    bool IsHit() const { return isHit_; } // 被弾中か
+    bool IsVisible() const;               // 描画するか
 
     bool IsKnockback() const { return isKnockback_; } // ノックバック中か
 
     void TakeDamage(int damage, const Vector3& attackFrom); // ダメージ処理
+    void PlayCardUsePose(int durationFrames); // カード使用ポーズを再生する
+    void PlayIdlePose(int durationFrames); // 通常姿勢へ戻す
 
     void SetInputEnable(bool enable) { isInputEnabled_ = enable; } // 入力有効/無効切り替え
-
-    void ApplySpeedBuff(float multiplier, int durationFrames); // スピードバフ適用の関数
-
+    void ApplySpeedBuff(float multiplier, int durationFrames); // スピードバフ適用
     float GetSpeedMultiplier() const { return speedMultiplier_; } // 現在の速度倍率取得
-
     void Heal(int amount); // HP回復処理
 
-    bool IsShieldActive() const { return isShieldActive_; }  // シールド状態の取得
-
-    void AddShieldHits(int hits) { shieldHitCount_ = hits; }  // シールドの回数をセットする関数
-
-    int GetShieldHits() const { return shieldHitCount_; }  // 今のシールドの残り回数を取得する関数
+    bool IsShieldActive() const { return isShieldActive_; } // シールド状態の取得
+    void AddShieldHits(int hits) { shieldHitCount_ = hits; } // シールド回数セット
+    int GetShieldHits() const { return shieldHitCount_; } // シールド残り回数取得
 
     bool IsActionLocked() const { return isActionLocked_; }
 
@@ -78,6 +101,23 @@ private:
     void LevelUp();      // レベルアップ処理
     void UpdateCost();   // コスト自然回復
 
+    // ポーズ編集用の内部処理
+    void RefreshJointList(); // モデルからジョイント一覧を取り直す
+    void RefreshFilteredJointIndices(); // 検索条件に合うジョイント一覧を作る
+    void SyncSelectedJointFromModel(); // 選択中ジョイントの値をモデルから読む
+    void ApplySelectedJointToModel(); // GUIで編集した値をモデルへ反映する
+    void ApplyPose(const NamedPoseData& pose); // 保存済みポーズをモデルへ反映する
+    void ApplyPoseByName(const std::string& poseName); // 名前指定でポーズを反映する
+    void SaveCurrentPose(const std::string& poseName); // 現在のジョイント状態をポーズとして保存する
+    void SavePoseFile() const; // ポーズJSONを書き出す
+    void LoadPoseFile(); // ポーズJSONを読み込む
+    void EnsureDefaultPoseEntries(); // スロット名に対応する空ポーズを補完する
+    int FindPoseIndex(const std::string& poseName) const; // 名前から保存済みポーズを探す
+    void StartPoseBlendByName(const std::string& poseName, int duration); // 現在姿勢から指定ポーズへの補間を開始する
+    void PreviewPoseBlend(const std::string& startPoseName, const std::string& targetPoseName, int duration); // 開始姿勢を揃えてから補間を再生する
+    void UpdatePoseBlend(); // 補間中のポーズを更新する
+    bool IsPoseBlendPlaying() const { return poseBlendTimer_ > 0; } // 補間中か
+
 private:
     Vector3 pos_{ 0.0f, 0.0f, 0.0f };     // 位置
     Vector3 rot_{ 0.0f, 0.0f, 0.0f };     // 回転
@@ -86,60 +126,87 @@ private:
     std::unique_ptr<SkinnedObj3d> model_ = nullptr; // プレイヤーのアニメーションモデル
     const Camera* camera_ = nullptr;                // 使用カメラ
 
-    float moveSpeed_ = 0.2f;              // 通常移動速度
+    float moveSpeed_ = 0.2f; // 通常移動速度
 
     // 回避
-    bool isDodging_ = false;              // 回避中フラグ
-    int dodgeTimer_ = 0;                  // 回避残り時間
-    const int dodgeDuration_ = 15;        // 回避継続フレーム
-    float dodgeSpeed_ = 0.6f;             // 回避速度
-    Vector3 dodgeDirection_{ 0.0f, 0.0f, 0.0f }; // 回避方向
+    bool isDodging_ = false;
+    int dodgeTimer_ = 0;
+    const int dodgeDuration_ = 15;
+    float dodgeSpeed_ = 0.6f;
+    Vector3 dodgeDirection_{ 0.0f, 0.0f, 0.0f };
 
     // 行動ロック
-    bool isActionLocked_ = false;         // 行動ロック中
-    int actionLockTimer_ = 0;             // ロック残り時間
+    bool isActionLocked_ = false;
+    int actionLockTimer_ = 0;
 
     // レベル
-    int level_ = 1;                       // 現在レベル
-    int exp_ = 0;                         // 現在経験値
-    int nextLevelExp_ = 3;                // 次レベル必要経験値
+    int level_ = 1;
+    int exp_ = 0;
+    int nextLevelExp_ = 3;
 
     // コスト
-    int cost_ = 3;                        // 現在コスト
-    int maxCost_ = 3;                     // 最大コスト
+    int cost_ = 3;
+    int maxCost_ = 3;
+    int costRecoveryTimer_ = 0;
+    int costRecoveryInterval_ = 180;
 
-    int costRecoveryTimer_ = 0;           // コスト回復タイマー
-    int costRecoveryInterval_ = 180;      // コスト回復間隔
+    // HP
+    int hp_ = 8;
+    int maxHp_ = 8;
+    bool isDead_ = false;
+    int deathAnimationTimer_ = 0;             // 死亡演出の残り時間
+    const int deathAnimationDuration_ = 45;   // 死亡演出の表示時間
+    int poseBlendTimer_ = 0;                  // ポーズ補間の残り時間
+    int poseBlendDuration_ = 12;              // ポーズ補間の時間
+    std::vector<PoseBlendJointData> poseBlendJoints_; // 補間対象のジョイント一覧
 
-    int hp_ = 8;                          // 現在HP
-    int maxHp_ = 8;                       // 最大HP
-
-    bool isDead_ = false;                 // 死亡フラグ
-
-    bool isInvincible_ = false;           // 被弾後無敵
-    int invincibleTimer_ = 0;             // 無敵残り時間
-    const int invincibleDuration_ = 30;   // 無敵時間
+    // 被弾後無敵
+    bool isInvincible_ = false;
+    int invincibleTimer_ = 0;
+    const int invincibleDuration_ = 30;
 
     // 被弾演出
-    bool isHit_ = false;              // 被弾中フラグ
-    int hitTimer_ = 0;                // 被弾演出残り時間
-    const int hitDuration_ = 20;      // 被弾演出時間
+    bool isHit_ = false;
+    int hitTimer_ = 0;
+    const int hitDuration_ = 20;
 
     // ノックバック
-    bool isKnockback_ = false;                    // ノックバック中フラグ
-    int knockbackTimer_ = 0;                      // ノックバック残り時間
-    const int knockbackDuration_ = 10;            // ノックバック時間
-    Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f }; // ノックバック速度
+    bool isKnockback_ = false;
+    int knockbackTimer_ = 0;
+    const int knockbackDuration_ = 10;
+    Vector3 knockbackVelocity_{ 0.0f, 0.0f, 0.0f };
 
     bool isInputEnabled_ = true; // 入力有効フラグ
 
     // 速度
-    float speedMultiplier_ = 1.0f; // 移動速度倍率
-    int speedBuffTimer_ = 0; // スピードアップの残り時間
+    float speedMultiplier_ = 1.0f;
+    int speedBuffTimer_ = 0;
 
     // シールド管理
-    bool isShieldActive_ = false; // シールド展開中か
+    bool isShieldActive_ = false;
     int shieldHitCount_ = 0;
 
     bool isEnemyAtkDebuffed_ = false;
+
+    // ここから下がアニメGUI用の状態
+    std::string poseFilePath_ = "resources/player/player_pose.json";
+    std::vector<NamedPoseData> savedPoses_;
+    std::vector<std::string> jointNames_;
+    std::vector<int> filteredJointIndices_;
+
+    int selectedJointIndex_ = -1;
+    int selectedPoseIndex_ = -1;
+    bool showEditedOnlyJoints_ = false;
+
+    Vector3 selectedJointRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 selectedJointTranslation_{ 0.0f, 0.0f, 0.0f };
+
+    char jointSearchText_[128] = "";
+    char poseFilePathBuffer_[260] = "resources/player/player_pose.json";
+    char poseNameBuffer_[64] = "idle";
+    char idlePoseNameBuffer_[64] = "idle";
+    char cardUsePoseNameBuffer_[64] = "card_use";
+    char hitPoseNameBuffer_[64] = "hit";
+    char deathPoseNameBuffer_[64] = "death";
+    char blendStartPoseNameBuffer_[64] = "idle";
 };

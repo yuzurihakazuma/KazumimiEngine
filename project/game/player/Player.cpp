@@ -1,10 +1,83 @@
 #include "game/player/Player.h"
+
 #include "Engine/Base/Input.h"
 #include "Engine/Camera/Camera.h"
 #include "engine/math/VectorMath.h"
+#include "externals/imgui/imgui.h"
+#include "externals/nlohmann/json.hpp"
+
+#include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 
 using namespace VectorMath;
+using json = nlohmann::json;
+
+namespace {
+bool ContainsIgnoreCase(const std::string& text, const std::string& pattern) {
+    if (pattern.empty()) {
+        return true;
+    }
+
+    std::string lowerText = text;
+    std::string lowerPattern = pattern;
+    std::transform(lowerText.begin(), lowerText.end(), lowerText.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(lowerPattern.begin(), lowerPattern.end(), lowerPattern.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    return lowerText.find(lowerPattern) != std::string::npos;
+}
+
+bool IsNearlyZero(float value, float epsilon = 0.0001f) {
+    return std::fabs(value) <= epsilon;
+}
+
+bool IsNearlyZeroVector(const Vector3& value, float epsilon = 0.0001f) {
+    return IsNearlyZero(value.x, epsilon) &&
+        IsNearlyZero(value.y, epsilon) &&
+        IsNearlyZero(value.z, epsilon);
+}
+
+void CopyText(char* dst, size_t size, const std::string& src) {
+    if (size == 0) {
+        return;
+    }
+
+    strncpy_s(dst, size, src.c_str(), _TRUNCATE);
+}
+
+json Vector3ToJson(const Vector3& value) {
+    return json::array({ value.x, value.y, value.z });
+}
+
+Vector3 JsonToVector3(const json& value) {
+    if (!value.is_array() || value.size() < 3) {
+        return { 0.0f, 0.0f, 0.0f };
+    }
+
+    return {
+        value[0].get<float>(),
+        value[1].get<float>(),
+        value[2].get<float>()
+    };
+}
+
+float Clamp01(float value) {
+    return std::clamp(value, 0.0f, 1.0f);
+}
+
+Vector3 LerpVector3(const Vector3& a, const Vector3& b, float t) {
+    return {
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t,
+        a.z + (b.z - a.z) * t
+    };
+}
+}
 
 void Player::Initialize() {
     pos_ = { 0.0f, 0.0f, 0.0f };
@@ -24,19 +97,21 @@ void Player::Initialize() {
 
     cost_ = 3;                // 現在コスト初期化
     maxCost_ = 3;             // 最大コスト初期化
-
-    costRecoveryTimer_ = 0;      // コスト回復タイマー初期化
+    costRecoveryTimer_ = 0;   // コスト回復タイマー初期化
     costRecoveryInterval_ = 180; // コスト回復速度初期化
 
-    hp_ = 8;                // 現在HP初期化
-    maxHp_ = 8;             // 最大HP初期化
-    isDead_ = false;        // 死亡状態リセット
+    hp_ = 8;                  // 現在HP初期化
+    maxHp_ = 8;               // 最大HP初期化
+    isDead_ = false;          // 死亡状態リセット
+    deathAnimationTimer_ = 0; // 死亡演出タイマー初期化
+    poseBlendTimer_ = 0;      // ポーズ補間タイマー初期化
+    poseBlendJoints_.clear(); // 補間中ジョイント情報をクリア
 
-    isInvincible_ = false;  // 無敵状態リセット
-    invincibleTimer_ = 0;   // 無敵時間リセット
+    isInvincible_ = false;    // 無敵状態リセット
+    invincibleTimer_ = 0;     // 無敵時間リセット
 
-    isHit_ = false;         // 被弾状態リセット
-    hitTimer_ = 0;          // 被弾時間リセット
+    isHit_ = false;           // 被弾状態リセット
+    hitTimer_ = 0;            // 被弾時間リセット
 
     // ノックバック初期化
     isKnockback_ = false;                       // ノックバック状態リセット
@@ -66,21 +141,40 @@ void Player::Initialize() {
         model_->SetScale(scale_);
         model_->SetLoopAnimation(true);
 
-        // 先にカメラが設定されていれば反映
         if (camera_) {
             model_->SetCamera(camera_);
         }
+
+        // ポーズ編集GUIの初期状態を準備する
+        RefreshJointList();
+        LoadPoseFile();
+        ApplyPoseByName(idlePoseNameBuffer_);
     }
 }
 
 void Player::Update() {
+    // デバッグGUIから開始したポーズ補間も毎フレーム進める
+    if (IsPoseBlendPlaying()) {
+        UpdatePoseBlend();
+    }
 
     if (isDead_) {
-        return; // 死亡中は更新しない
+        // 死亡中は入力処理を止め、死亡ポーズの表示だけ維持する
+        if (deathAnimationTimer_ > 0) {
+            deathAnimationTimer_--;
+        }
+
+        if (model_) {
+            model_->SetIsWalking(false);
+            model_->SetTranslation(pos_);
+            model_->SetRotation(rot_);
+            model_->SetScale(scale_);
+            model_->Update();
+        }
+        return;
     }
 
     Input* input = Input::GetInstance();
-
     Vector3 move{ 0.0f, 0.0f, 0.0f };
 
     UpdateCost(); // コスト自然回復
@@ -88,7 +182,6 @@ void Player::Update() {
     // 被弾後無敵時間の更新
     if (isInvincible_) {
         invincibleTimer_--;
-
         if (invincibleTimer_ <= 0) {
             isInvincible_ = false;
             invincibleTimer_ = 0;
@@ -97,23 +190,21 @@ void Player::Update() {
 
     // 被弾演出時間の更新
     if (isHit_) {
-        hitTimer_--; // 被弾演出残り時間減少
-
+        hitTimer_--;
         if (hitTimer_ <= 0) {
-            isHit_ = false; // 被弾演出終了
+            isHit_ = false;
             hitTimer_ = 0;
         }
     }
 
     // ノックバック中の更新
     if (isKnockback_) {
-        pos_ += knockbackVelocity_;       // ノックバック移動
-        knockbackVelocity_ *= 0.85f;      // 徐々に減速
+        pos_ += knockbackVelocity_;
+        knockbackVelocity_ *= 0.85f;
 
-        knockbackTimer_--;                // ノックバック残り時間減少
-
+        knockbackTimer_--;
         if (knockbackTimer_ <= 0) {
-            isKnockback_ = false;         // ノックバック終了
+            isKnockback_ = false;
             knockbackTimer_ = 0;
             knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
         }
@@ -128,7 +219,6 @@ void Player::Update() {
             }
         }
 
-        // モデルだけは更新しておく
         if (model_) {
             model_->SetTranslation(pos_);
             model_->SetRotation(rot_);
@@ -152,47 +242,38 @@ void Player::Update() {
 
     // 回避開始
     if (!isDodging_ && input->Triggerkey(DIK_LSHIFT)) {
-
-        isDodging_ = true;            // 回避状態
-        dodgeTimer_ = dodgeDuration_; // 回避時間
+        isDodging_ = true;
+        dodgeTimer_ = dodgeDuration_;
 
         if (Length(move) > 0.0f) {
-            dodgeDirection_ = move;                 // 入力方向へ回避
-            rot_.y = std::atan2f(move.x, move.z);  // 回避方向へ向く
+            dodgeDirection_ = move;
+            rot_.y = std::atan2f(move.x, move.z);
         } else {
             dodgeDirection_ = {
                 std::sinf(rot_.y),
                 0.0f,
                 std::cosf(rot_.y)
-            }; // 向いている方向へ回避
+            };
         }
     }
 
     if (isDodging_) {
+        pos_ += dodgeDirection_ * dodgeSpeed_;
+        rot_.x += 0.5f;
 
-        pos_ += dodgeDirection_ * dodgeSpeed_; // 回避移動
-
-        rot_.x += 0.5f; // 回避中の回転演出
-
-        dodgeTimer_--; // 回避時間減少
-
+        dodgeTimer_--;
         if (dodgeTimer_ <= 0) {
-            isDodging_ = false; // 回避終了
-            rot_.x = 0.0f;      // 回転リセット
+            isDodging_ = false;
+            rot_.x = 0.0f;
         }
-
-    } else {
-
-        if (Length(move) > 0.0f) {
-            pos_ += move * (moveSpeed_ * speedMultiplier_); // 通常移動
-            rot_.y = std::atan2f(move.x, move.z);           // 移動方向へ向く
-        }
+    } else if (Length(move) > 0.0f) {
+        pos_ += move * (moveSpeed_ * speedMultiplier_);
+        rot_.y = std::atan2f(move.x, move.z);
     }
 
     // スピードバフの更新
     if (speedBuffTimer_ > 0) {
         speedBuffTimer_--;
-        // タイマーが0になったら通常の速度に戻す
         if (speedBuffTimer_ <= 0) {
             speedMultiplier_ = 1.0f;
         }
@@ -203,7 +284,6 @@ void Player::Update() {
     // モデルに現在のTransformを反映して更新
     if (model_) {
         model_->SetIsWalking(speed > 0.0f);
-
         model_->SetTranslation(pos_);
         model_->SetRotation(rot_);
         model_->SetScale(scale_);
@@ -211,9 +291,7 @@ void Player::Update() {
     }
 }
 
-// 描画
 void Player::Draw() {
-
     if (!model_) {
         return;
     }
@@ -225,7 +303,157 @@ void Player::Draw() {
     model_->Draw();
 }
 
-// カメラ設定
+// プレイヤーアニメGUIの描画
+void Player::DrawAnimationDebugUI() {
+#ifdef USE_IMGUI
+    if (!model_) {
+        return;
+    }
+
+    // モデル側のジョイント一覧をGUI用に取り直す
+    RefreshJointList();
+
+    ImGui::Begin("プレイヤーアニメーション");
+
+    ImGui::InputText("ジョイント検索", jointSearchText_, sizeof(jointSearchText_));
+    ImGui::Checkbox("編集中のみ表示", &showEditedOnlyJoints_);
+    RefreshFilteredJointIndices();
+
+    if (filteredJointIndices_.empty()) {
+        ImGui::Text("表示できるジョイントがありません");
+    } else {
+        if (selectedJointIndex_ < 0) {
+            selectedJointIndex_ = filteredJointIndices_.front();
+        }
+
+        bool selectedJointExists = std::find(
+            filteredJointIndices_.begin(),
+            filteredJointIndices_.end(),
+            selectedJointIndex_) != filteredJointIndices_.end();
+        if (!selectedJointExists) {
+            selectedJointIndex_ = filteredJointIndices_.front();
+        }
+
+        std::string selectedJointName = jointNames_[selectedJointIndex_];
+        if (ImGui::BeginCombo("ジョイント", selectedJointName.c_str())) {
+            for (int jointIndex : filteredJointIndices_) {
+                bool isSelected = (selectedJointIndex_ == jointIndex);
+                if (ImGui::Selectable(jointNames_[jointIndex].c_str(), isSelected)) {
+                    selectedJointIndex_ = jointIndex;
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        // 現在のジョイント値を毎フレームGUIへ同期する
+        SyncSelectedJointFromModel();
+
+        if (ImGui::DragFloat3("ジョイント回転", &selectedJointRotation_.x, 0.01f)) {
+            ApplySelectedJointToModel(); // 回転変更を即時反映
+        }
+        if (ImGui::DragFloat3("ジョイント移動", &selectedJointTranslation_.x, 0.01f)) {
+            ApplySelectedJointToModel(); // 移動変更を即時反映
+        }
+
+        if (ImGui::Button("選択ジョイントを戻す")) {
+            model_->ClearJointOffset(jointNames_[selectedJointIndex_]);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("全ジョイントを戻す")) {
+            model_->ClearJointOffsets();
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::InputText("ファイルパス", poseFilePathBuffer_, sizeof(poseFilePathBuffer_));
+
+    const char* selectedPoseLabel =
+        (selectedPoseIndex_ >= 0 && selectedPoseIndex_ < static_cast<int>(savedPoses_.size()))
+        ? savedPoses_[selectedPoseIndex_].name.c_str()
+        : "(未選択)";
+
+    if (ImGui::BeginCombo("保存済みポーズ", selectedPoseLabel)) {
+        for (int i = 0; i < static_cast<int>(savedPoses_.size()); ++i) {
+            bool isSelected = (selectedPoseIndex_ == i);
+            if (ImGui::Selectable(savedPoses_[i].name.c_str(), isSelected)) {
+                selectedPoseIndex_ = i;
+                CopyText(poseNameBuffer_, sizeof(poseNameBuffer_), savedPoses_[i].name);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::InputText("ポーズ名", poseNameBuffer_, sizeof(poseNameBuffer_));
+
+    ImGui::InputText("通常姿勢名", idlePoseNameBuffer_, sizeof(idlePoseNameBuffer_));
+    if (ImGui::Button("通常姿勢へ反映")) {
+        SavePoseFile(); // 通常姿勢スロット名を保存
+        StartPoseBlendByName(idlePoseNameBuffer_, poseBlendDuration_); // 現在姿勢から通常姿勢へ寄せる
+    }
+
+    ImGui::InputText("カード使用姿勢名", cardUsePoseNameBuffer_, sizeof(cardUsePoseNameBuffer_));
+    if (ImGui::Button("カード使用へ反映")) {
+        SavePoseFile(); // カード使用スロット名を保存
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("カード使用ポーズ確認")) {
+        PreviewPoseBlend(blendStartPoseNameBuffer_, cardUsePoseNameBuffer_, poseBlendDuration_);
+    }
+
+    ImGui::InputText("被弾姿勢名", hitPoseNameBuffer_, sizeof(hitPoseNameBuffer_));
+    if (ImGui::Button("被弾ポーズ確認")) {
+        PreviewPoseBlend(blendStartPoseNameBuffer_, hitPoseNameBuffer_, poseBlendDuration_);
+    }
+
+    ImGui::InputText("死亡姿勢名", deathPoseNameBuffer_, sizeof(deathPoseNameBuffer_));
+    if (ImGui::Button("死亡ポーズ確認")) {
+        PreviewPoseBlend(blendStartPoseNameBuffer_, deathPoseNameBuffer_, poseBlendDuration_);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("ポーズ補間プレビュー");
+    ImGui::InputText("補間開始姿勢名", blendStartPoseNameBuffer_, sizeof(blendStartPoseNameBuffer_));
+    ImGui::DragInt("補間フレーム", &poseBlendDuration_, 1.0f, 1, 120);
+
+    if (ImGui::Button("開始姿勢確認")) {
+        ApplyPoseByName(blendStartPoseNameBuffer_);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("ポーズ補間確認")) {
+        PreviewPoseBlend(blendStartPoseNameBuffer_, poseNameBuffer_, poseBlendDuration_);
+    }
+
+    if (IsPoseBlendPlaying()) {
+        ImGui::Text("補間再生中: %d frame", poseBlendTimer_);
+    } else {
+        ImGui::Text("補間停止中");
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::Button("ポーズ保存")) {
+        SaveCurrentPose(poseNameBuffer_);
+        SavePoseFile();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("ポーズ読込")) {
+        StartPoseBlendByName(poseNameBuffer_, poseBlendDuration_);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("一覧更新")) {
+        LoadPoseFile(); // JSONを読み直して一覧更新
+    }
+
+    ImGui::End();
+#endif
+}
+
 void Player::SetCamera(const Camera* camera) {
     camera_ = camera;
 
@@ -241,27 +469,27 @@ void Player::LockAction(int frame) {
 }
 
 void Player::AddExp(int value) {
-
-    exp_ += value; // 経験値加算
+    // 経験値加算
+    exp_ += value;
 
     while (exp_ >= nextLevelExp_) {
-        exp_ -= nextLevelExp_; // 必要経験値分を消費
-        LevelUp();             // レベルアップ
+        exp_ -= nextLevelExp_;
+        LevelUp();
     }
 }
 
 bool Player::CanUseCost(int value) const {
-    return cost_ >= value; // 必要コスト以上あるか
+    return cost_ >= value;
 }
 
 void Player::UseCost(int value) {
+    if (cost_ < value) {
+        return;
+    }
 
-    if (cost_ < value) return; // 足りなければ消費しない
-
-    cost_ -= value; // コスト消費
-
+    cost_ -= value;
     if (cost_ < 0) {
-        cost_ = 0; // 下限補正
+        cost_ = 0;
     }
 }
 
@@ -272,104 +500,72 @@ void Player::Heal(int amount) {
 
     // HP回復
     hp_ += amount;
-
-    // 最大HPを超えないように修正
     if (hp_ > maxHp_) {
         hp_ = maxHp_;
     }
 }
 
 void Player::LevelUp() {
-
-    level_++;            // レベル上昇
-    nextLevelExp_ += 2;  // 次に必要な経験値を増やす
-
-    // 最大HPを増やす
+    level_++;
+    nextLevelExp_ += 2;
     maxHp_ += 2;
-
-    // レベルアップ時にHPを全回復する
     hp_ = maxHp_;
-
-    // 最大コストを増やす
     maxCost_ += 1;
-
-    // レベルアップ時にコストも全回復する
     cost_ = maxCost_;
 
-    // コスト回復速度を少し上げる
     if (costRecoveryInterval_ > 60) {
         costRecoveryInterval_ -= 15;
     }
 }
 
 void Player::UpdateCost() {
+    if (cost_ >= maxCost_) {
+        return;
+    }
 
-    if (cost_ >= maxCost_) return; // 最大まで回復していたら何もしない
-
-    costRecoveryTimer_++; // タイマー進行
-
+    costRecoveryTimer_++;
     if (costRecoveryTimer_ >= costRecoveryInterval_) {
-        costRecoveryTimer_ = 0; // タイマーリセット
-        cost_ += 1;             // コスト回復
+        costRecoveryTimer_ = 0;
+        cost_ += 1;
 
         if (cost_ > maxCost_) {
-            cost_ = maxCost_;   // 上限補正
+            cost_ = maxCost_;
         }
     }
 }
 
 // ダメージ処理
 void Player::TakeDamage(int damage, const Vector3& attackFrom) {
-
-    // 既に死亡していたら無視
-    if (isDead_) {
+    if (isDead_ || isDodging_ || isInvincible_) {
         return;
     }
 
-    // 回避中はダメージ無効
-    if (isDodging_) {
-        return;
-    }
-
-    // 無敵中はダメージ無効
-    if (isInvincible_) {
-        return;
-    }
-
-    // もしシールドが残っていたら、回数を減らしてダメージを無効化！
     if (shieldHitCount_ > 0) {
         shieldHitCount_--;
-        return; // ここで処理を抜けるのでダメージを受けない
+        return;
     }
 
     if (isEnemyAtkDebuffed_) {
         damage /= 2;
-
-       
     }
 
-    // HP減少
     hp_ -= damage;
     if (hp_ < 0) {
         hp_ = 0;
     }
 
-    // 被弾演出開始
     isHit_ = true;
     hitTimer_ = hitDuration_;
 
-    // 被弾後無敵開始
     isInvincible_ = true;
     invincibleTimer_ = invincibleDuration_;
 
-    // 攻撃元からプレイヤーへの方向を計算
     Vector3 hitDir = {
         pos_.x - attackFrom.x,
         0.0f,
         pos_.z - attackFrom.z
     };
 
-    // ノックバック開始
     if (Length(hitDir) > 0.01f) {
         hitDir = Normalize(hitDir);
         knockbackVelocity_ = hitDir * 0.35f;
@@ -377,10 +573,36 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
         knockbackTimer_ = knockbackDuration_;
     }
 
-    // HPが0なら死亡
     if (hp_ <= 0) {
         isDead_ = true;
+        deathAnimationTimer_ = deathAnimationDuration_;
+        isActionLocked_ = true;
+        actionLockTimer_ = deathAnimationDuration_;
+        isDodging_ = false;
+        isKnockback_ = false;
+        knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
+
+        // 死亡時は現在姿勢から death ポーズへ少しずつ遷移する
+        StartPoseBlendByName(deathPoseNameBuffer_, poseBlendDuration_);
+
+        if (model_) {
+            model_->SetIsWalking(false);
+            model_->SetTranslation(pos_);
+            model_->SetRotation(rot_);
+            model_->SetScale(scale_);
+            model_->Update();
+        }
     }
+}
+
+// カード使用ポーズを再生する
+void Player::PlayCardUsePose(int durationFrames) {
+    StartPoseBlendByName(cardUsePoseNameBuffer_, durationFrames);
+}
+
+// 通常姿勢へ戻す
+void Player::PlayIdlePose(int durationFrames) {
+    StartPoseBlendByName(idlePoseNameBuffer_, durationFrames);
 }
 
 void Player::ApplySpeedBuff(float multiplier, int durationFrames) {
@@ -390,12 +612,333 @@ void Player::ApplySpeedBuff(float multiplier, int durationFrames) {
 
 // 描画するか判定
 bool Player::IsVisible() const {
-
-    // 被弾中でなければ常に表示
     if (!isHit_) {
         return true;
     }
 
-    // 被弾中は1フレームおきに表示して点滅させる
     return (hitTimer_ % 2) == 0;
+}
+
+// モデルからジョイント一覧を取り直す
+void Player::RefreshJointList() {
+    if (!model_) {
+        return;
+    }
+
+    jointNames_ = model_->GetJointNames();
+    if (selectedJointIndex_ >= static_cast<int>(jointNames_.size())) {
+        selectedJointIndex_ = jointNames_.empty() ? -1 : 0;
+    }
+}
+
+// 検索条件に合うジョイント一覧を作る
+void Player::RefreshFilteredJointIndices() {
+    filteredJointIndices_.clear();
+
+    for (int i = 0; i < static_cast<int>(jointNames_.size()); ++i) {
+        const std::string& jointName = jointNames_[i];
+        if (!ContainsIgnoreCase(jointName, jointSearchText_)) {
+            continue;
+        }
+
+        if (showEditedOnlyJoints_) {
+            Vector3 rotation = model_->GetJointRotationOffset(jointName);
+            Vector3 translation = model_->GetJointTranslationOffset(jointName);
+            if (IsNearlyZeroVector(rotation) && IsNearlyZeroVector(translation)) {
+                continue;
+            }
+        }
+
+        filteredJointIndices_.push_back(i);
+    }
+}
+
+// 選択中ジョイントの値をモデルから読む
+void Player::SyncSelectedJointFromModel() {
+    if (!model_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(jointNames_.size())) {
+        return;
+    }
+
+    const std::string& jointName = jointNames_[selectedJointIndex_];
+    selectedJointRotation_ = model_->GetJointRotationOffset(jointName);
+    selectedJointTranslation_ = model_->GetJointTranslationOffset(jointName);
+}
+
+// GUIで編集した値をモデルへ反映する
+void Player::ApplySelectedJointToModel() {
+    if (!model_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(jointNames_.size())) {
+        return;
+    }
+
+    const std::string& jointName = jointNames_[selectedJointIndex_];
+    model_->SetJointRotationOffset(jointName, selectedJointRotation_);
+    model_->SetJointTranslationOffset(jointName, selectedJointTranslation_);
+}
+
+// 保存済みポーズをモデルへ反映する
+void Player::ApplyPose(const NamedPoseData& pose) {
+    if (!model_) {
+        return;
+    }
+
+    model_->ClearJointOffsets();
+    for (const JointPoseData& joint : pose.joints) {
+        model_->SetJointRotationOffset(joint.jointName, joint.rotation);
+        model_->SetJointTranslationOffset(joint.jointName, joint.translation);
+    }
+}
+
+// 名前指定でポーズを反映する
+void Player::ApplyPoseByName(const std::string& poseName) {
+    if (!model_) {
+        return;
+    }
+
+    poseBlendTimer_ = 0;
+    poseBlendJoints_.clear();
+
+    int poseIndex = FindPoseIndex(poseName);
+    if (poseIndex < 0) {
+        model_->ClearJointOffsets();
+        return;
+    }
+
+    ApplyPose(savedPoses_[poseIndex]);
+}
+
+// 現在姿勢から指定ポーズへの補間を開始する
+void Player::StartPoseBlendByName(const std::string& poseName, int duration) {
+    poseBlendJoints_.clear();
+
+    if (!model_) {
+        poseBlendTimer_ = 0;
+        return;
+    }
+
+    int poseIndex = FindPoseIndex(poseName);
+    if (poseIndex < 0 || duration <= 0) {
+        poseBlendTimer_ = 0;
+        ApplyPoseByName(poseName);
+        return;
+    }
+
+    poseBlendDuration_ = duration;
+    poseBlendTimer_ = duration;
+    const NamedPoseData& pose = savedPoses_[poseIndex];
+
+    for (const std::string& jointName : jointNames_) {
+        PoseBlendJointData blendJoint{};
+        blendJoint.jointName = jointName;
+        blendJoint.startRotation = model_->GetJointRotationOffset(jointName);
+        blendJoint.startTranslation = model_->GetJointTranslationOffset(jointName);
+        blendJoint.targetRotation = { 0.0f, 0.0f, 0.0f };
+        blendJoint.targetTranslation = { 0.0f, 0.0f, 0.0f };
+
+        for (const JointPoseData& poseJoint : pose.joints) {
+            if (poseJoint.jointName != jointName) {
+                continue;
+            }
+
+            blendJoint.targetRotation = poseJoint.rotation;
+            blendJoint.targetTranslation = poseJoint.translation;
+            break;
+        }
+
+        poseBlendJoints_.push_back(blendJoint);
+    }
+
+    UpdatePoseBlend();
+}
+
+// 開始姿勢を揃えてから補間を再生する
+void Player::PreviewPoseBlend(const std::string& startPoseName, const std::string& targetPoseName, int duration) {
+    ApplyPoseByName(startPoseName);
+    StartPoseBlendByName(targetPoseName, duration);
+}
+
+// 補間中のポーズを更新する
+void Player::UpdatePoseBlend() {
+    if (!model_ || poseBlendJoints_.empty()) {
+        return;
+    }
+
+    float t = 1.0f;
+    if (poseBlendDuration_ > 0) {
+        t = 1.0f - (static_cast<float>(poseBlendTimer_) / static_cast<float>(poseBlendDuration_));
+        t = Clamp01(t);
+    }
+
+    model_->ClearJointOffsets();
+    for (const PoseBlendJointData& blendJoint : poseBlendJoints_) {
+        model_->SetJointRotationOffset(
+            blendJoint.jointName,
+            LerpVector3(blendJoint.startRotation, blendJoint.targetRotation, t));
+        model_->SetJointTranslationOffset(
+            blendJoint.jointName,
+            LerpVector3(blendJoint.startTranslation, blendJoint.targetTranslation, t));
+    }
+
+    if (poseBlendTimer_ > 0) {
+        poseBlendTimer_--;
+    }
+
+    if (poseBlendTimer_ <= 0) {
+        for (const PoseBlendJointData& blendJoint : poseBlendJoints_) {
+            model_->SetJointRotationOffset(blendJoint.jointName, blendJoint.targetRotation);
+            model_->SetJointTranslationOffset(blendJoint.jointName, blendJoint.targetTranslation);
+        }
+        poseBlendJoints_.clear();
+    }
+}
+
+// 現在のジョイント状態をポーズとして保存する
+void Player::SaveCurrentPose(const std::string& poseName) {
+    if (!model_ || poseName.empty()) {
+        return;
+    }
+
+    NamedPoseData pose;
+    pose.name = poseName;
+
+    for (const std::string& jointName : jointNames_) {
+        Vector3 rotation = model_->GetJointRotationOffset(jointName);
+        Vector3 translation = model_->GetJointTranslationOffset(jointName);
+        if (IsNearlyZeroVector(rotation) && IsNearlyZeroVector(translation)) {
+            continue;
+        }
+
+        pose.joints.push_back({ jointName, rotation, translation });
+    }
+
+    int poseIndex = FindPoseIndex(poseName);
+    if (poseIndex >= 0) {
+        savedPoses_[poseIndex] = pose;
+        selectedPoseIndex_ = poseIndex;
+    } else {
+        savedPoses_.push_back(pose);
+        selectedPoseIndex_ = static_cast<int>(savedPoses_.size()) - 1;
+    }
+}
+
+// ポーズJSONを書き出す
+void Player::SavePoseFile() const {
+    json root;
+    root["slots"]["idle"] = idlePoseNameBuffer_;
+    root["slots"]["card_use"] = cardUsePoseNameBuffer_;
+    root["slots"]["hit"] = hitPoseNameBuffer_;
+    root["slots"]["death"] = deathPoseNameBuffer_;
+
+    json poses = json::array();
+    for (const NamedPoseData& pose : savedPoses_) {
+        json poseJson;
+        poseJson["name"] = pose.name;
+        poseJson["joints"] = json::array();
+
+        for (const JointPoseData& joint : pose.joints) {
+            json jointJson;
+            jointJson["joint"] = joint.jointName;
+            jointJson["rotation"] = Vector3ToJson(joint.rotation);
+            jointJson["translation"] = Vector3ToJson(joint.translation);
+            poseJson["joints"].push_back(jointJson);
+        }
+
+        poses.push_back(poseJson);
+    }
+
+    root["savedPoses"] = poses;
+
+    std::filesystem::path filePath = poseFilePathBuffer_;
+    std::filesystem::create_directories(filePath.parent_path());
+
+    std::ofstream ofs(filePath);
+    if (!ofs.is_open()) {
+        return;
+    }
+
+    ofs << root.dump(2);
+}
+
+// ポーズJSONを読み込む
+void Player::LoadPoseFile() {
+    savedPoses_.clear();
+    poseFilePath_ = poseFilePathBuffer_;
+
+    std::ifstream ifs(poseFilePath_);
+    if (!ifs.is_open()) {
+        EnsureDefaultPoseEntries();
+        return;
+    }
+
+    json root;
+    ifs >> root;
+
+    if (root.contains("slots")) {
+        const json& slots = root["slots"];
+        if (slots.contains("idle")) { CopyText(idlePoseNameBuffer_, sizeof(idlePoseNameBuffer_), slots["idle"].get<std::string>()); }
+        if (slots.contains("card_use")) { CopyText(cardUsePoseNameBuffer_, sizeof(cardUsePoseNameBuffer_), slots["card_use"].get<std::string>()); }
+        if (slots.contains("hit")) { CopyText(hitPoseNameBuffer_, sizeof(hitPoseNameBuffer_), slots["hit"].get<std::string>()); }
+        if (slots.contains("death")) { CopyText(deathPoseNameBuffer_, sizeof(deathPoseNameBuffer_), slots["death"].get<std::string>()); }
+    }
+
+    if (root.contains("savedPoses") && root["savedPoses"].is_array()) {
+        for (const json& poseJson : root["savedPoses"]) {
+            NamedPoseData pose;
+            pose.name = poseJson.value("name", "");
+
+            if (poseJson.contains("joints") && poseJson["joints"].is_array()) {
+                for (const json& jointJson : poseJson["joints"]) {
+                    JointPoseData joint;
+                    joint.jointName = jointJson.value("joint", "");
+                    joint.rotation = JsonToVector3(jointJson["rotation"]);
+                    joint.translation = jointJson.contains("translation")
+                        ? JsonToVector3(jointJson["translation"])
+                        : Vector3{ 0.0f, 0.0f, 0.0f };
+                    pose.joints.push_back(joint);
+                }
+            }
+
+            if (!pose.name.empty()) {
+                savedPoses_.push_back(pose);
+            }
+        }
+    }
+
+    EnsureDefaultPoseEntries();
+    selectedPoseIndex_ = savedPoses_.empty() ? -1 : 0;
+    if (selectedPoseIndex_ >= 0) {
+        CopyText(poseNameBuffer_, sizeof(poseNameBuffer_), savedPoses_[selectedPoseIndex_].name);
+    }
+}
+
+// スロット名に対応する空ポーズを補完する
+void Player::EnsureDefaultPoseEntries() {
+    const std::vector<std::string> requiredNames = {
+        idlePoseNameBuffer_,
+        cardUsePoseNameBuffer_,
+        hitPoseNameBuffer_,
+        deathPoseNameBuffer_
+    };
+
+    for (const std::string& poseName : requiredNames) {
+        if (poseName.empty()) {
+            continue;
+        }
+
+        if (FindPoseIndex(poseName) >= 0) {
+            continue;
+        }
+
+        savedPoses_.push_back({ poseName, {} });
+    }
+}
+
+// 名前から保存済みポーズを探す
+int Player::FindPoseIndex(const std::string& poseName) const {
+    for (int i = 0; i < static_cast<int>(savedPoses_.size()); ++i) {
+        if (savedPoses_[i].name == poseName) {
+            return i;
+        }
+    }
+
+    return -1;
 }
