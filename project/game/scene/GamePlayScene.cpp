@@ -119,6 +119,10 @@ void GamePlayScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("CardClaw", "resources/card", "CardClaw.obj");
 	ModelManager::GetInstance()->LoadModel("CardScanner", "resources/card", "MapOpen.obj");
 
+
+	// 追加のカード用棘モデル
+	ModelManager::GetInstance()->LoadModel("Fang", "resources/Fang", "Fang.obj");
+	
 	// CSVからカードデータベースを初期化
 	CardDatabase::Initialize("resources/card/CardData.csv");
 
@@ -458,7 +462,7 @@ void GamePlayScene::Update() {
 
 	// BGM再生
 	if (!isEditingDebugText && input->Triggerkey(DIK_SPACE)) {
-		AudioManager::GetInstance()->PlayWave(bgmFile_);
+		//AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 
 	// タイトルシーンへ移動
