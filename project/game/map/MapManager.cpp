@@ -498,8 +498,10 @@ void MapManager::UpdateTileObject(int x, int z) {
     const float tileSize = levelData_.tileSize;
     const int tile = levelData_.tiles[z][x];
 
-    if (tile == 0) {
-        wallObjects_[z][x].reset();
+    if (tile == 0 || tile == 3) {
+        if (tile == 0) {
+            wallObjects_[z][x].reset();
+        }
 
         if (!floorObjects_[z][x]) {
             floorObjects_[z][x] = std::make_unique<Obj3d>();
@@ -512,11 +514,15 @@ void MapManager::UpdateTileObject(int x, int z) {
         floorObjects_[z][x]->SetRotation({ -1.57f, 0.0f, 0.0f });
 
         floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
-        return;
+        if (tile == 0) {
+            return;
+        }
     }
 
     if (tile == 1 || tile == 2 || tile == 3) {
-        floorObjects_[z][x].reset();
+        if (tile != 3) {
+            floorObjects_[z][x].reset();
+        }
 
         if (!wallObjects_[z][x]) {
             wallObjects_[z][x] = std::make_unique<Obj3d>();
