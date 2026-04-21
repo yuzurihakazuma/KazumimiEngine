@@ -1,7 +1,7 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <wrl/client.h>
-
+#include <d3d12.h>
 // --- エンジン側のファイル ---
 #include "engine/math/Matrix4x4.h"
 #include "engine/math/struct.h"
@@ -15,6 +15,8 @@ class Camera{
 public:
 	// GPUに送るデータ構造体
 	struct CameraForGPU{
+		Matrix4x4 view;       // 追加：ビュー行列
+		Matrix4x4 projection; // 追加：射影行列
 		Vector3 worldPosition;
 	};
 
@@ -43,6 +45,8 @@ public:
 	const Vector3& GetRotation() const{ return transform.rotate; } // 回転のgetter
 	const Vector3& GetWorldPosition() const{ return transform.translate; }
 	ID3D12Resource* GetCameraResource() const{return cameraResource_.Get();}// カメラ用リソースのgetter
+
+	D3D12_GPU_VIRTUAL_ADDRESS GetConstantBufferAddress() const{ return cameraResource_->GetGPUVirtualAddress(); }
 
 
 private:

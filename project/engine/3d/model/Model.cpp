@@ -174,6 +174,18 @@ void Model::SetTexture(const std::string& textureFilePath){
 	);
 }
 
+void Model::DrawOnly(uint32_t instanceCount){
+	ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
+
+	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+	commandList->IASetIndexBuffer(&indexBufferView_);
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	
+	// 描画 (テクスチャのセット処理は飛ばす)
+	commandList->DrawIndexedInstanced(static_cast< UINT >( modelData_.indices.size() ), instanceCount, 0, 0, 0);
+}
+
 Node Model::ParseNode(const aiNode* node) {
 	Node result;
 

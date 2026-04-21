@@ -37,9 +37,12 @@ void PipelineManager::Finalize(){
 	gpuParticleDrawRootSignature_.Reset();
 	gpuParticleDrawPipelineState_.Reset();
 
+	skyboxRootSignature_.Reset();
+	skyboxPipelineState_.Reset();
+
 	// ポストエフェクトの種類ごとのパイプラインステートも忘れずに解放
-	for (int i = 0; i < 10; ++i) {
-		if (postEffectPipelineStates_[i] != nullptr) {
+	for ( int i = 0; i < 10; ++i ) {
+		if ( postEffectPipelineStates_[i] != nullptr ) {
 			postEffectPipelineStates_[i].Reset();
 		}
 	}
@@ -48,7 +51,7 @@ void PipelineManager::Finalize(){
 
 // 初期化
 void PipelineManager::Initialize(DirectXCommon* dxCommon){
-		
+
 	assert(dxCommon);
 	assert(dxCommon->GetDevice());
 	assert(dxCommon->GetSrvManager() != nullptr);
@@ -65,12 +68,12 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateObject3DRootSignature();
 	// 3Dオブジェクト用グラフィックスパイプラインの作成
 	CreateObject3DGraphicsPipeline();
-	
+
 	// インスタンシング専用のルートシグネチャの作成
 	CreateInstancedObject3DRootSignature();
 	// インスタンシング専用のグラフィックスパイプラインの作成
 	CreateInstancedObject3DGraphicsPipeline();
-	
+
 	// パーティクル用ルートシグネチャの作成
 	CreateParticleRootSignature();
 	// パーティクル用グラフィックスパイプラインの作成
@@ -93,22 +96,26 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	CreateGPUParticleDrawRootSignature();
 	CreateGPUParticleDrawGraphicsPipeline();
 
+	// スカイボックス用のルートシグネチャとパイプラインの作成
+	CreateSkyboxRootSignature();
+	CreateSkyboxGraphicsPipeline();
+
 }
 
 void PipelineManager::SetPipeline(
-    ID3D12GraphicsCommandList* commandList,
-    PipelineType type
+	ID3D12GraphicsCommandList* commandList,
+	PipelineType type
 ){
-    assert(commandList);
+	assert(commandList);
 
-    switch ( type ) {
-    case PipelineType::Sprite:
-        commandList->SetGraphicsRootSignature(spriteRootSignature_.Get());
-        commandList->SetPipelineState(spritePipelineState_.Get());
-        commandList->IASetPrimitiveTopology(
-            D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
-        );
-        break;
+	switch ( type ) {
+	case PipelineType::Sprite:
+		commandList->SetGraphicsRootSignature(spriteRootSignature_.Get());
+		commandList->SetPipelineState(spritePipelineState_.Get());
+		commandList->IASetPrimitiveTopology(
+			D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
+		break;
 	case PipelineType::Object3D: // カリングあり
 		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
 		commandList->SetPipelineState(object3DPipelineState_.Get());
@@ -136,7 +143,14 @@ void PipelineManager::SetPipeline(
 		commandList->SetPipelineState(skinningObject3DPipelineState_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		break;
-    }
+	case PipelineType::Skybox:
+		commandList->SetGraphicsRootSignature(skyboxRootSignature_.Get());
+		commandList->SetPipelineState(skyboxPipelineState_.Get());
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		break;
+
+
+	}
 }
 // ルートシグネチャの生成 Sprite用
 void PipelineManager::CreateSpriteRootSignature(){
@@ -151,7 +165,7 @@ void PipelineManager::CreateSpriteRootSignature(){
 
 	// 構築して spriteRootSignature_ に入れる！
 	builder.Build(dxCommon_->GetDevice(), spriteRootSignature_);
-	
+
 
 }
 // グラフィックスパイプラインの生成 Sprite用
@@ -200,8 +214,8 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		L"resources/shaders/Object3d/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,         // 通常ブレンド
-		D3D12_CULL_MODE_BACK,      
-		true,           
+		D3D12_CULL_MODE_BACK,
+		true,
 		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		object3DPipelineState_
 	);
@@ -211,10 +225,10 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		L"resources/shaders/Object3d/Object3d.PS.hlsl",
 		object3DRootSignature_.Get(),
 		BlendMode::kNormal,
-		D3D12_CULL_MODE_NONE,  
+		D3D12_CULL_MODE_NONE,
 		true,
 		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
-		object3DPipelineStateNone_ 
+		object3DPipelineStateNone_
 	);
 
 }
@@ -352,7 +366,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 		.SetBlendMode(BlendMode::kNormal);
 
 	// for文で7個のシェーダーを一気にコンパイルして配列に保存！
-	for (int i = 0; i < 10; ++i) {
+	for ( int i = 0; i < 10; ++i ) {
 		auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(psPaths[i], L"ps_6_0");
 		builder.SetShaders(vsBlob.Get(), psBlob.Get());
 		builder.Build(dxCommon_->GetDevice(), postEffectPipelineStates_[i]);
@@ -360,7 +374,7 @@ void PipelineManager::CreatePostEffectPipeline(){
 }
 
 // ルートシグネチャの生成 スキニングメッシュ用
-void PipelineManager::CreateSkinningObject3DRootSignature() {
+void PipelineManager::CreateSkinningObject3DRootSignature(){
 	RootSignatureBuilder builder;
 	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
 	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標変換行列 (b0)
@@ -377,7 +391,7 @@ void PipelineManager::CreateSkinningObject3DRootSignature() {
 }
 
 // グラフィックスパイプラインの生成 スキニングメッシュ用
-void PipelineManager::CreateSkinningObject3DGraphicsPipeline() {
+void PipelineManager::CreateSkinningObject3DGraphicsPipeline(){
 	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(
 		L"resources/shaders/Object3d/SkinningObject3d.VS.hlsl", L"vs_6_0");
 	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(
@@ -451,6 +465,43 @@ void PipelineManager::CreateGPUParticleDrawGraphicsPipeline(){
 		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
 		gpuParticleDrawPipelineState_
 	);
+}
+
+void PipelineManager::CreateSkyboxRootSignature(){
+
+	RootSignatureBuilder builder;
+
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);                // [0]: 座標変換行列 (b0)
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL);  // [0]: テクスチャ (t0)
+	builder.AddDefaultSampler(0); // サンプラー (s0)
+
+	builder.Build(dxCommon_->GetDevice(), skyboxRootSignature_); // 構築して skyboxRootSignature_ に入れる！
+
+
+
+
+}
+
+void PipelineManager::CreateSkyboxGraphicsPipeline(){
+
+	auto vsBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Skybox/Skybox.VS.hlsl", L"vs_6_0");
+	auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(L"resources/shaders/Skybox/Skybox.PS.hlsl", L"ps_6_0");
+
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	GraphicsPipelineBuilder builder;
+	builder.SetRootSignature(skyboxRootSignature_.Get())
+		.SetShaders(vsBlob.Get(), psBlob.Get())
+		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
+		.SetBlendMode(BlendMode::kNormal)
+		.SetCullMode(D3D12_CULL_MODE_NONE) // カリングなし
+		.SetDepthStencil(true, false)      // 深度テストON、深度書き込みOFF (DepthFuncはビルダーの初期値 LESS_EQUAL が効く)
+		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // ※Object3D等と同じRTVフォーマットに合わせる
+
+	builder.Build(dxCommon_->GetDevice(), skyboxPipelineState_);
+
 }
 
 // GPUパーティクル用のComputeシェーダーパイプラインをコマンドリストにセットする関数
@@ -538,14 +589,14 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 }
 
 // ブレンドステートの共通関数
-void PipelineManager::SetPostEffectPipeline(ID3D12GraphicsCommandList* commandList, PostEffectType effectType) {
+void PipelineManager::SetPostEffectPipeline(ID3D12GraphicsCommandList* commandList, PostEffectType effectType){
 	// ルートシグネチャをセット
 	commandList->SetGraphicsRootSignature(postEffectRootSignature_.Get());
 
 	// enumの番号（0～6）を使って、対応するパイプラインをセット
-	int index = static_cast<int>(effectType);
+	int index = static_cast< int >( effectType );
 
-	if (postEffectPipelineStates_[index] != nullptr) {
+	if ( postEffectPipelineStates_[index] != nullptr ) {
 		commandList->SetPipelineState(postEffectPipelineStates_[index].Get());
 	}
 }

@@ -45,6 +45,15 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 	std::wstring filePathw = logManager.ConvertString(filePath);
 	HRESULT hr = DirectX::LoadFromWICFile(filePathw.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 
+	if ( filePath.ends_with(".dds") || filePath.ends_with(".DDS") ) {
+		// DDS用読み込み (CubeMapやMipMapを保持したまま読み込める)
+		hr = DirectX::LoadFromDDSFile(filePathw.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
+	} else {
+		// PNG/JPGなど WIC用読み込み
+		hr = DirectX::LoadFromWICFile(filePathw.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+	}
+
+
 	if ( FAILED(hr) ) {
 		logManager.Log("Failed to load texture: " + filePath + "\n");
 		assert(false);
@@ -52,15 +61,21 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 	}
 
 	// 2. 圧縮されていたら展開
-	if ( DirectX::IsCompressed(image.GetMetadata().format) ) {
-		DirectX::ScratchImage decompressedImage {};
-		hr = DirectX::Decompress(
-			image.GetImages(), image.GetImageCount(),
-			image.GetMetadata(), DXGI_FORMAT_UNKNOWN, decompressedImage);
-		if ( SUCCEEDED(hr) ) {
-			image = std::move(decompressedImage);
+	if ( !filePath.ends_with(".dds")&& !filePath.ends_with(".DDS") ){
+
+		if ( DirectX::IsCompressed(image.GetMetadata().format) ) {
+			DirectX::ScratchImage decompressedImage {};
+			hr = DirectX::Decompress(
+				image.GetImages(), image.GetImageCount(),
+				image.GetMetadata(), DXGI_FORMAT_UNKNOWN, decompressedImage);
+			if ( SUCCEEDED(hr) ) {
+				image = std::move(decompressedImage);
+			}
 		}
+
 	}
+	
+	
 
 	// 3. Format:91 (BGRA) 問題を回避するため、RGBAに変換
 	if ( image.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ) {
@@ -94,9 +109,13 @@ TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,
 	DirectX::ScratchImage image = LoadTexture(filePath);
 	const DirectX::TexMetadata& metadata = image.GetMetadata();
 
-	// 2. GPUテクスチャ作成
-	texData.resource = CreateTextureResource(metadata);
 
+	// 2. GPUリソース生成
+	if ( metadata.IsCubemap() ) {
+		texData.resource = CreateCubemapResource(metadata);
+	} else {
+		texData.resource = CreateTextureResource(metadata);
+	}
 	// 3. GPUへデータ転送
 	UploadTextureData(texData.resource, image, commandList);
 
@@ -107,8 +126,49 @@ TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,
 	texData.width = static_cast< float >( metadata.width );
 	texData.height = static_cast< float >( metadata.height );
 
-	// 5. SRV作成
-	srvManager_->CreateSRVforTexture2D(
+	// --- SRV作成も振り分ける ---
+	if ( metadata.IsCubemap() ) {
+		srvManager_->CreateSRVforTextureCube(
+			texData.srvIndex, texData.resource.Get(), metadata.format, static_cast< UINT >( metadata.mipLevels )
+		);
+	} else {
+		srvManager_->CreateSRVforTexture2D(
+			texData.srvIndex, texData.resource.Get(), metadata.format, static_cast< UINT >( metadata.mipLevels )
+		);
+	}
+
+	// 6. キャッシュに保存
+	textureDatas[filePath] = texData;
+
+	return texData;
+}
+
+TextureData TextureManager::LoadTextureAndCreateSRVCube(const std::string& filePath, ID3D12GraphicsCommandList* commandList){
+	// すでにロード済みならそれを返す
+	auto it = textureDatas.find(filePath);
+	if ( it != textureDatas.end() ) {
+		return it->second;
+	}
+
+	TextureData texData {};
+
+	// 1. 画像読み込み (DDS対応済みの LoadTexture が呼ばれる)
+	DirectX::ScratchImage image = LoadTexture(filePath);
+	const DirectX::TexMetadata& metadata = image.GetMetadata();
+
+	// 2. GPUテクスチャ作成 (★キューブマップ専用リソース作成を呼ぶ)
+	texData.resource = CreateCubemapResource(metadata);
+
+	// 3. GPUへデータ転送
+	UploadTextureData(texData.resource, image, commandList);
+
+	// 4. SRV用インデックスを確保
+	texData.srvIndex = srvManager_->Allocate();
+	texData.width = static_cast< float >( metadata.width );
+	texData.height = static_cast< float >( metadata.height );
+
+	// 5. SRV作成 (★さきほど作ったキューブマップ専用SRV作成を呼ぶ)
+	srvManager_->CreateSRVforTextureCube(
 		texData.srvIndex,
 		texData.resource.Get(),
 		metadata.format,
@@ -120,6 +180,7 @@ TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,
 
 	return texData;
 }
+
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata){
 	// 1. metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc {};
@@ -189,6 +250,45 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	return resource;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateCubemapResource(const DirectX::TexMetadata& metadata){
+	// 1. キューブマップ専用の設定を行う
+	D3D12_RESOURCE_DESC resourceDesc {};
+	resourceDesc.Width = UINT(metadata.width);
+	resourceDesc.Height = UINT(metadata.height);
+
+	//  DDSから読み取ったミップマップ数をそのまま使う
+	resourceDesc.MipLevels = UINT16(metadata.mipLevels);
+
+	//  ここが「6枚」の肝！
+	// キューブマップの場合、metadata.arraySize は必ず 6 になっています。
+	resourceDesc.DepthOrArraySize = 6;
+
+	resourceDesc.Format = metadata.format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // キューブマップも2Dテクスチャの配列
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	// 2. 利用するHeapの設定
+	D3D12_HEAP_PROPERTIES heapProperties {};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+	// 3. Resourceの生成
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
+	HRESULT hr = device_->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr, IID_PPV_ARGS(&resource));
+
+	if ( FAILED(hr) ) {
+		logManager.Log("CreateCubemapResource Failed\n");
+		return nullptr;
+	}
+
+	return resource;
+}
 
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
 	// nullptr ガード
