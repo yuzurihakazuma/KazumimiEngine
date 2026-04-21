@@ -27,6 +27,9 @@ void BossClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
+		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
+			obj_->GetModel()->GetMaterial()->emissive = 1.8f;
+		}
 		obj_->Update();
 	}
 }

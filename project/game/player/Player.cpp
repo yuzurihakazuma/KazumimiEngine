@@ -86,6 +86,8 @@ void Player::Initialize() {
 
     isDodging_ = false;
     dodgeTimer_ = 0;
+    dodgeInvincibleTimer_ = 0;
+    dodgeCooldownTimer_ = 0;
     dodgeDirection_ = { 0.0f, 0.0f, 0.0f };
 
     isActionLocked_ = false;  // 行動ロック初期化
@@ -188,6 +190,16 @@ void Player::Update() {
         }
     }
 
+    // 回避専用の無敵時間は通常の被弾後無敵とは分けて管理する
+    if (dodgeInvincibleTimer_ > 0) {
+        dodgeInvincibleTimer_--;
+    }
+
+    // 回避の連打を抑えるためにクールタイムを進める
+    if (dodgeCooldownTimer_ > 0) {
+        dodgeCooldownTimer_--;
+    }
+
     // 被弾演出時間の更新
     if (isHit_) {
         hitTimer_--;
@@ -220,6 +232,7 @@ void Player::Update() {
         }
 
         if (model_) {
+            model_->SetIsWalking(false); // カード使用などのロック中は歩きモーションを止める
             model_->SetTranslation(pos_);
             model_->SetRotation(rot_);
             model_->SetScale(scale_);
@@ -241,9 +254,11 @@ void Player::Update() {
     }
 
     // 回避開始
-    if (!isDodging_ && input->Triggerkey(DIK_LSHIFT)) {
+    if (!isDodging_ && dodgeCooldownTimer_ <= 0 && input->Triggerkey(DIK_LSHIFT)) {
         isDodging_ = true;
         dodgeTimer_ = dodgeDuration_;
+        dodgeInvincibleTimer_ = dodgeInvincibleDuration_;
+        dodgeCooldownTimer_ = dodgeCooldownDuration_;
 
         if (Length(move) > 0.0f) {
             dodgeDirection_ = move;
@@ -258,13 +273,28 @@ void Player::Update() {
     }
 
     if (isDodging_) {
-        pos_ += dodgeDirection_ * dodgeSpeed_;
-        rot_.x += 0.5f;
+        // ダクソ系に寄せて、前半だけ強く進み後半は失速する回避にする
+        float progress = 1.0f - (static_cast<float>(dodgeTimer_) / static_cast<float>(dodgeDuration_));
+        progress = Clamp01(progress);
+        float dodgeSpeed = dodgeStartSpeed_ + (dodgeEndSpeed_ - dodgeStartSpeed_) * progress;
+        pos_ += dodgeDirection_ * dodgeSpeed;
+
+        // 回避中の「くるっ」とした見た目だけは残す
+        rot_.x = progress * 6.28318f;
+        // 体を少し丸めるように傾けて、転がっている感じを足す
+        float curl = std::sinf(progress * 3.14159f);
+        rot_.z = curl * 0.45f;
 
         dodgeTimer_--;
         if (dodgeTimer_ <= 0) {
             isDodging_ = false;
+            dodgeTimer_ = 0;
             rot_.x = 0.0f;
+            rot_.z = 0.0f;
+
+            // 回避の終わり際に少しだけ後隙を作る
+            isActionLocked_ = true;
+            actionLockTimer_ = dodgeRecoveryDuration_;
         }
     } else if (Length(move) > 0.0f) {
         pos_ += move * (moveSpeed_ * speedMultiplier_);
@@ -536,7 +566,7 @@ void Player::UpdateCost() {
 
 // ダメージ処理
 void Player::TakeDamage(int damage, const Vector3& attackFrom) {
-    if (isDead_ || isDodging_ || isInvincible_) {
+    if (isDead_ || dodgeInvincibleTimer_ > 0 || isInvincible_) {
         return;
     }
 
@@ -784,6 +814,12 @@ void Player::UpdatePoseBlend() {
 
     if (poseBlendTimer_ <= 0) {
         for (const PoseBlendJointData& blendJoint : poseBlendJoints_) {
+            // 最終姿勢がゼロ差分なら編集オフセット自体を消して、歩きアニメをそのまま通す
+            if (IsNearlyZeroVector(blendJoint.targetRotation) && IsNearlyZeroVector(blendJoint.targetTranslation)) {
+                model_->ClearJointOffset(blendJoint.jointName);
+                continue;
+            }
+
             model_->SetJointRotationOffset(blendJoint.jointName, blendJoint.targetRotation);
             model_->SetJointTranslationOffset(blendJoint.jointName, blendJoint.targetTranslation);
         }

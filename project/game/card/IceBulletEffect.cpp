@@ -38,6 +38,9 @@ void IceBulletEffect::Start(const Vector3& casterPos, float casterYaw, bool isPl
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
+		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
+			obj_->GetModel()->GetMaterial()->emissive = 2.0f; // 氷弾をBloom対象に戻す
+		}
 		obj_->Update();
 
 		
@@ -222,8 +225,8 @@ void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* b
 }
 
 void IceBulletEffect::Draw() {
-	//// 有効中だけ描画
-	//if (!isFinished_ && obj_) {
-	//	obj_->Draw();
-	//}
+	// 有効中だけ描画
+	if (!isFinished_ && obj_) {
+		obj_->Draw();
+	}
 }

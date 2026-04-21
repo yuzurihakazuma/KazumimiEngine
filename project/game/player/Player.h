@@ -131,8 +131,14 @@ private:
     // 回避
     bool isDodging_ = false;
     int dodgeTimer_ = 0;
-    const int dodgeDuration_ = 15;
-    float dodgeSpeed_ = 0.6f;
+    int dodgeInvincibleTimer_ = 0;
+    int dodgeCooldownTimer_ = 0;
+    const int dodgeDuration_ = 18;
+    const int dodgeInvincibleDuration_ = 8;
+    const int dodgeRecoveryDuration_ = 8;
+    const int dodgeCooldownDuration_ = 20;
+    float dodgeStartSpeed_ = 0.42f;
+    float dodgeEndSpeed_ = 0.08f;
     Vector3 dodgeDirection_{ 0.0f, 0.0f, 0.0f };
 
     // 行動ロック

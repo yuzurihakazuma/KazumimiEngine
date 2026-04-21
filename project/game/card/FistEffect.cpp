@@ -38,6 +38,9 @@ void FistEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
+		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
+			obj_->GetModel()->GetMaterial()->emissive = 1.8f; // 近接攻撃にも発光を戻す
+		}
 		obj_->Update();
 	}
 }

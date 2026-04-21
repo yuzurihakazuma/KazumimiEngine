@@ -1248,6 +1248,12 @@ void GamePlayScene::Draw() {
 	// --- GPUパーティクル描画 ---
 	GPUParticleManager::GetInstance()->Draw(commandList);
 
+	// 手札カードもBloom対象にしたいので、MRT描画中に3Dとして描く
+	commandList->ClearDepthStencilView(dxCommon->GetDsvHandle(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	Obj3dCommon::GetInstance()->PreDraw(commandList);
+	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
+	handManager_.Draw();
+
 
 
 	// =========================================
@@ -1316,16 +1322,6 @@ void GamePlayScene::Draw() {
 	if (isCardSwapMode_ && swapUiSprite_) {
 		swapUiSprite_->Draw();
 	}
-
-	// 背景の3Dモデルにカードが埋まらないように、奥行き情報をリセット
-	commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	// 3D用の描画設定をセット
-	Obj3dCommon::GetInstance()->PreDraw(commandList);
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-
-	// 手札カード(3D)
-	handManager_.Draw();
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 	TextManager::GetInstance()->Draw();
 
