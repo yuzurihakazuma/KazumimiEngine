@@ -50,6 +50,8 @@ void TitleScene::Initialize() {
 	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
+	ModelManager::GetInstance()->LoadModel("wall", "resources/wall", "wall.obj");
+	ModelManager::GetInstance()->LoadModel("stairs", "resources/stairs", "stairs.obj");
 	ModelManager::GetInstance()->LoadModel("ground", "resources/Ground", "Ground.obj");
 
 	// 球モデル作成
