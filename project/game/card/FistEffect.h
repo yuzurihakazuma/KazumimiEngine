@@ -3,6 +3,9 @@
 
 class FistEffect : public ICardEffect {
 public:
+
+	FistEffect(int damage) : damage_(damage) {}
+
 	// 効果開始
 	void Start(const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Camera* camera) override;
 
@@ -25,4 +28,6 @@ private:
 	bool isPlayerCaster_ = true;             // 使用者がプレイヤーか
 	bool isFinished_ = false;                // 終了したか
 	int punchTimer_ = 0;                     // 効果時間
+
+	int damage_ = 0;                         // ダメージを保存しておく変数
 };

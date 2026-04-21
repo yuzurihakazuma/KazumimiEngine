@@ -35,13 +35,13 @@ void CardUseSystem::Initialize(Camera* camera) {
 
 	
 
-	effectFactory_[1] = [](const Card &c) { return std::make_unique<FistEffect>(); };
-	effectFactory_[2] = [](const Card &c) { return std::make_unique<FireballEffect>(); };
+	effectFactory_[1] = [](const Card &c) { return std::make_unique<FistEffect>(c.effectValue); };
+	effectFactory_[2] = [](const Card &c) { return std::make_unique<FireballEffect>(c.effectValue); };
 	effectFactory_[3] = [](const Card &c) { return std::make_unique<HealEffect>(5); };           
 	effectFactory_[4] = [](const Card &c) { return std::make_unique<SpeedBuffEffect>(1.5f); };   
 	effectFactory_[5] = [](const Card &c) { return std::make_unique<ShieldEffect>(); };       
 	effectFactory_[6] = [](const Card &c) { return std::make_unique<IceBulletEffect>(); };
-	effectFactory_[7] = [](const Card &c) { return std::make_unique<FangEffect>(); };
+	effectFactory_[7] = [](const Card &c) { return std::make_unique<FangEffect>(c.effectValue); };
 	effectFactory_[8] = [](const Card &c) { return std::make_unique<DecoyEffect>(300); };
 	effectFactory_[9] = [](const Card &c) { return std::make_unique<AttackDebuffEffect>(300); };
 	effectFactory_[10] = [](const Card &c) {return std::make_unique<ClawEffect>(c.effectValue); };

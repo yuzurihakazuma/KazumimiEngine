@@ -61,27 +61,49 @@ void ClawEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, 
 		// プレイヤーが使った場合
 		// ==================================================
 		if (isPlayerCaster_) {
-			// 🌟 敵への当たり判定（全員分チェック！）
+			// 雑魚敵への当たり判定
 			if (enemyManager) {
 				for (auto &enemy : enemyManager->GetEnemies()) {
-					if (!enemy || enemy->IsDead()) continue; // 死んでたら無視
+					if (!enemy || enemy->IsDead()) continue;
 
 					Vector3 enemyPos = enemy->GetPosition();
 					Vector3 diff = { enemyPos.x - pos_.x, 0.0f, enemyPos.z - pos_.z };
 
-					if (Length(diff) < 2.0f) { // 当たり判定の広さ
-						enemy->TakeDamage(damage_); // 受け取ったダメージ量を与える
-						hasHit_ = true; // 1回の振りで何度も当たらないようにする
-						break; // 1匹に当たったらこの攻撃の判定は終了（貫通させたいならbreakを消す）
+					if (Length(diff) < 2.0f) {
+						int randomDamage = 0;
+
+						// ★ 追加：1撃目と2撃目でダメージを変える！
+						if (timer_ <= 10) {
+							// 1撃目：基本ダメージを「半分」にしてランダムにする
+							randomDamage = (damage_ / 2) + (rand() % 3) - 1;
+						} else {
+							// 2撃目：本来の基本ダメージでランダムにする
+							randomDamage = damage_ + (rand() % 3) - 1;
+						}
+						if (randomDamage < 1) randomDamage = 1; // 最低1ダメージ保証
+
+						enemy->TakeDamage(randomDamage);
+						hasHit_ = true;
+						break;
 					}
 				}
 			}
 
-			// ボスへの当たり判定（ここは今のままでOK！）
+			// ボスへの当たり判定
 			if (boss && !boss->IsDead()) {
 				Vector3 diff = { bossPos.x - pos_.x, 0.0f, bossPos.z - pos_.z };
 				if (Length(diff) < 3.0f) {
-					boss->TakeDamage(damage_);
+					int randomDamage = 0;
+
+					// ★ 追加：1撃目と2撃目でダメージを変える！
+					if (timer_ <= 10) {
+						randomDamage = (damage_ / 2) + (rand() % 3) - 1;
+					} else {
+						randomDamage = damage_ + (rand() % 3) - 1;
+					}
+					if (randomDamage < 1) randomDamage = 1;
+
+					boss->TakeDamage(randomDamage);
 					hasHit_ = true;
 				}
 			}
@@ -94,8 +116,19 @@ void ClawEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, 
 				Vector3 diff = { playerPos.x - pos_.x, 0.0f, playerPos.z - pos_.z };
 
 				if (Length(diff) < 2.0f) { // プレイヤーへの当たり判定の広さ
-					// プレイヤーのTakeDamageは「ダメージ量」と「攻撃元の座標(pos_)」を渡す！
-					player->TakeDamage(damage_, pos_);
+					int randomDamage = 0;
+
+					// ★ 追加：1撃目と2撃目でダメージを変える！
+					if (timer_ <= 10) {
+						randomDamage = (damage_ / 2) + (rand() % 3) - 1;
+					} else {
+						randomDamage = damage_ + (rand() % 3) - 1;
+					}
+					if (randomDamage < 1) randomDamage = 1;
+
+					// プレイヤーのTakeDamageにランダムダメージを渡す！
+					// (Player.cpp側でデバフ判定があれば勝手に半減してくれます)
+					player->TakeDamage(randomDamage, pos_);
 					hasHit_ = true;
 				}
 			}
