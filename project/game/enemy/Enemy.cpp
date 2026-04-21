@@ -111,7 +111,8 @@ void Enemy::Update() {
     }
 
     if (thinkTimer_ <= 0) {
-        DecideNextState();               // 次の状態を決定
+        DecideNextState();
+        thinkTimer_ = 10;          // 次の状態を決定
     }
 
     if (isFrozen_) {
@@ -309,14 +310,6 @@ void Enemy::UpdateUseCard() {
         return;
     }
 
-    // 射程外なら撃たずに追跡へ戻す
-    if (dist > useRange + 1.5f) {
-        state_ = State::ChasePlayer;
-        thinkTimer_ = 0;
-        isCasting_ = false;
-        castTimer_ = 0;
-        return;
-    }
 
     // プレイヤー方向を向く
     if (dist > 0.01f) {

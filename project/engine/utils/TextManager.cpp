@@ -283,6 +283,17 @@ void TextManager::SetCentered(const std::string& key, bool isCentered) {
 	texts_[key].isCentered = isCentered;
 }
 
+void TextManager::SetScale(const std::string& key, float scale) {
+	texts_[key].scale = scale;
+}
+
+void TextManager::SetColor(const std::string& key, float r, float g, float b, float a) {
+	texts_[key].color[0] = r;
+	texts_[key].color[1] = g;
+	texts_[key].color[2] = b;
+	texts_[key].color[3] = a;
+}
+
 void TextManager::Finalize(){
 	spriteFont_.reset();
 	spriteBatch_.reset();
