@@ -168,14 +168,14 @@ void TitleScene::Update() {
 	camera_->SetFarClip(200.0f);
 	camera_->Update();
 
-
+	
 
 	auto* light = Obj3dCommon::GetInstance()->GetLightData();
-	if (light) {
+	/*if (light) {
 		light->direction = Normalize({ 0.038f, -0.997f, -0.074f });
 		light->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 		light->intensity = 0.43f;
-	}
+	}*/
 
 
 	// マップエディタ更新
