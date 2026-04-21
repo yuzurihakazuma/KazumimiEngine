@@ -534,11 +534,12 @@ void MapManager::UpdateTileObject(int x, int z) {
         if (tile == 1 || tile == 2) {
             wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + tileSize, z * tileSize });
             wallObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
+            wallObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
         } else {
-            wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + 2.5f, z * tileSize });
-            wallObjects_[z][x]->SetScale({ 1.0f, 2.0f, 1.0f });
+            wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + 2.0f, z * tileSize });
+            wallObjects_[z][x]->SetScale({ 1.5f,  1.5f,  1.5f });
+            wallObjects_[z][x]->SetRotation({ 0.0f,0.0f, 0.0f });
         }
-        wallObjects_[z][x]->SetRotation({ 0.0f, 0.0f, 0.0f });
         return;
     }
 
@@ -581,7 +582,7 @@ bool MapManager::IsNearStairsTile(int x, int z) const {
     int dx = x - stairsTile_.first;
     int dz = z - stairsTile_.second;
 
-    return std::abs(dx) <= 1 && std::abs(dz) <= 1;
+    return dx == 0 && dz == 0;
 }
 
 // 階段配置＋座標取得
