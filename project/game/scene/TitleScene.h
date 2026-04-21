@@ -107,6 +107,20 @@ private:
 
 	float titleRainScale_ = 1.1f;
 
+	// 選択肢の列挙型
+	enum class TitleChoice {
+		StartGame = 0,
+		Tutorial,
+		Count
+	};
 
+	TitleChoice currentSelection_ = TitleChoice::StartGame; // 現在の選択
+
+	// ボタン用スプライト
+	std::unique_ptr<Sprite> playBlueSprite_ = nullptr;
+	std::unique_ptr<Sprite> playWhiteSprite_ = nullptr;
+	std::unique_ptr<Sprite> tutorialBlueSprite_ = nullptr;
+	std::unique_ptr<Sprite> tutorialWhiteSprite_ = nullptr;
+	std::unique_ptr<Sprite> operateSprite_ = nullptr;
 
 };

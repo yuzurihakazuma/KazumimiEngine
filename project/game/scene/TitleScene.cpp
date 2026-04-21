@@ -118,13 +118,7 @@ void TitleScene::Initialize() {
 	TextManager::GetInstance()->Initialize();
 	const float screenW = static_cast<float>(windowProc->GetClientWidth());
 	const float screenH = static_cast<float>(windowProc->GetClientHeight());
-	// タイトルは複数行なので、画面中央付近に相対オフセットで置いて確実に見えるようにする
-	TextManager::GetInstance()->SetPosition("SceneMessage", screenW * 0.5f, screenH * 0.68f);
-	TextManager::GetInstance()->SetCentered("SceneMessage", true);
-	TextManager::GetInstance()->SetText(
-		"SceneMessage",
-		"PRESS SPACE TO START\nPRESS 0 FOR TUTORIAL"
-	);
+	
 
 	titleLogoSprite_ = Sprite::Create("resources/UI/Title.png", { screenW * 0.5f, screenH * 0.32f });
 	if (titleLogoSprite_) {
@@ -133,6 +127,17 @@ void TitleScene::Initialize() {
 		titleLogoSprite_->SetSize({ logoWidth, logoHeight });
 		titleLogoSprite_->Update();
 	}
+
+	// プレイ（Yを画面の60%の位置に）
+	playBlueSprite_ = Sprite::Create("resources/UI/TitlePlayChoice.png", { screenW * 0.5f, screenH * 0.58f });
+	playWhiteSprite_ = Sprite::Create("resources/UI/TitlePlay.png", { screenW * 0.5f, screenH * 0.58f });
+
+	// チュートリアル（Yを画面の75%の位置に）
+	tutorialBlueSprite_ = Sprite::Create("resources/UI/TitleTutorialChoice.png", { screenW * 0.5f, screenH * 0.73f });
+	tutorialWhiteSprite_ = Sprite::Create("resources/UI/TitleTutorial.png", { screenW * 0.5f, screenH * 0.73f });
+
+	// 操作説明の読み込み
+	operateSprite_ = Sprite::Create("resources/UI/TitleOperate.png", { screenW * 0.5f, screenH * 0.5f });
 
 	// モデル読み込み（カード）
 	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
@@ -203,20 +208,85 @@ void TitleScene::Update() {
 		AudioManager::GetInstance()->PlayWave(bgmFile_);
 	}
 
-	// SPACEでゲーム開始
-	if (input->Triggerkey(DIK_SPACE)) {
-		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
-		return;
+	// ==========================================
+	// W/Sキー または 上下矢印キーで選択
+	// ==========================================
+	if (input->Triggerkey(DIK_W) || input->Triggerkey(DIK_UP)) {
+		currentSelection_ = TitleChoice::StartGame;
+	}
+	if (input->Triggerkey(DIK_S) || input->Triggerkey(DIK_DOWN)) {
+		currentSelection_ = TitleChoice::Tutorial;
 	}
 
-	if (input->Triggerkey(DIK_0)) {
-		GamePlayScene::RequestTutorialStart(true);
-		SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+	// ==========================================
+	// スプライトのサイズ変更と更新
+	// ==========================================
+	const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+
+	// 元のキャンバスの縦横比（1280 / 1920）
+	float baseRatio = 1280.0f / 1920.0f;
+
+	// キャンバス全体を画面の約80%の大きさで描画する（Title.pngの0.78fに合わせる）
+	float normalW = screenW * 0.78f;
+	float activeW = screenW * 0.85f; // 選択時は90%に拡大
+
+	Vector2 normalSize = { normalW, normalW * baseRatio };
+	Vector2 activeSize = { activeW, activeW * baseRatio };
+
+	// 置きたい高さ（画面割合）
+	float centerX = screenW * 0.5f;
+	float centerY = screenH * 0.5f;
+
+	// --- プレイボタンの更新 ---
+	if (playBlueSprite_ && playWhiteSprite_) {
+		if (currentSelection_ == TitleChoice::StartGame) {
+			playBlueSprite_->SetSize(activeSize);
+			playBlueSprite_->SetPosition({ centerX, centerY-50 }); // 引き算を消去！
+			playBlueSprite_->Update();
+		} else {
+			playWhiteSprite_->SetSize(normalSize);
+			playWhiteSprite_->SetPosition({ centerX, centerY-50 }); // 引き算を消去！
+			playWhiteSprite_->Update();
+		}
+	}
+
+	// --- チュートリアルボタンの更新 ---
+	if (tutorialBlueSprite_ && tutorialWhiteSprite_) {
+		if (currentSelection_ == TitleChoice::Tutorial) {
+			tutorialBlueSprite_->SetSize(activeSize);
+			tutorialBlueSprite_->SetPosition({ centerX-50, centerY }); // 引き算を消去！
+			tutorialBlueSprite_->Update();
+		} else {
+			tutorialWhiteSprite_->SetSize(normalSize);
+			tutorialWhiteSprite_->SetPosition({ centerX-50, centerY }); // 引き算を消去！
+			tutorialWhiteSprite_->Update();
+		}
+	}
+
+	// 操作説明の更新
+	if (operateSprite_) {
+		// 非選択状態と同じ「通常サイズ（normalSize）」で中央に置く
+		operateSprite_->SetSize(normalSize);
+		operateSprite_->SetPosition({ centerX+170, centerY });
+		operateSprite_->Update();
+	}
+
+	// SPACEでゲーム開始
+	if (input->Triggerkey(DIK_SPACE)) {
+		if (currentSelection_ == TitleChoice::StartGame) {
+			// 通常プレイ
+			GamePlayScene::RequestTutorialStart(false);
+			SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+		} else if (currentSelection_ == TitleChoice::Tutorial) {
+			// チュートリアル
+			GamePlayScene::RequestTutorialStart(true);
+			SceneManager::GetInstance()->ChangeScene("GAMEPLAY");
+		}
 		return;
 	}
 
 	
-
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());
 
@@ -311,6 +381,22 @@ void TitleScene::Draw(){
 
 	if (titleLogoSprite_) {
 		titleLogoSprite_->Draw();
+	}
+
+	// 選択状況に応じて描画するスプライトを切り替える
+	if (currentSelection_ == TitleChoice::StartGame) {
+		// プレイを選択中
+		if (playBlueSprite_) playBlueSprite_->Draw();
+		if (tutorialWhiteSprite_) tutorialWhiteSprite_->Draw();
+	} else {
+		// チュートリアルを選択中
+		if (playWhiteSprite_) playWhiteSprite_->Draw();
+		if (tutorialBlueSprite_) tutorialBlueSprite_->Draw();
+	}
+
+	// 操作説明の描画
+	if (operateSprite_) {
+		operateSprite_->Draw();
 	}
 
 	// 6. UI（テキスト）描画
