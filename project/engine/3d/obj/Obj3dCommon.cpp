@@ -94,7 +94,7 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 
 	for ( uint32_t i = 0; i < MAX_DIRECTIONAL_LIGHTS; ++i ) {
 		directionalLightData_->lights[i].color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		directionalLightData_->lights[i].direction = Normalize({ 0.0f, -1.0f, 0.0f });
+		directionalLightData_->lights[i].direction = Normalize({ -1.0f, 0.3f, 0.0f });
 		// 最初のライトだけ強度を1、それ以外は0にしておく
 		directionalLightData_->lights[i].intensity = ( i == 0 ) ? 1.0f : 0.0f;
 	}
