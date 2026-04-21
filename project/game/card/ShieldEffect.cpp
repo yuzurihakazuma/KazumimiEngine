@@ -37,7 +37,7 @@ void ShieldEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlaye
 
 				material->color = { 0.5f, 0.8f, 1.0f, 1.0f }; // 水色
 
-				material->emissive = 0.5f; // 自己発光を少し加えると氷っぽく見えるかも
+				material->emissive = 1.8f; // Bloomに乗る強さまで自己発光を上げる
 
 
 			}

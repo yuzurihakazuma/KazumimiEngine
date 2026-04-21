@@ -18,6 +18,9 @@ void BossSummonEffect::Start(const Vector3 &casterPos, float casterYaw, bool isP
         obj_->SetCamera(camera);
         obj_->SetTranslation(pos_);
         obj_->SetScale({ 4.0f, 0.1f, 4.0f }); // 平べったく広く
+        if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
+            obj_->GetModel()->GetMaterial()->emissive = 2.0f;
+        }
         obj_->Update();
     }
 }

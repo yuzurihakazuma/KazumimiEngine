@@ -50,6 +50,9 @@ void FireballEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
 		if ( model ) {
 			// ベースを無地にする
 			model->SetTexture("resources/white1x1.png");
+			if (Model::Material* material = model->GetMaterial()) {
+				material->emissive = 2.2f; // Bloomに乗るように自己発光を強める
+			}
 		}
 	}
 }

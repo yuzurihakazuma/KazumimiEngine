@@ -27,6 +27,9 @@ void ClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
+		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
+			obj_->GetModel()->GetMaterial()->emissive = 1.8f; // 斬撃の発光をBloom対象にする
+		}
 		obj_->Update();
 	}
 

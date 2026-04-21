@@ -52,7 +52,7 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 			Model::Material* material = model->GetMaterial();
 			if ( material ) {
 				material->color = { 0.8f, 0.5f, 0.1f, 0.6f }; // 半透明のオレンジ/茶色
-				material->emissive = 1.0f; // 強く光らせる
+				material->emissive = 2.0f; // Bloom条件を超えるように強く光らせる
 			}
 		}
 	}

@@ -34,6 +34,16 @@ bool HandManager::AddCard(const Card& newCard) {
 			model->SetCamera(camera_);
 			model->SetNoiseTexture(noiseTextureIndex_);
 			model->SetDissolveThreshold(0.0f);
+			// 再利用枠でもカード種別に合わせてディゾルブ色を更新する
+			if (newCard.effectType == CardEffectType::Attack) {
+				model->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
+			} else if (newCard.effectType == CardEffectType::Heal) {
+				model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+			} else if (newCard.effectType == CardEffectType::Defense) {
+				model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+			} else if (newCard.effectType == CardEffectType::Special) {
+				model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+			}
 
 			handModels_[i] = std::move(model);
 
@@ -56,6 +66,16 @@ bool HandManager::AddCard(const Card& newCard) {
 		model->SetCamera(camera_);
 		model->SetNoiseTexture(noiseTextureIndex_);
 		model->SetDissolveThreshold(0.0f);
+		// 新規追加時もカード種別に応じた色でディゾルブさせる
+		if (newCard.effectType == CardEffectType::Attack) {
+			model->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
+		} else if (newCard.effectType == CardEffectType::Heal) {
+			model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+		} else if (newCard.effectType == CardEffectType::Defense) {
+			model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+		} else if (newCard.effectType == CardEffectType::Special) {
+			model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+		}
 
 		handModels_.push_back(std::move(model));
 		isDissolving_.push_back(false);
@@ -276,6 +296,16 @@ void HandManager::StartDissolveSelectedCard() {
 	dissolveThresholds_[selectedCardIndex_] = 0.0f;
 
 	if (handModels_[selectedCardIndex_]) {
+		// 使用直前に選択中カードの色を再反映して、ブルーム色ずれを防ぐ
+		if (hand_[selectedCardIndex_].effectType == CardEffectType::Attack) {
+			handModels_[selectedCardIndex_]->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
+		} else if (hand_[selectedCardIndex_].effectType == CardEffectType::Heal) {
+			handModels_[selectedCardIndex_]->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+		} else if (hand_[selectedCardIndex_].effectType == CardEffectType::Defense) {
+			handModels_[selectedCardIndex_]->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+		} else if (hand_[selectedCardIndex_].effectType == CardEffectType::Special) {
+			handModels_[selectedCardIndex_]->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+		}
 		handModels_[selectedCardIndex_]->SetDissolveThreshold(0.0f);
 	}
 }
@@ -342,4 +372,26 @@ void HandManager::RemoveCardImmediate(int index) {
 	if (selectedCardIndex_ < 0) {
 		selectedCardIndex_ = 0;
 	}
+}
+#include "HandManager.h"
+
+#include "Engine/3D/Model/ModelManager.h"
+
+namespace {
+// カード種別ごとのディゾルブ色をモデルへ反映する
+void ApplyCardDissolveColor(Obj3d* model, CardEffectType effectType) {
+	if (model == nullptr) {
+		return;
+	}
+
+	if (effectType == CardEffectType::Attack) {
+		model->SetDissolveColor({ 1.0f, 0.2f, 0.05f });
+	} else if (effectType == CardEffectType::Heal) {
+		model->SetDissolveColor({ 0.1f, 1.0f, 0.2f });
+	} else if (effectType == CardEffectType::Defense) {
+		model->SetDissolveColor({ 0.0f, 0.5f, 1.0f });
+	} else if (effectType == CardEffectType::Special) {
+		model->SetDissolveColor({ 0.7f, 0.2f, 1.0f });
+	}
+}
 }

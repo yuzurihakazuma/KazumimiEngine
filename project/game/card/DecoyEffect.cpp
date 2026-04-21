@@ -15,6 +15,9 @@ void DecoyEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayer
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
+		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
+			obj_->GetModel()->GetMaterial()->emissive = 1.6f; // デコイも軽く発光させる
+		}
 		obj_->Update();
 	}
 
