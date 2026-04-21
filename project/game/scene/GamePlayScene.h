@@ -11,6 +11,8 @@
 #include "engine/3d/animation/CustomAnimation.h"
 #include "engine/particle/GPUParticleEmitter.h"
 
+#include "Skybox.h"
+
 // --- 標準ライブラリ ---
 #include <vector>
 #include <memory>
@@ -78,6 +80,7 @@ private: // メンバ変数
 	std::unique_ptr<Obj3d> testObj_ = nullptr;
 
 	
+	std::unique_ptr<Skybox> skybox_ = nullptr;
 	
 	
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）

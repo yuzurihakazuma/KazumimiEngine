@@ -74,6 +74,10 @@ void Camera::Update(){
 
 	// 4. 合成行列の更新
 	viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
+
+	cameraData_->view = viewMatrix;             // ビュー行列を送る
+	cameraData_->projection = projectionMatrix; // 射影行列を送る
+
 	// 5. GPU転送用データの更新
 	cameraData_->worldPosition = transform.translate;
 

@@ -1,4 +1,4 @@
-#include "SkyBox.PS.hlsl"
+#include "SkyBox.hlsli"
 
 
 TextureCube<float32_t4> skyboxTexture : register(t0);

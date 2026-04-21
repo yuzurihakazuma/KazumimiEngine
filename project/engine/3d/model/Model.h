@@ -90,6 +90,12 @@ public: // メンバ関数
 
 	const std::vector<std::string>& GetBoneOrder() const { return modelData_.boneOrder; }
 
+	// 頂点インデックスの数を取得する
+	uint32_t GetIndexCount() const{ return static_cast< uint32_t >( modelData_.indices.size() ); }
+
+	// テクスチャ設定をスキップして描画命令だけを出す (Skyboxなどで使用)
+	void DrawOnly(uint32_t instanceCount = 1);
+
 
 private: // 内部関数
 	 

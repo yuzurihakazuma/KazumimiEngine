@@ -66,6 +66,10 @@ void GamePlayScene::Initialize(){
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 	
+	skybox_ = std::make_unique<Skybox>();
+	skybox_->Initialize("resources/StandardCubeMap.dds", commandList);
+
+
 	// エディタマネージャーの生成
 	EditorManager::GetInstance()->Initialize();
 
@@ -254,6 +258,10 @@ void GamePlayScene::Draw(){
 
 	// 
 	if (skinnedObj_) { skinnedObj_->Draw(); }
+
+	if ( skybox_ ) {
+		skybox_->Draw(commandList, camera_.get());
+	}
 
 
 	// --- パーティクル描画 ---

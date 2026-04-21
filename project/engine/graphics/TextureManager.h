@@ -63,6 +63,12 @@ public:
         ID3D12GraphicsCommandList* commandList
     );
 
+    TextureData LoadTextureAndCreateSRVCube(
+        const std::string& filePath,
+        ID3D12GraphicsCommandList* commandList
+    );
+
+
     // -------------------- GPU テクスチャリソース生成 --------------------
 
     /// <summary>
@@ -70,6 +76,9 @@ public:
     /// </summary>
     Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(const DirectX::TexMetadata& metadata);
 
+
+    // 既存の CreateTextureResource
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateCubemapResource(const DirectX::TexMetadata& metadata);
 
     // -------------------- テクスチャデータ転送 --------------------
 

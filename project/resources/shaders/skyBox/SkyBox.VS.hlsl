@@ -1,4 +1,4 @@
-#include "SkyBox.VS.hlsl"
+#include "SkyBox.hlsli"
 
 cbuffer Camera: register(b0){
     matrix view;
@@ -10,7 +10,8 @@ struct VertexShaderInput{
     
 };
 
-VertexShader main(VertexShaderInput input){
+VertexShaderOutput main(VertexShaderInput input)
+{
     VertexShaderOutput output;
  
     matrix viewNoTranslation = view;
