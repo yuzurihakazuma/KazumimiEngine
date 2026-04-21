@@ -3,7 +3,7 @@
 ConstantBuffer<Material> gMaterial : register(b0); // マテリアルの定数バッファ
 Texture2D<float4> gTexture : register(t0); // テクスチャ
 SamplerState gSampler : register(s0); // サンプラー
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1); // 平行光源の定数バッファ
+ConstantBuffer<DirectionalLightData> gDirectionalLightData : register(b1);
 ConstantBuffer<Camera> gCamera : register(b2); // カメラの定数バッファ
 ConstantBuffer<PointLight> gPointLight : register(b3); // 点光源の定数バッファ
 ConstantBuffer<SpotLight> gSpotLight : register(b4); // スポットライトの定数バッファ
@@ -46,16 +46,21 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     if (gMaterial.enableLighting != 0)
     {
-        //  平行光源 (Directional Light) の計算
-        float NdotL_Dir = dot(normalize(input.normal), -gDirectionalLight.direction);
-        float cos_Dir = pow(NdotL_Dir * 0.5f + 0.5f, 2.0f);
-        diffuseDirectional = gMaterial.color.rgb * textureColor.rgb * gDirectionalLight.color.rgb * cos_Dir * gDirectionalLight.intensity;
-        
-        float3 halfVector_Dir = normalize(-gDirectionalLight.direction + toEye);
-        float NDotH_Dir = dot(normalize(input.normal), halfVector_Dir);
-        float specularPow_Dir = pow(saturate(NDotH_Dir), gMaterial.shininess);
-        specularDirectional = gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow_Dir * float3(1.0f, 1.0f, 1.0f);
-
+        for (int i = 0; i < gDirectionalLightData.activeCount; ++i)
+        {
+            float NdotL_Dir = dot(normalize(input.normal), -gDirectionalLightData.lights[i].direction);
+            float cos_Dir = pow(NdotL_Dir * 0.5f + 0.5f, 2.0f);
+            
+            // += を使って光を足し合わせる
+            diffuseDirectional += gMaterial.color.rgb * textureColor.rgb * gDirectionalLightData.lights[i].color.rgb * cos_Dir * gDirectionalLightData.lights[i].intensity;
+            
+            float3 halfVector_Dir = normalize(-gDirectionalLightData.lights[i].direction + toEye);
+            float NDotH_Dir = dot(normalize(input.normal), halfVector_Dir);
+            float specularPow_Dir = pow(saturate(NDotH_Dir), gMaterial.shininess);
+            
+            // += を使ってハイライトを足し合わせる
+            specularDirectional += gDirectionalLightData.lights[i].color.rgb * gDirectionalLightData.lights[i].intensity * specularPow_Dir * float3(1.0f, 1.0f, 1.0f);
+        }
         //  点光源 (Point Light) の計算
         float3 pointLightDirection = normalize(input.worldPosition - gPointLight.position);
         float NdotL_Point = dot(normalize(input.normal), -pointLightDirection);
@@ -99,8 +104,8 @@ PixelShaderOutput main(VertexShaderOutput input)
         specularSpot = gSpotLight.color.rgb * gSpotLight.intensity * specularPow_Spot * float3(1.0f, 1.0f, 1.0f) * attenuationFactor * falloffFactor;
         
         
-        // --- 光の計算結果を合成 
-        output.color.rgb = diffuseDirectional + specularDirectional + diffusePoint + specularPoint + diffuseSpot + specularSpot;
+        float3 ambient = gMaterial.color.rgb * textureColor.rgb * 0.15f; // 0.15は環境光の強さ。お好みで調整してください
+        output.color.rgb = ambient + diffuseDirectional + specularDirectional + diffusePoint + specularPoint + diffuseSpot + specularSpot;
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else
