@@ -43,11 +43,11 @@ void MapManager::Initialize() {
 
     // 壁インスタンスグループ
     wallGroup_ = std::make_unique<InstancedGroup>();
-    wallGroup_->Initialize("block", 10000);
+    wallGroup_->Initialize("wall", 10000);
 
     // 階段インスタンスグループ
     stairsGroup_ = std::make_unique<InstancedGroup>();
-    stairsGroup_->Initialize("block", 10000);
+    stairsGroup_->Initialize("stairs", 10000);
 
     // マップ読み込み
     LoadAndCreateMap(currentMapFile_);
@@ -491,14 +491,17 @@ void MapManager::UpdateTileObject(int x, int z) {
     if (z < 0 || z >= levelData_.height || x < 0 || x >= levelData_.width) return;
 
     Model* floorModel = ModelManager::GetInstance()->FindModel("ground");
-    Model* wallModel = ModelManager::GetInstance()->FindModel("block");
-    if (floorModel == nullptr || wallModel == nullptr) return;
+    Model* wallModel = ModelManager::GetInstance()->FindModel("wall");
+    Model* stairsModel = ModelManager::GetInstance()->FindModel("stairs");
+    if (floorModel == nullptr || wallModel == nullptr || stairsModel == nullptr) return;
 
     const float tileSize = levelData_.tileSize;
     const int tile = levelData_.tiles[z][x];
 
-    if (tile == 0) {
-        wallObjects_[z][x].reset();
+    if (tile == 0 || tile == 3) {
+        if (tile == 0) {
+            wallObjects_[z][x].reset();
+        }
 
         if (!floorObjects_[z][x]) {
             floorObjects_[z][x] = std::make_unique<Obj3d>();
@@ -511,17 +514,22 @@ void MapManager::UpdateTileObject(int x, int z) {
         floorObjects_[z][x]->SetRotation({ -1.57f, 0.0f, 0.0f });
 
         floorObjects_[z][x]->SetScale({ 1.0f, 1.0f, 1.0f });
-        return;
+        if (tile == 0) {
+            return;
+        }
     }
 
     if (tile == 1 || tile == 2 || tile == 3) {
-        floorObjects_[z][x].reset();
+        if (tile != 3) {
+            floorObjects_[z][x].reset();
+        }
 
         if (!wallObjects_[z][x]) {
             wallObjects_[z][x] = std::make_unique<Obj3d>();
-            wallObjects_[z][x]->Initialize(wallModel);
+            wallObjects_[z][x]->Initialize(tile == 3 ? stairsModel : wallModel);
             wallObjects_[z][x]->SetCamera(camera_);
         }
+        wallObjects_[z][x]->SetModel(tile == 3 ? stairsModel : wallModel);
 
         if (tile == 1 || tile == 2) {
             wallObjects_[z][x]->SetTranslation({ x * tileSize, levelData_.baseY + tileSize, z * tileSize });

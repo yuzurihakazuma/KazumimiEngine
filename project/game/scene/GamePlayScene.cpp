@@ -63,6 +63,8 @@ void GamePlayScene::Initialize() {
 
 	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
 	ModelManager::GetInstance()->LoadModel("block", "resources/block", "block.obj");
+	ModelManager::GetInstance()->LoadModel("wall", "resources/wall", "wall.obj");
+	ModelManager::GetInstance()->LoadModel("stairs", "resources/stairs", "stairs.obj");
 
 	// プレイヤーモデル読み込み
 	ModelManager::GetInstance()->LoadModel("player", "resources/player", "player.gltf");

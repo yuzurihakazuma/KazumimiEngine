@@ -526,7 +526,7 @@ void EnemyManager::CheckCollisions(Player* player, MapManager* mapManager) {
 
 		for (int z = startZ; z <= endZ; z++) {
 			for (int x = startX; x <= endX; x++) {
-				if (level.tiles[z][x] != 1) {
+				if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
 					continue;
 				}
 

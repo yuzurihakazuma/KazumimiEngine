@@ -176,7 +176,7 @@ void BossManager::Update(
 
 		for (int z = bStartZ; z <= bEndZ && !isBossHit; z++) {
 			for (int x = bStartX; x <= bEndX; x++) {
-				if (level.tiles[z][x] != 1) {
+				if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
 					continue;
 				}
 

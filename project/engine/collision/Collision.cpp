@@ -92,7 +92,7 @@ bool Collision::CheckBlockCollision(const Vector3 &pos, float radius, const Leve
     for (int z = 0; z < level.height; z++) {
         for (int x = 0; x < level.width; x++) {
 
-            if (level.tiles[z][x] != 1) {
+            if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
                 continue;
             }
 
