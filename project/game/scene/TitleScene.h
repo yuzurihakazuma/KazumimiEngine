@@ -14,6 +14,7 @@
 class DebugCamera;
 class Camera;
 class Obj3d;
+class Sprite;
 class RenderTexture;
 class PostEffect;
 class MapManager;
@@ -83,6 +84,8 @@ private:
 
 	bool isEditorActive_ = true;
 
+	std::unique_ptr<Sprite> titleLogoSprite_ = nullptr;
+
 	// タイトル背景用
 	Vector3 titleBgCameraPos_ = { 9.0f, 35.0f, 9.0f };
 	Vector3 titleBgCameraRot_ = { 1.57f, 0.0f, 0.0f };
@@ -92,17 +95,18 @@ private:
 	std::vector<TitleRainCard> titleRainCards_;
 
 	// カード雨のパラメータ
-	int titleRainCardCount_ = 24;
+	int titleRainCardCount_ = 30;
 
-	float titleRainSpawnX_ = 36.0f;
-	float titleRainResetX_ = 62.0f;
+	float titleRainSpawnX_ = 28.0f;
+	float titleRainResetX_ = 78.0f;
 
 	float titleRainY_ = 7.0f;
 
-	float titleRainSpawnMinZ_ = 38.0f;
-	float titleRainSpawnMaxZ_ = 60.0f;
+	float titleRainSpawnMinZ_ = 42.0f;
+	float titleRainSpawnMaxZ_ = 56.0f;
 
-	float titleRainScale_ = 1.0f;
+	float titleRainScale_ = 1.1f;
+
 
 
 };

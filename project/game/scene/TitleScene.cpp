@@ -15,6 +15,7 @@
 #include "Engine/Scene/SceneManager.h"
 #include "Engine/Camera/Camera.h"
 #include "Engine/Camera/DebugCamera.h"
+#include "Engine/2D/Sprite.h"
 #include "Engine/3D/Obj/Obj3d.h"
 #include "Engine/Base/Input.h"
 #include "Engine/3D/Obj/Obj3dCommon.h"
@@ -118,12 +119,20 @@ void TitleScene::Initialize() {
 	const float screenW = static_cast<float>(windowProc->GetClientWidth());
 	const float screenH = static_cast<float>(windowProc->GetClientHeight());
 	// タイトルは複数行なので、画面中央付近に相対オフセットで置いて確実に見えるようにする
-	TextManager::GetInstance()->SetPosition("SceneMessage", screenW * 0.5f - 220.0f, screenH * 0.5f - 100.0f);
-	TextManager::GetInstance()->SetCentered("SceneMessage", false);
+	TextManager::GetInstance()->SetPosition("SceneMessage", screenW * 0.5f, screenH * 0.68f);
+	TextManager::GetInstance()->SetCentered("SceneMessage", true);
 	TextManager::GetInstance()->SetText(
 		"SceneMessage",
-		"TITLE\n\nPRESS SPACE TO START\nPRESS 0 FOR TUTORIAL"
+		"PRESS SPACE TO START\nPRESS 0 FOR TUTORIAL"
 	);
+
+	titleLogoSprite_ = Sprite::Create("resources/UI/Title.png", { screenW * 0.5f, screenH * 0.32f });
+	if (titleLogoSprite_) {
+		const float logoWidth = screenW * 0.78f;
+		const float logoHeight = logoWidth * (1280.0f / 1920.0f);
+		titleLogoSprite_->SetSize({ logoWidth, logoHeight });
+		titleLogoSprite_->Update();
+	}
 
 	// モデル読み込み（カード）
 	ModelManager::GetInstance()->LoadModel("cardR", "resources/card", "CardR.obj");
@@ -176,6 +185,16 @@ void TitleScene::Update() {
 
 	// タイトル背景のカード雨更新
 	UpdateTitleCardRain();
+
+	if (titleLogoSprite_) {
+		const float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+		const float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+		const float logoWidth = screenW * 0.78f;
+		const float logoHeight = logoWidth * (1280.0f / 1920.0f);
+		titleLogoSprite_->SetPosition({ screenW * 0.5f, screenH * 0.32f });
+		titleLogoSprite_->SetSize({ logoWidth, logoHeight });
+		titleLogoSprite_->Update();
+	}
 
 	Input* input = Input::GetInstance();
 
@@ -290,6 +309,10 @@ void TitleScene::Draw(){
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(0, finalSrv);
 	commandList->DrawInstanced(3, 1, 0, 0);
 
+	if (titleLogoSprite_) {
+		titleLogoSprite_->Draw();
+	}
+
 	// 6. UI（テキスト）描画
 	TextManager::GetInstance()->Draw();
 
@@ -299,6 +322,7 @@ void TitleScene::Draw(){
 
 void TitleScene::Finalize() {
 	object3ds_.clear();
+	titleLogoSprite_.reset();
 	mapManager_.reset();
 
 	// タイトル用テキストを消す
@@ -320,10 +344,27 @@ void TitleScene::InitializeTitleCardRain() {
 	titleRainCards_.clear();
 	titleRainCards_.resize(titleRainCardCount_);
 
-	for (auto& card : titleRainCards_) {
-		ResetTitleRainCard(card, true);
+	for (int i = 0; i < titleRainCardCount_; ++i) {
+		ResetTitleRainCard(titleRainCards_[i], false);
+
+		float t = 0.0f;
+		if (titleRainCardCount_ > 1) {
+			t = static_cast<float>(i) / static_cast<float>(titleRainCardCount_ - 1);
+		}
+
+		titleRainCards_[i].position.x =
+			titleRainSpawnX_ + (titleRainResetX_ - titleRainSpawnX_) * t;
+
+		titleRainCards_[i].position.z =
+			RandomRange(titleRainSpawnMinZ_, titleRainSpawnMaxZ_);
+
+		if (titleRainCards_[i].obj) {
+			titleRainCards_[i].obj->SetTranslation(titleRainCards_[i].position);
+			titleRainCards_[i].obj->Update();
+		}
 	}
 }
+
 
 // タイトル背景のカード雨のリセット（位置や回転をランダムに再設定）
 void TitleScene::ResetTitleRainCard(TitleRainCard& card, bool randomY) {
@@ -337,7 +378,7 @@ void TitleScene::ResetTitleRainCard(TitleRainCard& card, bool randomY) {
 	card.obj = Obj3d::Create(modelName);
 
 	card.position = {
-	randomY ? RandomRange(titleRainSpawnX_, titleRainResetX_) : titleRainSpawnX_,
+	titleRainSpawnX_ + RandomRange(-2.0f, 2.0f),
 	titleRainY_,
 	RandomRange(titleRainSpawnMinZ_, titleRainSpawnMaxZ_)
 	};
@@ -354,7 +395,7 @@ void TitleScene::ResetTitleRainCard(TitleRainCard& card, bool randomY) {
 		RandomRange(-0.04f, 0.04f)
 	};
 
-	card.fallSpeed = RandomRange(0.04f, 0.12f);
+	card.fallSpeed = RandomRange(0.04f, 0.04f);
 
 	if (card.obj) {
 		card.obj->SetCamera(camera_.get());
