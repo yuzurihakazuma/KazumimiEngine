@@ -75,7 +75,7 @@ void PlayerManager::Update(
     for (int z = startZ; z <= endZ && !isPlayerHit; z++) {
         for (int x = startX; x <= endX; x++) {
             // 壁タイル以外は無視
-            if (level.tiles[z][x] != 1) {
+            if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
                 continue;
             }
 
