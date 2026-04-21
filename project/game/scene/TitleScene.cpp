@@ -133,10 +133,7 @@ void TitleScene::Update() {
 		return;
 	}
 
-	// パーティクル発生
-	if (input->Triggerkey(DIK_P)) {
-		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
-	}
+	
 
 	// パーティクル更新
 	ParticleManager::GetInstance()->Update(camera_.get());

@@ -169,20 +169,7 @@ void GamePlayScene::Initialize() {
 	// 引数: (ファイルパス, 座標)
 	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
 	// プレイヤーオブジェクト生成
-	testObj_ = Obj3d::Create("block");
-	if (testObj_) {
 
-		testObj_->SetCamera(camera_.get());
-		testObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
-
-		// ノイズ画像と初期の閾値(0.0)をセット
-		testObj_->SetNoiseTexture(textures_["noise0"].srvIndex);
-		testObj_->SetDissolveThreshold(0.0f);
-
-		//testObj_->PlayAnimation(&testAnimation_);
-
-		Bloom::GetInstance()->SetTargetEmissivePower(&testObj_->GetModel()->GetMaterial()->emissive);
-	}
 
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
@@ -1108,13 +1095,9 @@ void GamePlayScene::Update() {
 	}
 
 		// GPUパーティクル更新
-		GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
+	GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera_.get());
 
 	
-	
-
-	emitter_.Update(1.0f / 60.0f);
-
 	//// InstancedGroup に「最新のデータをお願い！」と渡すだけ
 	//if (blockGroup_) {
 	//	blockGroup_->Update(blocks_);
@@ -1232,9 +1215,7 @@ void GamePlayScene::Draw() {
 		obj->Draw();
 	}
 
-	// testObj（Homemade-engine から残す）
-	if (testObj_) { testObj_->Draw(); }
-
+	
 	// InstancedGroup
 	if (blockGroup_) {
 		blockGroup_->Draw(camera_.get());
