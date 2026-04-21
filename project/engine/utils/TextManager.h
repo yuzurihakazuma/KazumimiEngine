@@ -22,6 +22,9 @@ struct TextData{
 	float scale = 1.0f;
 	bool isCentered = false;
 	float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };  // RGBAカラー (0.0f〜1.0f)
+	bool hasOutline = false;
+	float outlineColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float outlineOffset = 2.0f;
 };
 
 // テキストデータを管理するクラス
@@ -54,6 +57,9 @@ public:
 	// 座標変更
 	void SetPosition(const std::string& key, float x, float y);
 	void SetCentered(const std::string& key, bool isCentered);
+	void SetScale(const std::string& key, float scale);
+	void SetColor(const std::string& key, float r, float g, float b, float a = 1.0f);
+	void SetOutline(const std::string& key, bool enabled, float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f, float offset = 2.0f);
 
 private:
 	// 外部からのインスタンス生成を禁止
