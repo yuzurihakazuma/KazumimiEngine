@@ -101,6 +101,7 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 
 		// --- ② プレイヤーの位置を教える ---
 		enemy->SetPlayerPosition(targetPos);
+		enemy->SetBossRoomBehavior(mapManager->IsBossMap());
 
 		// --- ③ 近くに落ちているカードを探す（引数のcardPickupManagerを使う） ---
 		bool foundCard = false;

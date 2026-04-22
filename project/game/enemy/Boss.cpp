@@ -8,7 +8,7 @@
 using namespace VectorMath;
 
 namespace {
-constexpr float kBossAppearRiseHeight = 5.5f;
+constexpr float kBossAppearDropHeight = 18.0f;
 }
 
 void Boss::Initialize() {
@@ -129,7 +129,7 @@ Card Boss::SelectCardForDistance(float dist, bool isEnraged) {
 
 int Boss::GetCastTimeForCard(int cardId, bool isEnraged) const {
     if (cardId == 104) {
-        return isEnraged ? 60 : 82;
+        return isEnraged ? 90 : 120;
     }
 
     if (cardId == 103) {
@@ -158,15 +158,30 @@ void Boss::ApplyCastingPose(float normalizedTime) {
     // 破壊光線は必殺技らしく、腰を落としてためてから前へ押し出す構えにする
     if (selectedCard_.id == 104) {
         float charge = std::sinf(t * 3.14159f);
-        rot_.x = 0.18f + settle * 0.38f;
-        rot_.z = std::sinf(t * 9.42477f) * 0.12f;
+        float pulse = 0.5f + 0.5f * std::sinf(t * 18.84954f);
+        float hold = t * t * (3.0f - 2.0f * t);
+
+        rot_.x = 0.22f + hold * 0.55f;
+        rot_.z = std::sinf(t * 12.56636f) * 0.08f;
+
         scale_ = {
-            2.0f + charge * 0.35f,
-            1.85f - charge * 0.20f + settle * 0.15f,
-            2.0f + settle * 0.85f
+            2.0f + charge * 0.25f + pulse * 0.04f,
+            1.75f - charge * 0.22f,
+            2.0f + hold * 1.25f + pulse * 0.08f
         };
+
+        if (t > 0.72f) {
+            float finisher = (t - 0.72f) / 0.28f;
+            finisher = std::clamp(finisher, 0.0f, 1.0f);
+
+            rot_.x += finisher * 0.18f;
+            scale_.z += finisher * 0.45f;
+            scale_.y -= finisher * 0.06f;
+        }
         return;
     }
+
+
 
     if (selectedCard_.id == 103) {
         scale_ = {
@@ -182,6 +197,26 @@ void Boss::ApplyCastingPose(float normalizedTime) {
         2.0f + settle * 0.18f,
         2.0f + settle * 0.22f
     };
+}
+
+void Boss::ApplyPreBattlePose(float normalizedTime) {
+    float t = std::clamp(normalizedTime, 0.0f, 1.0f);
+    float ease = t * t * (3.0f - 2.0f * t);
+
+    rot_.x = 0.10f + ease * 0.22f;
+    rot_.z = std::sinf(t * 3.14159f) * 0.05f;
+
+    scale_ = {
+        2.0f + ease * 0.10f,
+        2.0f - ease * 0.06f,
+        2.0f + ease * 0.18f
+    };
+}
+
+void Boss::ResetPose() {
+    rot_.x = 0.0f;
+    rot_.z = 0.0f;
+    scale_ = { 2.0f, 2.0f, 2.0f };
 }
 
 void Boss::Update() {
@@ -267,14 +302,41 @@ void Boss::UpdateAppear() {
     }
 
     float t = 1.0f - (static_cast<float>(appearTimer_) / static_cast<float>(appearDuration_));
-    float eased = t * t * (3.0f - 2.0f * t);
+    t = std::clamp(t, 0.0f, 1.0f);
+
+    // 落下は速く、着地前で少しためる
+    float eased = 1.0f - std::pow(1.0f - t, 4.0f);
 
     pos_.y = appearStartY_ + (appearTargetY_ - appearStartY_) * eased;
-    rot_.y += 0.03f;
+
+    // 落下中の前傾とひねり
+    rot_.x = (1.0f - t) * 0.45f;
+    rot_.y += 0.18f;
+    rot_.z = std::sinf(t * 9.42477f) * 0.12f;
+
+    // 着地前後の膨らみ
+    float impact = std::sinf(t * 3.14159f);
+    scale_ = {
+        2.0f + impact * 0.12f,
+        2.0f - impact * 0.08f,
+        2.0f + impact * 0.12f
+    };
 
     if (appearTimer_ <= 0) {
         pos_.y = appearTargetY_;
-        rot_.y = 0.0f;
+        rot_.x = 0.0f;
+        rot_.z = 0.0f;
+
+        Vector3 dir = {
+            playerPos_.x - pos_.x,
+            0.0f,
+            playerPos_.z - pos_.z
+        };
+
+        if (Length(dir) > 0.01f) {
+            rot_.y = std::atan2f(dir.x, dir.z);
+        }
+
         state_ = State::Idle;
         thinkTimer_ = 20;
     }
@@ -375,6 +437,12 @@ void Boss::UpdateUseCard() {
         };
 
         selectedCard_ = SelectCardForDistance(Length(startDir), isEnraged);
+
+        // ビームはHP半分以下の時だけ
+        if (selectedCard_.id == 104 && !isEnraged) {
+            selectedCard_ = { -1, "", 0 };
+        }
+
         if (selectedCard_.id < 0) {
             state_ = State::Chase;
             thinkTimer_ = 20;
@@ -442,16 +510,22 @@ void Boss::UpdateUseCard() {
     if (dist < 5.5f) {
         addWeightedCard(101, 5);
         addWeightedCard(102, isEnraged ? 2 : 1);
-        addWeightedCard(104, isEnraged ? 3 : 2);
+        if (isEnraged) {
+            addWeightedCard(104, 3);
+        }
         addWeightedCard(103, 1);
     } else if (dist < 14.0f) {
         addWeightedCard(102, isEnraged ? 7 : 5);
-        addWeightedCard(104, isEnraged ? 6 : 4);
+        if (isEnraged) {
+            addWeightedCard(104, 6);
+        }
         addWeightedCard(103, isEnraged ? 3 : 2);
         addWeightedCard(101, 2);
     } else {
         addWeightedCard(102, isEnraged ? 8 : 6);
-        addWeightedCard(104, isEnraged ? 7 : 5);
+        if (isEnraged) {
+            addWeightedCard(104, 7);
+        }
         addWeightedCard(103, isEnraged ? 5 : 4);
     }
 
@@ -613,6 +687,6 @@ int Boss::GetCardCooldownTime(int cardId) const {
 
 void Boss::SetSpawnPosition(const Vector3& pos) {
     appearTargetY_ = pos.y;
-    appearStartY_ = pos.y - kBossAppearRiseHeight;
+    appearStartY_ = pos.y + kBossAppearDropHeight;
     pos_ = { pos.x, appearStartY_, pos.z };
 }

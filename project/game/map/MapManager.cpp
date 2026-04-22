@@ -608,14 +608,9 @@ void MapManager::AdvanceFloor(
 
     if (bossManager) {
         if (isBossFloor) {
-            bossManager->SetBossIntroPlaying(true);
-            bossManager->SetBossIntroCameraState(BossManager::IntroCameraState::PlayerFocus);
-            bossManager->SetBossIntroTimer(60);
-            bossManager->SetBossCardRainTimer(bossManager->GetBossCardRainInterval());
+            bossManager->StartBossIntro();
         } else {
-            bossManager->SetBossIntroPlaying(false);
-            bossManager->SetBossIntroCameraState(BossManager::IntroCameraState::None);
-            bossManager->SetBossIntroTimer(0);
+            bossManager->EndBossIntro();
             bossManager->SetBossCardRainTimer(0);
         }
     }
