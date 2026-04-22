@@ -40,6 +40,7 @@ public:
         hasTargetCard_ = hasTarget; // 目標カードの有無
         targetCardPos_ = pos;       // 目標カード位置
     }
+    void SetBossRoomBehavior(bool isBossRoom) { isBossRoom_ = isBossRoom; }
 
     // 状態関連
     void SetState(State state) { state_ = state; } // 状態設定
@@ -122,6 +123,7 @@ private:
     float moveRange_ = 3.0f;    // 旧巡回範囲
 
     float chaseRange_ = 14.0f;       // プレイヤーを追跡し始める距離
+    float bossRoomChaseRange_ = 30.0f; // ボス部屋での追跡距離
     float cardUseEnterRange_ = 6.0f; // カード使用に入る距離
     float cardUseExitRange_ = 7.5f;  // カード使用をやめる距離
     float retreatEnterRange_ = 3.0f; // 離れる行動に入る距離
@@ -142,8 +144,10 @@ private:
     Vector3 patrolTarget_{ 5.0f, 0.0f, 5.0f }; // 巡回時の次の目標地点
     int patrolWaitTimer_ = 0;                  // 目標を決め直すまでの待機
     int investigateTimer_ = 0;                 // 見失い後の捜索時間
+    int bossRoomInvestigateFrames_ = 300;      // ボス部屋での捜索継続時間
     float patrolTargetRadius_ = 5.5f;          // 巡回先を散らす半径
     float patrolTargetMinDistance_ = 2.0f;     // 次の巡回先が近すぎないようにする距離
+    bool isBossRoom_ = false;                  // ボス部屋かどうか
 
     Card baseCard_{ -1, "", 0 };        // 固定のパンチカード
     bool hasPickupCard_ = false;        // 拾ったカードを持っているか

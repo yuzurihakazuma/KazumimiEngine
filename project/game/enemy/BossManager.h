@@ -17,10 +17,12 @@ class BossManager {
 public:
     // ボス登場時のカメラ演出状態
     enum class IntroCameraState {
-        None,        // 通常
-        PlayerFocus, // プレイヤーを見る
-        BossFocus,   // ボスを見る
-        ToBattle     // 戦闘位置へ移動
+        None,           // 通常
+        SkyLook,        // 空を見上げる
+        BossReveal,     // 上空のボスを見せる
+        BossDropFollow, // 落下中のボスを追う
+        BossLandImpact, // 着地の見せ場
+        ToBattle        // 戦闘位置へ移動
     };
 
 public:

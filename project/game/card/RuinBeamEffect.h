@@ -21,7 +21,7 @@ private:
     std::unique_ptr<Obj3d> obj_ = nullptr;
     Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
     Vector3 rot_ = { 0.0f, 0.0f, 0.0f };
-    Vector3 baseScale_ = { 1.8f, 1.0f, 10.5f };
+    Vector3 baseScale_ = { 2.4f, 1.2f, 16.0f };
 
     int damage_ = 6;
     int lifeTimer_ = 72;

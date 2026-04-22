@@ -240,6 +240,9 @@ private: // メンバ変数
 	CustomAnimationTrack skinnedAnimTrack_;
 	float skinnedAnimTime_ = 0.0f;
 
+	// イントロ演出用の変数
+	Vector3 introPlayerPos_{ 0.0f, 0.0f, 0.0f };
+	Vector3 introBossPos_{ 0.0f, 0.0f, 0.0f };
 	
 	// GPUパーティクルエミッター
 	GPUParticleEmitter emitter_;

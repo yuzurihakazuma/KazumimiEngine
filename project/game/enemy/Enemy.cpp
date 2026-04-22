@@ -59,6 +59,7 @@ void Enemy::Initialize() {
     patrolWaitTimer_ = 0;
     investigateTimer_ = 0;
     lastKnownPlayerPos_ = pos_;
+    isBossRoom_ = false;
 }
 
 void Enemy::Update() {
@@ -195,14 +196,16 @@ void Enemy::DecideNextState() {
     };
 
     float playerDist = Length(toPlayer);          // プレイヤーとの距離
+    const float activeChaseRange = isBossRoom_ ? bossRoomChaseRange_ : chaseRange_;
+    const int investigateFrames = isBossRoom_ ? bossRoomInvestigateFrames_ : 150;
     float useRange = GetUseRangeForCurrentCard(); // 現在カードの射程
     float exitRange = useRange + 1.5f;            // 使用状態を維持する余裕距離
     float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 近すぎる判定距離
 
     // プレイヤーが追跡範囲にいる間は、最後に見た位置を更新しておく
-    if (playerDist <= chaseRange_) {
+    if (playerDist <= activeChaseRange) {
         lastKnownPlayerPos_ = playerPos_;
-        investigateTimer_ = 150;
+        investigateTimer_ = investigateFrames;
     } else if (investigateTimer_ > 0) {
         investigateTimer_--;
     }
@@ -247,7 +250,7 @@ void Enemy::DecideNextState() {
             state_ = State::Retreat;
         } else if (playerDist <= useRange) {
             state_ = State::UseCard;
-        } else if (playerDist <= chaseRange_) {
+        } else if (playerDist <= activeChaseRange) {
             state_ = State::ChasePlayer;
         } else if (investigateTimer_ > 0) {
             state_ = State::Investigate;
@@ -263,7 +266,7 @@ void Enemy::DecideNextState() {
         state_ = State::MoveToCard;
     } else if (playerDist <= useRange) {
         state_ = State::UseCard;
-    } else if (playerDist <= chaseRange_) {
+    } else if (playerDist <= activeChaseRange) {
         state_ = State::ChasePlayer;
     } else if (investigateTimer_ > 0) {
         state_ = State::Investigate;
@@ -334,9 +337,10 @@ void Enemy::UpdateMoveToCard() {
 
 void Enemy::UpdateChasePlayer() {
     Vector3 targetPos = playerPos_;
+    const float activeChaseRange = isBossRoom_ ? bossRoomChaseRange_ : chaseRange_;
 
     // 視界から外れた直後は、最後に見た位置の方へ寄る
-    if (Length(playerPos_ - pos_) > chaseRange_ && investigateTimer_ > 0) {
+    if (Length(playerPos_ - pos_) > activeChaseRange && investigateTimer_ > 0) {
         targetPos = lastKnownPlayerPos_;
     }
 

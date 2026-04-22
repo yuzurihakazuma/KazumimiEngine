@@ -76,6 +76,9 @@ public:
         summonCount_ = 0;
     }
 
+    void PlayPreBattlePose(float normalizedTime) { ApplyPreBattlePose(normalizedTime); }
+    void ClearPreBattlePose() { ResetPose(); }
+
 private:
     void DecideNextState();
     void UpdateAppear();
@@ -86,6 +89,8 @@ private:
     Card SelectCardForDistance(float dist, bool isEnraged);
     int GetCastTimeForCard(int cardId, bool isEnraged) const;
     void ApplyCastingPose(float normalizedTime);
+    void ApplyPreBattlePose(float normalizedTime);
+    void ResetPose();
 
     bool IsCardReady(int cardId) const;
     void StartCardCooldown(int cardId, int time);
@@ -133,7 +138,7 @@ private:
     float appearStartY_ = -4.0f;
     float appearTargetY_ = 2.0f;
     int appearTimer_ = 0;
-    const int appearDuration_ = 60;
+    const int appearDuration_ = 110;
 
     bool summonRequest_ = false;
     int summonCount_ = 0;

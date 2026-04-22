@@ -70,6 +70,7 @@ void BossManager::Reset() {
     }
 
     bossDeadHandled_ = false;
+    EndBossIntro();
 }
 
 void BossManager::RespawnInRoom(MapManager* mapManager) {
@@ -109,10 +110,10 @@ void BossManager::RespawnInRoom(MapManager* mapManager) {
 }
 
 void BossManager::StartBossIntro() {
-    isBossIntroPlaying_ = true;
-    bossIntroCameraState_ = IntroCameraState::PlayerFocus;
-    bossIntroTimer_ = 60;
-    bossCardRainTimer_ = bossCardRainInterval_;
+	isBossIntroPlaying_ = true;
+	bossIntroCameraState_ = IntroCameraState::SkyLook;
+	bossIntroTimer_ = 50;
+	bossCardRainTimer_ = bossCardRainInterval_;
 }
 
 void BossManager::EndBossIntro() {
@@ -153,7 +154,10 @@ void BossManager::Update(
 
 		// プレイヤー位置を教えてAI更新
 		boss_->SetPlayerPosition(targetPos);
-		boss_->Update();
+		// 登場演出中は、Appearの間だけ更新する
+		if (!isBossIntroPlaying_ || boss_->IsAppearing()) {
+			boss_->Update();
+		}
 
 		Vector3 bossPos = boss_->GetPosition();
 
