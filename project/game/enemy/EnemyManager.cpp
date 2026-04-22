@@ -36,6 +36,40 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 
 	const LevelData &level = mapManager->GetLevelData();
 
+	// 敵が壁に触れているかを簡易的に判定する
+	auto IsEnemyHitWall = [&](const Vector3& pos) -> bool {
+		AABB enemyAABB;
+		enemyAABB.min = { pos.x - 0.5f, pos.y - 0.5f, pos.z - 0.5f };
+		enemyAABB.max = { pos.x + 0.5f, pos.y + 0.5f, pos.z + 0.5f };
+
+		int gridX = static_cast<int>(std::round(pos.x / level.tileSize));
+		int gridZ = static_cast<int>(std::round(pos.z / level.tileSize));
+		int startX = (std::max)(0, gridX - 1);
+		int endX = (std::min)(level.width - 1, gridX + 1);
+		int startZ = (std::max)(0, gridZ - 1);
+		int endZ = (std::min)(level.height - 1, gridZ + 1);
+
+		for (int z = startZ; z <= endZ; z++) {
+			for (int x = startX; x <= endX; x++) {
+				if (level.tiles[z][x] != 1 && level.tiles[z][x] != 2) {
+					continue;
+				}
+
+				float worldX = x * level.tileSize;
+				float worldZ = z * level.tileSize;
+				AABB blockAABB;
+				blockAABB.min = { worldX - 1.0f, level.baseY, worldZ - 1.0f };
+				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
+
+				if (Collision::IsCollision(enemyAABB, blockAABB)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	};
+
 	// 敵全員分ループ
 	for (size_t i = 0; i < enemies_.size(); ++i) {
 		auto& enemy = enemies_[i];
@@ -49,7 +83,7 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 				if (player) {
 					player->AddExp(1);
 				}
-				if (enemy->HasPickupCard()) {
+				if (enemy->HasUsablePickupCard()) {
 					cardPickupManager->AddPickup(enemy->GetPosition(), enemy->GetPickupCard());
 					enemy->ClearPickupCard();
 				}
@@ -111,7 +145,8 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 				blockAABB.max = { worldX + 1.0f, level.baseY + 2.0f, worldZ + 1.0f };
 
 				if (Collision::IsCollision(enemyAABB, blockAABB)) {
-					enemy->SetPosition(oldEnemyPos);
+					// 壁押し戻しでは巡回基準まで巻き戻さない
+					enemy->SetPositionOnly(oldEnemyPos);
 					isEnemyHit = true;
 					break;
 				}
@@ -119,6 +154,49 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 		}
 
 		// --- ⑥ 見た目（3Dモデル）に座標を反映 ---
+		// 壁にぶつかって元の位置へ戻された時は、軸移動や横滑りで抜けられるかを試す
+		if (isEnemyHit) {
+			Vector3 resolvedPos = enemy->GetPosition();
+			if (Length(resolvedPos - oldEnemyPos) <= 0.0001f) {
+				Vector3 moveDelta = enemyPos - oldEnemyPos;
+				Vector3 slideX = oldEnemyPos;
+				Vector3 slideZ = oldEnemyPos;
+				slideX.x += moveDelta.x;
+				slideZ.z += moveDelta.z;
+
+				bool moved = false;
+				if (std::abs(moveDelta.x) > 0.0001f && !IsEnemyHitWall(slideX)) {
+					enemy->SetPositionOnly(slideX);
+					moved = true;
+				}
+				else if (std::abs(moveDelta.z) > 0.0001f && !IsEnemyHitWall(slideZ)) {
+					enemy->SetPositionOnly(slideZ);
+					moved = true;
+				}
+				else if (Length(moveDelta) > 0.0001f) {
+					Vector3 moveDir = Normalize(moveDelta);
+					Vector3 sideDirA = { moveDir.z, 0.0f, -moveDir.x };
+					Vector3 sideDirB = { -moveDir.z, 0.0f, moveDir.x };
+					float sideStep = (std::max)(0.35f, Length(moveDelta));
+					Vector3 sidePosA = oldEnemyPos + sideDirA * sideStep;
+					Vector3 sidePosB = oldEnemyPos + sideDirB * sideStep;
+
+					if (!IsEnemyHitWall(sidePosA)) {
+						enemy->SetPositionOnly(sidePosA);
+						moved = true;
+					}
+					else if (!IsEnemyHitWall(sidePosB)) {
+						enemy->SetPositionOnly(sidePosB);
+						moved = true;
+					}
+				}
+
+				if (!moved) {
+					enemy->SetPositionOnly(oldEnemyPos);
+				}
+			}
+		}
+
 		if (enemyObjs_[i]) {
 			enemyObjs_[i]->SetTranslation(enemy->GetPosition());
 			enemyObjs_[i]->SetRotation(enemy->GetRotation());
@@ -199,7 +277,8 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 					float pushAmount = pushRange - dist;
 					enemyPos.x += pushDir.x * pushAmount;
 					enemyPos.z += pushDir.z * pushAmount;
-					enemy->SetPosition(enemyPos);
+					// ボスとの押し分けでも巡回アンカーは維持する
+					enemy->SetPositionOnly(enemyPos);
 				}
 			}
 		}
