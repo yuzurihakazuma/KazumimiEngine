@@ -66,10 +66,20 @@ LevelUpResult LevelUpBonusManager::Update(PlayerManager *playerManager, HandMana
             isSelecting_ = true;
             currentSelectedChoice_ = Choice::IncreaseMaxHandSize; // デフォルトは枠増加
 
+            // 画面が出た直後、30フレーム(0.5秒)は入力を受け付けない！
+            inputDelayTimer_ = 30;
+
             // 記憶しているレベルを更新（ApplyBonus後に再度Updateが呼ばれた際に、まだレベルが残っていれば再度Selectingに移行する）
             previousPlayerLevel_++;
         }
     } else {
+
+        // タイマーが残っている間は入力を無視してリターンする
+        if (inputDelayTimer_ > 0) {
+            inputDelayTimer_--;
+            return finalResult;
+        }
+
         // 選択画面表示中：入力処理（A/Dキー または 左右矢印キー）
         if (input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT)) {
             currentSelectedChoice_ = Choice::IncreaseMaxHandSize;
