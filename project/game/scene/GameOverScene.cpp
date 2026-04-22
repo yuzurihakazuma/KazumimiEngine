@@ -50,12 +50,23 @@ void GameOverScene::Initialize(){
 
     // GAME OVER画像を画面中央より少し上に表示する
     gameOverSprite_ = Sprite::Create("resources/UI/Game_Over.png", { screenW * 0.5f, screenH * 0.40f });
-    if ( gameOverSprite_ ) {
+
+	spaceSprite_ = Sprite::Create("resources/UI/GAME_overUI.png", { screenW * 0.5f, screenH * 0.60f });
+
+    if ( spaceSprite_ ) {
         const float logoWidth = screenW * 0.90f;
         const float logoHeight = logoWidth * ( 1080.0f / 1920.0f );
-        gameOverSprite_->SetSize({ logoWidth, logoHeight });
-        gameOverSprite_->Update();
+        spaceSprite_->SetSize({ logoWidth, logoHeight });
+        spaceSprite_->Update();
     }
+	// 画面サイズに合わせてGAME OVER画像の大きさを更新する
+    if ( spaceSprite_ ) {
+        const float logoWidth = screenW * 0.90f;
+        const float logoHeight = logoWidth * ( 1080.0f / 1920.0f );
+        spaceSprite_->SetSize({ logoWidth, logoHeight });
+        spaceSprite_->Update();
+    }
+
 }
 
 void GameOverScene::Update(){
@@ -83,6 +94,17 @@ void GameOverScene::Update(){
         gameOverSprite_->SetPosition({ screenW * 0.5f, screenH * 0.50f });
         gameOverSprite_->SetSize({ logoWidth, logoHeight });
         gameOverSprite_->Update();
+    }
+
+    if ( spaceSprite_ ) {
+        const float screenW = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
+        const float screenH = static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
+        const float logoWidth = screenW * 0.90f;
+        const float logoHeight = logoWidth * ( 1080.0f / 1920.0f );
+
+        spaceSprite_->SetPosition({ screenW * 0.5f, screenH * 0.50f });
+        spaceSprite_->SetSize({ logoWidth, logoHeight });
+        spaceSprite_->Update();
     }
 
     // スペースキーでタイトルへ戻る
@@ -131,11 +153,18 @@ void GameOverScene::Draw(){
     if ( gameOverSprite_ ) {
         gameOverSprite_->Draw();
     }
+	// 7. スペースキーでタイトルに戻ることを促すUIのスプライトを描画する
+    if ( spaceSprite_ ) {
+        spaceSprite_->Draw();
+    }
+
+
 }
 
 void GameOverScene::Finalize(){
     // GameOverSceneで作ったものだけ解放する
     gameOverSprite_.reset();
+	spaceSprite_.reset();
     mapManager_.reset();
     camera_.reset();
 }

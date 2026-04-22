@@ -30,6 +30,10 @@ private:
 
     // GAME CLEARのPNGを描画するスプライト
     std::unique_ptr<Sprite> gameClearSprite_ = nullptr;
+    // スペースキーでタイトルに戻ることを促すUIのスプライト
+    std::unique_ptr<Sprite> spaceSprite_ = nullptr;
+
+
 
     // ゲームオーバーと同じ向きで背景を見るためのカメラ設定
     Vector3 gameClearBgCameraPos_ = { 49.0f, 16.0f, 49.1f };

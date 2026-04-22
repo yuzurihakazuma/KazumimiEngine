@@ -50,12 +50,27 @@ void GameClearScene::Initialize(){
 
     // GAME CLEAR画像をゲームオーバーと同じ位置に表示する
     gameClearSprite_ = Sprite::Create("resources/UI/GAME_CLEAR.png", { screenW * 0.5f, screenH * 0.40f });
+
+	// スペースキーでタイトルに戻ることを促すUIもゲームオーバーと同じ位置に表示する
+    spaceSprite_ = Sprite::Create("resources/UI/CrearUI.png", { screenW * 0.5f, screenH * 0.60f });
+
+
+
     if ( gameClearSprite_ ) {
         const float logoWidth = screenW * 0.90f;
         const float logoHeight = logoWidth * ( 1080.0f / 1920.0f );
         gameClearSprite_->SetSize({ logoWidth, logoHeight });
         gameClearSprite_->Update();
     }
+
+    // 画面サイズに合わせてGAME OVER画像の大きさを更新する
+    if ( spaceSprite_ ) {
+        const float logoWidth = screenW * 0.90f;
+        const float logoHeight = logoWidth * ( 1080.0f / 1920.0f );
+        spaceSprite_->SetSize({ logoWidth, logoHeight });
+        spaceSprite_->Update();
+    }
+
 }
 
 void GameClearScene::Update(){
@@ -83,6 +98,17 @@ void GameClearScene::Update(){
         gameClearSprite_->SetPosition({ screenW * 0.5f, screenH * 0.50f });
         gameClearSprite_->SetSize({ logoWidth, logoHeight });
         gameClearSprite_->Update();
+    }
+
+    if ( spaceSprite_ ) {
+        const float screenW = static_cast< float >( WindowProc::GetInstance()->GetClientWidth() );
+        const float screenH = static_cast< float >( WindowProc::GetInstance()->GetClientHeight() );
+        const float logoWidth = screenW * 0.90f;
+        const float logoHeight = logoWidth * ( 1080.0f / 1920.0f );
+
+        spaceSprite_->SetPosition({ screenW * 0.5f, screenH * 0.50f });
+        spaceSprite_->SetSize({ logoWidth, logoHeight });
+        spaceSprite_->Update();
     }
 
     // スペースキーでタイトルへ戻る
@@ -131,11 +157,16 @@ void GameClearScene::Draw(){
     if ( gameClearSprite_ ) {
         gameClearSprite_->Draw();
     }
+    // 7. スペースキーでタイトルに戻ることを促すUIのスプライトを描画する
+    if ( spaceSprite_ ) {
+        spaceSprite_->Draw();
+    }
 }
 
 void GameClearScene::Finalize(){
     // GameClearSceneで作ったものだけ解放する
     gameClearSprite_.reset();
+	spaceSprite_.reset();
     mapManager_.reset();
     camera_.reset();
 }

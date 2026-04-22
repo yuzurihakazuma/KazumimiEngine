@@ -31,6 +31,9 @@ private:
     // GAME OVERのPNGを描画するスプライト
     std::unique_ptr<Sprite> gameOverSprite_ = nullptr;
 
+	// スペースキーでタイトルに戻ることを促すUIのスプライト
+	std::unique_ptr<Sprite> spaceSprite_ = nullptr;
+
     // タイトル画面と同じ向きで背景を見るためのカメラ設定
     Vector3 gameOverBgCameraPos_ = { 49.0f, 16.0f, 49.1f };
     Vector3 gameOverBgCameraRot_ = { 1.57f, -1.57f, 0.0f };
