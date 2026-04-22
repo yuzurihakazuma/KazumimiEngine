@@ -7,6 +7,7 @@
 // トゲ1本分の情報
 struct FangData {
 	Vector3 pos;       // 出現位置
+	float currentY;    // 現在のY座標（出現アニメーション用）
 	int delayTimer;    // 出現までの待機時間
 	int activeTimer;   // 出現中の残り時間
 	bool isActive;     // 現在有効か
