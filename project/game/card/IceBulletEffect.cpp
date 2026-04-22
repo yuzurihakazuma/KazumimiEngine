@@ -226,7 +226,7 @@ void IceBulletEffect::Update(Player* player, EnemyManager *enemyManager, Boss* b
 
 void IceBulletEffect::Draw() {
 	// 有効中だけ描画
-	if (!isFinished_ && obj_) {
-		obj_->Draw();
-	}
+	//if (!isFinished_ && obj_) {
+	//	obj_->Draw();
+	//}
 }

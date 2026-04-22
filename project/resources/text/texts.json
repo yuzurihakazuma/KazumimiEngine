@@ -6,21 +6,127 @@
             1.0,
             1.0
         ],
+        "isCentered": false,
         "scale": 1.0,
-        "text": "",
-        "x": 12.0,
-        "y": 453.0
+        "text": "【殴り】\n  Cost : 0\n１～２ダメージ与える",
+        "x": 1510.0,
+        "y": 25.0
     },
-    "ReadyCardT": {
-    "color": [
-            0.054054081439971924,
-            0.041897132992744446,
-            0.005426277406513691,
+    "CostLack": {
+        "color": [
+            1.0,
+            0.20000000298023224,
+            0.20000000298023224,
             1.0
         ],
+        "isCentered": false,
+        "scale": 1.600000023841858,
+        "text": "",
+        "x": 860.0,
+        "y": 483.0
+    },
+    "PauseResume": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": true,
+        "scale": 1.0,
+        "text": "",
+        "x": 960.0,
+        "y": 493.0
+    },
+    "PauseTitle": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": true,
+        "scale": 1.0,
+        "text": "",
+        "x": 960.0,
+        "y": 393.0
+    },
+    "PauseToTitle": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": true,
+        "scale": 1.0,
+        "text": "",
+        "x": 960.0,
+        "y": 533.0
+    },
+    "PlayerCost": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": false,
+        "scale": 1.0,
+        "text": "COST : 999 / 999",
+        "x": 460.0,
+        "y": 20.0
+    },
+    "PlayerEXP": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": false,
+        "scale": 1.0,
+        "text": "EXP : 0 / 3",
+        "x": 860.0,
+        "y": 20.0
+    },
+    "PlayerHP": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": false,
+        "scale": 1.0,
+        "text": "HP : 8 / 8",
+        "x": 260.0,
+        "y": 20.0
+    },
+    "PlayerLevel": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": false,
+        "scale": 1.0,
+        "text": "LV : 1",
+        "x": 760.0,
+        "y": 20.0
+    },
+    "ReadyCardT": {
+        "color": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ],
+        "isCentered": false,
         "scale": 1.2000000476837158,
         "text": "",
-        "x": -3.0,
-        "y": 267.0
+        "x": 1480.0,
+        "y": 230.0
     }
 }
