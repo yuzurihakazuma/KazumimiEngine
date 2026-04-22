@@ -1028,7 +1028,7 @@ void GamePlayScene::Update() {
 		cardReadyTimer_--; // 毎フレーム時間を減らす
 
 		// 画面に表示する文字を作る
-		std::string displayText = "Eキーで発動：" + readiedCard_.name;
+		std::string displayText = "Eキーで発動：\n" + readiedCard_.name;
 
 		if (cardReadyTimer_ > 120) {
 			// 【残り2秒(120フレーム)より多いとき】

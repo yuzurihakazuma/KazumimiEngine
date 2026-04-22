@@ -115,7 +115,7 @@ void TitleScene::Initialize() {
 	mapManager_->FillAllTiles(1);
 
 	// タイトル用テキストを設定
-	TextManager::GetInstance()->Initialize();
+	
 	const float screenW = static_cast<float>(windowProc->GetClientWidth());
 	const float screenH = static_cast<float>(windowProc->GetClientHeight());
 	
@@ -398,9 +398,6 @@ void TitleScene::Draw(){
 	if (operateSprite_) {
 		operateSprite_->Draw();
 	}
-
-	// 6. UI（テキスト）描画
-	TextManager::GetInstance()->Draw();
 
 	// エディタ用の出力設定
 	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
