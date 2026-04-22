@@ -838,6 +838,12 @@ void GamePlayScene::Update() {
 
 		// プレイヤーが拾う処理
 		if (player && !player->IsDead() && playerDist < 2.0f) {
+
+			// 使ったカードが消滅中なら、拾うのを一瞬だけ保留する！
+			if (handManager_.IsSelectedCardDissolving()) {
+				continue;
+			}
+
 			bool success = handManager_.AddCard(pickup.card);
 			if (success) {
 				pickup.isActive = false;
