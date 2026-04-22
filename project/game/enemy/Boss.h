@@ -140,4 +140,7 @@ private:
 
     bool cardUseRequest_ = false;
     std::unordered_map<int, int> cardCooldownTimers_;
+
+    bool hasTriggeredHalfHpBeam_ = false;   // 半分以下突入時の確定ビームをもう使ったか
+    bool forceBeamOnHalfHp_ = false;        // 次回行動を強制ビームにするフラグ
 };

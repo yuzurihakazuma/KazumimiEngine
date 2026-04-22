@@ -203,10 +203,3 @@ Vector3 CardUseSystem::GetDecoyPosition() const {
 	}
 	return { 0.0f, 0.0f, 0.0f }; // デコイが無い場合はとりあえず原点を返す
 }
-
-
-
-
-
-
-
