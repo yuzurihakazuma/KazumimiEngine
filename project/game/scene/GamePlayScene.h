@@ -11,6 +11,9 @@
 #include "engine/3d/animation/CustomAnimation.h"
 #include "engine/particle/GPUParticleEmitter.h"
 
+#include "engine/3d/SplineRail.h"
+#include "game/player/Player.h"
+
 #include "Skybox.h"
 
 // --- 標準ライブラリ ---
@@ -99,5 +102,9 @@ private: // メンバ変数
 	
 	// GPUパーティクルエミッター
 	GPUParticleEmitter emitter_;
+
+	std::unique_ptr<Player> player_ = nullptr;
+	SplineRail splineRail_; // スプラインレール本体
+
 	
 };

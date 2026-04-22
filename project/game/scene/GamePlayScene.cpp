@@ -150,6 +150,18 @@ void GamePlayScene::Initialize(){
 	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
 	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
 
+
+	// --- レールの初期化（テスト用のノードを4つ配置） ---
+	splineRail_.nodes.clear();
+	splineRail_.nodes.push_back({ {  0.0f, 0.0f,  0.0f }, 60.0f }); // ノード0
+	splineRail_.nodes.push_back({ { 10.0f, 0.0f, 10.0f }, 60.0f }); // ノード1
+	splineRail_.nodes.push_back({ { 20.0f, 2.0f,  0.0f }, 60.0f }); // ノード2（少し上にカーブ）
+	splineRail_.nodes.push_back({ { 30.0f, 0.0f, 10.0f }, 60.0f }); // ノード3
+
+	// --- プレイヤーの初期化 ---
+	player_ = std::make_unique<Player>();
+	player_->Initialize();
+
 }
 
 void GamePlayScene::Update(){
@@ -186,6 +198,15 @@ void GamePlayScene::Update(){
 	}
 	if ( testObj_ ){
 		testObj_->Update();
+	}
+
+	if ( player_ && testObj_ ) {
+		// 1. プレイヤーの座標・回転をレールに沿って計算する
+		player_->Update(splineRail_);
+
+		// 2. 計算結果を3Dモデル(testObj_)に渡す
+		testObj_->SetTranslation(player_->GetPosition());
+		testObj_->SetRotation(player_->GetRotation());
 	}
 
 	if (skinnedObj_) {
@@ -262,9 +283,9 @@ void GamePlayScene::Draw(){
 	// 
 	if (skinnedObj_) { skinnedObj_->Draw(); }
 
-	if ( skybox_ ) {
+	/*if ( skybox_ ) {
 		skybox_->Draw(commandList, camera_.get());
-	}
+	}*/
 
 
 	// --- パーティクル描画 ---
@@ -352,6 +373,18 @@ void GamePlayScene::DrawDebugUI(){
 		if ( testObj_ ){
 			testObj_->SetDissolveThreshold(1.0f);
 		}
+	}
+	ImGui::End();
+
+	ImGui::Begin("Rail Editor");
+
+	// レールの各ノードの座標をImGuiで操作できるようにする
+	for ( size_t i = 0; i < splineRail_.nodes.size(); ++i ) {
+		// ラベル（例: "Node 0", "Node 1"...）
+		std::string label = "Node " + std::to_string(i);
+
+		// DragFloat3を使うと、XYZの座標をスライダーで弄れるようになる
+		ImGui::DragFloat3(label.c_str(), &splineRail_.nodes[i].position.x, 0.1f);
 	}
 
 	ImGui::End();
