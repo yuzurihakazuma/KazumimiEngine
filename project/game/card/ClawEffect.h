@@ -25,7 +25,7 @@ private:
 
 	std::unique_ptr<Obj3d> obj_ = nullptr;
 	Vector3 pos_ = { 0.0f,0.0f,0.0f };
-	Vector3 scale_ = { 1.5f,0.2f,1.5f };
+	Vector3 scale_ = { 20.0f, 20.0f, 20.0f };
 
 	int damage_ = 10;  // ダメージ量
 	int timer_ = 0;    // 演出の進行タイマー
@@ -34,6 +34,9 @@ private:
 	bool isPlayerCaster_ = true;
 	bool isFinished_ = false;
 
+	float casterYaw_ = 0.0f;
+
+	Vector3 casterPos_ = { 0.0f, 0.0f, 0.0f };
 
 };
 

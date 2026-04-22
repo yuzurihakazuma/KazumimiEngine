@@ -3,152 +3,147 @@
 #include "game/enemy/EnemyManager.h"
 #include "game/enemy/Boss.h"
 #include "engine/math/VectorMath.h"
+#include "engine/particle/GPUParticleManager.h"
 #include <cmath>
 
 using namespace VectorMath;
 
-void ClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
+void ClawEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerCaster, Camera* camera){
 	isPlayerCaster_ = isPlayerCaster;
 	isFinished_ = false;
 	timer_ = 0;
 	hasHit_ = false;
+	casterYaw_ = casterYaw;
 
-	//目の前に斬撃を出す
-	Vector3 forward = { std::sinf(casterYaw),0.0f,std::cosf(casterYaw) };
+	casterPos_ = casterPos;
+
+	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 	pos_ = {
-			casterPos.x + forward.x * 1.5f,
-			casterPos.y + 0.5f,
-			casterPos.z + forward.z * 1.5f
-
+			casterPos.x + forward.x * 1.8f, // 勢いを出すため少し遠くから
+			casterPos.y + 1.2f,             // 胴体狙いの高さ
+			casterPos.z + forward.z * 1.8f
 	};
 
-	obj_ = Obj3d::Create("sphere");
-	if (obj_) {
+	obj_ = Obj3d::Create("claw_model");
+	if ( obj_ ) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
-		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
-			obj_->GetModel()->GetMaterial()->emissive = 1.8f; // 斬撃の発光をBloom対象にする
+
+		Model* model = obj_->GetModel();
+		if ( model && model->GetMaterial() ) {
+			Model::Material* mat = model->GetMaterial();
+			mat->color = { 0.1f, 0.9f, 1.0f, 1.0f }; // より鮮やかなシアン
+			mat->emissive = 3.0f;                   // 限界まで発光
 		}
-		obj_->Update();
 	}
-
-
 }
 
-void ClawEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,  const Vector3 &bossPos, const LevelData &level) {
-
-	if (isFinished_) {
-		return;
-	}
+void ClawEffect::Update(Player* player, EnemyManager* enemyManager, Boss* boss, const Vector3& bossPos, const LevelData& level){
+	if ( isFinished_ ) return;
 
 	timer_++;
 
-	// 15フレーム目に「２発目の攻撃」を発生させる
-	if (timer_ == 15) {
+	// 10フレーム目に判定リセット（高速化に合わせて判定タイミングも早める）
+	if ( timer_ == 10 ) {
 		hasHit_ = false;
+	}
 
-		scale_ = { 0.2f,1.5f,1.5f };
-		if (obj_) {
-			obj_->SetScale(scale_);
-			obj_->Update();
+	if ( obj_ ) {
+		float slashYaw = 0.0f;
+		float slashPitch = 0.0f;
+		float slashRoll = 0.0f;
+
+		//  1撃目 (1〜10フレーム)：超高速・横薙ぎ（右→左）
+		if ( timer_ < 10 ) {
+			float progress = static_cast< float >(timer_) / 10.0f;
+			slashYaw = -1.5f + progress * 3.0f;
+			float currentYaw = casterYaw_ + slashYaw;
+			// pos_ をスイング弧に沿って更新
+			pos_ = {
+				casterPos_.x + std::sinf(currentYaw) * 2.0f,
+				casterPos_.y + 1.2f,
+				casterPos_.z + std::cosf(currentYaw) * 2.0f
+			};
+			obj_->SetRotation({ 0.0f, currentYaw, 0.0f });
+			obj_->SetTranslation(pos_);
+		}
+		//  2撃目 (10〜20フレーム)：超高速・斬り上げ（下→上）
+		else if ( timer_ < 20 ) {
+			float progress = static_cast< float >(timer_ - 10) / 10.0f;
+			slashPitch = 1.2f - progress * 2.4f;
+			slashRoll = 0.6f;
+			// 2撃目は真正面の位置で縦振り
+			pos_ = {
+				casterPos_.x + std::sinf(casterYaw_) * 2.0f,
+				casterPos_.y + 1.2f + slashPitch,
+				casterPos_.z + std::cosf(casterYaw_) * 2.0f
+			};
+			obj_->SetRotation({ slashPitch, casterYaw_, slashRoll });
+			obj_->SetTranslation(pos_);
+		}
+
+		obj_->Update();
+
+		//  【残像】勢いを出すため「毎フレーム」出す！
+		Vector3 tracePos = obj_->GetTranslation();
+		Vector4 traceColor = { 0.0f, 0.6f, 1.0f, 0.6f };
+		GPUParticleManager::GetInstance()->Emit(tracePos, { 0,0,0 }, 0.25f, 1.8f, traceColor);
+
+		// ⚡ 【激しい火花】速度と量を倍増
+		for ( int i = 0; i < 5; i++ ) {
+			Vector3 sparkVel = {
+				( rand() % 11 - 5 ) * 0.8f, // 速度 0.4 → 0.8 へ強化！
+				( rand() % 11 - 5 ) * 0.8f,
+				( rand() % 11 - 5 ) * 0.8f
+			};
+			// 閃光のような白に近い青
+			GPUParticleManager::GetInstance()->Emit(tracePos, sparkVel, 0.1f, 0.08f, { 0.8f, 1.0f, 1.0f, 1.0f });
 		}
 	}
 
-	// 当たり判定処理
-	bool isAttacking = (timer_ > 1 && timer_ <= 10) || (timer_ >= 15 && timer_ <= 24);
-
-	if (isAttacking && !hasHit_) {
-
-		// ==================================================
-		// プレイヤーが使った場合
-		// ==================================================
-		if (isPlayerCaster_) {
-			// 雑魚敵への当たり判定
-			if (enemyManager) {
-				for (auto &enemy : enemyManager->GetEnemies()) {
-					if (!enemy || enemy->IsDead()) continue;
-
-					Vector3 enemyPos = enemy->GetPosition();
-					Vector3 diff = { enemyPos.x - pos_.x, 0.0f, enemyPos.z - pos_.z };
-
-					if (Length(diff) < 2.0f) {
-						int randomDamage = 0;
-
-						// ★ 追加：1撃目と2撃目でダメージを変える！
-						if (timer_ <= 10) {
-							// 1撃目：基本ダメージを「半分」にしてランダムにする
-							randomDamage = (damage_ / 2) + (rand() % 3) - 1;
-						} else {
-							// 2撃目：本来の基本ダメージでランダムにする
-							randomDamage = damage_ + (rand() % 3) - 1;
-						}
-						if (randomDamage < 1) randomDamage = 1; // 最低1ダメージ保証
-
-						enemy->TakeDamage(randomDamage);
-						hasHit_ = true;
-						break;
+	// 当たり判定 (判定時間を短くして「一瞬で切り裂く」感を出す)
+	bool isAttacking = ( timer_ >= 2 && timer_ <= 6 ) || ( timer_ >= 12 && timer_ <= 16 );
+	if ( isAttacking && !hasHit_ ) {
+		if ( isPlayerCaster_ ) {
+			// 敵への判定（略：既存のダメージロジックと同じ）
+			if ( enemyManager ) {
+				for ( auto& enemy : enemyManager->GetEnemies() ) {
+					if ( !enemy || enemy->IsDead() ) continue;
+					Vector3 ePos = enemy->GetPosition();
+					Vector3 diff = { ePos.x - pos_.x, 0.0f, ePos.z - pos_.z };
+					if ( Length(diff) < 2.5f ) { // 判定を少し広げて当てやすく
+						enemy->TakeDamage(damage_);
+						hasHit_ = true; break;
 					}
 				}
 			}
-
-			// ボスへの当たり判定
-			if (boss && !boss->IsDead()) {
+			// ボスへの判定
+			if ( boss && !boss->IsDead() ) {
 				Vector3 diff = { bossPos.x - pos_.x, 0.0f, bossPos.z - pos_.z };
-				if (Length(diff) < 3.0f) {
-					int randomDamage = 0;
-
-					// ★ 追加：1撃目と2撃目でダメージを変える！
-					if (timer_ <= 10) {
-						randomDamage = (damage_ / 2) + (rand() % 3) - 1;
-					} else {
-						randomDamage = damage_ + (rand() % 3) - 1;
-					}
-					if (randomDamage < 1) randomDamage = 1;
-
-					boss->TakeDamage(randomDamage);
+				if ( Length(diff) < 3.5f ) {
+					boss->TakeDamage(damage_);
 					hasHit_ = true;
 				}
 			}
 		} else {
-			// ==================================================
-			// 敵・ボスが使った場合
-			// ==================================================
-			if (player && !player->IsDead()) {
-				Vector3 playerPos = player->GetPosition();
-				Vector3 diff = { playerPos.x - pos_.x, 0.0f, playerPos.z - pos_.z };
-
-				if (Length(diff) < 2.0f) { // プレイヤーへの当たり判定の広さ
-					int randomDamage = 0;
-
-					// ★ 追加：1撃目と2撃目でダメージを変える！
-					if (timer_ <= 10) {
-						randomDamage = (damage_ / 2) + (rand() % 3) - 1;
-					} else {
-						randomDamage = damage_ + (rand() % 3) - 1;
-					}
-					if (randomDamage < 1) randomDamage = 1;
-
-					// プレイヤーのTakeDamageにランダムダメージを渡す！
-					// (Player.cpp側でデバフ判定があれば勝手に半減してくれます)
-					player->TakeDamage(randomDamage, pos_);
+			// プレイヤーへの判定
+			if ( player && !player->IsDead() ) {
+				Vector3 pPos = player->GetPosition();
+				Vector3 diff = { pPos.x - pos_.x, 0.0f, pPos.z - pos_.z };
+				if ( Length(diff) < 2.0f ) {
+					player->TakeDamage(damage_, pos_);
 					hasHit_ = true;
 				}
 			}
-		
 		}
 	}
-	// 30フレーム経ったら演出終了
-	if (timer_ >= 30) {
-		isFinished_ = true;
-	}
 
+	if ( timer_ >= 25 ) isFinished_ = true;
 }
 
-void ClawEffect::Draw() {
-	// 攻撃判定があるタイミングだけモデルを表示する
-	bool isAttacking = (timer_ >= 1 && timer_ <= 10) || (timer_ >= 15 && timer_ <= 24);
-	if (!isFinished_ && obj_ && isAttacking) {
+void ClawEffect::Draw(){
+	if ( !isFinished_ && obj_ ) {
 		obj_->Draw();
 	}
 }

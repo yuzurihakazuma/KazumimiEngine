@@ -26,9 +26,9 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 	for ( int i = 0; i < 5; i++ ) {
 		FangData fang;
 		fang.pos = {
-			casterPos.x + forward.x * ( 2.0f + i * 2.0f ),
+			casterPos.x + forward.x * ( 0.5f + i * 2.0f ),
 			casterPos.y,
-			casterPos.z + forward.z * ( 2.0f + i * 2.0f )
+			casterPos.z + forward.z * ( 0.5f + i * 2.0f )
 		};
 		// 地面の下深くからスタートさせる
 		fang.currentY = casterPos.y - 3.5f;
@@ -38,6 +38,7 @@ void FangEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 		fang.activeTimer = 40;
 		fang.isActive = false;
 		fang.hasHit = false;
+		fang.hasEmergedParticle = false;
 		fangs_.push_back(fang);
 	}
 
@@ -78,48 +79,6 @@ void FangEffect::Update(Player* player, EnemyManager* enemyManager, Boss* boss,
 			// 待機が終わったら有効化
 			if ( fang.delayTimer <= 0 ) {
 				fang.isActive = true;
-
-				// 【出現時】上に突き上げる岩の破片
-				for ( int i = 0; i < 30; i++ ) {
-					Vector3 breakPos = {
-						fang.pos.x + ( rand() % 11 - 5 ) * 0.1f,
-						fang.pos.y + static_cast< float >(rand() % 20) * 0.1f,
-						fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
-					};
-					Vector3 breakVel = {
-						( rand() % 11 - 5 ) * 0.02f,
-						0.5f + static_cast< float >(rand() % 5) * 0.15f, // 上方向へ爆増
-						( rand() % 11 - 5 ) * 0.02f
-					};
-					Vector4 color = { 0.5f, 0.3f, 0.1f, 1.0f };
-					float life = 0.3f + static_cast< float >( rand() % 3 ) * 0.1f;
-					float scale = 0.3f + static_cast< float >( rand() % 3 ) * 0.1f;
-					GPUParticleManager::GetInstance()->Emit(breakPos, breakVel, life, scale, color);
-				}
-
-				// 【出現時】超高速のバチバチ火花
-				int sparkCount = 100;
-				for ( int i = 0; i < sparkCount; i++ ) {
-					Vector3 sparkPos = {
-						fang.pos.x + ( rand() % 11 - 5 ) * 0.1f,
-						fang.pos.y + static_cast< float >(rand() % 20) * 0.1f,
-						fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
-					};
-					Vector3 sparkVel = {
-						( rand() % 11 - 5 ) * 0.4f,
-						( rand() % 11 - 5 ) * 0.4f,
-						( rand() % 11 - 5 ) * 0.4f
-					};
-					Vector4 sparkColor;
-					if ( rand() % 100 < 50 ) {
-						sparkColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-					} else {
-						sparkColor = { 1.0f, 0.9f, 0.2f, 1.0f };
-					}
-					float sparkLife = 0.1f + static_cast< float >( rand() % 2 ) * 0.05f;
-					float sparkScale = 0.05f + static_cast< float >( rand() % 2 ) * 0.05f;
-					GPUParticleManager::GetInstance()->Emit(sparkPos, sparkVel, sparkLife, sparkScale, sparkColor);
-				}
 			}
 
 			allDone = false;
@@ -129,13 +88,78 @@ void FangEffect::Update(Player* player, EnemyManager* enemyManager, Boss* boss,
 
 			// --- 1. アニメーション（上下移動）処理 ---
 			if ( fang.activeTimer > 0 ) {
+				if ( fang.hasHit ) {
+					fang.activeTimer = 0;
+				}
+				
 				fang.activeTimer--;
+
+
 
 				// まだ地上に出ていなければ、上に伸びる
 				if ( fang.currentY < fang.pos.y ) {
 					fang.currentY += 0.15f;
 					if ( fang.currentY > fang.pos.y ) {
 						fang.currentY = fang.pos.y;
+					}
+				}
+				if ( !fang.hasEmergedParticle && fang.currentY >= fang.pos.y ) {
+					fang.hasEmergedParticle = true;
+
+					// 【地面から爆散】下から上に勢いよく飛び出す破片
+					for ( int i = 0; i < 40; i++ ) {
+						Vector3 pos = {
+							fang.pos.x + ( rand() % 11 - 5 ) * 0.1f,
+							fang.pos.y,
+							fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
+						};
+						Vector3 vel = {
+							( rand() % 11 - 5 ) * 0.25f,                          // 横に広がる
+							1.5f + static_cast< float >(rand() % 8) * 0.3f,       // 上に強く爆散
+							( rand() % 11 - 5 ) * 0.25f
+						};
+						Vector4 color = { 0.6f, 0.35f, 0.1f, 1.0f };             // 土色
+						float life = 0.4f + static_cast< float >( rand() % 4 ) * 0.1f;
+						float scale = 0.2f + static_cast< float >( rand() % 4 ) * 0.08f;
+						GPUParticleManager::GetInstance()->Emit(pos, vel, life, scale, color);
+					}
+
+					// 【火花】白と黄色の光の粒が四方八方に散る
+					for ( int i = 0; i < 60; i++ ) {
+						Vector3 pos = {
+							fang.pos.x + ( rand() % 7 - 3 ) * 0.1f,
+							fang.pos.y + static_cast< float >(rand() % 10) * 0.1f, // 高さランダム
+							fang.pos.z + ( rand() % 7 - 3 ) * 0.1f
+						};
+						Vector3 vel = {
+							( rand() % 11 - 5 ) * 0.5f,
+							0.8f + static_cast< float >(rand() % 10) * 0.4f,      // 上方向強め
+							( rand() % 11 - 5 ) * 0.5f
+						};
+						Vector4 color = ( rand() % 100 < 60 )
+							? Vector4 { 1.0f, 0.9f, 0.3f, 1.0f }   // 黄色
+						: Vector4 { 1.0f, 1.0f, 1.0f, 1.0f };  // 白
+						float life = 0.15f + static_cast< float >( rand() % 3 ) * 0.05f;
+						float scale = 0.05f + static_cast< float >( rand() % 3 ) * 0.03f;
+						GPUParticleManager::GetInstance()->Emit(pos, vel, life, scale, color);
+					}
+
+					// 【大きい塊】ゆっくり上に舞い上がる大粒
+					for ( int i = 0; i < 10; i++ ) {
+						Vector3 pos = {
+							fang.pos.x + ( rand() % 9 - 4 ) * 0.15f,
+							fang.pos.y,
+							fang.pos.z + ( rand() % 9 - 4 ) * 0.15f
+						};
+						Vector3 vel = {
+							( rand() % 7 - 3 ) * 0.1f,
+							0.6f + static_cast< float >(rand() % 5) * 0.15f,
+							( rand() % 7 - 3 ) * 0.1f
+						};
+						Vector4 color = { 0.5f, 0.3f, 0.1f, 1.0f };
+						float life = 0.6f + static_cast< float >( rand() % 3 ) * 0.1f;
+						float scale = 0.4f + static_cast< float >( rand() % 3 ) * 0.1f;
+						GPUParticleManager::GetInstance()->Emit(pos, vel, life, scale, color);
 					}
 				}
 			} else {
@@ -235,42 +259,17 @@ void FangEffect::Update(Player* player, EnemyManager* enemyManager, Boss* boss,
 			if ( fang.activeTimer <= 0 && fang.currentY <= fang.pos.y - 3.5f ) {
 				fang.isActive = false;
 
-				// 地面に埋まった衝撃で足元から砂が舞う
-				for ( int i = 0; i < 20; i++ ) {
-					Vector3 breakPos = {
-						fang.pos.x + ( rand() % 5 - 2 ) * 0.1f,
-						fang.pos.y + static_cast< float >(rand() % 5) * 0.1f, // 足元
-						fang.pos.z + ( rand() % 5 - 2 ) * 0.1f
-					};
-					Vector3 breakVel = {
-						( rand() % 11 - 5 ) * 0.05f,
-						0.05f + static_cast< float >(rand() % 5) * 0.02f,
-						( rand() % 11 - 5 ) * 0.05f
+				for ( int i = 0; i < 15; i++ ) {
+					Vector3 pos = { fang.pos.x, fang.pos.y, fang.pos.z };
+					Vector3 vel = {
+						( rand() % 11 - 5 ) * 0.08f,
+						0.05f + static_cast< float >(rand() % 3) * 0.04f,
+						( rand() % 11 - 5 ) * 0.08f
 					};
 					Vector4 color = { 0.6f, 0.4f, 0.2f, 1.0f };
-					GPUParticleManager::GetInstance()->Emit(breakPos, breakVel, 0.3f, 0.2f, color);
+					GPUParticleManager::GetInstance()->Emit(pos, vel, 0.25f, 0.15f, color);
 				}
 
-				// 残ったエネルギーが足元で弾ける
-				for ( int i = 0; i < 30; i++ ) {
-					Vector3 sparkPos = {
-						fang.pos.x + ( rand() % 11 - 5 ) * 0.1f,
-						fang.pos.y + static_cast< float >(rand() % 5) * 0.1f, // 足元
-						fang.pos.z + ( rand() % 11 - 5 ) * 0.1f
-					};
-					Vector3 sparkVel = {
-						( rand() % 11 - 5 ) * 0.2f,
-						0.1f + static_cast< float >(rand() % 5) * 0.05f,
-						( rand() % 11 - 5 ) * 0.2f
-					};
-					Vector4 sparkColor;
-					if ( rand() % 100 < 50 ) {
-						sparkColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-					} else {
-						sparkColor = { 1.0f, 0.9f, 0.2f, 1.0f };
-					}
-					GPUParticleManager::GetInstance()->Emit(sparkPos, sparkVel, 0.1f, 0.05f, sparkColor);
-				}
 			}
 
 			allDone = false;
@@ -280,6 +279,11 @@ void FangEffect::Update(Player* player, EnemyManager* enemyManager, Boss* boss,
 	// 全てのトゲが終わったら効果終了
 	if ( allDone ) {
 		isFinished_ = true;
+		if ( obj_ ) {
+			obj_->SetTranslation({ 0.0f, -100.0f, 0.0f });
+			obj_->Update();
+		}
+
 	}
 }
 
@@ -291,7 +295,7 @@ void FangEffect::Draw(){
 
 	// 有効なトゲだけ描画する
 	for ( const auto& fang : fangs_ ) {
-		if ( fang.isActive ) {
+		if ( fang.isActive && fang.currentY > fang.pos.y - 1.0f )   {
 			// アニメーション中の currentY を使って描画！
 			Vector3 drawPos = { fang.pos.x, fang.currentY, fang.pos.z };
 			obj_->SetTranslation(drawPos);

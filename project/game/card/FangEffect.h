@@ -12,6 +12,7 @@ struct FangData {
 	int activeTimer;   // 出現中の残り時間
 	bool isActive;     // 現在有効か
 	bool hasHit;       // 既にヒットしたか
+	bool hasEmergedParticle; 
 };
 
 class FangEffect : public ICardEffect {
