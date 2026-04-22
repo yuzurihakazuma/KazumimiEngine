@@ -507,7 +507,7 @@ void Tutorial::UpdateTexts() const {
 
 	case Step::CardSwapIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 5 / 8");
-		text->SetText("TutorialBody", "次の部屋ではカード交換を練習します。\n持てるカードは3枚までで、レベルが上がるごとに上限が1枚ずつ増えます。SPACEで再開します。");
+		text->SetText("TutorialBody", "次の部屋ではカード交換を練習します。\n持てるカードは3枚まで、レベルアップで増やすことができます。SPACEで再開します。");
 		break;
 
 	case Step::CardSwapPractice:
