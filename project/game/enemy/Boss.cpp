@@ -52,6 +52,136 @@ void Boss::InitializeBossCards() {
     heldCards_.push_back(CardDatabase::GetCardData(101));
     heldCards_.push_back(CardDatabase::GetCardData(102));
     heldCards_.push_back(CardDatabase::GetCardData(103));
+    heldCards_.push_back(CardDatabase::GetCardData(104));
+}
+
+Card Boss::SelectCardForDistance(float dist, bool isEnraged) {
+    std::vector<Card> candidates;
+    auto addWeightedCard = [&](int cardId, int weight) {
+        if (weight <= 0) {
+            return;
+        }
+
+        for (const auto& card : heldCards_) {
+            if (card.id != cardId || !IsCardReady(card.id)) {
+                continue;
+            }
+
+            for (int i = 0; i < weight; ++i) {
+                candidates.push_back(card);
+            }
+            return;
+        }
+    };
+
+    if (dist < 5.5f) {
+        addWeightedCard(101, 5);
+        addWeightedCard(102, isEnraged ? 2 : 1);
+        addWeightedCard(104, isEnraged ? 3 : 2);
+        addWeightedCard(103, 1);
+    } else if (dist < 14.0f) {
+        addWeightedCard(102, isEnraged ? 7 : 5);
+        addWeightedCard(104, isEnraged ? 6 : 4);
+        addWeightedCard(103, isEnraged ? 3 : 2);
+        addWeightedCard(101, 2);
+    } else {
+        addWeightedCard(102, isEnraged ? 8 : 6);
+        addWeightedCard(104, isEnraged ? 7 : 5);
+        addWeightedCard(103, isEnraged ? 5 : 4);
+    }
+
+    // 連続で同じカードばかりにならないように、別カード候補がある時は前回と同じものを除外する
+    bool hasDifferentCard = false;
+    for (const auto& card : candidates) {
+        if (card.id != lastUsedCardId_) {
+            hasDifferentCard = true;
+            break;
+        }
+    }
+    if (hasDifferentCard) {
+        candidates.erase(
+            std::remove_if(
+                candidates.begin(),
+                candidates.end(),
+                [&](const Card& card) { return card.id == lastUsedCardId_; }
+            ),
+            candidates.end()
+        );
+    }
+
+    if (candidates.empty()) {
+        for (const auto& card : heldCards_) {
+            if (IsCardReady(card.id)) {
+                candidates.push_back(card);
+            }
+        }
+    }
+
+    if (candidates.empty()) {
+        return Card{ -1, "", 0 };
+    }
+
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> distCard(0, static_cast<int>(candidates.size()) - 1);
+    return candidates[distCard(mt)];
+}
+
+int Boss::GetCastTimeForCard(int cardId, bool isEnraged) const {
+    if (cardId == 104) {
+        return isEnraged ? 60 : 82;
+    }
+
+    if (cardId == 103) {
+        return isEnraged ? 46 : 58;
+    }
+
+    if (cardId == 101) {
+        return isEnraged ? 28 : 38;
+    }
+
+    if (cardId == 102) {
+        return isEnraged ? 34 : 46;
+    }
+
+    return isEnraged ? 40 : castTime_;
+}
+
+void Boss::ApplyCastingPose(float normalizedTime) {
+    float t = std::clamp(normalizedTime, 0.0f, 1.0f);
+    float settle = t * t * (3.0f - 2.0f * t);
+    float sway = std::sinf(t * 6.28318f) * 0.08f;
+
+    rot_.x = 0.10f + settle * 0.22f;
+    rot_.z = sway;
+
+    // 破壊光線は必殺技らしく、腰を落としてためてから前へ押し出す構えにする
+    if (selectedCard_.id == 104) {
+        float charge = std::sinf(t * 3.14159f);
+        rot_.x = 0.18f + settle * 0.38f;
+        rot_.z = std::sinf(t * 9.42477f) * 0.12f;
+        scale_ = {
+            2.0f + charge * 0.35f,
+            1.85f - charge * 0.20f + settle * 0.15f,
+            2.0f + settle * 0.85f
+        };
+        return;
+    }
+
+    if (selectedCard_.id == 103) {
+        scale_ = {
+            2.1f + settle * 0.15f,
+            2.0f + settle * 0.35f,
+            2.1f + settle * 0.15f
+        };
+        return;
+    }
+
+    scale_ = {
+        2.0f + settle * 0.22f,
+        2.0f + settle * 0.18f,
+        2.0f + settle * 0.22f
+    };
 }
 
 void Boss::Update() {
@@ -200,6 +330,8 @@ void Boss::UpdateChase() {
     if (isCasting_) {
         isCasting_ = false;
         scale_ = { 2.0f, 2.0f, 2.0f };
+        rot_.x = 0.0f;
+        rot_.z = 0.0f;
     }
 
     Vector3 dir = {
@@ -234,11 +366,26 @@ void Boss::UpdateChase() {
 
 void Boss::UpdateUseCard() {
     const bool isEnraged = hp_ <= (maxHP_ / 2);
-    const int castTime = isEnraged ? 40 : castTime_;
 
     if (!isCasting_) {
+        Vector3 startDir = {
+            playerPos_.x - pos_.x,
+            0.0f,
+            playerPos_.z - pos_.z
+        };
+
+        selectedCard_ = SelectCardForDistance(Length(startDir), isEnraged);
+        if (selectedCard_.id < 0) {
+            state_ = State::Chase;
+            thinkTimer_ = 20;
+            scale_ = { 2.0f, 2.0f, 2.0f };
+            rot_.x = 0.0f;
+            rot_.z = 0.0f;
+            return;
+        }
+
         isCasting_ = true;
-        castDurationCurrent_ = castTime;
+        castDurationCurrent_ = GetCastTimeForCard(selectedCard_.id, isEnraged);
         castTimer_ = castDurationCurrent_;
         return;
     }
@@ -256,13 +403,13 @@ void Boss::UpdateUseCard() {
         }
 
         float t = 1.0f - static_cast<float>(castTimer_) / static_cast<float>(castDurationCurrent_);
-        float eased = t * t * (3.0f - 2.0f * t);
-        float scale = 2.0f + (3.0f - 2.0f) * eased;
-        scale_ = { scale, scale, scale };
+        ApplyCastingPose(t);
         return;
     }
 
-    scale_ = { 3.0f, 3.0f, 3.0f };
+    scale_ = { 2.0f, 2.0f, 2.0f };
+    rot_.x = 0.0f;
+    rot_.z = 0.0f;
 
     Vector3 dir = {
         playerPos_.x - pos_.x,
@@ -295,13 +442,16 @@ void Boss::UpdateUseCard() {
     if (dist < 5.5f) {
         addWeightedCard(101, 5);
         addWeightedCard(102, isEnraged ? 2 : 1);
+        addWeightedCard(104, isEnraged ? 3 : 2);
         addWeightedCard(103, 1);
     } else if (dist < 14.0f) {
         addWeightedCard(102, isEnraged ? 7 : 5);
+        addWeightedCard(104, isEnraged ? 6 : 4);
         addWeightedCard(103, isEnraged ? 3 : 2);
         addWeightedCard(101, 2);
     } else {
         addWeightedCard(102, isEnraged ? 8 : 6);
+        addWeightedCard(104, isEnraged ? 7 : 5);
         addWeightedCard(103, isEnraged ? 5 : 4);
     }
 
@@ -344,7 +494,9 @@ void Boss::UpdateUseCard() {
     static std::mt19937 mt(rd());
     std::uniform_int_distribution<int> distCard(0, static_cast<int>(candidates.size()) - 1);
 
-    selectedCard_ = candidates[distCard(mt)];
+    if (selectedCard_.id < 0) {
+        selectedCard_ = candidates[distCard(mt)];
+    }
     lastUsedCardId_ = selectedCard_.id;
     cardUseRequest_ = true;
 
@@ -354,6 +506,9 @@ void Boss::UpdateUseCard() {
     } else if (selectedCard_.id == 102) {
         cardCooldownTimer_ = isEnraged ? 24 : 34;
         StartCardCooldown(102, isEnraged ? 45 : 65);
+    } else if (selectedCard_.id == 104) {
+        cardCooldownTimer_ = isEnraged ? 42 : 56;
+        StartCardCooldown(104, isEnraged ? 80 : 110);
     } else if (selectedCard_.id == 103) {
         cardCooldownTimer_ = isEnraged ? 48 : 64;
         StartCardCooldown(103, isEnraged ? 90 : 120);
@@ -367,6 +522,8 @@ void Boss::UpdateUseCard() {
 
     isCasting_ = false;
     scale_ = { 2.0f, 2.0f, 2.0f };
+    rot_.x = 0.0f;
+    rot_.z = 0.0f;
 }
 
 Card Boss::GetRandomDropCard() const {
@@ -394,6 +551,8 @@ void Boss::TakeDamage(int damage) {
         thinkTimer_ = 15;
         isCasting_ = false;
         scale_ = { 2.0f, 2.0f, 2.0f };
+        rot_.x = 0.0f;
+        rot_.z = 0.0f;
     }
 
     hp_ -= damage;

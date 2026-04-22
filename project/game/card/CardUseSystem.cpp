@@ -21,6 +21,7 @@
 #include "game/card/ClawEffect.h"
 #include "game/card/BossClawEffect.h"
 #include "game/card/BossFierEffect.h"
+#include "game/card/RuinBeamEffect.h"
 #include "game/card/BossSummonEffect.h"
 #include "game/card/MapOpen.h"
 
@@ -52,6 +53,7 @@ void CardUseSystem::Initialize(Camera* camera) {
 
 	// ID:102 ボスファイヤー（今回作ったもの）★これを追加！
 	effectFactory_[102] = [](const Card &c) { return std::make_unique<BossFierEffect>(c.effectValue); };
+	effectFactory_[104] = [](const Card &c) { return std::make_unique<RuinBeamEffect>(c.effectValue); };
 
 	// ボス召喚エフェクトの引数（召喚数）もCSVから受け取る想定
 	effectFactory_[103] = [](const Card &c) { return std::make_unique<BossSummonEffect>(c.effectValue); };
