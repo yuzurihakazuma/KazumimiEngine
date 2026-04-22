@@ -1570,6 +1570,41 @@ void GamePlayScene::UpdateCardSwapMode(Input* input) {
 	handManager_.Update();
 	uiCamera_->Update(); // UIカメラの更新もここで行う
 
+	// 交換フェイズ中もカード説明UIを更新する！
+	if (handManager_.GetHandSize() > 0) {
+		int selectedIdx = handManager_.GetSelectedCardIndex();
+		Card selectedCard = handManager_.GetCard(selectedIdx);
+
+		std::string descText = selectedCard.description;
+		size_t pos = descText.find("\\n");
+		while (pos != std::string::npos) {
+			descText.replace(pos, 2, "\n");
+			pos = descText.find("\\n", pos + 1);
+		}
+
+		std::string displayText = "【" + selectedCard.name + "】\n  Cost : " + std::to_string(selectedCard.cost) + "\n" + descText;
+		TextManager::GetInstance()->SetText("CardT", displayText);
+
+		float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+		float bgWidth = 390.0f;
+		float bgHeight = 200.0f;
+		float marginRight = 20.0f;
+		float marginTop = 10.0f;
+
+		float bgPosX = screenW - (bgWidth * 0.5f) - marginRight;
+		float bgPosY = marginTop + (bgHeight * 0.5f);
+
+		if (descBgSprite_) {
+			descBgSprite_->SetSize({ bgWidth, bgHeight });
+			descBgSprite_->SetPosition({ bgPosX, bgPosY });
+			descBgSprite_->Update();
+		}
+
+		float textPosX = screenW - bgWidth - marginRight;
+		float textPosY = marginTop + 15.0f;
+		TextManager::GetInstance()->SetPosition("CardT", textPosX, textPosY);
+	}
+
 	if (input->Triggerkey(DIK_SPACE)) {
 		// 現在選んでいるカードを取得
 		int selectedIdx = handManager_.GetSelectedCardIndex();
