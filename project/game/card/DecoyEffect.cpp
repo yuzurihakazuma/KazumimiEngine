@@ -10,20 +10,27 @@ void DecoyEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayer
 	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 	pos_ = { casterPos.x + forward.x * 2.0f, casterPos.y, casterPos.z + forward.z * 2.0f };
 
-	obj_ = Obj3d::Create("sphere"); 
-	if (obj_) {
-		obj_->SetCamera(camera);
-		obj_->SetScale(scale_);
-		obj_->SetTranslation(pos_);
-		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
-			obj_->GetModel()->GetMaterial()->emissive = 1.6f; // デコイも軽く発光させる
-		}
-		obj_->Update();
+	model_ = SkinnedObj3d::Create("player", "resources/player", "player.gltf");
+	if (model_) {
+		model_->SetName("Decoy");
+		model_->SetCamera(camera);
+		model_->SetLoopAnimation(true);
+		model_->SetIsWalking(false);
+		model_->SetScale(scale_);
+		model_->SetRotation({ 0.0f, casterYaw, 0.0f });
+		model_->SetTranslation(pos_);
+		model_->Update();
 	}
 
 }
 
 void DecoyEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,  const Vector3 &bossPos, const LevelData &level) {
+	(void)player;
+	(void)enemyManager;
+	(void)boss;
+	(void)bossPos;
+	(void)level;
+
 	if (isFinished_) {
 		return;
 	}
@@ -33,14 +40,15 @@ void DecoyEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,
 		isFinished_ = true;
 	}
 
-	if (obj_) {
-		obj_->SetTranslation(pos_);
-		obj_->Update();
+	if (model_) {
+		model_->SetIsWalking(false);
+		model_->SetTranslation(pos_);
+		model_->Update();
 	}
 }
 
 void DecoyEffect::Draw() {
-	if (!isFinished_ && obj_) {
-		obj_->Draw();
+	if (!isFinished_ && model_) {
+		model_->Draw();
 	}
 }
