@@ -472,6 +472,14 @@ void GamePlayScene::Update() {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 
+#ifdef _DEBUG
+	// デバッグ用：9キーでゲームクリアシーンへ移動する
+	if (!isEditingDebugText && input->Triggerkey(DIK_9)) {
+		SceneManager::GetInstance()->ChangeScene("GAMECLEAR");
+		return;
+	}
+#endif
+
 	//// パーティクル発生
 	//if (input->Triggerkey(DIK_P)) {
 	//	ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);

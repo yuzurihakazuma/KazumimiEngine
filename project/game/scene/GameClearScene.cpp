@@ -80,7 +80,7 @@ void GameClearScene::Update() {
         const float logoWidth = screenW * 0.90f;
         const float logoHeight = logoWidth * (1080.0f / 1920.0f);
 
-        gameClearSprite_->SetPosition({ screenW * 0.5f, screenH * 0.40f });
+        gameClearSprite_->SetPosition({ screenW * 0.5f, screenH * 0.50f });
         gameClearSprite_->SetSize({ logoWidth, logoHeight });
         gameClearSprite_->Update();
     }
