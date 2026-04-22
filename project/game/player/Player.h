@@ -32,6 +32,6 @@ private: // メンバ変数
 	Vector3 rotation_ { 0.0f, 0.0f, 0.0f };
     Vector3 scale_{ 1.0f, 1.0f, 1.0f };
 
-    float moveSpeed_ = 0.2f;
+    float moveSpeed_ = 5.0f;
 	float currentT_ = 0.0f; // レール上の現在の進行度
 };
