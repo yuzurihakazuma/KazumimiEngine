@@ -369,6 +369,7 @@
     <ClCompile Include="game\card\ClawEffect.cpp" />
     <ClCompile Include="game\card\BossClawEffect.cpp" />
     <ClCompile Include="game\card\BossFierEffect.cpp" />
+    <ClCompile Include="game\card\RuinBeamEffect.cpp" />
     <ClCompile Include="game\card\BossSummonEffect.cpp" />
     <ClCompile Include="game\scene\GameOverScene.cpp" />
     <ClCompile Include="game\scene\GameClearScene.cpp" />
@@ -641,6 +642,7 @@
     <ClInclude Include="game\card\ClawEffect.h" />
     <ClInclude Include="game\card\BossClawEffect.h" />
     <ClInclude Include="game\card\BossFierEffect.h" />
+    <ClInclude Include="game\card\RuinBeamEffect.h" />
     <ClInclude Include="game\card\BossSummonEffect.h" />
     <ClInclude Include="game\scene\GameOverScene.h" />
     <ClInclude Include="game\scene\GameClearScene.h" />

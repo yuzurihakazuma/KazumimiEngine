@@ -83,6 +83,9 @@ private:
     void UpdateChase();
     void UpdateUseCard();
     void InitializeBossCards();
+    Card SelectCardForDistance(float dist, bool isEnraged);
+    int GetCastTimeForCard(int cardId, bool isEnraged) const;
+    void ApplyCastingPose(float normalizedTime);
 
     bool IsCardReady(int cardId) const;
     void StartCardCooldown(int cardId, int time);
