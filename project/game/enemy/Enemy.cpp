@@ -2,8 +2,18 @@
 #include "engine/math/VectorMath.h"
 #include "game/card/CardDatabase.h"
 #include <cmath>
+#include <random>
 
 using namespace VectorMath;
+
+namespace {
+float RandomRange(float minValue, float maxValue) {
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    std::uniform_real_distribution<float> dist(minValue, maxValue);
+    return dist(mt);
+}
+}
 
 void Enemy::Initialize() {
     pos_ = { 5.0f, 0.0f, 5.0f };
@@ -12,66 +22,70 @@ void Enemy::Initialize() {
 
     startX_ = pos_.x;
     state_ = State::Patrol;
-    baseCard_ = CardDatabase::GetCardData(1); // 固定のパンチカード
+    baseCard_ = CardDatabase::GetCardData(1); // 固定の基本カード
     hasPickupCard_ = false;
+    isPickupCardActivated_ = false;
     pickupCard_ = { -1, "", 0 };
     currentUseCard_ = { -1, "", 0 };
-    pickupCardTimer_ = 0;                     // 拾ったカードタイマー初期化
+    pickupCardTimer_ = 0; // 使用開始後に使える残り時間
 
     hp_ = 3;                 // 敵HP初期化
     isDead_ = false;         // 死亡状態リセット
     isActionLocked_ = false; // 行動ロック解除
-    actionLockTimer_ = 0;    // ロック時間リセット
+    actionLockTimer_ = 0;    // ロック残り時間
     thinkTimer_ = 0;         // 思考タイマー初期化
 
-    isHit_ = false;                            // ヒット状態リセット
-    hitTimer_ = 0;                             // ヒット時間リセット
-    hitStunTimer_ = 0;                         // 被弾硬直時間リセット
-    knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック初期化
+    isHit_ = false;                           // ヒット状態リセット
+    hitTimer_ = 0;                            // ヒット時間リセット
+    hitStunTimer_ = 0;                        // 被弾硬直時間リセット
+    knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // ノックバック速度初期化
 
-    cardUseRequest_ = false;  // カード使用発生フラグ初期化
-
+    cardUseRequest_ = false; // カード使用発生フラグ初期化
     isCasting_ = false;
     castTimer_ = 0;
     strafeDirection_ = 1;
-    cardCooldownTimer_ = 0;   // カード使用クールダウン初期化
+    cardCooldownTimer_ = 0; // カード使用クールダウン初期化
 
-    hasTargetCard_ = false;   // 目標カード状態リセット
-    prevPos_ = pos_;          // 前フレーム位置初期化
-    stuckTimer_ = 0;          // 詰まりタイマー初期化
+    hasTargetCard_ = false; // 目標カードなし
+    prevPos_ = pos_;        // 前フレーム位置初期化
+    stuckTimer_ = 0;        // 詰まりタイマー初期化
 
-    isFrozen_ = false;        // 凍結状態リセット
-    freezeTimer_ = 0;         // 凍結時間リセット
+    isFrozen_ = false; // 凍結状態リセット
+    freezeTimer_ = 0;  // 凍結時間リセット
+
+    // 巡回と索敵の初期値
+    patrolAnchor_ = pos_;
+    patrolTarget_ = pos_;
+    patrolWaitTimer_ = 0;
+    investigateTimer_ = 0;
+    lastKnownPlayerPos_ = pos_;
 }
 
 void Enemy::Update() {
-
     if (isDead_) return; // 死亡していたら何もしない
 
-    // もし「カード使用状態」じゃないのに詠唱フラグが残っていたら強制解除！
+    // UseCard 以外へ遷移していたら詠唱は切る
     if (state_ != State::UseCard && isCasting_) {
         isCasting_ = false;
         castTimer_ = 0;
     }
 
-    cardUseRequest_ = false;  // 毎フレームカード使用フラグ初期化
+    cardUseRequest_ = false; // 毎フレーム使用要求は初期化
 
-    // 拾ったカードの使用可能時間を減らす
-    if (hasPickupCard_) {
+    // 拾ったカードは初回使用でタイマーが始まり、その間は使い続けられる
+    if (hasPickupCard_ && isPickupCardActivated_) {
         pickupCardTimer_--;
-
-        // 時間切れになったら拾ったカードを消す
         if (pickupCardTimer_ <= 0) {
             ClearPickupCard();
         }
     }
 
     if (isActionLocked_) {
-        actionLockTimer_--;          // 残り時間を減らす
+        actionLockTimer_--; // 残り時間を減らす
         if (actionLockTimer_ <= 0) {
-            isActionLocked_ = false; // 0になったらロック解除
+            isActionLocked_ = false; // 0になったら行動ロック解除
         }
-        return;                      // ロック中は他の処理しない
+        return; // ロック中は他の更新をしない
     }
 
     if (cardCooldownTimer_ > 0) {
@@ -79,48 +93,52 @@ void Enemy::Update() {
     }
 
     if (isHit_) {
-        pos_ += knockbackVelocity_;      // ノックバック移動
-        knockbackVelocity_ *= 0.85f;     // 徐々に減速
+        pos_ += knockbackVelocity_;  // ノックバック移動
+        knockbackVelocity_ *= 0.85f; // 徐々に減衰
 
-        hitTimer_--;                     // ヒット演出時間減少
+        hitTimer_--; // ヒット表示残り時間減少
         if (hitTimer_ <= 0) {
-            isHit_ = false;              // ヒット演出終了
+            isHit_ = false; // ヒット表示終了
         }
     }
 
     if (hitStunTimer_ > 0) {
-        hitStunTimer_--;                 // 被弾硬直時間減少
+        hitStunTimer_--; // 被弾硬直時間減少
 
         if (hitStunTimer_ <= 0) {
-            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // 硬直終了時に速度停止
+            knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // 硬直終了時に速度初期化
         }
 
-        prevPos_ = pos_;                 // 現在位置を保存
-        return;                          // 硬直中はAI行動しない
+        prevPos_ = pos_; // 現在位置を保存
+        return;          // 硬直中はAI更新しない
     }
 
-    if (Length(pos_ - prevPos_) < stuckDistanceThreshold_) {
-        stuckTimer_++;                   // ほとんど動いていなければ加算
+    bool isPatrolWaiting = (state_ == State::Patrol && patrolWaitTimer_ > 0);
+    if (isPatrolWaiting) {
+        // 巡回先を決める待機は意図した停止なので、詰まり扱いしない
+        stuckTimer_ = 0;
+    } else if (Length(pos_ - prevPos_) < stuckDistanceThreshold_) {
+        stuckTimer_++; // ほとんど動いていなければ加算
     } else {
-        stuckTimer_ = 0;                 // 動いていればリセット
+        stuckTimer_ = 0;
     }
-    prevPos_ = pos_;                     // 現在位置を保存
+    prevPos_ = pos_;
 
     if (thinkTimer_ > 0) {
-        thinkTimer_--;                   // 次の判断まで待つ
+        thinkTimer_--; // 次の思考更新まで減らす
     }
 
     if (thinkTimer_ <= 0) {
         DecideNextState();
-        thinkTimer_ = 10;          // 次の状態を決定
+        thinkTimer_ = 10; // 次の状態決定まで少し待つ
     }
 
     if (isFrozen_) {
-        freezeTimer_--;                  // 凍結残り時間減少
+        freezeTimer_--; // 凍結残り時間減少
         if (freezeTimer_ <= 0) {
-            isFrozen_ = false;           // 時間切れで氷が溶ける
+            isFrozen_ = false; // 時間切れで凍結解除
         }
-        return;                          // 凍結中は行動しない
+        return; // 凍結中は行動しない
     }
 
     switch (state_) {
@@ -136,6 +154,10 @@ void Enemy::Update() {
         UpdateChasePlayer();
         break;
 
+    case State::Investigate:
+        UpdateInvestigate();
+        break;
+
     case State::UseCard:
         UpdateUseCard();
         break;
@@ -145,7 +167,7 @@ void Enemy::Update() {
         break;
     }
 
-    // デバフタイマーの更新
+    // デバフタイマー更新
     if (isAttackDebuffed_) {
         attackDebuffTimer_--;
         if (attackDebuffTimer_ <= 0) {
@@ -161,10 +183,9 @@ void Enemy::Freeze(int durationFrames) {
 
 // 次の状態を決める
 void Enemy::DecideNextState() {
-
     if (isCasting_) {
-        stuckTimer_ = 0; // 詰まりタイマーを常にリセット
-        return;          // ここで処理を終わらせて、元の状態をキープ！
+        stuckTimer_ = 0; // 詠唱中は詰まり扱いしない
+        return;
     }
 
     Vector3 toPlayer = {
@@ -173,29 +194,44 @@ void Enemy::DecideNextState() {
         playerPos_.z - pos_.z
     };
 
-    float playerDist = Length(toPlayer); // プレイヤーとの距離
-    float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
-    float exitRange = useRange + 1.5f; // 射程から少し離れたら追跡に戻す
-    float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 今使うカードの離脱開始距離
+    float playerDist = Length(toPlayer);          // プレイヤーとの距離
+    float useRange = GetUseRangeForCurrentCard(); // 現在カードの射程
+    float exitRange = useRange + 1.5f;            // 使用状態を維持する余裕距離
+    float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 近すぎる判定距離
 
-    // 詰まっていたら一旦巡回に戻して方向転換
+    // プレイヤーが追跡範囲にいる間は、最後に見た位置を更新しておく
+    if (playerDist <= chaseRange_) {
+        lastKnownPlayerPos_ = playerPos_;
+        investigateTimer_ = 150;
+    } else if (investigateTimer_ > 0) {
+        investigateTimer_--;
+    }
+
+    // 詰まっていたら、その時の目的に応じて立て直す
     if (IsStuck()) {
-        state_ = State::Patrol;
-        direction_ *= -1;
-        strafeDirection_ *= -1;
+        if (state_ == State::Retreat) {
+            strafeDirection_ *= -1; // 離脱方向を反転
+            state_ = State::Retreat;
+        } else if (state_ == State::ChasePlayer || state_ == State::Investigate) {
+            strafeDirection_ *= -1;
+            state_ = State::Investigate; // 追跡が詰まったら最後の位置を調べ直す
+        } else {
+            patrolTarget_ = pos_;
+            patrolWaitTimer_ = 0;
+            state_ = State::Patrol;
+        }
         thinkTimer_ = 20;
         stuckTimer_ = 0;
         return;
     }
 
-    // 拾ったカードを持っている場合
-    if (hasPickupCard_) {
-
+    // 拾いカードを持っている時の分岐
+    if (HasUsablePickupCard()) {
         if (state_ == State::UseCard) {
             if (playerDist < retreatEnter) {
                 state_ = State::Retreat;
             } else if (playerDist > exitRange) {
-                state_ = State::ChasePlayer;
+                state_ = (investigateTimer_ > 0) ? State::Investigate : State::ChasePlayer;
             }
             return;
         }
@@ -213,6 +249,8 @@ void Enemy::DecideNextState() {
             state_ = State::UseCard;
         } else if (playerDist <= chaseRange_) {
             state_ = State::ChasePlayer;
+        } else if (investigateTimer_ > 0) {
+            state_ = State::Investigate;
         } else {
             state_ = State::Patrol;
         }
@@ -220,13 +258,15 @@ void Enemy::DecideNextState() {
         return;
     }
 
-    // 拾ったカードを持っていない場合
+    // 拾ったカードがない時の分岐
     if (hasTargetCard_) {
         state_ = State::MoveToCard;
     } else if (playerDist <= useRange) {
         state_ = State::UseCard;
     } else if (playerDist <= chaseRange_) {
         state_ = State::ChasePlayer;
+    } else if (investigateTimer_ > 0) {
+        state_ = State::Investigate;
     } else {
         state_ = State::Patrol;
     }
@@ -234,22 +274,51 @@ void Enemy::DecideNextState() {
 
 // 詰まり判定
 bool Enemy::IsStuck() const {
-    return stuckTimer_ >= stuckThreshold_; // 一定時間動いていなければ詰まり
+    return stuckTimer_ >= stuckThreshold_; // 一定時間ほぼ動いていなければ詰まり
 }
 
 void Enemy::UpdatePatrol() {
+    // 単純な左右往復だと不自然なので、近場の目標点を順番に歩かせる
+    if (patrolWaitTimer_ > 0) {
+        patrolWaitTimer_--;
+        return;
+    }
 
-    pos_.x += speed_ * direction_; // 巡回移動
+    Vector3 toTarget = {
+        patrolTarget_.x - pos_.x,
+        0.0f,
+        patrolTarget_.z - pos_.z
+    };
 
-    if (direction_ > 0) { rot_.y = 1.57f; } // 右向き
-    else { rot_.y = -1.57f; }               // 左向き
+    // 到着済みか、まだ目標が決まっていない時は新しい巡回先を決める
+    if (Length(toTarget) < 0.25f) {
+        // 今いる場所を新しい巡回基準にして、少しずつ別エリアにも流れていけるようにする
+        patrolAnchor_ = pos_;
 
-    if (pos_.x > startX_ + moveRange_) direction_ = -1; // 端で反転
-    if (pos_.x < startX_ - moveRange_) direction_ = 1;
+        Vector3 nextTarget = patrolAnchor_;
+        for (int i = 0; i < 6; i++) {
+            nextTarget = {
+                patrolAnchor_.x + RandomRange(-patrolTargetRadius_, patrolTargetRadius_),
+                pos_.y,
+                patrolAnchor_.z + RandomRange(-patrolTargetRadius_, patrolTargetRadius_)
+            };
+
+            if (Length(nextTarget - patrolAnchor_) >= patrolTargetMinDistance_) {
+                break;
+            }
+        }
+
+        patrolTarget_ = nextTarget;
+        patrolWaitTimer_ = 10;
+        return;
+    }
+
+    Vector3 dir = Normalize(toTarget);
+    pos_ += dir * speed_;
+    rot_.y = std::atan2f(dir.x, dir.z);
 }
 
 void Enemy::UpdateMoveToCard() {
-
     Vector3 dir = {
         targetCardPos_.x - pos_.x,
         0.0f,
@@ -258,58 +327,78 @@ void Enemy::UpdateMoveToCard() {
 
     if (Length(dir) > 0.01f) {
         dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_;               // カードへ移動
-        rot_.y = std::atan2f(dir.x, dir.z);     // 移動方向を向く
+        pos_ += dir * chaseSpeed_;           // カードへ移動
+        rot_.y = std::atan2f(dir.x, dir.z);  // 進行方向を向く
     }
 }
 
 void Enemy::UpdateChasePlayer() {
+    Vector3 targetPos = playerPos_;
+
+    // 視界から外れた直後は、最後に見た位置の方へ寄る
+    if (Length(playerPos_ - pos_) > chaseRange_ && investigateTimer_ > 0) {
+        targetPos = lastKnownPlayerPos_;
+    }
 
     Vector3 dir = {
-        playerPos_.x - pos_.x,
+        targetPos.x - pos_.x,
         0.0f,
-        playerPos_.z - pos_.z
+        targetPos.z - pos_.z
     };
 
     if (Length(dir) > 0.01f) {
         dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_;               // プレイヤー追跡
-        rot_.y = std::atan2f(dir.x, dir.z);     // プレイヤー方向を向く
+        pos_ += dir * chaseSpeed_;           // 追跡移動
+        rot_.y = std::atan2f(dir.x, dir.z);  // 目標方向を向く
+    }
+}
+
+void Enemy::UpdateInvestigate() {
+    Vector3 dir = {
+        lastKnownPlayerPos_.x - pos_.x,
+        0.0f,
+        lastKnownPlayerPos_.z - pos_.z
+    };
+
+    float dist = Length(dir);
+    if (dist < 0.4f) {
+        patrolWaitTimer_ = 15;
+        state_ = State::Patrol;
+        return;
+    }
+
+    if (dist > 0.01f) {
+        dir = Normalize(dir);
+        pos_ += dir * (chaseSpeed_ * 0.85f); // 追跡より少し慎重に移動
+        rot_.y = std::atan2f(dir.x, dir.z);
     }
 }
 
 void Enemy::UpdateUseCard() {
-
     Vector3 dir = {
         playerPos_.x - pos_.x,
         0.0f,
         playerPos_.z - pos_.z
     };
 
-    float dist = Length(dir); // プレイヤーとの距離
-    float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
+    float dist = Length(dir);                    // プレイヤーとの距離
+    float useRange = GetUseRangeForCurrentCard(); // 現在カードの射程
 
-    // ★ 修正1：クールダウン（前回の攻撃の疲れ）が残っているなら、
-    // そもそも詠唱を始めず、プレイヤーの追跡に戻る！
-    // =========================================================
+    // クールダウン中はカードを使わず、追跡または捜索へ戻る
     if (cardCooldownTimer_ > 0) {
-        state_ = State::ChasePlayer;
+        state_ = (investigateTimer_ > 0) ? State::Investigate : State::ChasePlayer;
         thinkTimer_ = 0;
         isCasting_ = false;
         castTimer_ = 0;
         return;
     }
 
-    // =========================================================
-    // ★ 修正2：「詠唱が始まる前」にプレイヤーが射程外にいたら追跡に戻る。
-    // （一度詠唱を始めたら、途中で逃げられてもキャンセルしない！）
-    // =========================================================
+    // 射程外に出ていたらいったん詠唱前に追跡へ戻す
     if (!isCasting_ && dist > useRange + 1.5f) {
-        state_ = State::ChasePlayer;
+        state_ = (investigateTimer_ > 0) ? State::Investigate : State::ChasePlayer;
         thinkTimer_ = 0;
         return;
     }
-
 
     // プレイヤー方向を向く
     if (dist > 0.01f) {
@@ -321,8 +410,8 @@ void Enemy::UpdateUseCard() {
         isCasting_ = true;
         castTimer_ = castTime_;
 
-        // 詠唱が始まった瞬間に「今回使うカード」をセットしておく！
-        if (hasPickupCard_) {
+        // 拾ったカードがあればそちらを使い、なければ基本カードを使う
+        if (HasUsablePickupCard()) {
             currentUseCard_ = pickupCard_;
         } else {
             currentUseCard_ = baseCard_;
@@ -331,38 +420,29 @@ void Enemy::UpdateUseCard() {
         return;
     }
 
-    //// 詠唱中に射程外になったら中断
-    //if (dist > useRange) {
-    //    state_ = State::ChasePlayer;
-    //    thinkTimer_ = 0;
-    //    isCasting_ = false;
-    //    castTimer_ = 0;
-    //    return;
-    //}
-
     // 詠唱中
     if (castTimer_ > 0) {
         castTimer_--;
         return;
     }
 
-   
+    bool usedPickupCard = HasUsablePickupCard();
 
-    bool usedPickupCard = hasPickupCard_;
-
-    
-
-    // カード使用
+    // カード使用確定
     cardUseRequest_ = true;
     cardCooldownTimer_ = cardCooldown_;
-
     isCasting_ = false;
 
-    // 拾ったカードは使ってもすぐ消さない
-    // 時間切れになるまで保持する
-
-    // 発動後の硬直
+    // 使用直後の硬直
     SetActionLock(8);
+
+    // プレイヤー寄りに、初回使用をきっかけに一定時間だけ使い続けられるようにする
+    if (usedPickupCard) {
+        if (!isPickupCardActivated_) {
+            isPickupCardActivated_ = true;
+            pickupCardTimer_ = pickupCardDuration_;
+        }
+    }
 
     // 使用後の行動
     if (usedPickupCard) {
@@ -373,8 +453,8 @@ void Enemy::UpdateUseCard() {
 
     thinkTimer_ = 5;
 }
-void Enemy::UpdateRetreat() {
 
+void Enemy::UpdateRetreat() {
     Vector3 dir = {
         pos_.x - playerPos_.x,
         0.0f,
@@ -382,8 +462,7 @@ void Enemy::UpdateRetreat() {
     }; // プレイヤーから離れる方向
 
     float dist = Length(dir); // プレイヤーとの距離
-    float useRange = GetUseRangeForCurrentCard(); // 今使うカードの射程
-    float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 今使うカードの離脱開始距離
+    float retreatEnter = GetRetreatEnterRangeForCurrentCard(); // 離脱開始距離
 
     // 十分離れたらカード使用へ戻す
     if (dist >= retreatEnter + 0.5f) {
@@ -393,34 +472,39 @@ void Enemy::UpdateRetreat() {
     }
 
     if (dist > 0.01f) {
-        dir = Normalize(dir);
-        pos_ += dir * chaseSpeed_;
-        rot_.y = std::atan2f(dir.x, dir.z);
+        // 真後ろへ下がるだけだと壁に詰まりやすいので、横移動を混ぜる
+        Vector3 backDir = Normalize(dir);
+        Vector3 sideDir = {
+            backDir.z * static_cast<float>(strafeDirection_),
+            0.0f,
+            -backDir.x * static_cast<float>(strafeDirection_)
+        };
+        Vector3 moveDir = Normalize(backDir + sideDir * retreatStrafeStrength_);
+        pos_ += moveDir * chaseSpeed_;
+        rot_.y = std::atan2f(moveDir.x, moveDir.z);
     }
 }
 
 void Enemy::TakeDamage(int damage) {
-
     if (isDead_) return; // 既に死亡していたら無視
 
     if (state_ == State::UseCard) {
-        cardUseRequest_ = false;         // カード使用要求をキャンセル
-        isActionLocked_ = false;         // 行動ロック解除
-        actionLockTimer_ = 0;            // ロック時間リセット
-        state_ = State::ChasePlayer;     // 追跡状態へ戻す
+        cardUseRequest_ = false;     // カード使用要求をキャンセル
+        isActionLocked_ = false;     // 行動ロック解除
+        actionLockTimer_ = 0;        // ロック残り時間リセット
+        state_ = State::ChasePlayer; // 被弾したら追跡へ戻す
     }
 
-    hp_ -= damage;                       // HP減少
+    hp_ -= damage;                    // HP減少
+    isHit_ = true;                    // ヒット状態開始
+    hitTimer_ = hitDuration_;         // ヒット表示時間セット
+    hitStunTimer_ = hitStunDuration_; // 被弾硬直時間セット
 
-    isHit_ = true;                       // ヒット状態開始
-    hitTimer_ = hitDuration_;            // ヒット演出時間セット
-    hitStunTimer_ = hitStunDuration_;    // 被弾硬直開始
-
-    thinkTimer_ = hitStunDuration_;      // 硬直中は再判断しない
+    thinkTimer_ = hitStunDuration_; // 硬直中は再思考しない
     isCasting_ = false;
     castTimer_ = 0;
     currentUseCard_ = { -1, "", 0 };
-    cardCooldownTimer_ = 20;             // 被弾後すぐカードを使わないようにする
+    cardCooldownTimer_ = 20; // 被弾直後は少しカードを使わせない
 
     Vector3 hitDir = {
         pos_.x - playerPos_.x,
@@ -430,33 +514,32 @@ void Enemy::TakeDamage(int damage) {
 
     if (Length(hitDir) > 0.01f) {
         hitDir = Normalize(hitDir);
-        knockbackVelocity_ = hitDir * 0.18f; // 後ろへ少し飛ばす
+        knockbackVelocity_ = hitDir * 0.18f; // 後ろへ少し吹き飛ばす
     } else {
-        knockbackVelocity_ = { 0.0f, 0.0f, 0.0f }; // 方向が取れないときは停止
+        knockbackVelocity_ = { 0.0f, 0.0f, 0.0f };
     }
 
     if (hp_ <= 0) {
-        hp_ = 0;                         // HP下限
-        isDead_ = true;                  // 死亡
+        hp_ = 0;
+        isDead_ = true;
     }
 }
 
 void Enemy::SetActionLock(int frame) {
-    isActionLocked_ = true; // 行動ロック開始
-    actionLockTimer_ = frame; // ロック時間設定
+    isActionLocked_ = true;   // 行動ロック開始
+    actionLockTimer_ = frame; // ロック残り時間設定
 }
 
 bool Enemy::IsVisible() const {
+    if (!isHit_) return true; // 通常時は表示
 
-    if (!isHit_) return true; // 通常時は常に表示
-
-    return (hitTimer_ % 2) == 0; // ヒット中は1フレームおきに表示
+    return (hitTimer_ % 2) == 0; // ヒット中は点滅表示
 }
 
 float Enemy::GetUseRangeForCurrentCard() const {
-    const Card& card = hasPickupCard_ ? pickupCard_ : baseCard_;
+    const Card& card = HasUsablePickupCard() ? pickupCard_ : baseCard_;
 
-    // カードの攻撃距離タイプで使用距離を変える
+    // カードの距離タイプで使用距離を変える
     switch (card.attackRangeType) {
     case CardAttackRangeType::Melee:
         return 1.8f; // 近距離
@@ -468,14 +551,13 @@ float Enemy::GetUseRangeForCurrentCard() const {
         return 7.0f; // 遠距離
     }
 
-    // 念のため
     return cardUseEnterRange_;
 }
 
 float Enemy::GetRetreatEnterRangeForCurrentCard() const {
-    const Card& card = hasPickupCard_ ? pickupCard_ : baseCard_;
+    const Card& card = HasUsablePickupCard() ? pickupCard_ : baseCard_;
 
-    // カードの攻撃距離タイプで離脱開始距離を変える
+    // カードの距離タイプで離脱開始距離を変える
     switch (card.attackRangeType) {
     case CardAttackRangeType::Melee:
         return 1.0f; // 近距離はあまり逃げない
@@ -484,9 +566,8 @@ float Enemy::GetRetreatEnterRangeForCurrentCard() const {
         return 2.5f; // 中距離は少し距離を取る
 
     case CardAttackRangeType::Long:
-        return 4.0f; // 遠距離は近づかれたら逃げる
+        return 4.0f; // 遠距離はしっかり距離を取る
     }
 
-    // 念のため
     return retreatEnterRange_;
 }
