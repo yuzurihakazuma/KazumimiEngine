@@ -15,6 +15,8 @@ void ClawEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 	hasHit_ = false;
 	casterYaw_ = casterYaw;
 
+	casterPos_ = casterPos;
+
 	Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 	pos_ = {
 			casterPos.x + forward.x * 1.8f, // 勢いを出すため少し遠くから
@@ -55,17 +57,30 @@ void ClawEffect::Update(Player* player, EnemyManager* enemyManager, Boss* boss, 
 		//  1撃目 (1〜10フレーム)：超高速・横薙ぎ（右→左）
 		if ( timer_ < 10 ) {
 			float progress = static_cast< float >(timer_) / 10.0f;
-			slashYaw = -1.5f + progress * 3.0f; // 広い範囲を一閃
-			obj_->SetRotation({ 0.0f, casterYaw_ + slashYaw, 0.0f });
+			slashYaw = -1.5f + progress * 3.0f;
+			float currentYaw = casterYaw_ + slashYaw;
+			// pos_ をスイング弧に沿って更新
+			pos_ = {
+				casterPos_.x + std::sinf(currentYaw) * 2.0f,
+				casterPos_.y + 1.2f,
+				casterPos_.z + std::cosf(currentYaw) * 2.0f
+			};
+			obj_->SetRotation({ 0.0f, currentYaw, 0.0f });
+			obj_->SetTranslation(pos_);
 		}
 		//  2撃目 (10〜20フレーム)：超高速・斬り上げ（下→上）
 		else if ( timer_ < 20 ) {
 			float progress = static_cast< float >(timer_ - 10) / 10.0f;
-			// 下から上へ一気にカチ上げる
 			slashPitch = 1.2f - progress * 2.4f;
-			// 斜めから斬り込む角度
 			slashRoll = 0.6f;
+			// 2撃目は真正面の位置で縦振り
+			pos_ = {
+				casterPos_.x + std::sinf(casterYaw_) * 2.0f,
+				casterPos_.y + 1.2f + slashPitch,
+				casterPos_.z + std::cosf(casterYaw_) * 2.0f
+			};
 			obj_->SetRotation({ slashPitch, casterYaw_, slashRoll });
+			obj_->SetTranslation(pos_);
 		}
 
 		obj_->Update();
