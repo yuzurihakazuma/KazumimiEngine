@@ -518,9 +518,13 @@ void GamePlayScene::Update() {
 	const bool isBossIntroPlayingNow = bossManager_ ? bossManager_->IsBossIntroPlaying() : false;
 	if (playerManager_) {
 
+#ifdef _DEBUG
 		if (input->Triggerkey(DIK_F1)) {
 			isInfiniteMode_ = !isInfiniteMode_;
 		}
+#else
+		isInfiniteMode_ = false;
+#endif
 
 		playerManager_->ApplyInfiniteMode(isInfiniteMode_);
 
