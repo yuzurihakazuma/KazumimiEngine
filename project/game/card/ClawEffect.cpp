@@ -22,17 +22,23 @@ void ClawEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 
 	};
 
-	obj_ = Obj3d::Create("sphere");
-	if (obj_) {
+	obj_ = Obj3d::Create("claw_model");
+	if ( obj_ ) {
 		obj_->SetCamera(camera);
 		obj_->SetScale(scale_);
 		obj_->SetTranslation(pos_);
-		if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
-			obj_->GetModel()->GetMaterial()->emissive = 1.8f; // 斬撃の発光をBloom対象にする
+
+		//  モデル自体を鋭く光らせる（半透明にはせず、実体を持たせる）
+		Model* model = obj_->GetModel();
+		if ( model && model->GetMaterial() ) {
+			Model::Material* mat = model->GetMaterial();
+			// 爪自体の色（例：鋭いシアン）
+			mat->color = { 0.2f, 0.9f, 1.0f, 1.0f };
+			// 強く発光させてBloomをかける
+			mat->emissive = 2.0f;
 		}
 		obj_->Update();
 	}
-
 
 }
 

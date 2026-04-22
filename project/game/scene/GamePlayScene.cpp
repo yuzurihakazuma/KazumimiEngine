@@ -123,6 +123,8 @@ void GamePlayScene::Initialize() {
 	// 追加のカード用棘モデル
 	ModelManager::GetInstance()->LoadModel("Fang", "resources/Fang", "Fang.obj");
 	
+	ModelManager::GetInstance()->LoadModel("claw_model", "resources/claw", "claw.obj");
+
 	// CSVからカードデータベースを初期化
 	CardDatabase::Initialize("resources/card/CardData.csv");
 
