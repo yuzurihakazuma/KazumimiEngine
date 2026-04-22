@@ -458,6 +458,8 @@ void GamePlayScene::Update() {
 	if (levelUpBonusManager_.IsSelecting()) {
 		return;
 	}
+#if USE_IMGUI
+
 
 	// デバッグ用リセット
 	if (!isEditingDebugText && input->Triggerkey(DIK_R)) {
@@ -474,6 +476,7 @@ void GamePlayScene::Update() {
 		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
 	}
 
+#endif // USE_IMGUI
 	//// パーティクル発生
 	//if (input->Triggerkey(DIK_P)) {
 	//	ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
