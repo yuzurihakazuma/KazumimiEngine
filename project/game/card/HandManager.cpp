@@ -323,12 +323,14 @@ bool HandManager::IsSelectedCardDissolving() const {
 }
 
 void HandManager::AddPendingCard(const Card &pendingCard) {
-	// 上限を無視して強制的に末尾に追加
-	hand_.push_back(pendingCard);
+
+	Model *cardModelData = ModelManager::GetInstance()->FindModel(pendingCard.modelName);
 
 	// モデルデータを探して作成
-	Model *cardModelData = ModelManager::GetInstance()->FindModel(pendingCard.modelName);
 	if (cardModelData == nullptr)return;
+
+	// 上限を無視して強制的に末尾に追加
+	hand_.push_back(pendingCard);
 
 	auto model = std::make_unique<Obj3d>();
 	model->Initialize(cardModelData);

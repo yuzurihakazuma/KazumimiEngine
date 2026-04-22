@@ -54,6 +54,10 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 					enemy->ClearPickupCard();
 				}
 				enemyDeadHandled_[i] = true;
+
+				if (enemyCardSystems_[i]) {
+					enemyCardSystems_[i]->Reset();
+				}
 			}
 			continue;
 		}

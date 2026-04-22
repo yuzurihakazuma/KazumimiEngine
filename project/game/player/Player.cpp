@@ -97,8 +97,8 @@ void Player::Initialize() {
     exp_ = 0;                 // 経験値初期化
     nextLevelExp_ = 3;        // 次レベル必要経験値初期化
 
-    cost_ = 3;                // 現在コスト初期化
-    maxCost_ = 3;             // 最大コスト初期化
+    cost_ = 5 ;                // 現在コスト初期化
+    maxCost_ = 5;             // 最大コスト初期化
     costRecoveryTimer_ = 0;   // コスト回復タイマー初期化
     costRecoveryInterval_ = 180; // コスト回復速度初期化
 

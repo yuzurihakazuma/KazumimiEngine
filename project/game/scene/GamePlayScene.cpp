@@ -1580,6 +1580,11 @@ void GamePlayScene::UpdateCardSwapMode(Input* input) {
 
 		handManager_.RemoveCardImmediate(selectedIdx);
 
+		handManager_.AddCard(pendingCard_);
+
+		// 手札の「仮置き（保留）」状態を空っぽにしてリセットする
+		handManager_.AddPendingCard({ -1, "", 0 });
+
 		// ★追加：交換成功したら、地面に落ちていたアイテムを消す！
 		if (pendingPickup_) {
 			pendingPickup_->isActive = false;
