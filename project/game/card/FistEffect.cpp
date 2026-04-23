@@ -37,9 +37,14 @@ void FistEffect::Start(const Vector3& casterPos, float casterYaw, bool isPlayerC
 		// 拳の向きをプレイヤーの向いている方向（yaw）に合わせる
 		obj_->SetRotation({ 0.0f, casterYaw_, 0.0f });
 
-		// テクスチャを見せつつ、少しだけ発光させる
-		if ( obj_->GetModel() && obj_->GetModel()->GetMaterial() ) {
-			obj_->GetModel()->GetMaterial()->emissive = 0.5f;
+		Model* model = obj_->GetModel();
+		if ( model ) {
+			model->SetTexture("resources/white1x1.png");
+			Model::Material* material = model->GetMaterial();
+			if ( material ) {
+				material->color = { 1.0f, 0.85f, 0.2f, 1.0f };
+				material->emissive = 1.2f;
+			}
 		}
 		obj_->Update();
 	}
