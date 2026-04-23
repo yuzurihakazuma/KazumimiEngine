@@ -479,10 +479,26 @@ void Tutorial::UpdateTexts() const {
 	text->SetCentered("TutorialTitle", false);
 	text->SetCentered("TutorialBody", false);
 
+	// チュートリアル中だけ、操作説明と本編のクリア条件を右下に常時表示する
+	text->SetPosition("TutorialGuide", 1150.0f, 550.0f);
+	text->SetCentered("TutorialGuide", false);
+	text->SetScale("TutorialGuide", 0.65f);
+	text->SetColor("TutorialGuide", 1.0f, 1.0f, 1.0f, 0.9f);
+	text->SetText(
+		"TutorialGuide",
+		"操作説明\n"
+		"WASD:移動\n"
+		"LShift:回避\n"
+		"Space:カード使用\n"
+		"矢印キー:カード選択\n"
+		"クリア条件:5階層まで進みボスを倒す"
+	);
+
+
 	switch (step_) {
 	case Step::MoveIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 1 / 8");
-		text->SetText("TutorialBody", "WASD:移動\nLShift:回避\nSpace:カード使用\n回避中は無敵になります。");
+		text->SetText("TutorialBody", "右下に操作説明とクリア条件が表示されています。");
 		break;
 
 	case Step::PickCard:
