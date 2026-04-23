@@ -17,7 +17,7 @@ void Boss::Initialize() {
 
     state_ = State::Appear;
 
-    maxHP_ = 40;
+    maxHP_ = 60;
     hp_ = maxHP_;
     isDead_ = false;
 

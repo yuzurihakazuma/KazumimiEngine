@@ -43,6 +43,7 @@ public:
 
 	// 描画処理
 	void Draw();
+	void DrawText(const std::string& key);
 
 	// デバッグUI描画
 	void DrawDebugUI();
