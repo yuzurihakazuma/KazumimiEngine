@@ -36,12 +36,21 @@ void RuinBeamEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
         obj_->SetTranslation(pos_);
         obj_->SetScale(baseScale_);
 
-        if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
-            auto* material = obj_->GetModel()->GetMaterial();
-            material->color = { 1.0f, 0.25f, 0.25f, 0.92f };
-            material->emissive = 3.4f;
-        }
+        Model *model = obj_->GetModel();
+        if (model) {
+            // テクスチャを白紙に変更
+            model->SetTexture("resources/white1x1.png");
 
+            Model::Material *material = model->GetMaterial();
+            if (material) {
+                // ビームの色と透明度を設定 { R, G, B, A }
+                // 禍々しい赤紫色（A=0.4f で少し透けるように設定）
+                material->color = { 1.0f, 0.0f, 0.5f, 0.4f };
+
+                // 発光（Emissive）を強くして、中央が白く光るようにする
+                material->emissive = 3.0f;
+            }
+        }
         obj_->Update();
     }
 }

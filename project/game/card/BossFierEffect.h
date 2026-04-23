@@ -21,13 +21,13 @@ public:
     bool IsFinished() const override { return isFinished_; }
 private:
 
-    std::unique_ptr<Obj3d> obj_ = nullptr;
+   
     Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
     Vector3 velocity_ = { 0.0f, 0.0f, 0.0f };
     Vector3 scale_ = { 1.0f, 1.0f, 1.0f }; // ボス用なので超巨大（3倍）に！
 
-    int damage_ = 30;
-    int lifeTimer_ = 600; // 画面外まで飛んでいく前に消えるタイマー（約2秒）
+    int damage_ = 10;
+    int timer_ = 0;
     bool isFinished_ = false;
 };
 

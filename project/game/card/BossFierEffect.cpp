@@ -2,26 +2,19 @@
 #include "game/player/Player.h"
 #include "engine/math/VectorMath.h"
 #include "game/enemy/Boss.h"
+#include "engine/particle/GPUParticleManager.h"
 #include <cmath>
 
 using namespace VectorMath;
 
 void BossFierEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerCaster, Camera *camera) {
     isFinished_ = false;
+    timer_ = 120; // 2秒
 
-    // ボスが向いている方向（プレイヤーの方向）のベクトルを計算
-    Vector3 forward = {
-        std::sinf(casterYaw),
-        0.0f,
-        std::cosf(casterYaw)
-    };
+    pos_ = casterPos;
+    pos_.y += 1.0f; // 少し浮かせる
 
-    // ボスの少し前から発射する
-    pos_ = {
-        casterPos.x + forward.x * 2.0f,
-        casterPos.y - 2.0f, // 地面スレスレではなく少し浮かす
-        casterPos.z + forward.z * 2.0f
-    };
+    Vector3 forward = { std::sinf(casterYaw), 0.0f, std::cosf(casterYaw) };
 
     // 弾のスピード（避けられるように少し遅めに設定。速くしたい場合は数字を大きく！）
     float speed = 0.5f;
@@ -31,17 +24,7 @@ void BossFierEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPla
         forward.z * speed
     };
 
-    // オブジェクトの生成（"sphere" を赤いテクスチャなどに変えてもOKです！）
-    obj_ = Obj3d::Create("sphere");
-    if (obj_) {
-        obj_->SetCamera(camera);
-        obj_->SetScale(scale_);
-        obj_->SetTranslation(pos_);
-        if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
-            obj_->GetModel()->GetMaterial()->emissive = 2.2f;
-        }
-        obj_->Update();
-    }
+   
 }
 
 void BossFierEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,  const Vector3 &bossPos, const LevelData &level) {
@@ -51,19 +34,37 @@ void BossFierEffect::Update(Player *player, EnemyManager *enemyManager, Boss *bo
     }
 
     // 弾を前へ進める
-    pos_.x += velocity_.x;
-    pos_.z += velocity_.z;
+    pos_ = {
+         pos_.x + velocity_.x,
+         pos_.y + velocity_.y,
+         pos_.z + velocity_.z
+    };
+   
+    // ==========================================
+    // パーティクル放出処理
+    // ==========================================
+    Vector4 mainColor = { 0.7f, 0.0f, 1.0f, 1.0f }; // 明るめの紫
+    Vector4 subColor = { 0.4f, 0.0f, 0.8f, 1.0f };  // 濃い紫
 
-    // オブジェクトの位置を更新
-    if (obj_) {
-        // 炎が回転しながら飛んでいくとカッコいいので少し回す
-        Vector3 rot = obj_->GetRotation();
-        rot.x += 0.1f;
-        rot.z += 0.1f;
-        obj_->SetRotation(rot);
 
-        obj_->SetTranslation(pos_);
-        obj_->Update();
+    // ファイアーボールの軌跡
+    for (int i = 0; i < 3; i++) {
+        Vector3 particlePos = pos_;
+        particlePos.x += (rand() % 11 - 5) * 0.2f;
+        particlePos.y += (rand() % 11 - 5) * 0.2f;
+        particlePos.z += (rand() % 11 - 5) * 0.2f;
+
+        Vector3 particleVel = {
+            (rand() % 11 - 5) * 0.02f,
+            (rand() % 11 - 5) * 0.02f,
+            (rand() % 11 - 5) * 0.02f
+        };
+
+        float scale = 0.5f + (rand() % 11) * 0.15f;
+        float lifeTime = 0.5f + (rand() % 11) * 0.05f;
+        Vector4 color = (rand() % 2 == 0) ? mainColor : subColor;
+
+        GPUParticleManager::GetInstance()->Emit(particlePos, particleVel, scale, lifeTime, color);
     }
 
     // --------------------------------------------------
@@ -91,16 +92,14 @@ void BossFierEffect::Update(Player *player, EnemyManager *enemyManager, Boss *bo
     }
 
     // 寿命が尽きたら消える（壁抜け防止）
-    lifeTimer_--;
-    if (lifeTimer_ <= 0) {
+    timer_--;
+    if (timer_ <= 0) {
         isFinished_ = true;
     }
 }
 
 void BossFierEffect::Draw() {
-    if (!isFinished_ && obj_) {
-        obj_->Draw();
-    }
+   
 }
 
 
