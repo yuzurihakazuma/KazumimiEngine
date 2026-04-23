@@ -49,11 +49,16 @@ private:
     std::unique_ptr<Sprite> choiceVisuals_[(int)Choice::Count];
     // UI
     std::unique_ptr<Sprite> UISprite_;
+    std::unique_ptr<Sprite> leftTextSprite_ = nullptr;  // 左の選択肢のテキスト画像
+    std::unique_ptr<Sprite> rightTextSprite_ = nullptr; // 右の選択肢のテキスト画像
 
     // ボーナスの実処理
     LevelUpResult ApplyBonus(HandManager *handManager, Choice choice);
 
     // 連打による誤爆防止用タイマー
     int inputDelayTimer_ = 0;
+
+    // パネルを左右にどれくらい離すかの距離
+    float panelOffsetX_ = 200.0f;
 };
 

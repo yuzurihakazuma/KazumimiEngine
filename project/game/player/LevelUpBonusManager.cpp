@@ -43,6 +43,18 @@ void LevelUpBonusManager::Initialize() {
         UISprite_->SetAnchorPoint({ 0.5f,0.5f });
         UISprite_->SetPosition({ screenW * 0.5f, screenH * 0.5f }); // 画面中央
     }
+
+    // 左の選択肢の文字画像（実際のファイル名に合わせてください！）
+    leftTextSprite_ = Sprite::Create("resources/UI/LevelUpHandUI.png", { screenW * 0.5f, screenH * 0.5f });
+    if (leftTextSprite_) {
+        leftTextSprite_->SetAnchorPoint({ 0.5f, 0.5f });
+    }
+
+    // 右の選択肢の文字画像（例：Change.png）
+    rightTextSprite_ = Sprite::Create("resources/UI/LevelUpCardUi.png", { screenW * 0.5f, screenH * 0.5f });
+    if (rightTextSprite_) {
+        rightTextSprite_->SetAnchorPoint({ 0.5f, 0.5f });
+    }
    
 }
 
@@ -143,13 +155,7 @@ void LevelUpBonusManager::Draw() {
                 choiceVisuals_[i]->SetPosition(basePos);
             }
 
-            if (i != (int)currentSelectedChoice_) {
-                if (i == (int)Choice::IncreaseMaxHandSize) {
-                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f - 90.0f, screenH * 0.5f + 30.0f });
-                } else {
-                    choiceVisuals_[i]->SetPosition({ screenW * 0.5f + 310.0f, screenH * 0.5f + 30.0f });
-                }
-            }
+           
 
             choiceVisuals_[i]->Update();
             choiceVisuals_[i]->Draw();
@@ -161,6 +167,24 @@ void LevelUpBonusManager::Draw() {
         UISprite_->SetPosition({ centerX, screenH * 0.5f });
         UISprite_->Update();
         UISprite_->Draw();
+    }
+
+    
+
+    // 左のテキスト画像の描画（左パネルの下）
+    if (leftTextSprite_) {
+        // centerX - panelOffsetX で、左パネルの真下にピタッと合わせます
+        leftTextSprite_->SetPosition({ centerX + panelOffsetX_, centerY  });
+        leftTextSprite_->Update();
+        leftTextSprite_->Draw();
+    }
+
+    // 右のテキスト画像の描画（右パネルの下）
+    if (rightTextSprite_) {
+        // centerX + panelOffsetX で、右パネルの真下にピタッと合わせます
+        rightTextSprite_->SetPosition({ centerX - panelOffsetX_, centerY });
+        rightTextSprite_->Update();
+        rightTextSprite_->Draw();
     }
     
 }
