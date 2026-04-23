@@ -1,5 +1,6 @@
 ﻿#include "DecoyEffect.h"
 #include <cmath>
+#include "engine/particle/GPUParticleManager.h"
 
 using namespace VectorMath;
 
@@ -54,6 +55,30 @@ void DecoyEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,
 		model_->SetIsWalking(false);
 		model_->SetTranslation(pos_);
 		model_->Update();
+
+		for ( int i = 0; i < 3; i++ ) {
+			float angle = static_cast< float >(rand() % 628) * 0.01f;
+			float radius = 0.3f + static_cast< float >(rand() % 5) * 0.1f;
+
+			Vector3 emitPos = {
+				pos_.x + std::cosf(angle) * radius,
+				pos_.y + 0.5f + static_cast< float >(rand() % 10) * 0.2f, // 高さランダム
+				pos_.z + std::sinf(angle) * radius
+			};
+			Vector3 vel = {
+				std::cosf(angle) * 0.05f,
+				0.1f + static_cast< float >( rand() % 5 ) * 0.05f, // ふわっと上に
+				std::sinf(angle) * 0.05f
+			};
+
+			// デコイの色（青白）に合わせた色
+			Vector4 color = { 0.5f, 0.8f, 1.0f, 0.8f };
+			float life = 0.3f + static_cast< float >( rand() % 3 ) * 0.1f;
+			float scale = 0.1f + static_cast< float >( rand() % 3 ) * 0.05f;
+
+			GPUParticleManager::GetInstance()->Emit(emitPos, vel, life, scale, color);
+		}
+
 	}
 }
 
