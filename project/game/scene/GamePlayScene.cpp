@@ -126,6 +126,8 @@ void GamePlayScene::Initialize() {
 	
 	ModelManager::GetInstance()->LoadModel("claw_model", "resources/claw", "claw.obj");
 
+	ModelManager::GetInstance()->LoadModel("Fist_model", "resources/Fist", "Fist.obj");
+
 	// CSVからカードデータベースを初期化
 	CardDatabase::Initialize("resources/card/CardData.csv");
 

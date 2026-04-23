@@ -10,6 +10,9 @@ void HealEffect::Start(const Vector3 &casterPos, float casterYaw, bool isPlayerC
 	effectTimer_ = 0;          // タイマーをリセット
 	currentPos_ = casterPos;   // 最初の位置を記憶
 
+	hasHealed_ = false;      // 回復処理はまだ行っていない状態にリセット
+
+
 }
 
 void HealEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss,  const Vector3 &bossPos, const LevelData &level) {
@@ -18,8 +21,9 @@ void HealEffect::Update(Player *player, EnemyManager *enemyManager, Boss *boss, 
 	}
 
 	// プレイヤーが使った場合のみ回復する
-	if (isPlayerCaster_ && player != nullptr && !player->IsDead()) {
+	if ( !hasHealed_ &&isPlayerCaster_ && player != nullptr && !player->IsDead()) {
 		player->Heal(healAmount_); // 受け取った回復量で回復
+		hasHealed_ = true; // 回復処理を行ったフラグを立てる
 	}
 
 	if ( isPlayerCaster_ && player != nullptr ) {
