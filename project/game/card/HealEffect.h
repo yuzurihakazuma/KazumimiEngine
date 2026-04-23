@@ -23,6 +23,7 @@ private:
 	bool isPlayerCaster_ = true;
 	bool isFinished_ = false;
 
+	bool hasHealed_ = false;              // 回復処理を一度だけ行うためのフラグ
 
 	int effectTimer_ = 0;                 // エフェクトの経過フレーム
 	const int kEffectDuration = 20;       // エフェクトを出し続ける長さ（20フレーム ＝ 約0.3秒）
