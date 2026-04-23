@@ -490,7 +490,7 @@ void Tutorial::UpdateTexts() const {
 		"WASD:移動\n"
 		"LShift:回避\n"
 		"Space:カード使用\n"
-		"矢印キー:カード選択\n"
+		"矢印キー:カード選択\n\n"
 		"クリア条件:5階層まで進みボスを倒す"
 	);
 
