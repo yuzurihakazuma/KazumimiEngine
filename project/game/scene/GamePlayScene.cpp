@@ -227,10 +227,17 @@ void GamePlayScene::Initialize() {
 	TextManager::GetInstance()->SetPosition("PlayerCost", 40, 600);
 	TextManager::GetInstance()->SetPosition("PlayerLevel", 40, 640);
 	TextManager::GetInstance()->SetPosition("PlayerEXP", 40, 680);
+	TextManager::GetInstance()->SetPosition("Floor", 40, 250);
+	TextManager::GetInstance()->SetScale("Floor", 1.2f);
 
 	// 画面サイズ取得
 	float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
 	float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+	TextManager::GetInstance()->SetPosition("FloorTransition", screenW * 0.5f, screenH * 0.5f);
+	TextManager::GetInstance()->SetScale("FloorTransition", 2.0f);
+	TextManager::GetInstance()->SetCentered("FloorTransition", true);
+	TextManager::GetInstance()->SetColor("FloorTransition", 1.0f, 1.0f, 1.0f, 1.0f);
+	TextManager::GetInstance()->SetText("FloorTransition", "");
 
 	// 中央に配置（少し上に出すなら -50 くらい）
 	TextManager::GetInstance()->SetPosition("CostLack", screenW * 0.5f - 100.0f, screenH * 0.5f - 50.0f);
@@ -298,6 +305,20 @@ void GamePlayScene::Initialize() {
 
 	if (ConsumeTutorialStartRequest()) {
 		tutorial_->Start();
+		isFloorTransitionTextVisible_ = false;
+		TextManager::GetInstance()->SetText("FloorTransition", "");
+	}
+	else {
+		transitionState_ = TransitionState::BlackHold;
+		fadeAlpha_ = 1.0f;
+		floorTransitionHoldTimer_ = 45;
+		shouldAdvanceFloorOnBlack_ = false;
+		isFloorTransitionTextVisible_ = true;
+		floorTransitionDisplayFloor_ = mapManager_ ? mapManager_->GetCurrentFloor() : 1;
+		TextManager::GetInstance()->SetText(
+			"FloorTransition",
+			"FLOOR " + std::to_string(floorTransitionDisplayFloor_)
+		);
 	}
 
 
@@ -347,18 +368,37 @@ void GamePlayScene::Update() {
 		if (fadeAlpha_ >= 1.0f) {
 			fadeAlpha_ = 1.0f;
 
-			// 真っ黒になった瞬間に階層切り替え
-			mapManager_->AdvanceFloor(
-				enemyManager_.get(),
-				bossManager_.get(),
-				minimap_.get(),
-				[this]() { ResetBattleDebug(); }
-			);
+			if (shouldAdvanceFloorOnBlack_) {
+				// 真っ黒になった瞬間に階層切り替え
+				mapManager_->AdvanceFloor(
+					enemyManager_.get(),
+					bossManager_.get(),
+					minimap_.get(),
+					[this]() { ResetBattleDebug(); }
+				);
+				shouldAdvanceFloorOnBlack_ = false;
+			}
 
-			// ここからは新しい階層を更新しながら見せる
-			transitionState_ = TransitionState::FadeIn;
+			TextManager::GetInstance()->SetText(
+				"FloorTransition",
+				"FLOOR " + std::to_string(floorTransitionDisplayFloor_)
+			);
+			isFloorTransitionTextVisible_ = !(tutorial_ && tutorial_->IsActive());
+			floorTransitionHoldTimer_ = 45;
+			transitionState_ = TransitionState::BlackHold;
 		}
 
+	}
+	else if (transitionState_ == TransitionState::BlackHold) {
+		fadeAlpha_ = 1.0f;
+		if (floorTransitionHoldTimer_ > 0) {
+			floorTransitionHoldTimer_--;
+		}
+		if (floorTransitionHoldTimer_ <= 0) {
+			isFloorTransitionTextVisible_ = false;
+			TextManager::GetInstance()->SetText("FloorTransition", "");
+			transitionState_ = TransitionState::FadeIn;
+		}
 	}
 	else if (transitionState_ == TransitionState::FadeIn) {
 		fadeAlpha_ -= kFadeSpeed; // 画面を明るくしていく
@@ -366,6 +406,8 @@ void GamePlayScene::Update() {
 		if (fadeAlpha_ <= 0.0f) {
 			fadeAlpha_ = 0.0f;
 			transitionState_ = TransitionState::None;
+			isFloorTransitionTextVisible_ = false;
+			TextManager::GetInstance()->SetText("FloorTransition", "");
 		}
 	}
 
@@ -376,7 +418,7 @@ void GamePlayScene::Update() {
 	}
 
 	// ★ FadeOut中（真っ黒に向かっている最中）だけ、ゲームの進行を止める
-	if (transitionState_ == TransitionState::FadeOut) {
+	if (transitionState_ == TransitionState::FadeOut || transitionState_ == TransitionState::BlackHold) {
 		return;
 	}
 
@@ -566,6 +608,10 @@ void GamePlayScene::Update() {
 				if (!tutorialActive && transitionState_ == TransitionState::None) {
 					transitionState_ = TransitionState::FadeOut;
 					fadeAlpha_ = 0.0f;
+					isFloorTransitionTextVisible_ = false;
+					shouldAdvanceFloorOnBlack_ = true;
+					floorTransitionDisplayFloor_ = mapManager_->GetCurrentFloor() + 1;
+					TextManager::GetInstance()->SetText("FloorTransition", "");
 				}
 			}
 		}
@@ -1107,6 +1153,16 @@ void GamePlayScene::Update() {
 		textMgr->SetPosition("PlayerEXP", startX + spacing * 3, topY);
 	}
 
+	if (tutorial_ && tutorial_->IsActive()) {
+		TextManager::GetInstance()->SetText("Floor", "");
+	}
+	else if (mapManager_) {
+		TextManager::GetInstance()->SetText(
+			"Floor",
+			"FLOOR:" + std::to_string(mapManager_->GetCurrentFloor())
+		);
+	}
+
 	// ==========================================
 	// カードシステム用のターゲット検索と更新
 	// ==========================================
@@ -1425,6 +1481,11 @@ void GamePlayScene::Draw() {
 	// =========================================
 	if (fadeSprite_ && transitionState_ != TransitionState::None) {
 		fadeSprite_->Draw();
+	}
+	if (isFloorTransitionTextVisible_ &&
+		transitionState_ == TransitionState::BlackHold &&
+		!(tutorial_ && tutorial_->IsActive())) {
+		TextManager::GetInstance()->DrawText("FloorTransition");
 	}
 }
 

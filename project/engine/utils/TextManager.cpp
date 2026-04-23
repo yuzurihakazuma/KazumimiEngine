@@ -142,6 +142,62 @@ void TextManager::Draw(){
 
 }
 
+void TextManager::DrawText(const std::string& key) {
+	auto it = texts_.find(key);
+	if (it == texts_.end() || it->second.text.empty()) {
+		return;
+	}
+
+	auto dxCommon = DirectXCommon::GetInstance();
+	auto commandList = dxCommon->GetCommandList();
+
+	auto windowProc = WindowProc::GetInstance();
+	D3D12_VIEWPORT viewport {};
+	viewport.Width = static_cast<float>(windowProc->GetClientWidth());
+	viewport.Height = static_cast<float>(windowProc->GetClientHeight());
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	spriteBatch_->SetViewport(viewport);
+
+	ID3D12DescriptorHeap* heaps[] = { resourceDescriptors_->Heap() };
+	commandList->SetDescriptorHeaps(1, heaps);
+
+	spriteBatch_->Begin(commandList);
+
+	const TextData& data = it->second;
+	DirectX::XMVECTOR color = DirectX::XMVectorSet(data.color[0], data.color[1], data.color[2], data.color[3]);
+	std::wstring wText = ConvertString(data.text);
+
+	try {
+		DirectX::XMFLOAT2 origin = { 0.0f, 0.0f };
+		if (data.isCentered) {
+			DirectX::XMVECTOR measured = spriteFont_->MeasureString(wText.c_str());
+			DirectX::XMFLOAT2 measuredSize {};
+			DirectX::XMStoreFloat2(&measuredSize, measured);
+			origin = { measuredSize.x * 0.5f, measuredSize.y * 0.5f };
+		}
+
+		spriteFont_->DrawString(
+			spriteBatch_.get(),
+			wText.c_str(),
+			DirectX::XMFLOAT2(data.x, data.y),
+			color,
+			0.0f,
+			origin,
+			data.scale
+		);
+	} catch (...) {
+		// 未対応文字が来たときにクラッシュするのを防ぐ
+	}
+
+	spriteBatch_->End();
+	graphicsMemory_->Commit(dxCommon->GetCommandQueue());
+	SrvManager::GetInstance()->PreDraw();
+}
+
 void TextManager::DrawDebugUI(){
 #ifdef USE_IMGUI
 	ImGui::Begin("Text Manager (JSON)");
