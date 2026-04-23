@@ -480,9 +480,9 @@ void Tutorial::UpdateTexts() const {
 	text->SetCentered("TutorialBody", false);
 
 	// チュートリアル中だけ、操作説明と本編のクリア条件を右下に常時表示する
-	text->SetPosition("TutorialGuide", 1150.0f, 550.0f);
+	text->SetPosition("TutorialGuide", 1450.0f, 750.0f);
 	text->SetCentered("TutorialGuide", false);
-	text->SetScale("TutorialGuide", 0.65f);
+	text->SetScale("TutorialGuide", 0.8f);
 	text->SetColor("TutorialGuide", 1.0f, 1.0f, 1.0f, 0.9f);
 	text->SetText(
 		"TutorialGuide",

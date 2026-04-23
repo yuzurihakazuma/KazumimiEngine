@@ -276,6 +276,7 @@ void GamePlayScene::Initialize() {
 	TextManager::GetInstance()->SetCentered("PauseResume", true);
 	TextManager::GetInstance()->SetCentered("PauseToTitle", true);
 
+
 	// ポーズ中の半透明背景
 	pauseBgSprite_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, screenH * 0.5f });
 	pauseBgSprite_->SetSize({ screenW, screenH });
@@ -1162,6 +1163,26 @@ void GamePlayScene::Update() {
 			"FLOOR:" + std::to_string(mapManager_->GetCurrentFloor())
 		);
 	}
+
+	// チュートリアル中でない時だけ、ゲームプレイ用の操作説明とクリア条件を右下へ表示する
+	if (!(tutorial_ && tutorial_->IsActive())) {
+		TextManager* text = TextManager::GetInstance();
+
+		text->SetPosition("TutorialGuide", 1450.0f, 750.0f);
+		text->SetCentered("TutorialGuide", false);
+		text->SetScale("TutorialGuide", 0.8f);
+		text->SetColor("TutorialGuide", 1.0f, 1.0f, 1.0f, 0.9f);
+		text->SetText(
+			"TutorialGuide",
+			"操作説明\n"
+			"WASD:移動\n"
+			"LShift:回避\n"
+			"Space:カード使用\n"
+			"矢印キー:カード選択\n\n"
+			"クリア条件:5階層まで進みボスを倒す"
+		);
+	}
+
 
 	// ==========================================
 	// カードシステム用のターゲット検索と更新
