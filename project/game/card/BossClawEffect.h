@@ -36,5 +36,8 @@ private:
 	int timer_ = 0;       // 演出の進行タイマー
 	bool hasHit_ = false; // 現在の攻撃が当たったかどうか
 	bool isFinished_ = false;
+
+	float casterYaw_ = 0.0f;
+	Vector3 casterPos_ = { 0.0f, 0.0f, 0.0f };
 };
 

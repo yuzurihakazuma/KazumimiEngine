@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "game/card/ICardEffect.h"
-#include "engine/3d/obj/Obj3d.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
 #include <memory>
 
 class DecoyEffect : public ICardEffect {
@@ -15,7 +15,7 @@ public:
 	// デコイの座標（敵が狙う用）
 	Vector3 GetPosition() const { return pos_; }
 public:
-	std::unique_ptr<Obj3d> obj_ = nullptr;
+	std::unique_ptr<SkinnedObj3d> model_ = nullptr;
 	Vector3 pos_ = { 0.0f, 0.0f, 0.0f };
 	Vector3 scale_ = { 1.0f, 1.0f, 1.0f };
 	int duration_ = 300;

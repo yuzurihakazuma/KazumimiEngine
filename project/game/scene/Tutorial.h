@@ -119,5 +119,5 @@ private:
 	const Rect corridor2_{ 30, 23, 33, 26 };
 	const Rect corridor3_{ 37, 30, 40, 33 };
 	const Rect corridor4_{ 30, 37, 33, 40 };
-	static constexpr int kAdvanceCooldownFrames_ = 120;
+	static constexpr int kAdvanceCooldownFrames_ = 60;
 };

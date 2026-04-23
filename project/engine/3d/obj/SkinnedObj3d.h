@@ -71,6 +71,7 @@ public:
     const Vector3& GetTranslation() const override { return translate_; }
     const Vector3& GetRotation() const override { return rotation_; }
     const Vector3& GetScale() const override { return scale_; }
+    Model* GetModel() const { return model_; }
 
     const std::string& GetName() const override { return name_; }
     void SetName(const std::string& name) override { name_ = name; }

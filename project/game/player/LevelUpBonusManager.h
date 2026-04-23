@@ -52,5 +52,8 @@ private:
 
     // ボーナスの実処理
     LevelUpResult ApplyBonus(HandManager *handManager, Choice choice);
+
+    // 連打による誤爆防止用タイマー
+    int inputDelayTimer_ = 0;
 };
 

@@ -8,7 +8,7 @@
 using namespace VectorMath;
 
 namespace {
-constexpr float kBossAppearRiseHeight = 5.5f;
+constexpr float kBossAppearDropHeight = 18.0f;
 }
 
 void Boss::Initialize() {
@@ -129,7 +129,7 @@ Card Boss::SelectCardForDistance(float dist, bool isEnraged) {
 
 int Boss::GetCastTimeForCard(int cardId, bool isEnraged) const {
     if (cardId == 104) {
-        return isEnraged ? 60 : 82;
+        return isEnraged ? 90 : 120;
     }
 
     if (cardId == 103) {
@@ -158,15 +158,30 @@ void Boss::ApplyCastingPose(float normalizedTime) {
     // 破壊光線は必殺技らしく、腰を落としてためてから前へ押し出す構えにする
     if (selectedCard_.id == 104) {
         float charge = std::sinf(t * 3.14159f);
-        rot_.x = 0.18f + settle * 0.38f;
-        rot_.z = std::sinf(t * 9.42477f) * 0.12f;
+        float pulse = 0.5f + 0.5f * std::sinf(t * 18.84954f);
+        float hold = t * t * (3.0f - 2.0f * t);
+
+        rot_.x = 0.22f + hold * 0.55f;
+        rot_.z = std::sinf(t * 12.56636f) * 0.08f;
+
         scale_ = {
-            2.0f + charge * 0.35f,
-            1.85f - charge * 0.20f + settle * 0.15f,
-            2.0f + settle * 0.85f
+            2.0f + charge * 0.25f + pulse * 0.04f,
+            1.75f - charge * 0.22f,
+            2.0f + hold * 1.25f + pulse * 0.08f
         };
+
+        if (t > 0.72f) {
+            float finisher = (t - 0.72f) / 0.28f;
+            finisher = std::clamp(finisher, 0.0f, 1.0f);
+
+            rot_.x += finisher * 0.18f;
+            scale_.z += finisher * 0.45f;
+            scale_.y -= finisher * 0.06f;
+        }
         return;
     }
+
+
 
     if (selectedCard_.id == 103) {
         scale_ = {
@@ -182,6 +197,26 @@ void Boss::ApplyCastingPose(float normalizedTime) {
         2.0f + settle * 0.18f,
         2.0f + settle * 0.22f
     };
+}
+
+void Boss::ApplyPreBattlePose(float normalizedTime) {
+    float t = std::clamp(normalizedTime, 0.0f, 1.0f);
+    float ease = t * t * (3.0f - 2.0f * t);
+
+    rot_.x = 0.10f + ease * 0.22f;
+    rot_.z = std::sinf(t * 3.14159f) * 0.05f;
+
+    scale_ = {
+        2.0f + ease * 0.10f,
+        2.0f - ease * 0.06f,
+        2.0f + ease * 0.18f
+    };
+}
+
+void Boss::ResetPose() {
+    rot_.x = 0.0f;
+    rot_.z = 0.0f;
+    scale_ = { 2.0f, 2.0f, 2.0f };
 }
 
 void Boss::Update() {
@@ -267,14 +302,41 @@ void Boss::UpdateAppear() {
     }
 
     float t = 1.0f - (static_cast<float>(appearTimer_) / static_cast<float>(appearDuration_));
-    float eased = t * t * (3.0f - 2.0f * t);
+    t = std::clamp(t, 0.0f, 1.0f);
+
+    // 落下は速く、着地前で少しためる
+    float eased = 1.0f - std::pow(1.0f - t, 4.0f);
 
     pos_.y = appearStartY_ + (appearTargetY_ - appearStartY_) * eased;
-    rot_.y += 0.03f;
+
+    // 落下中の前傾とひねり
+    rot_.x = (1.0f - t) * 0.45f;
+    rot_.y += 0.18f;
+    rot_.z = std::sinf(t * 9.42477f) * 0.12f;
+
+    // 着地前後の膨らみ
+    float impact = std::sinf(t * 3.14159f);
+    scale_ = {
+        2.0f + impact * 0.12f,
+        2.0f - impact * 0.08f,
+        2.0f + impact * 0.12f
+    };
 
     if (appearTimer_ <= 0) {
         pos_.y = appearTargetY_;
-        rot_.y = 0.0f;
+        rot_.x = 0.0f;
+        rot_.z = 0.0f;
+
+        Vector3 dir = {
+            playerPos_.x - pos_.x,
+            0.0f,
+            playerPos_.z - pos_.z
+        };
+
+        if (Length(dir) > 0.01f) {
+            rot_.y = std::atan2f(dir.x, dir.z);
+        }
+
         state_ = State::Idle;
         thinkTimer_ = 20;
     }
@@ -365,17 +427,75 @@ void Boss::UpdateChase() {
 }
 
 void Boss::UpdateUseCard() {
+    // HPが半分以下なら怒り状態
     const bool isEnraged = hp_ <= (maxHP_ / 2);
 
+    // =========================================================
+    // 1. 詠唱開始前（ここで「どのカードを使うか」を抽選で決める！）
+    // =========================================================
     if (!isCasting_) {
         Vector3 startDir = {
             playerPos_.x - pos_.x,
             0.0f,
             playerPos_.z - pos_.z
         };
+        float dist = Length(startDir);
 
-        selectedCard_ = SelectCardForDistance(Length(startDir), isEnraged);
-        if (selectedCard_.id < 0) {
+        std::vector<Card> candidates;
+        auto addWeightedCard = [&](int cardId, int weight) {
+            if (weight <= 0) return;
+            for (const auto &card : heldCards_) {
+                if (card.id != cardId || !IsCardReady(card.id)) continue;
+                for (int i = 0; i < weight; ++i) {
+                    candidates.push_back(card);
+                }
+                return;
+            }
+            };
+
+        // 距離と怒り状態に応じた確率の振り分け
+        if (dist < 5.5f) {
+            addWeightedCard(101, 5);
+            addWeightedCard(102, isEnraged ? 2 : 1);
+            if (isEnraged) addWeightedCard(104, 3); // 近距離でも怒り時は少し撃つ
+            addWeightedCard(103, 1);
+        } else if (dist < 14.0f) {
+            addWeightedCard(102, isEnraged ? 7 : 5);
+            if (isEnraged) addWeightedCard(104, 6); // 中距離はビーム率高め
+            addWeightedCard(103, isEnraged ? 3 : 2);
+            addWeightedCard(101, 2);
+        } else {
+            addWeightedCard(102, isEnraged ? 8 : 6);
+            if (isEnraged) addWeightedCard(104, 7); // 遠距離もビーム率高め
+            addWeightedCard(103, isEnraged ? 5 : 4);
+        }
+
+        // 連続で同じカードにならないようにする処理
+        bool hasDifferentCard = false;
+        for (const auto &card : candidates) {
+            if (card.id != lastUsedCardId_) {
+                hasDifferentCard = true;
+                break;
+            }
+        }
+        if (hasDifferentCard) {
+            candidates.erase(
+                std::remove_if(candidates.begin(), candidates.end(),
+                    [&](const Card &card) { return card.id == lastUsedCardId_; }
+                ),
+                candidates.end()
+            );
+        }
+
+        // 候補が空なら、使えるものをとにかく入れる
+        if (candidates.empty()) {
+            for (const auto &card : heldCards_) {
+                if (IsCardReady(card.id)) candidates.push_back(card);
+            }
+        }
+
+        // それでも使えるカードがない場合はチェイス(追跡)に戻る
+        if (candidates.empty()) {
             state_ = State::Chase;
             thinkTimer_ = 20;
             scale_ = { 2.0f, 2.0f, 2.0f };
@@ -384,12 +504,23 @@ void Boss::UpdateUseCard() {
             return;
         }
 
+        // ★ 確率の配列の中からランダムで1つ決定！
+        static std::random_device rd;
+        static std::mt19937 mt(rd());
+        std::uniform_int_distribution<int> distCard(0, static_cast<int>(candidates.size()) - 1);
+
+        selectedCard_ = candidates[distCard(mt)];
+
+        // 詠唱タイマーをセットして詠唱開始
         isCasting_ = true;
         castDurationCurrent_ = GetCastTimeForCard(selectedCard_.id, isEnraged);
         castTimer_ = castDurationCurrent_;
         return;
     }
 
+    // =========================================================
+    // 2. 詠唱中の処理（プレイヤーの方を向いてポーズを取る）
+    // =========================================================
     if (castTimer_ > 0) {
         castTimer_--;
 
@@ -407,6 +538,9 @@ void Boss::UpdateUseCard() {
         return;
     }
 
+    // =========================================================
+    // 3. 詠唱完了・カード発動処理
+    // =========================================================
     scale_ = { 2.0f, 2.0f, 2.0f };
     rot_.x = 0.0f;
     rot_.z = 0.0f;
@@ -420,86 +554,11 @@ void Boss::UpdateUseCard() {
         rot_.y = std::atan2f(dir.x, dir.z);
     }
 
-    std::vector<Card> candidates;
-    auto addWeightedCard = [&](int cardId, int weight) {
-        if (weight <= 0) {
-            return;
-        }
-
-        for (const auto& card : heldCards_) {
-            if (card.id != cardId || !IsCardReady(card.id)) {
-                continue;
-            }
-
-            for (int i = 0; i < weight; ++i) {
-                candidates.push_back(card);
-            }
-            return;
-        }
-    };
-
-    float dist = Length(dir);
-    if (dist < 5.5f) {
-        addWeightedCard(101, 5);
-        addWeightedCard(102, isEnraged ? 2 : 1);
-        addWeightedCard(104, isEnraged ? 3 : 2);
-        addWeightedCard(103, 1);
-    } else if (dist < 14.0f) {
-        addWeightedCard(102, isEnraged ? 7 : 5);
-        addWeightedCard(104, isEnraged ? 6 : 4);
-        addWeightedCard(103, isEnraged ? 3 : 2);
-        addWeightedCard(101, 2);
-    } else {
-        addWeightedCard(102, isEnraged ? 8 : 6);
-        addWeightedCard(104, isEnraged ? 7 : 5);
-        addWeightedCard(103, isEnraged ? 5 : 4);
-    }
-
-    // 連続で同じカードばかりにならないように、別候補がある時は直前の札を外す。
-    bool hasDifferentCard = false;
-    for (const auto& card : candidates) {
-        if (card.id != lastUsedCardId_) {
-            hasDifferentCard = true;
-            break;
-        }
-    }
-    if (hasDifferentCard) {
-        candidates.erase(
-            std::remove_if(
-                candidates.begin(),
-                candidates.end(),
-                [&](const Card& card) { return card.id == lastUsedCardId_; }
-            ),
-            candidates.end()
-        );
-    }
-
-    if (candidates.empty()) {
-        for (const auto& card : heldCards_) {
-            if (IsCardReady(card.id)) {
-                candidates.push_back(card);
-            }
-        }
-    }
-
-    if (candidates.empty()) {
-        state_ = State::Chase;
-        thinkTimer_ = 20;
-        isCasting_ = false;
-        scale_ = { 2.0f, 2.0f, 2.0f };
-        return;
-    }
-
-    static std::random_device rd;
-    static std::mt19937 mt(rd());
-    std::uniform_int_distribution<int> distCard(0, static_cast<int>(candidates.size()) - 1);
-
-    if (selectedCard_.id < 0) {
-        selectedCard_ = candidates[distCard(mt)];
-    }
+    // 発動の合図を送る
     lastUsedCardId_ = selectedCard_.id;
     cardUseRequest_ = true;
 
+    // クールダウン設定
     if (selectedCard_.id == 101) {
         cardCooldownTimer_ = isEnraged ? 28 : 38;
         StartCardCooldown(101, isEnraged ? 45 : 60);
@@ -507,6 +566,7 @@ void Boss::UpdateUseCard() {
         cardCooldownTimer_ = isEnraged ? 24 : 34;
         StartCardCooldown(102, isEnraged ? 45 : 65);
     } else if (selectedCard_.id == 104) {
+        // ビームのクールダウン
         cardCooldownTimer_ = isEnraged ? 42 : 56;
         StartCardCooldown(104, isEnraged ? 80 : 110);
     } else if (selectedCard_.id == 103) {
@@ -514,6 +574,7 @@ void Boss::UpdateUseCard() {
         StartCardCooldown(103, isEnraged ? 90 : 120);
     }
 
+    // 発動後の硬直とチェイスへの復帰
     state_ = State::Chase;
     thinkTimer_ = isEnraged ? 10 : 18;
 
@@ -521,9 +582,6 @@ void Boss::UpdateUseCard() {
     actionLockTimer_ = isEnraged ? 10 : 16;
 
     isCasting_ = false;
-    scale_ = { 2.0f, 2.0f, 2.0f };
-    rot_.x = 0.0f;
-    rot_.z = 0.0f;
 }
 
 Card Boss::GetRandomDropCard() const {
@@ -613,6 +671,6 @@ int Boss::GetCardCooldownTime(int cardId) const {
 
 void Boss::SetSpawnPosition(const Vector3& pos) {
     appearTargetY_ = pos.y;
-    appearStartY_ = pos.y - kBossAppearRiseHeight;
+    appearStartY_ = pos.y + kBossAppearDropHeight;
     pos_ = { pos.x, appearStartY_, pos.z };
 }

@@ -23,9 +23,9 @@ void RuinBeamEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
 
     // 発射直後から前方を大きく塞ぐように、中心を少し前へ置く
     pos_ = {
-        casterPos.x + forward.x * (baseScale_.z * 0.58f),
+        casterPos.x + forward.x * (baseScale_.z * 0.90f),
         casterPos.y - 0.8f,
-        casterPos.z + forward.z * (baseScale_.z * 0.58f)
+        casterPos.z + forward.z * (baseScale_.z * 0.90f)
     };
     rot_ = { 0.0f, casterYaw, 0.0f };
 
@@ -36,12 +36,21 @@ void RuinBeamEffect::Start(const Vector3& casterPos, float casterYaw, bool isPla
         obj_->SetTranslation(pos_);
         obj_->SetScale(baseScale_);
 
-        if (obj_->GetModel() && obj_->GetModel()->GetMaterial()) {
-            auto* material = obj_->GetModel()->GetMaterial();
-            material->color = { 1.0f, 0.25f, 0.25f, 0.92f };
-            material->emissive = 3.4f;
-        }
+        Model *model = obj_->GetModel();
+        if (model) {
+            // テクスチャを白紙に変更
+            model->SetTexture("resources/white1x1.png");
 
+            Model::Material *material = model->GetMaterial();
+            if (material) {
+                // ビームの色と透明度を設定 { R, G, B, A }
+                // 禍々しい赤紫色（A=0.4f で少し透けるように設定）
+                material->color = { 1.0f, 0.0f, 0.5f, 0.4f };
+
+                // 発光（Emissive）を強くして、中央が白く光るようにする
+                material->emissive = 3.0f;
+            }
+        }
         obj_->Update();
     }
 }
@@ -60,11 +69,13 @@ void RuinBeamEffect::Update(Player* player, EnemyManager* enemyManager, Boss* bo
     }
 
     if (obj_) {
-        // 出始めから中盤にかけて太くなり、終わり際に少し細くなる
         float t = 1.0f - (static_cast<float>(lifeTimer_) / 72.0f);
-        float pulse = 1.0f + std::sinf(t * 6.28318f) * 0.10f;
-        float width = (0.85f + std::sinf(t * 3.14159f) * 0.35f) * pulse;
-        float height = 0.90f + std::sinf(t * 3.14159f) * 0.18f;
+        float pulse = 1.0f + std::sinf(t * 12.56636f) * 0.12f;
+
+        // 出始めは細く、途中で一気に広がる
+        float grow = std::clamp(t * 1.8f, 0.0f, 1.0f);
+        float width = (0.35f + grow * 1.10f) * pulse;
+        float height = 0.45f + grow * 0.75f;
 
         obj_->SetScale({
             baseScale_.x * width,

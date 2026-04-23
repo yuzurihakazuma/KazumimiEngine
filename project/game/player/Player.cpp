@@ -97,8 +97,8 @@ void Player::Initialize() {
     exp_ = 0;                 // 経験値初期化
     nextLevelExp_ = 3;        // 次レベル必要経験値初期化
 
-    cost_ = 3;                // 現在コスト初期化
-    maxCost_ = 3;             // 最大コスト初期化
+    cost_ = 5 ;                // 現在コスト初期化
+    maxCost_ = 5;             // 最大コスト初期化
     costRecoveryTimer_ = 0;   // コスト回復タイマー初期化
     costRecoveryInterval_ = 180; // コスト回復速度初期化
 
@@ -627,11 +627,17 @@ void Player::TakeDamage(int damage, const Vector3& attackFrom) {
 
 // カード使用ポーズを再生する
 void Player::PlayCardUsePose(int durationFrames) {
+    if (isDead_) {
+        return; // 死亡中はカード使用ポーズへ遷移させない
+    }
     StartPoseBlendByName(cardUsePoseNameBuffer_, durationFrames);
 }
 
 // 通常姿勢へ戻す
 void Player::PlayIdlePose(int durationFrames) {
+    if (isDead_) {
+        return; // 死亡中は通常姿勢へ戻さない
+    }
     StartPoseBlendByName(idlePoseNameBuffer_, durationFrames);
 }
 
@@ -738,6 +744,10 @@ void Player::ApplyPoseByName(const std::string& poseName) {
 
 // 現在姿勢から指定ポーズへの補間を開始する
 void Player::StartPoseBlendByName(const std::string& poseName, int duration) {
+    if (isDead_ && poseName != deathPoseNameBuffer_) {
+        return; // 死亡後は death ポーズ以外で上書きさせない
+    }
+
     poseBlendJoints_.clear();
 
     if (!model_) {

@@ -482,12 +482,12 @@ void Tutorial::UpdateTexts() const {
 	switch (step_) {
 	case Step::MoveIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 1 / 8");
-		text->SetText("TutorialBody", "WASD:移動\nLShift:回避\nSpace:攻撃\n回避中は無敵になります。");
+		text->SetText("TutorialBody", "WASD:移動\nLShift:回避\nSpace:カード使用\n回避中は無敵になります。");
 		break;
 
 	case Step::PickCard:
 		text->SetText("TutorialTitle", "TUTORIAL 2 / 8");
-		text->SetText("TutorialBody", "部屋に置かれたカードを拾ってください。\n拾うまで次の部屋には進めません。");
+		text->SetText("TutorialBody", "部屋に置かれたカードを拾ってください。");
 		break;
 
 	case Step::StatusIntro:
@@ -497,7 +497,7 @@ void Tutorial::UpdateTexts() const {
 
 	case Step::CombatIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 4 / 8");
-		text->SetText("TutorialBody", "矢印キーで選びSPACEで選択中のカードを使います。\n準備したカードはEで発動します。SPACEで戦闘を始めます。");
+		text->SetText("TutorialBody", "矢印キーで選びSPACEで選択中のカードを使います。\nSPACEで再開します。");
 		break;
 
 	case Step::DefeatEnemy:
@@ -507,7 +507,7 @@ void Tutorial::UpdateTexts() const {
 
 	case Step::CardSwapIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 5 / 8");
-		text->SetText("TutorialBody", "次の部屋ではカード交換を練習します。\n持てるカードは3枚まで、レベルアップで増やすことができます。SPACEで再開します。");
+		text->SetText("TutorialBody", "持てるカードは3枚まで、レベルアップで増やすことができます。SPACEで再開します。");
 		break;
 
 	case Step::CardSwapPractice:
@@ -517,27 +517,27 @@ void Tutorial::UpdateTexts() const {
 
 	case Step::EnemyCardWatch:
 		text->SetText("TutorialTitle", "TUTORIAL 6 / 8");
-		text->SetText("TutorialBody", "次の部屋に入ってください。\n敵がカードを拾う様子を見てみましょう。");
+		text->SetText("TutorialBody", "");
 		break;
 
 	case Step::EnemyCardIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 6 / 8");
-		text->SetText("TutorialBody", "敵もカードを拾い、カード攻撃をしてきます。\nまずはこの部屋の敵を2体とも倒してください。SPACEで再開します。");
+		text->SetText("TutorialBody", "敵もカードを拾い、カード攻撃をしてきます。\nSPACEで再開します。");
 		break;
 
 	case Step::EnemyCardBattle:
 		text->SetText("TutorialTitle", "TUTORIAL 6 / 8");
-		text->SetText("TutorialBody", "カードを拾った敵は強くなります。\nこの部屋の敵を2体とも倒してください。");
+		text->SetText("TutorialBody", "この部屋の敵を2体とも倒してください。");
 		break;
 
 	case Step::LevelUpIntro:
 		text->SetText("TutorialTitle", "TUTORIAL 7 / 8");
-		text->SetText("TutorialBody", "敵を倒して経験値がたまるとレベルアップします。\nレベルアップではボーナスを選べます。SPACEで次の部屋へ進みます。");
+		text->SetText("TutorialBody", "敵を倒して経験値がたまるとレベルアップします。\nレベルアップではボーナスを選べます。");
 		break;
 
 	case Step::ReachStairs:
 		text->SetText("TutorialTitle", "TUTORIAL 8 / 8");
-		text->SetText("TutorialBody", "次の部屋に階段が出ました。\n階段に乗るとチュートリアルを終えてタイトルへ戻ります。");
+		text->SetText("TutorialBody", "階段をのぼると\nチュートリアルを終えて\nタイトルへ戻ります。");
 		break;
 	}
 }

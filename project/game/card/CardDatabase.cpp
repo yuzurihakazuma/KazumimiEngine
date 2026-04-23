@@ -132,9 +132,10 @@ Card CardDatabase::GetCardData(int id) {
 Card CardDatabase::GetRandomEnemyUsableCard() {
     std::vector<Card> usableCards;
 
-    // データベース内の全カードをチェックして、敵が使えるやつだけリストに入れる
+    // データベース内の全カードをチェックして、雑魚敵が使えるやつだけリストに入れる
+    // 100番台はボス専用カードとして管理しているため、ここでは候補から除外する
     for (const auto& pair : database_) {
-        if (pair.second.canEnemyUse) {
+        if (pair.second.canEnemyUse && pair.second.id > 0 && pair.second.id < 100) {
             usableCards.push_back(pair.second);
         }
     }
