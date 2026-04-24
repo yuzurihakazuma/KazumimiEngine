@@ -73,7 +73,20 @@ public: // メンバ関数
 	/// 球モデルの初期化
 	/// </summary>
 	void InitializeSphere(ModelCommon* modelCommon, int subdivision);
+	
+	// <summary>
+	/// 平面モデルの初期化
+	/// </summary>
+	void InitializePlane(ModelCommon* modelCommon, float width = 1.0f, float height = 1.0f);
 
+	// <summary>
+	/// 立方体モデルの初期化
+	/// </summary>
+	void InitializeCube(ModelCommon* modelCommon, float size = 1.0f);
+
+	// <summary>
+	/// 立方体モデルの初期化
+	void InitializePrimitive(ModelCommon* modelCommon, const ModelData& modelData);
 
 	/// <summary>
 	/// 描画

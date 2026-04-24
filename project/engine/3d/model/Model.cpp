@@ -105,6 +105,105 @@ void Model::InitializeSphere(ModelCommon* modelCommon, int subdivision){
 	CreateBuffers(); // バッファの作成
 }
 
+// 平面モデルの初期化
+void Model::InitializePlane(ModelCommon* modelCommon, float width, float height){
+
+	// ModelCommonのポインタを記録
+	this->modelCommon_ = modelCommon;
+	modelData_ = {};
+
+	// 1. 頂点データ (4頂点)
+	VertexData v0, v1, v2, v3;
+	float hw = width / 2.0f;
+	float hh = height / 2.0f;
+
+	// 左下
+	v0.position = { -hw, -hh, 0.0f, 1.0f };
+	v0.texcoord = { 0.0f, 1.0f };
+	v0.normal = { 0.0f, 0.0f, -1.0f }; // 法線は手前向き
+
+	// 左上
+	v1.position = { -hw,  hh, 0.0f, 1.0f };
+	v1.texcoord = { 0.0f, 0.0f };
+	v1.normal = { 0.0f, 0.0f, -1.0f };
+
+	// 右下
+	v2.position = { hw, -hh, 0.0f, 1.0f };
+	v2.texcoord = { 1.0f, 1.0f };
+	v2.normal = { 0.0f, 0.0f, -1.0f };
+
+	// 右上
+	v3.position = { hw,  hh, 0.0f, 1.0f };
+	v3.texcoord = { 1.0f, 0.0f };
+	v3.normal = { 0.0f, 0.0f, -1.0f };
+
+	modelData_.vertices = { v0, v1, v2, v3 };
+
+	// 2. インデックスデータ (2ポリゴン = 6つのインデックス)
+	modelData_.indices = { 0, 1, 2,  2, 1, 3 };
+
+	// デフォルトのテクスチャ（エラー回避用）
+	modelData_.material.textureFilePath = "resources/uvChecker.png";
+
+	// 3. データを元にGPUのバッファを作る
+	CreateBuffers();
+
+}
+
+void Model::InitializeCube(ModelCommon* modelCommon, float size){
+	this->modelCommon_ = modelCommon;
+	modelData_ = {};
+
+	float hs = size / 2.0f;
+
+	// 1. 頂点データ (6面 × 4頂点 = 24頂点)
+	// 各面ごとに法線とUVが異なるため、頂点を共有せずに独立させます
+	modelData_.vertices = {
+		// 前面 (Front: -Z)
+		{ {-hs, -hs, -hs, 1.0f}, {0.0f, 1.0f}, { 0.0f,  0.0f, -1.0f} }, { {-hs,  hs, -hs, 1.0f}, {0.0f, 0.0f}, { 0.0f,  0.0f, -1.0f} },
+		{ { hs, -hs, -hs, 1.0f}, {1.0f, 1.0f}, { 0.0f,  0.0f, -1.0f} }, { { hs,  hs, -hs, 1.0f}, {1.0f, 0.0f}, { 0.0f,  0.0f, -1.0f} },
+		// 背面 (Back: +Z)
+		{ { hs, -hs,  hs, 1.0f}, {0.0f, 1.0f}, { 0.0f,  0.0f,  1.0f} }, { { hs,  hs,  hs, 1.0f}, {0.0f, 0.0f}, { 0.0f,  0.0f,  1.0f} },
+		{ {-hs, -hs,  hs, 1.0f}, {1.0f, 1.0f}, { 0.0f,  0.0f,  1.0f} }, { {-hs,  hs,  hs, 1.0f}, {1.0f, 0.0f}, { 0.0f,  0.0f,  1.0f} },
+		// 左面 (Left: -X)
+		{ {-hs, -hs,  hs, 1.0f}, {0.0f, 1.0f}, {-1.0f,  0.0f,  0.0f} }, { {-hs,  hs,  hs, 1.0f}, {0.0f, 0.0f}, {-1.0f,  0.0f,  0.0f} },
+		{ {-hs, -hs, -hs, 1.0f}, {1.0f, 1.0f}, {-1.0f,  0.0f,  0.0f} }, { {-hs,  hs, -hs, 1.0f}, {1.0f, 0.0f}, {-1.0f,  0.0f,  0.0f} },
+		// 右面 (Right: +X)
+		{ { hs, -hs, -hs, 1.0f}, {0.0f, 1.0f}, { 1.0f,  0.0f,  0.0f} }, { { hs,  hs, -hs, 1.0f}, {0.0f, 0.0f}, { 1.0f,  0.0f,  0.0f} },
+		{ { hs, -hs,  hs, 1.0f}, {1.0f, 1.0f}, { 1.0f,  0.0f,  0.0f} }, { { hs,  hs,  hs, 1.0f}, {1.0f, 0.0f}, { 1.0f,  0.0f,  0.0f} },
+		// 上面 (Top: +Y)
+		{ {-hs,  hs, -hs, 1.0f}, {0.0f, 1.0f}, { 0.0f,  1.0f,  0.0f} }, { {-hs,  hs,  hs, 1.0f}, {0.0f, 0.0f}, { 0.0f,  1.0f,  0.0f} },
+		{ { hs,  hs, -hs, 1.0f}, {1.0f, 1.0f}, { 0.0f,  1.0f,  0.0f} }, { { hs,  hs,  hs, 1.0f}, {1.0f, 0.0f}, { 0.0f,  1.0f,  0.0f} },
+		// 下面 (Bottom: -Y)
+		{ {-hs, -hs,  hs, 1.0f}, {0.0f, 1.0f}, { 0.0f, -1.0f,  0.0f} }, { {-hs, -hs, -hs, 1.0f}, {0.0f, 0.0f}, { 0.0f, -1.0f,  0.0f} },
+		{ { hs, -hs,  hs, 1.0f}, {1.0f, 1.0f}, { 0.0f, -1.0f,  0.0f} }, { { hs, -hs, -hs, 1.0f}, {1.0f, 0.0f}, { 0.0f, -1.0f,  0.0f} }
+	};
+
+	// 2. インデックスデータ
+	for ( uint32_t i = 0; i < 6; ++i ) {
+		uint32_t base = i * 4;
+		modelData_.indices.push_back(base + 0);
+		modelData_.indices.push_back(base + 1);
+		modelData_.indices.push_back(base + 2);
+		modelData_.indices.push_back(base + 2);
+		modelData_.indices.push_back(base + 1);
+		modelData_.indices.push_back(base + 3);
+	}
+
+	modelData_.material.textureFilePath = "resources/uvChecker.png";
+	CreateBuffers();
+}
+
+
+void Model::InitializePrimitive(ModelCommon* modelCommon, const ModelData& modelData){
+
+	this->modelCommon_ = modelCommon;
+	this->modelData_ = modelData;
+
+
+	CreateBuffers();
+}
+
 
 void Model::Draw(uint32_t instanceCount) {
 	// 1. コマンドリストを取得する

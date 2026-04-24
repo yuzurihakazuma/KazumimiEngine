@@ -76,6 +76,7 @@ private: // メンバ変数
 
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
+	std::unique_ptr<Obj3d> hitEffectPlane_ = nullptr;
 	
 	std::unique_ptr<Obj3d> testObj_ = nullptr;
 

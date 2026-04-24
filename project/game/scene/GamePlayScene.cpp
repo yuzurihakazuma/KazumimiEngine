@@ -55,6 +55,9 @@ void GamePlayScene::Initialize(){
 
 	// 球モデル作成 (シングルトン)
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
+
+	ModelManager::GetInstance()->CreatePlaneModel("plane", 10.0f, 10.0f);
+
 	// パーティクルグループ作成 (シングルトン)
 	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
 
@@ -63,6 +66,7 @@ void GamePlayScene::Initialize(){
 	textures_["monsterBall"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
+	textures_["circl2"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle2.png", commandList);
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 	
@@ -97,6 +101,8 @@ void GamePlayScene::Initialize(){
 
 	// プレイヤーオブジェクト生成
 	testObj_ = Obj3d::Create("animatedCube");
+	testObj_->SetEnvironmentMap(textures_["skybox"].srvIndex); // これだけ！
+
 	if ( testObj_ ){
 
 		testObj_->SetCamera(camera_.get());
@@ -114,6 +120,7 @@ void GamePlayScene::Initialize(){
 	
 
 	skinnedObj_ = SkinnedObj3d::Create("human", "resources/human", "walk.gltf");
+	skinnedObj_->SetEnvironmentMap(textures_["skybox"].srvIndex); // スキニングも
 	skinnedObj_->SetCamera(camera_.get());
 	skinnedObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
 	skinnedObj_->SetScale({ 1.0f, 1.0f, 1.0f });
@@ -153,6 +160,28 @@ void GamePlayScene::Initialize(){
 	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
 	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
 
+
+	// 1. すでに登録した "plane" モデルを使ってオブジェクトを作る
+	hitEffectPlane_ = Obj3d::Create("plane");
+
+	if ( hitEffectPlane_ ) {
+		hitEffectPlane_->SetCamera(camera_.get());
+
+		// 2. 目の前に配置する
+		hitEffectPlane_->SetTranslation({ -2.0f, 2.0f, 5.0f });
+
+		// 3. 【重要】資料にあった「縦に潰す」スケール設定！
+		// X(幅)を細く、Y(高さ)を長くして、ビームのような形にする
+		hitEffectPlane_->SetScale({ 0.1f, 5.0f, 1.0f });
+
+		// 4. Z軸（画面の奥・手前方向）に回転させて斜めにする
+		hitEffectPlane_->SetRotation({ 0.0f, 0.0f, 3.14159f / 4.0f }); // 45度回転
+
+		// 5. テクスチャを丸い画像（circle.png）に差し替える！
+		// ※これで四角い板ポリゴンが、細長い光の筋のようになります
+		hitEffectPlane_->GetModel()->SetTexture(textures_["circle2"].srvIndex);
+	}
+
 }
 
 void GamePlayScene::Update(){
@@ -189,6 +218,9 @@ void GamePlayScene::Update(){
 	}
 	if ( testObj_ ){
 		testObj_->Update();
+	}
+	if ( hitEffectPlane_ ) {
+		hitEffectPlane_->Update();
 	}
 
 	if (skinnedObj_) {
@@ -263,22 +295,20 @@ void GamePlayScene::Draw(){
 	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 	if ( testObj_ ){ 
-		
-		SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, textures_["skybox"].srvIndex);
-
-		testObj_->Draw(); }
+		testObj_->Draw();
+	}
 
 	// --- インスタンシングの3D描画 ---
 	//if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
 
 	// 
 	if (skinnedObj_) { 
-
-		PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::SkinningObject3D);
-
-		SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(10, textures_["skybox"].srvIndex);
-
 			skinnedObj_->Draw();
+	}
+
+	if ( hitEffectPlane_ ) {
+	
+		hitEffectPlane_->Draw();
 	}
 
 	if ( skybox_ ) {

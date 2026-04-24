@@ -199,6 +199,8 @@ void Obj3d::Draw(){
 	// ノイズ画像を転送->RootParameter[7]
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(7, noiseTextureIndex_);
 
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, skyboxTextureIndex_); // 環境マップ用テクスチャをセット
+
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {

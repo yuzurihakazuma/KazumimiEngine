@@ -17,6 +17,11 @@ public:
 	// 球モデルの作成
 	void CreateSphereModel(const std::string& modelName, int subdivision);
 
+	// 平面モデルの作成
+	void CreatePlaneModel(const std::string& modelName, float width = 1.0f, float height = 1.0f);
+
+	// 立方体モデルの作成
+	void CreateCubeModel(const std::string& modelName, float size = 1.0f);
 
 	// シングルストーンのインスタンスを取得
 	static ModelManager* GetInstance();

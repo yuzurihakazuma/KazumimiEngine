@@ -69,6 +69,9 @@ public:  // --- Getter / Setter ---
     void SetNoiseTexture(uint32_t index) { noiseTextureIndex_ = index; }
     void SetDissolveThreshold(float threshold);
 
+    void SetEnvironmentMap(uint32_t srvIndex){ skyboxTextureIndex_ = srvIndex; }
+
+
     const Vector3& GetTranslation() const override { return translate_; }
     const Vector3& GetRotation()    const  override { return rotation_; }
     const Vector3& GetScale()       const override { return scale_; }
@@ -115,4 +118,7 @@ private:
 
 
     bool isPause_ = false; // アニメーション一時停止フラグ
+
+
+    uint32_t skyboxTextureIndex_ = 0;
 };

@@ -50,6 +50,29 @@ void ModelManager::CreateSphereModel(const std::string& modelName, int subdivisi
 
 }
 
+void ModelManager::CreatePlaneModel(const std::string& modelName, float width, float height){
+	// 重複読み込み防止：すでに同じ名前で登録されていたら何もしない
+	if ( models_.contains(modelName) ) { return; }
+
+	// 1. モデル生成
+	std::unique_ptr<Model> newModel = std::make_unique<Model>();
+
+	// 2. モデル自身に「平面になれ！」と指示を出す
+	newModel->InitializePlane(modelCommon_.get(), width, height);
+
+	// 3. マップに登録（倉庫に保管）
+	models_.insert(std::make_pair(modelName, std::move(newModel)));
+}
+
+
+void ModelManager::CreateCubeModel(const std::string& modelName, float size){
+	if ( models_.contains(modelName) ) { return; } // 重複防止
+
+	std::unique_ptr<Model> newModel = std::make_unique<Model>();
+	newModel->InitializeCube(modelCommon_.get(), size); // 立方体になれ！と指示
+	models_.insert(std::make_pair(modelName, std::move(newModel)));
+}
+
 void ModelManager::LoadModel(const std::string& modelName, const std::string& directoryPath, const std::string& filename){
 	// 重複読み込み防止：すでに同じ名前で登録されていたら何もしない
 	if ( models_.contains(modelName) ) {

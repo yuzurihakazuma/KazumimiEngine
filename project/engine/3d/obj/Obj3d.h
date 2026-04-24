@@ -57,6 +57,7 @@ public:
 	
 	void PlayAnimation(Animation* animation);
 
+	
 public:
 	// -------------------------------------------------
 	// Getter / Setter
@@ -77,6 +78,10 @@ public:
 	// ディゾルブエフェクトのパラメータをセットする関数
 	void SetDissolveThreshold(float threshold);
 	void SetNoiseTexture(uint32_t textureIndex);
+
+	// 環境マップ用テクスチャのSRVインデックスをセットする
+	void SetEnvironmentMap(uint32_t srvIndex){ skyboxTextureIndex_ = srvIndex; }
+
 
 	// 座標変換行列を取得する関数
 	const TransformationMatrix& GetMatrixData() const { return matrixData_; }
@@ -126,4 +131,7 @@ private:
 
 	// UI表示用の名前
 	std::string name_ = "Obj3d";
+
+	uint32_t skyboxTextureIndex_ = 0;
+
 };

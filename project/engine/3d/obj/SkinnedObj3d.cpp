@@ -167,6 +167,8 @@ void SkinnedObj3d::Draw(){
 	// [9] MatrixPalette（スキニング用・ここが Obj3d との違い）
 	commandList->SetGraphicsRootDescriptorTable(9, skinCluster_.srvHandle);
 
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(10, skyboxTextureIndex_);
+
 	// モデル描画（[0] マテリアル・[2] テクスチャ・DrawCall は内部でやってくれる）
 	if ( model_ ) {
 		model_->Draw();
