@@ -158,6 +158,20 @@ void GamePlayScene::Initialize(){
 	splineRail_.nodes.push_back({ { 20.0f, 2.0f,  0.0f }, 60.0f }); // ノード2（少し上にカーブ）
 	splineRail_.nodes.push_back({ { 30.0f, 0.0f, 10.0f }, 60.0f }); // ノード3
 
+	debugRailSpheres_.clear();
+
+	for ( size_t i = 0; i < splineRail_.nodes.size(); ++i ) {
+
+		auto sphere = Obj3d::Create("sphere");
+
+		sphere->SetCamera(camera_.get());
+
+		sphere->SetScale({ 0.5f, 0.5f, 0.5f });
+		
+		debugRailSpheres_.push_back(std::move(sphere));
+	}
+
+
 	// --- プレイヤーの初期化 ---
 	player_ = std::make_unique<Player>();
 	player_->Initialize();
@@ -208,6 +222,14 @@ void GamePlayScene::Update(){
 		testObj_->SetTranslation(player_->GetPosition());
 		testObj_->SetRotation(player_->GetRotation());
 	}
+
+	for ( size_t  i = 0; i < splineRail_.nodes.size(); ++i ){
+
+		debugRailSpheres_[i]->SetTranslation(splineRail_.nodes[i].position);
+
+		debugRailSpheres_[i]->Update();
+	}
+
 
 	if (skinnedObj_) {
 		// 再生するだけ（編集UIなし）
@@ -270,6 +292,7 @@ void GamePlayScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
 	for ( auto& obj : object3ds_ ) { obj->Draw(); }
 	
+	for ( auto& sphere : debugRailSpheres_ ) { sphere->Draw(); }
 	
 	EditorManager::GetInstance()->Draw();
 

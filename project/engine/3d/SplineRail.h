@@ -2,6 +2,7 @@
 #include "engine/math/VectorMath.h"
 #include "engine/math/struct.h"
 #include <vector>
+#include <memory>
 
 
 // レールのノード構造体
@@ -26,7 +27,7 @@ public:
 	// デバッグ用の描画
 	void DrawDebug();
 
-
+private:
 
 };
 
