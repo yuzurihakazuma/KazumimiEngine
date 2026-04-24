@@ -60,7 +60,7 @@ public: // サブクラス定義
 		float shininess;       
 		float padding2[2];      // 8バイト (HLSLの float2 padding と一致)
 		float emissive;         // 4バイト (HLSLの emissive と一致)
-		float padding3;         // 4バイト (全体を16の倍数にするための詰め物)
+		float environmentCoefficient; // 4バイト (HLSLの environmentCoefficient と一致)
 	};
 
 public: // メンバ関数

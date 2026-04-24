@@ -10,6 +10,7 @@
 #include "engine/scene/SceneManager.h"
 #include "engine/utils/Level/LevelEditor.h" 
 #include "engine/particle/GPUParticleEditor.h" 
+#include "engine/3d/obj/SkinnedObj3d.h"
 
 // シングルトンインスタンスの取得
 EditorManager* EditorManager::GetInstance(){
@@ -47,6 +48,10 @@ void EditorManager::Update(){
     // LevelEditor の更新は常に行う（エディタ非表示でも3Dオブジェクトは動く）
     if ( levelEditor_ ) {
         levelEditor_->Update();
+    }
+
+    if ( targetSkinnedObj_ ) {
+        targetSkinnedObj_->DrawDebugUI();
     }
 
     if ( !isEditorActive_ ) { return; }

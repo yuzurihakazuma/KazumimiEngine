@@ -66,6 +66,8 @@ void GamePlayScene::Initialize(){
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 	
+
+	textures_["skybox"] = TextureManager::GetInstance()->LoadTextureAndCreateSRVCube("resources/StandardCubeMap.dds", commandList);
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/StandardCubeMap.dds", commandList);
 
@@ -117,6 +119,7 @@ void GamePlayScene::Initialize(){
 	skinnedObj_->SetScale({ 1.0f, 1.0f, 1.0f });
 	skinnedObj_->SetRotation({ 0.0f, 3.14159f, 0.0f });
 
+	EditorManager::GetInstance()->SetTargetSkinnedObj(skinnedObj_.get());
 
 	// デプスステンシル作成 (TextureManagerシングルトン)
 	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
@@ -247,20 +250,36 @@ void GamePlayScene::Draw(){
 
 	// --- カリングありの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D);
+	
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, textures_["skybox"].srvIndex);
+	
 	for ( auto& obj : object3ds_ ) { obj->Draw(); }
 	
+
+
 	
 	EditorManager::GetInstance()->Draw();
 
 	// --- カリングなしの3D描画 ---
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
-	if ( testObj_ ){ testObj_->Draw(); }
+	if ( testObj_ ){ 
+		
+		SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, textures_["skybox"].srvIndex);
+
+		testObj_->Draw(); }
 
 	// --- インスタンシングの3D描画 ---
 	//if ( blockGroup_ ) { blockGroup_->Draw(camera_.get()); }
 
 	// 
-	if (skinnedObj_) { skinnedObj_->Draw(); }
+	if (skinnedObj_) { 
+
+		PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::SkinningObject3D);
+
+		SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(10, textures_["skybox"].srvIndex);
+
+			skinnedObj_->Draw();
+	}
 
 	if ( skybox_ ) {
 		skybox_->Draw(commandList, camera_.get());
@@ -326,6 +345,16 @@ void GamePlayScene::DrawDebugUI(){
 
 
 	TextManager::GetInstance()->DrawDebugUI();
+
+	ImGui::Begin("Environment Map Control");
+
+	// 例：テスト用のキューブ (testObj_) だけ反射をいじれるようにする
+	if ( testObj_ ) {
+		// GetModel() でモデルを取得し、そのマテリアルの数値をスライダーで直接操作する
+		ImGui::SliderFloat("Cube Reflect", &testObj_->GetModel()->GetMaterial()->environmentCoefficient, 0.0f, 1.0f);
+	}	
+	ImGui::End();
+
 
 	ImGui::Begin("Block Dissolve Test");
 

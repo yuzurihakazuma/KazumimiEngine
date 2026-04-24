@@ -11,6 +11,9 @@ ConstantBuffer<SpotLight> gSpotLight : register(b4); // スポットライトの定数バッ
 Texture2D<float4> gNoiseTexture : register(t1); // ノイズテクスチャ
 ConstantBuffer<DissolveData> gDissolve : register(b5); // ディゾルブ用の定数バッファ
 
+TextureCube<float32_t4> gEnvironmentTexture : register(t2); // 環境マップテクスチャ
+
+
 struct PixelShaderOutput
 {
     float4 color : SV_TARGET0; // 0枚目のキャンバス（色）
@@ -107,6 +110,16 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 ambient = gMaterial.color.rgb * textureColor.rgb * 0.15f; // 0.15は環境光の強さ。お好みで調整してください
         output.color.rgb = ambient + diffuseDirectional + specularDirectional + diffusePoint + specularPoint + diffuseSpot + specularSpot;
         output.color.a = gMaterial.color.a * textureColor.a;
+        
+        // 環境マップによる反射の計算
+        float3 cameraToPosition = normalize(input.worldPosition - gCamera.worldPosition);
+        
+        float3 reflecttedVector = reflect(cameraToPosition, normalize(input.normal));
+        
+        float4 environmentColor = gEnvironmentTexture.Sample(gSampler, reflecttedVector);
+        
+        output.color.rgb += environmentColor.rgb * gMaterial.environmentCoefficient; // 環境マップの影響を加える。0.5はお好みで調整してください
+        
     }
     else
     {

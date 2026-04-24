@@ -54,6 +54,9 @@ public:
     void Update() override;
     void Draw()   override;
 
+	// / デバッグ用UIの描画
+	void DrawDebugUI();
+
 
 public:  // --- Getter / Setter ---
 
@@ -72,6 +75,12 @@ public:  // --- Getter / Setter ---
 
     const std::string& GetName() const override { return name_; }
     void SetName(const std::string& name) override { name_ = name; }
+
+	Skeleton& GetSkeleton(){ return skeleton_; }
+
+
+    void SetPauseAnimation(bool pause) { isPause_ = pause; }
+
 
 private:
     // トランスフォーム
@@ -103,4 +112,7 @@ private:
     bool      isLoop_ = true;
 
     std::string name_ = "SkinnedObj3d";
+
+
+    bool isPause_ = false; // アニメーション一時停止フラグ
 };

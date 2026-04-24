@@ -456,5 +456,6 @@ void Model::CreateBuffers(){
 	materialData_->uvTransform = MakeIdentity4x4();
 	materialData_->shininess = 32.0f;
 	materialData_->emissive = 0.0f;
+	materialData_->environmentCoefficient = 0.0f;
 
 }

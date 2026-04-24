@@ -5,6 +5,8 @@ class LevelEditor;
 class Camera;  
 class GPUParticleEditor;
 class GPUParticleEmitter;
+class SkinnedObj3d;
+
 
 class EditorManager{
 public:
@@ -44,6 +46,9 @@ public:
     // エディタがアクティブかどうか
     bool IsActive() const{ return isEditorActive_; }
 
+	void SetTargetSkinnedObj(SkinnedObj3d* obj){ targetSkinnedObj_ = obj; }
+
+
 private:
 
     // シングルトンなので外部からの生成・コピーを禁止
@@ -68,4 +73,7 @@ private:
     uint32_t gameViewSrvIndex_ = 0;
 
     std::unique_ptr<GPUParticleEditor> gpuParticleEditor_ = nullptr;
+
+    SkinnedObj3d* targetSkinnedObj_ = nullptr;
+
 };
