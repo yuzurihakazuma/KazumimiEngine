@@ -68,6 +68,11 @@ public:
 	// スポットライトデータの取得
 	SpotLight* GetSpotLightData() { return spotLightData_; }
 	ID3D12Resource* GetSpotLightResource() const { return spotLightResource_.Get(); }
+
+	void SetEnvironmentTexture(uint32_t srvIndex){ environmentTextureSrvIndex_ = srvIndex; }
+	uint32_t GetEnvironmentTextureSrvIndex() const{ return environmentTextureSrvIndex_; }
+
+
 	/// <summary>
 	/// 初期化
 	/// </summary>
@@ -105,5 +110,7 @@ private:
 	// スポットライトリソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> spotLightResource_;
 	SpotLight* spotLightData_ = nullptr;
+
+	uint32_t environmentTextureSrvIndex_ = 0;
 };
 

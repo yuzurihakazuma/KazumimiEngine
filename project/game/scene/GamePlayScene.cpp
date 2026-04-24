@@ -66,12 +66,15 @@ void GamePlayScene::Initialize(){
 	textures_["monsterBall"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/monsterBall.png", commandList);
 	textures_["fence"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/fence.png", commandList);
 	textures_["circle"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle.png", commandList);
-	textures_["circl2"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle2.png", commandList);
+	textures_["circle2"] = TextureManager::GetInstance()->LoadTextureAndCreateSRV("resources/circle2.png", commandList);
 	textures_["noise0"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise0.png", commandList) };
 	textures_["noise1"] = { TextureManager::GetInstance()->LoadTextureAndCreateSRV("Resources/noise1.png", commandList) };
 	
 
 	textures_["skybox"] = TextureManager::GetInstance()->LoadTextureAndCreateSRVCube("resources/StandardCubeMap.dds", commandList);
+
+	Obj3dCommon::GetInstance()->SetEnvironmentTexture(textures_["skybox"].srvIndex);
+
 	skybox_ = std::make_unique<Skybox>();
 	skybox_->Initialize("resources/StandardCubeMap.dds", commandList);
 
@@ -163,7 +166,7 @@ void GamePlayScene::Initialize(){
 
 	// 1. すでに登録した "plane" モデルを使ってオブジェクトを作る
 	hitEffectPlane_ = Obj3d::Create("plane");
-
+	hitEffectPlane_->SetEnvironmentMap(textures_["skybox"].srvIndex);
 	if ( hitEffectPlane_ ) {
 		hitEffectPlane_->SetCamera(camera_.get());
 
