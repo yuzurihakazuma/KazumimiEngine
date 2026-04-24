@@ -136,7 +136,9 @@ void SkinnedObj3d::Update(){
 // --------------------------------------------------
 void SkinnedObj3d::Draw(){
 	ID3D12GraphicsCommandList* commandList = obj3dCommon_->GetDxCommon()->GetCommandList();
-	assert(commandList != nullptr);
+	// SkinnedObj3d::Draw() の先頭付近
+	assert(skinCluster_.srvIndex != 0 && "SkinCluster SRV index is invalid!");
+	assert(skinCluster_.srvHandle.ptr != 0 && "SkinCluster SRV handle is null!");
 
 	// スキニング専用パイプラインをセット
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::SkinningObject3D);
@@ -165,7 +167,7 @@ void SkinnedObj3d::Draw(){
 	commandList->SetGraphicsRootConstantBufferView(8, dissolveResource_->GetGPUVirtualAddress());
 
 	// [9] MatrixPalette（スキニング用・ここが Obj3d との違い）
-	commandList->SetGraphicsRootDescriptorTable(9, skinCluster_.srvHandle);
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, skinCluster_.srvIndex);
 
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(10, skyboxTextureIndex_);
 
