@@ -147,6 +147,26 @@ int Boss::GetCastTimeForCard(int cardId, bool isEnraged) const {
     return isEnraged ? 40 : castTime_;
 }
 
+int Boss::GetRecoveryTimeForCard(int cardId, bool isEnraged) const {
+    if (cardId == 104) {
+        return isEnraged ? 34 : 48;
+    }
+
+    if (cardId == 103) {
+        return isEnraged ? 28 : 40;
+    }
+
+    if (cardId == 102) {
+        return isEnraged ? 24 : 34;
+    }
+
+    if (cardId == 101) {
+        return isEnraged ? 18 : 26;
+    }
+
+    return isEnraged ? 18 : 26;
+}
+
 void Boss::ApplyCastingPose(float normalizedTime) {
     float t = std::clamp(normalizedTime, 0.0f, 1.0f);
     float settle = t * t * (3.0f - 2.0f * t);
@@ -579,7 +599,7 @@ void Boss::UpdateUseCard() {
     thinkTimer_ = isEnraged ? 10 : 18;
 
     isActionLocked_ = true;
-    actionLockTimer_ = isEnraged ? 10 : 16;
+    actionLockTimer_ = GetRecoveryTimeForCard(selectedCard_.id, isEnraged);
 
     isCasting_ = false;
 }

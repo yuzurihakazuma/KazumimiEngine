@@ -88,6 +88,7 @@ private:
     void InitializeBossCards();
     Card SelectCardForDistance(float dist, bool isEnraged);
     int GetCastTimeForCard(int cardId, bool isEnraged) const;
+    int GetRecoveryTimeForCard(int cardId, bool isEnraged) const;
     void ApplyCastingPose(float normalizedTime);
     void ApplyPreBattlePose(float normalizedTime);
     void ResetPose();

@@ -41,6 +41,7 @@ public:
         targetCardPos_ = pos;       // 目標カード位置
     }
     void SetBossRoomBehavior(bool isBossRoom) { isBossRoom_ = isBossRoom; }
+    bool IsBossRoomBehavior() const { return isBossRoom_; }
 
     // 状態関連
     void SetState(State state) { state_ = state; } // 状態設定

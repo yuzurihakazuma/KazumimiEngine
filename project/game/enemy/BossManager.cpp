@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include <algorithm>
+#include <cmath>
 
 #include "BossManager.h"
 #include "game/enemy/Boss.h"
@@ -29,6 +30,26 @@ void BossManager::Initialize(Camera* camera) {
         bossObj_->SetScale(boss_->GetScale());
     }
 
+    beamWarningObj_ = std::unique_ptr<Obj3d>(Obj3d::Create("sphere"));
+    if (beamWarningObj_) {
+        beamWarningObj_->SetCamera(camera);
+        beamWarningObj_->SetTranslation({ 9999.0f, -9999.0f, 9999.0f });
+        beamWarningObj_->SetScale({ 0.45f, 0.04f, 16.0f });
+
+        Model* model = beamWarningObj_->GetModel();
+        if (model) {
+            model->SetTexture("resources/white1x1.png");
+
+            Model::Material* material = model->GetMaterial();
+            if (material) {
+                material->color = { 1.0f, 0.05f, 0.05f, 0.32f };
+                material->emissive = 2.2f;
+            }
+        }
+
+        beamWarningObj_->Update();
+    }
+
     bossCardSystem_ = std::make_unique<CardUseSystem>();
     bossCardSystem_->Initialize(camera);
 
@@ -53,6 +74,7 @@ void BossManager::Initialize(Camera* camera) {
 
 void BossManager::Finalize() {
     bossCardSystem_.reset();
+    beamWarningObj_.reset();
     bossHpBackSprite_.reset();
     bossHpFillSprite_.reset();
     bossObj_.reset();
@@ -129,6 +151,47 @@ bool BossManager::ShouldTriggerGameClear(MapManager* mapManager) const {
 	}
 
 	return mapManager->IsBossMap() && boss_->IsDead() && bossDeadHandled_;
+}
+
+void BossManager::UpdateBeamWarning(MapManager* mapManager) {
+    if (!beamWarningObj_) {
+        return;
+    }
+
+    const bool shouldShow =
+        boss_ &&
+        mapManager &&
+        mapManager->IsBossMap() &&
+        !boss_->IsDead() &&
+        !boss_->IsAppearing() &&
+        boss_->IsCasting() &&
+        boss_->GetSelectedCard().id == 104;
+
+    if (!shouldShow) {
+        beamWarningObj_->SetTranslation({ 9999.0f, -9999.0f, 9999.0f });
+        beamWarningObj_->Update();
+        return;
+    }
+
+    const Vector3& bossPos = boss_->GetPosition();
+    float bossYaw = boss_->GetRotation().y;
+    Vector3 forward = {
+        std::sinf(bossYaw),
+        0.0f,
+        std::cosf(bossYaw)
+    };
+
+    const float warningLength = 16.0f;
+    Vector3 warningPos = {
+        bossPos.x + forward.x * (warningLength * 0.90f),
+        mapManager->GetFloorSurfaceY(0.08f),
+        bossPos.z + forward.z * (warningLength * 0.90f)
+    };
+
+    beamWarningObj_->SetTranslation(warningPos);
+    beamWarningObj_->SetRotation({ 0.0f, bossYaw, 0.0f });
+    beamWarningObj_->SetScale({ 0.45f, 0.04f, warningLength });
+    beamWarningObj_->Update();
 }
 
 void BossManager::Update(
@@ -208,6 +271,8 @@ void BossManager::Update(
 			bossObj_->Update();
 		}
 	}
+
+	UpdateBeamWarning(mapManager);
 
 	// =========================================================
 	// ボス部屋で一定時間ごとにカードを落とす
@@ -385,6 +450,9 @@ void BossManager::Draw(MapManager* mapManager) {
 
 	// ボス本体の描画
 	if (!boss_->IsDead() && boss_->IsVisible() && mapManager->IsBossMap()) {
+		if (beamWarningObj_) {
+			beamWarningObj_->Draw();
+		}
 		if (bossObj_) {
 			bossObj_->Draw();
 		}

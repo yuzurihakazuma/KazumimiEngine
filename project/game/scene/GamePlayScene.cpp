@@ -283,6 +283,15 @@ void GamePlayScene::Initialize() {
 	pauseBgSprite_->SetColor({ 0.0f, 0.0f, 0.0f, 0.5f });
 	pauseBgSprite_->Update();
 
+	bossIntroTopBar_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, 0.0f });
+	bossIntroBottomBar_ = Sprite::Create("resources/white1x1.png", { screenW * 0.5f, screenH });
+	if (bossIntroTopBar_) {
+		bossIntroTopBar_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+	}
+	if (bossIntroBottomBar_) {
+		bossIntroBottomBar_->SetColor({ 0.0f, 0.0f, 0.0f, 1.0f });
+	}
+
 	levelUpBonusManager_.Initialize();
 	// エミッターの初期設定
 	//GPUParticleEmitterData emitterData;
@@ -346,6 +355,8 @@ void GamePlayScene::Update() {
 	Boss* boss = bossManager_ ? bossManager_->GetBoss() : nullptr;
 	Sprite* bossHpBackSprite = bossManager_ ? bossManager_->GetBossHpBackSprite() : nullptr;
 	Sprite* bossHpFillSprite = bossManager_ ? bossManager_->GetBossHpFillSprite() : nullptr;
+
+	UpdateBossIntroLetterbox();
 
 	// ポーズ切り替え
 	if (!isEditingDebugText && input->Triggerkey(DIK_ESCAPE)) {
@@ -1508,6 +1519,8 @@ void GamePlayScene::Draw() {
 		!(tutorial_ && tutorial_->IsActive())) {
 		TextManager::GetInstance()->DrawText("FloorTransition");
 	}
+
+	DrawBossIntroLetterbox();
 }
 
 
@@ -1947,6 +1960,7 @@ void GamePlayScene::UpdatePause(Input* input) {
 	if (pauseBgSprite_) {
 		pauseBgSprite_->Update();
 	}
+
 }
 
 void GamePlayScene::DrawPauseUI() {
@@ -1960,6 +1974,52 @@ void GamePlayScene::DrawPauseUI() {
 
 	if (pauseBgSprite_) {
 		pauseBgSprite_->Draw();
+	}
+}
+
+void GamePlayScene::UpdateBossIntroLetterbox() {
+	const bool isBossIntroPlaying = bossManager_ && bossManager_->IsBossIntroPlaying();
+
+	if (isBossIntroPlaying) {
+		bossIntroLetterboxFadeTimer_ = bossIntroLetterboxFadeDuration_;
+	}
+	else if (wasBossIntroPlaying_) {
+		bossIntroLetterboxFadeTimer_ = bossIntroLetterboxFadeDuration_;
+	}
+	else if (bossIntroLetterboxFadeTimer_ > 0) {
+		bossIntroLetterboxFadeTimer_--;
+	}
+
+	wasBossIntroPlaying_ = isBossIntroPlaying;
+}
+
+void GamePlayScene::DrawBossIntroLetterbox() {
+	const bool isBossIntroPlaying = bossManager_ && bossManager_->IsBossIntroPlaying();
+	if (!isBossIntroPlaying && bossIntroLetterboxFadeTimer_ <= 0) {
+		return;
+	}
+
+	float screenW = static_cast<float>(WindowProc::GetInstance()->GetClientWidth());
+	float screenH = static_cast<float>(WindowProc::GetInstance()->GetClientHeight());
+	float barH = screenH * 0.13f;
+	float fadeT = static_cast<float>(bossIntroLetterboxFadeTimer_) / static_cast<float>(bossIntroLetterboxFadeDuration_);
+	float letterboxAlpha = isBossIntroPlaying ? 1.0f : fadeT;
+	float slideOffset = isBossIntroPlaying ? 0.0f : (1.0f - fadeT) * barH;
+
+	if (bossIntroTopBar_) {
+		bossIntroTopBar_->SetPosition({ screenW * 0.5f, barH * 0.5f - slideOffset });
+		bossIntroTopBar_->SetSize({ screenW, barH });
+		bossIntroTopBar_->SetColor({ 0.0f, 0.0f, 0.0f, letterboxAlpha });
+		bossIntroTopBar_->Update();
+		bossIntroTopBar_->Draw();
+	}
+
+	if (bossIntroBottomBar_) {
+		bossIntroBottomBar_->SetPosition({ screenW * 0.5f, screenH - barH * 0.5f + slideOffset });
+		bossIntroBottomBar_->SetSize({ screenW, barH });
+		bossIntroBottomBar_->SetColor({ 0.0f, 0.0f, 0.0f, letterboxAlpha });
+		bossIntroBottomBar_->Update();
+		bossIntroBottomBar_->Draw();
 	}
 }
 
@@ -1984,6 +2044,8 @@ void GamePlayScene::Finalize() {
 		bossManager_.reset();
 	}
 	pauseBgSprite_.reset();
+	bossIntroTopBar_.reset();
+	bossIntroBottomBar_.reset();
 
 	TextManager::GetInstance()->Finalize();
 

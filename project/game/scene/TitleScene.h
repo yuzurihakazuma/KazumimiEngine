@@ -25,7 +25,8 @@ public:
 
 	// タイトル背景のカード雨用構造体
 	struct TitleRainCard {
-		std::unique_ptr<Obj3d> obj;
+		std::unique_ptr<Obj3d> frontObj;
+		std::unique_ptr<Obj3d> backObj;
 		Vector3 position;
 		Vector3 rotation;
 		Vector3 rotationSpeed;
@@ -33,7 +34,6 @@ public:
 	};
 	// タイトル背景のカード雨
 	std::vector<std::string> titleRainCardModelNames_ = {
-		"cardR",
 		"cardF",
 		"cardFire",
 		"cardPotion",
@@ -60,6 +60,7 @@ public:
 	void InitializeTitleCardRain();
 	void UpdateTitleCardRain();
 	void ResetTitleRainCard(TitleRainCard& card, bool randomY);
+	bool IsTitleRainCardFrontFacing(const TitleRainCard& card) const;
 
 private:
 	// カメラ

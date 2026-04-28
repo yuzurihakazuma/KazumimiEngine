@@ -83,7 +83,7 @@ void EnemyManager::Update(Player *player, CardPickupManager *cardPickupManager, 
 				if (player) {
 					player->AddExp(1);
 				}
-				if (enemy->HasUsablePickupCard()) {
+				if (enemy->HasUsablePickupCard() && !enemy->IsBossRoomBehavior()) {
 					cardPickupManager->AddPickup(enemy->GetPosition(), enemy->GetPickupCard());
 					enemy->ClearPickupCard();
 				}
@@ -389,7 +389,7 @@ void EnemyManager::SpawnBossMinions(int spawnCount, const Vector3 &summonCenter,
 	}
 
 	// 上限の設定
-	int maxMinions = 5; // 出したい上限の数
+	int maxMinions = 3; // 出したい上限の数
 	if (aliveCount >= maxMinions) {
 		return; // すでに上限まで生きているなら、召喚をキャンセル！
 	}
@@ -417,6 +417,7 @@ void EnemyManager::SpawnBossMinions(int spawnCount, const Vector3 &summonCenter,
 		auto newEnemy = std::make_unique<Enemy>();
 		newEnemy->Initialize();
 		newEnemy->SetPosition(spawnPos);
+		newEnemy->SetBossRoomBehavior(true);
 
 		// 敵の見た目（3Dモデル）を生成
 		auto enemyObj = std::unique_ptr<Obj3d>(Obj3d::Create("enemy"));

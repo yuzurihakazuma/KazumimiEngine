@@ -350,8 +350,14 @@ void TitleScene::Draw(){
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Object3D_CullNone);
 
 	for (auto& card : titleRainCards_) {
-		if (card.obj) {
-			card.obj->Draw();
+		if (IsTitleRainCardFrontFacing(card)) {
+			if (card.frontObj) {
+				card.frontObj->Draw();
+			}
+		} else {
+			if (card.backObj) {
+				card.backObj->Draw();
+			}
 		}
 	}
 	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
@@ -441,9 +447,13 @@ void TitleScene::InitializeTitleCardRain() {
 		titleRainCards_[i].position.z =
 			RandomRange(titleRainSpawnMinZ_, titleRainSpawnMaxZ_);
 
-		if (titleRainCards_[i].obj) {
-			titleRainCards_[i].obj->SetTranslation(titleRainCards_[i].position);
-			titleRainCards_[i].obj->Update();
+		if (titleRainCards_[i].frontObj) {
+			titleRainCards_[i].frontObj->SetTranslation(titleRainCards_[i].position);
+			titleRainCards_[i].frontObj->Update();
+		}
+		if (titleRainCards_[i].backObj) {
+			titleRainCards_[i].backObj->SetTranslation(titleRainCards_[i].position);
+			titleRainCards_[i].backObj->Update();
 		}
 	}
 }
@@ -458,7 +468,8 @@ void TitleScene::ResetTitleRainCard(TitleRainCard& card, bool randomY) {
 	int modelIndex = rand() % static_cast<int>(titleRainCardModelNames_.size());
 	const std::string& modelName = titleRainCardModelNames_[modelIndex];
 
-	card.obj = Obj3d::Create(modelName);
+	card.frontObj = Obj3d::Create(modelName);
+	card.backObj = Obj3d::Create("cardR");
 
 	card.position = {
 	titleRainSpawnX_ + RandomRange(-2.0f, 2.0f),
@@ -480,19 +491,26 @@ void TitleScene::ResetTitleRainCard(TitleRainCard& card, bool randomY) {
 
 	card.fallSpeed = RandomRange(0.04f, 0.04f);
 
-	if (card.obj) {
-		card.obj->SetCamera(camera_.get());
-		card.obj->SetTranslation(card.position);
-		card.obj->SetRotation(card.rotation);
-		card.obj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
-		card.obj->Update();
+	if (card.frontObj) {
+		card.frontObj->SetCamera(camera_.get());
+		card.frontObj->SetTranslation(card.position);
+		card.frontObj->SetRotation(card.rotation);
+		card.frontObj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
+		card.frontObj->Update();
+	}
+	if (card.backObj) {
+		card.backObj->SetCamera(camera_.get());
+		card.backObj->SetTranslation(card.position);
+		card.backObj->SetRotation(card.rotation);
+		card.backObj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
+		card.backObj->Update();
 	}
 }
 
 // タイトル背景のカード雨の更新（位置を落下させ、回転させる）
 void TitleScene::UpdateTitleCardRain() {
 	for (auto& card : titleRainCards_) {
-		if (!card.obj) {
+		if (!card.frontObj || !card.backObj) {
 			ResetTitleRainCard(card, false);
 			continue;
 		}
@@ -508,9 +526,30 @@ void TitleScene::UpdateTitleCardRain() {
 			continue;
 		}
 
-		card.obj->SetTranslation(card.position);
-		card.obj->SetRotation(card.rotation);
-		card.obj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
-		card.obj->Update();
+		card.frontObj->SetTranslation(card.position);
+		card.frontObj->SetRotation(card.rotation);
+		card.frontObj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
+		card.frontObj->Update();
+
+		card.backObj->SetTranslation(card.position);
+		card.backObj->SetRotation(card.rotation);
+		card.backObj->SetScale({ titleRainScale_, titleRainScale_, titleRainScale_ });
+		card.backObj->Update();
 	}
+}
+
+bool TitleScene::IsTitleRainCardFrontFacing(const TitleRainCard& card) const {
+	if (!camera_) {
+		return true;
+	}
+
+	Matrix4x4 rotateX = MakeRotateX(card.rotation.x);
+	Matrix4x4 rotateY = MakeRotateY(card.rotation.y);
+	Matrix4x4 rotateZ = MakeRotateZ(card.rotation.z);
+	Matrix4x4 rotate = Multiply(Multiply(rotateX, rotateY), rotateZ);
+
+	Vector3 frontNormal = Transforms({ 0.0f, 0.0f, -1.0f }, rotate);
+	Vector3 toCamera = Normalize(camera_->GetTranslation() - card.position);
+
+	return Dot(frontNormal, toCamera) > 0.0f;
 }

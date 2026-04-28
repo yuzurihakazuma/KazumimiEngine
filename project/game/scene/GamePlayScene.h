@@ -159,6 +159,8 @@ private: // メンバ変数
 
 	// ポーズ画面の描画
 	void DrawPauseUI();
+	void UpdateBossIntroLetterbox();
+	void DrawBossIntroLetterbox();
 
 	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
 	
@@ -238,6 +240,11 @@ private: // メンバ変数
 	int pauseSelection_ = 0;                 // 0: Resume  1: Title
 
 	std::unique_ptr<Sprite> pauseBgSprite_ = nullptr; // ポーズ中の半透明背景
+	std::unique_ptr<Sprite> bossIntroTopBar_ = nullptr;
+	std::unique_ptr<Sprite> bossIntroBottomBar_ = nullptr;
+	bool wasBossIntroPlaying_ = false;
+	int bossIntroLetterboxFadeTimer_ = 0;
+	const int bossIntroLetterboxFadeDuration_ = 30;
 
 	std::unique_ptr<SkinnedObj3d> skinnedObj_ = nullptr;
 

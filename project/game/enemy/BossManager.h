@@ -103,8 +103,11 @@ public:
     bool ShouldTriggerGameClear(MapManager* mapManager) const;
 
 private:
+    void UpdateBeamWarning(MapManager* mapManager);
+
     std::unique_ptr<Boss> boss_ = nullptr;              // ボス本体
     std::unique_ptr<Obj3d> bossObj_ = nullptr;          // 描画用
+    std::unique_ptr<Obj3d> beamWarningObj_ = nullptr;
     std::unique_ptr<CardUseSystem> bossCardSystem_ = nullptr; // カード処理
 
     bool bossDeadHandled_ = false; // 死亡処理フラグ
