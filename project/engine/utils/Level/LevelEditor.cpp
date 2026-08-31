@@ -32,7 +32,7 @@ void LevelEditor::Initialize(){
 	ScanMaps();
 
 	// 最初は空の状態でスタートするか、デフォルトのマップを読み込む
-	LoadAndCreateMap("resources/map/map01.json");
+	LoadAndCreateMap("resources/map/stage1.json"); // 起動時の標準マップ（Ctrl+Sの保存先もこれになる）
 }
 
 // resources/map/ を走査して .json 一覧を更新する
