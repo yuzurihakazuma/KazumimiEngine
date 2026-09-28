@@ -26,6 +26,7 @@
 #include "game/enemy/EnemyEditor.h"
 #include "game/enemy/EnemyManager.h"
 #include "game/egg/EggSystem.h"
+#include "game/editor/RailStripPanel.h"
 
 #include "Skybox.h"
 #include "StompEffect.h"
@@ -204,6 +205,18 @@ private: // メンバ変数
 	EnemyManager                 enemyMgr_;
 	std::unique_ptr<EnemyEditor> enemyEditor_; // エネミーの配置テンプレートを管理するエディタ
 	void SpawnEnemies();                       // 配置テンプレートを元に敵の実体を再構築する
+	bool railErasedPending_ = false;           // レール削除の直後（敵の距離の張り直しを1回見送る）
+
+	// 配置ビュー（レール展開図）：ブロック・敵・コインを ImGui のパネルの中で配置する2Dエディタ
+	RailStripPanel stripPanel_;
+	// レール上の場所が画面の中央に来るようにカメラを置く（エディタの「カメラをここへ」用）
+	void FocusCameraOnRail(int railIndex, float distance, float height);
+
+	// 卵・吐き出し弾の「壁・地面」への当たり判定（ブロック＋道の上面）。EggSystem から呼ばれる
+	bool QueryObstacle(const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos) const;
+
+	// 当たり判定の形をワイヤーで表示する（デバッグ用。敵・プレイヤー・ブロック・卵）
+	bool showHitShapes_ = false;
 
 	// --- ヨッシーの卵（敵を飲み込む→保持→投げる。今は状態管理のみ）---
 	EggSystem eggSystem_;
@@ -222,6 +235,7 @@ private: // メンバ変数
 
 	// Game View で直接ドラッグ中の敵（-1=なし。エディット中の敵つまみ移動）
 	int enemyDragIdx_ = -1;
+	bool enemyDragMoved_ = false; // つかんでから実際に動かしたか（クリックだけなら確定しない）
 
 	// アイリスワイプ演出（落下死→リスポーン時。0=停止/1=閉じる/2=閉じたまま/3=開く）
 	int   irisPhase_ = 0;

@@ -49,6 +49,8 @@ public:
     int   GetStartRail() const { return startRail_; }
     float GetStartDistance() const { return startDist_; }
     bool  HasGoal() const { return goalRail_ >= 0 && goalRail_ < ( int ) rails_.size(); }
+    int   GetGoalRail() const { return goalRail_; }
+    float GetGoalDistance() const { return goalDist_; }
     // ゴールの現在ワールド座標（動くレール上でも追従する）
     Vector3 GetGoalPos() const {
         if ( !HasGoal() ) return { 0.0f, 0.0f, 0.0f };

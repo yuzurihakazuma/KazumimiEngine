@@ -52,15 +52,50 @@ public:
     //   いずれも「道の中心線に重なるブロック」だけを対象にする（横へずらした飾りは当たらない）
     // 足元の支持面：dist に重なるブロックのうち、上面が footY+0.25 以下で一番高いもの（無ければ 0=レール面）
     float GroundHeightAt(int rail, float dist, float footY) const;
-    // 体の高さ帯 [bodyBottom, bodyTop] が dist のブロックに横から重なるか。
-    //   重なったブロックの占有区間 [outMin, outMax]（プレイヤー半径ぶん拡張済み）と
-    //   上面の高さ outTop（埋まった時の押し出し先）を返す
+    // 体の高さ帯 [bodyBottom, bodyTop]（レール面からの相対高さ）が dist のブロックに横から重なるか。
+    //   重なったブロックの占有区間 [outMin, outMax]（体の半径ぶん拡張済み）と
+    //   上面の高さ outTop（埋まった時の押し出し先）を返す。
+    //   bodyRadius は体の横半径（負=プレイヤーの半径。敵は自分の半径を渡す）
     bool  BlockedAt(int rail, float dist, float bodyBottom, float bodyTop,
-                    float* outMin, float* outMax, float* outTop = nullptr) const;
+                    float* outMin, float* outMax, float* outTop = nullptr,
+                    float bodyRadius = -1.0f) const;
     // 頭上の天井：dist に重なるブロックの底面のうち、footY より上で一番低いもの（無ければ大きな値）
     float CeilingHeightAt(int rail, float dist, float footY) const;
     // 今の足元を支えているブロックの種類（-1=レール面/ブロックなし）。ジャンプ台の判定に使う
     int   SupportTypeAt(int rail, float dist, float footY) const;
+
+    // --- ワールド空間の当たり判定（卵・吐き出し弾など、レールに乗らずに飛ぶ物が使う）---
+    //   見た目と同じ「道に沿って傾いた箱」で判定する。道の脇の飾りブロックも対象（見えている物には当たる）
+    // 球が from→to へ動いた間にブロックへ触れたか。触れたら outHitPos に当たる直前の位置を返す
+    bool  SweepSphere(const Vector3& from, const Vector3& to, float radius, Vector3* outHitPos = nullptr) const;
+
+    // --- エディタ用：マウスのレイが最初に当たるブロックと、その面 ---
+    struct RayHit {
+        BlockData cell;          // 当たったブロック（rail/dist/level/side/type）
+        float distance = 0.0f;   // レイの始点からの距離
+        int   faceAxis = 1;      // 当たった面の軸（0=道幅方向 / 1=上下 / 2=進行方向）
+        int   faceSign = 1;      // 面の向き（+1/-1）
+        float halfAlong = 0.5f;  // 当たったブロックの進行方向の半幅（隣のセルを求める用）
+        float halfSide  = 0.5f;  // 当たったブロックの道幅方向の半幅
+    };
+    bool  Raycast(const Vector3& origin, const Vector3& direction, RayHit& outHit) const;
+
+    // 当たり判定の箱をワイヤーで描く（デバッグ表示用）
+    void  DrawHitShapes(const Vector4& color) const;
+
+    // エディタ用：指定セルに type のブロックを置いた時の形を、道に沿った向きのワイヤーで描く
+    //   （配置のゴースト表示。実際のブロックと同じ位置・向き・大きさになる）。inflate で少し膨らませる
+    void  DrawCellGhost(int rail, float dist, int level, float side, int type,
+                        const Vector4& color, float inflate = 0.0f) const;
+    // セルの中心のワールド座標（レールが無効なら false）
+    bool  CellCenter(int rail, float dist, int level, float side, Vector3& outCenter) const;
+
+    // --- エディタの2D表示用：ブロックの形の決まりを公開する ---
+    // 見た目の進行方向の半分の長さ（ゆるい斜面・横長・台座は1m、他は0.5m）
+    static float VisualHalfAlong(int type){ return FootprintHalf(type); }
+    static bool  IsSlope(int type){ return IsSlopeType(type); }
+    // そのセルにある斜面の登り方向（+1=距離が増える側が高い / -1=逆）。ブロックが無ければ +1
+    int   AscendAt(int rail, float dist, int level, float side) const;
 
     // --- ？ブロック（頭突きでコイン）---
     // 頭をぶつけた時に Player が呼ぶ：ぶつけた先が未使用の？ブロックならコインを出す
@@ -112,6 +147,25 @@ private:
 
     std::vector<std::unique_ptr<Obj3d>> objPool_; // 行列計算用プール（必要数まで伸びるだけ）
     void EnsurePool(size_t count);                // プールを count 個まで育てる
+
+    // ワールド空間の箱（道に沿って傾いた直方体）。Update で毎フレーム作り直す＝動くレールにも追従
+    struct WorldBox {
+        Vector3 center  { 0.0f, 0.0f, 0.0f };
+        Vector3 right   { 1.0f, 0.0f, 0.0f }; // 道幅方向
+        Vector3 up      { 0.0f, 1.0f, 0.0f }; // 道に垂直な上
+        Vector3 forward { 0.0f, 0.0f, 1.0f }; // 進行方向
+        Vector3 half    { 0.5f, 0.5f, 0.5f }; // 各軸の半分の長さ（right/up/forward の順）
+        int     blockIndex = -1;
+        bool    slope = false;                // 斜面：上面が進行方向に沿って傾く
+        int     ascend = 1;
+    };
+    std::vector<WorldBox> worldBoxes_;
+    void RebuildWorldBoxes();
+    // ブロック1個ぶんの箱を作る（見た目と同じ位置・向き・実寸）。レールが無効なら false
+    bool MakeWorldBox(const Block& block, WorldBox& outBox) const;
+    static void DrawBoxWire(const WorldBox& box, const Vector4& color, float inflate);
+    // 箱のローカル座標での点と箱の距離の2乗（斜面は上面の傾きを考慮）
+    static float DistSqToBox(const WorldBox& box, const Vector3& worldPoint);
 
     // (レール, 1mセル) → そのセルにあるブロック番号。当たり判定と隣接判定の高速検索用
     std::unordered_map<uint64_t, std::vector<int>> cellMap_;

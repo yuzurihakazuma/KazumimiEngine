@@ -53,12 +53,16 @@ void Player::Initialize(){
     isGrounded_   = true;
     flutterCdTimer_ = 0.0f;
 
+    knockTimer_      = 0.0f;
+    invincibleTimer_ = 0.0f;
+
     inAir_       = false;
     airVelocity_ = { 0.0f, 0.0f, 0.0f };
     airLandCooldown_ = 0.0f;
     airFromRail_ = -1;
     airDir_      = { 0.0f, 0.0f, 0.0f };
     posSmooth_   = { 0.0f, 0.0f, 0.0f };
+    groundTangent_ = { 0.0f, 0.0f, 1.0f }; // 坂なし（次に地面を歩いたフレームで決まり直す）
 }
 
 // =====================================================================
@@ -71,8 +75,14 @@ void Player::Update(const std::vector<SplineRail>& allRails){
 
     const float dt = Time::GetInstance()->GetDeltaTime(); // フレームレート非依存
 
+    if ( invincibleTimer_ > 0.0f ) { invincibleTimer_ -= dt; }
+
     // 0. 空中状態（レール外）：自由落下しながら着地できるレールを探す
-    if ( inAir_ ) { UpdateAir(allRails, dt); return; }
+    if ( inAir_ ) {
+        if ( knockTimer_ > 0.0f ) { knockTimer_ -= dt; }
+        UpdateAir(allRails, dt);
+        return;
+    }
 
     if ( switchCooldown_ > 0.0f ) { switchCooldown_ -= dt; }
 
@@ -97,11 +107,35 @@ void Player::Update(const std::vector<SplineRail>& allRails){
     float moveInput = 0.0f; int switchInput = 0;
     ReadRailInput(isCurrentRailHorizontal, moveInput, switchInput);
     if ( movementLocked_ ) { moveInput = 0.0f; switchInput = 0; } // 構え中はその場で待機
+    if ( knockTimer_ > 0.0f ) { moveInput = 0.0f; switchInput = 0; } // 弾かれている間は操作不可
     MoveAlongRail(currentRail, isCurrentRailHorizontal, moveInput, dt);
 
+    // 敵にぶつかったノックバック：弾かれる方向に近いレールの向きへ押し戻す（壁は越えない）
+    float knockSign = 0.0f;
+    if ( knockTimer_ > 0.0f ) {
+        knockTimer_ -= dt;
+        const float kKnockSpeed = 5.0f; // 弾かれる速さ(m/s)
+        Vector3 tangent = currentRail.GetTangentByDistance(currentDistance_);
+        float along = tangent.x * knockDir_.x + tangent.z * knockDir_.z;
+        knockSign = ( along >= 0.0f ) ? 1.0f : -1.0f;
+        float prevDistance = currentDistance_;
+        currentDistance_ += knockSign * kKnockSpeed * dt;
+        if ( blocks_ && blocks_->BlockedAt(currentRailIndex_, currentDistance_,
+                                          heightOffset_ + 0.05f, heightOffset_ + 0.95f,
+                                          nullptr, nullptr) ) {
+            currentDistance_ = prevDistance;
+        }
+    }
+
     // 3. 終端処理（持ち越し/合流/落下/クランプ）。空中へ飛び出したら終了
+    //   弾かれている間は、端の処理に「弾かれている向き」を進む向きとして渡す。
+    //   （操作できない間は進む向きが0なので、そのままだと端から飛び出しても横へ進まず真下へ落ち、
+    //     「前にあるレールにだけ合流する」判定も効かずに横の並走レールへ移ってしまう）
     bool transitioned = false;
+    const float moveSignBeforeEnds = dsSign_;
+    if ( knockSign != 0.0f ) { dsSign_ = knockSign; }
     if ( HandleRailEnds(allRails, currentRail, transitioned) ) return;
+    if ( knockSign != 0.0f ) { dsSign_ = moveSignBeforeEnds; } // 向きは変えない（弾かれた方を向かない）
 
     // 4. 乗り換え（T字路の途中分岐を優先 → 無ければ別タイプの近接レールへ）
     if ( switchInput != 0 && switchCooldown_ <= 0.0f && !transitioned ) {
@@ -638,6 +672,7 @@ void Player::FinalizePosition(const SplineRail& rail, const Vector3& worldBefore
     //   回頭そのものは止まっていても続ける（途中でキーを離すと横向きのまま固まり、
     //   レール上では本来向かない方向を向いてしまう問題の対策）
     Vector3 tangent = rail.GetTangentByDistance(currentDistance_);
+    groundTangent_ = tangent; // 坂の向き（前へ物を出す時に使う）
     if ( faceOverrideActive_ ) {
         // 卵の構え中：狙い方向を向く（移動より優先）
         targetYaw_ = faceOverrideYaw_;
@@ -765,6 +800,7 @@ void Player::UpdateAir(const std::vector<SplineRail>& allRails, float dt){
             currentRailIndex_ = i;
             currentDistance_  = closestDist;
             position_     = closestPos;
+            groundTangent_ = rail.GetTangentByDistance(closestDist); // 着地したレールの坂（このフレームから使われる）
             heightOffset_ = 0.0f;
             jumpVelocity_ = 0.0f;
             isGrounded_   = true;
@@ -780,6 +816,45 @@ void Player::UpdateAir(const std::vector<SplineRail>& allRails, float dt){
     if ( position_.y < kKillY ) {
         Initialize();
         fellRespawned_ = true; // アイリスワイプ演出用（シーンが Consume する）
+    }
+}
+
+// 向いている方向に、足元の道の坂を足した向き
+Vector3 Player::GetFacingAlongGround() const{
+    Vector3 facing = { std::sin(rotation_.y), 0.0f, std::cos(rotation_.y) };
+    if ( inAir_ ) return facing; // レールを離れている：坂は無い
+    float horizontal = std::sqrt(groundTangent_.x * groundTangent_.x + groundTangent_.z * groundTangent_.z);
+    if ( horizontal < 1e-3f ) return facing; // 真上/真下へ向かうレール：坂として扱わない
+    // レールの向きのうち、向いている方と同じ向きの側の坂を使う（後ろ向きなら下り坂になる）
+    float alongFacing = ( groundTangent_.x * facing.x + groundTangent_.z * facing.z ) / horizontal;
+    if ( std::abs(alongFacing) < 0.3f ) return facing; // 道を横切る向き（振り向いている途中など）
+    float slope = ( groundTangent_.y / horizontal ) * ( ( alongFacing >= 0.0f ) ? 1.0f : -1.0f );
+    Vector3 dir = { facing.x, slope, facing.z };
+    float length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    return { dir.x / length, dir.y / length, dir.z / length };
+}
+
+// 敵にぶつかった：敵と反対側へ小さく跳ねながら弾かれる
+void Player::Knockback(const Vector3& awayDir){
+    const float kKnockTime      = 0.25f; // 弾かれて操作できない時間(秒)
+    const float kInvincibleTime = 1.2f;  // ぶつかった後の無敵時間(秒)
+    const float kHopVelocity    = 4.5f;  // 弾かれる時の小さな跳ね(m/s)
+
+    knockDir_ = HorizDir(awayDir.x, awayDir.z);
+    if ( Length(knockDir_) < 1e-4f ) {
+        // 真上/真下で重なっていた時は、向いている方向の逆へ弾く
+        knockDir_ = { -std::sin(rotation_.y), 0.0f, -std::cos(rotation_.y) };
+    }
+    knockTimer_      = kKnockTime;
+    invincibleTimer_ = kInvincibleTime;
+    dsSign_          = 0.0f; // 次の入力で進行方向を決め直す
+
+    if ( inAir_ ) {
+        airVelocity_ = { knockDir_.x * 4.0f, kHopVelocity, knockDir_.z * 4.0f };
+        airDir_      = knockDir_;
+    } else {
+        jumpVelocity_ = kHopVelocity;
+        isGrounded_   = false;
     }
 }
 

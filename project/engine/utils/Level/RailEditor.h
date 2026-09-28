@@ -80,6 +80,44 @@ public:
     int  FindBlock(int rail, float dist, int level, float side) const; // セル一致するブロック番号（-1=なし）
     void AddBlock(int rail, float dist, int level, float side, int type = 0); // セルが空なら追加
     bool RemoveBlock(int rail, float dist, int level, float side);     // セル一致を削除（true=消した）
+    // 番号で指定したブロックを消す（true=消した）。index は GetBlocks() の番号
+    bool RemoveBlockAt(int index){
+        if ( !data_ || index < 0 || index >= ( int ) data_->blocks.size() ) return false;
+        data_->blocks.erase(data_->blocks.begin() + index);
+        ++blockVersion_;
+        return true;
+    }
+    // セルにあるブロックを別の種類へ塗り替える（true=替えた）。
+    //   大きさが変わって隣とぶつかる時は替えずに元のまま残す
+    bool ReplaceBlockType(int rail, float dist, int level, float side, int type);
+    // 番号で指定したブロックを塗り替える（場所から探さない＝隣り合ったブロックを取り違えない）
+    bool ReplaceBlockTypeAt(int index, int type);
+    // そのマスに type のブロックを置けるか（AddBlock と同じ決まり。ignoreIndex のブロックは無視する）
+    bool CanPlaceBlock(int rail, float dist, int level, float side, int type, int ignoreIndex = -1) const;
+    // ブロックを別のマスへ動かす（true=動かした）。移動先が他のブロックと重なる時は動かさない。
+    //   配列の並びと種類は変えない。index は GetBlocks() の番号
+    bool MoveBlock(int index, int rail, float dist, int level, float side);
+    // 種類ごとの進行方向の占有半幅（横長・台座は1m、他は0.5m）
+    static float BlockOccupyHalfOf(int type);
+
+    // --- ブロック配置の操作設定（配置エディタの窓と Game View のキー操作の両方から変える）---
+    void SetBlockPaintMode(bool on){ blockPaintMode_ = on; }
+    void SetBlockPaintErase(bool erase){ blockPaintErase_ = erase; }
+    void SetBlockPaintType(int type){ if ( type >= 0 && type < 9 ) { blockPaintType_ = type; } }
+    // 狙い方：0=面に積む（ブロックの面を指すと、その隣に置く）/ 1=断面から選ぶ（従来の方式）
+    int  GetBlockPickMode() const{ return blockPickMode_; }
+    // 段の固定：ON の間はマウスの位置に関係なく、決めた段にだけ置く
+    bool IsBlockLevelLocked() const{ return blockLevelLocked_; }
+    int  GetBlockLockedLevel() const{ return blockLockedLevel_; }
+    void SetBlockLevelLock(bool locked, int level){
+        blockLevelLocked_ = locked;
+        if ( level >= 0 && level < 8 ) { blockLockedLevel_ = level; }
+    }
+    // 道の中心だけに置く（横へずらした飾りブロックを誤って置かない）
+    bool IsBlockCenterOnly() const{ return blockCenterOnly_; }
+    void SetBlockCenterOnly(bool centerOnly){ blockCenterOnly_ = centerOnly; }
+    // 既にあるブロックを左クリックしたら消す（従来の動作。OFF=別の種類なら塗り替える）
+    bool IsBlockClickErase() const{ return blockClickErase_; }
     // コインを1枚追加（ゲームビューの右クリック配置用。呼び出し側で CoinSystem::Sync を行うこと）
     void AddCoinAt(int rail, float dist){
         if ( !data_ || rail < 0 || rail >= ( int ) data_->railLines.size() ) return;
@@ -167,6 +205,9 @@ public:
     // Undo / Redo
     void Undo();
     void Redo();
+    // このフレームの Ctrl+Z / Ctrl+Y をレールの履歴では受けない（別の履歴＝敵へ譲る時に呼ぶ）。
+    //   TickEditing より前（シーンのUI描画の中）で呼ぶこと。毎フレーム自動で解除される
+    void SkipUndoHotkeyThisFrame(){ skipUndoHotkey_ = true; }
     // 編集開始時（このマップを開いた直後）の状態へ一発で戻す（この操作自体も元に戻せる）
     void ResetToInitial();
     // 操作履歴・初期復元の可否（UIのボタン活性／グレーアウト用）
@@ -373,6 +414,11 @@ private:
     bool blockPaintErase_ = false; // true=消しゴムモード（クリックで必ず消す）
     int  blockPaintType_ = 0;      // 置くブロックの種類（BlockData::type）
     int  blockPaintShape_ = 0;     // 塗り方（0=1個ずつ/1=柱：下まで縦に埋める/2=階段：ドラッグで1段ずつ）
+    int  blockPickMode_ = 0;       // 狙い方（0=面に積む/1=断面から選ぶ）
+    bool blockLevelLocked_ = false; // 段の固定
+    int  blockLockedLevel_ = 0;     // 固定する段（0〜7）
+    bool blockCenterOnly_ = true;   // 道の中心だけに置く
+    bool blockClickErase_ = false;  // 既存ブロックを左クリックで消す（従来の動作）
 
     // 値をグリッドに丸める（railSnap_ がOFFならそのまま）
     float SnapValue(float v) const;
@@ -386,6 +432,20 @@ private:
     void EraseRail(int idx);
 
 public:
+    // レールの数や並びが変わった時の、敵の付け替え方（ゲーム側の敵エディタが使う）。
+    //   敵はレール番号で置かれているので、レールを消す/消したのを戻す/やり直す たびに番号を付け替える
+    struct RailRemap {
+        std::vector<int> oldToNew;               // 変わる前のレール番号 → 変わった後の番号（-1=そのレールは無くなった）
+        std::vector<LevelEnemyData> revived;     // よみがえったレールに載っていた敵（変わった後の番号で）
+    };
+    // 付け替えを1つ取り出す（無ければ false）。起きた順に返すので、順番どおりに当てはめればよい
+    bool ConsumeRailRemap(RailRemap& out);
+
+private:
+    std::vector<RailRemap> railRemaps_;
+
+public:
+
     // リスト上でホバー中のレール（Game View で黄色ハイライトするため。-1=なし）
     int GetHoveredListRail() const{ return hoveredListRail_; }
     // 接続一覧のホバー：相手側レールと接続点（両方光らせて場所を示す）
@@ -436,17 +496,40 @@ private:
     void AppendRailNodeRelative(float dx, float dy, float dz);
 
     // --- Undo/Redo（操作が落ち着いたら自動でチェックポイントを作る方式）---
+    // レール1本ごとの設定（線の形・タイプ・動き以外の並列配列）。
+    //   レールの数や並びが変わる手（削除・追加）を戻す時に一緒に戻す（戻さないと後ろのレールの設定が1つずつずれる）
+    struct RailSettings {
+        std::vector<int>   groundTypes, visible, lineModes, roadModes, endPlazas;
+        std::vector<int>   guideRails, guideModes, guideAligns;
+        std::vector<float> guideStarts, guideEnds, guideDwells;
+        std::vector<std::string> groups;
+        std::vector<std::vector<int>> nodeHoles;
+        std::vector<int>   motionTypes, motionTriggers, appearTriggers, oneWay;
+        std::vector<float> motionPhases, speedMuls;
+    };
+    RailSettings CaptureRailSettings() const;
+    void ApplyRailSettings(const RailSettings& settings);
+
     struct RailSnapshot{
         std::vector<std::vector<Vector3>> lines;
         std::vector<int>     types;
         std::vector<Vector4> motions; // 動くレール設定も履歴に含める
         std::vector<CoinData> coins;  // コイン配置も履歴に含める（レール削除のUndoでズレないように）
         std::vector<BlockData> blocks; // ブロック配置も履歴に含める（ペイントのやり直しができる）
+        // --- レールの数や並びが変わる手を戻す時だけ使うもの ---
+        std::vector<int> railIds;            // その時のレールの固定ID（並びの変化を正確に知るため）
+        RailSettings settings;               // レールごとの設定
+        std::vector<LevelEnemyData> enemies; // 敵の配置（消えたレールに載っていた敵をよみがえらせる）
     };
+    // 今の状態を履歴の1コマとして写し取る（レールの固定IDはここでそろえる）
+    RailSnapshot CaptureSnapshot();
+    // レールの並びが restoredIds の状態へ変わる時に、ゲーム側へ敵の付け替えを知らせる
+    void QueueRailRemap(const std::vector<int>& restoredIds, const std::vector<LevelEnemyData>& restoredEnemies);
     std::vector<RailSnapshot> undoStack_;
     std::vector<RailSnapshot> redoStack_;
     RailSnapshot committed_;        // 直近の安定状態（チェックポイント）
     bool committedInit_ = false;
+    bool skipUndoHotkey_ = false;   // このフレームの Ctrl+Z/Y を受けない（SkipUndoHotkeyThisFrame）
 
     // 編集開始時（マップ読込直後）の状態。「最初期に戻す」で復元する。
     std::vector<std::vector<Vector3>> initialLines_;
@@ -454,7 +537,17 @@ private:
     std::vector<Vector4> initialMotions_;
     std::vector<CoinData> initialCoins_;
     std::vector<BlockData> initialBlocks_;
+    std::vector<LevelEnemyData> initialEnemies_;
+    std::vector<int> initialRailIds_;
+    RailSettings initialSettings_;
     bool hasInitial_ = false;
+
+    // レールの固定ID（railLines と同じ並び。保存はしない）。番号は削除で詰まるが ID は変わらないので、
+    // 履歴を戻す時に「どのレールが消えた/戻った」を形に頼らず正確に知ることができる
+    std::vector<int> railIds_;
+    int nextRailId_ = 0;
+    void EnsureRailIds(); // レールの数に合わせて ID をそろえる（足りない分は新しい ID を振る）
+
     void CommitIfStable();          // マウス非操作時に変化を検知して履歴へ積む
     void RestoreSnapshot(const RailSnapshot& s); // 状態を復元
 

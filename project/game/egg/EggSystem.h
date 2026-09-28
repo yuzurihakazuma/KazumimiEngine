@@ -50,13 +50,27 @@ public:
     //   from=口元の位置 / dir=プレイヤーの向いている水平方向
     bool SpitOut(const Vector3& from, const Vector3& dir, float speed = 13.0f);
 
-    // 飛行中の吐き出し弾を onHit(位置, 半径) で判定し、true が返ったら弾を消す。
-    //   （卵の ResolveHits と同じ流儀。敵側の処理は CombatSystem が行う）
-    void ResolveSpitHits(const std::function<bool(const Vector3&, float)>& onHit);
+    // 当たり判定の問い合わせ：球が from→to へ動いた間に何かへ触れたか。
+    //   1フレームに動いた区間まるごとで判定するので、速い弾でも薄い物をすり抜けない
+    using SweepHit = std::function<bool(const Vector3& from, const Vector3& to, float radius)>;
+    // 壁・ブロック・道への問い合わせ。当たったら outHitPos に当たる直前の位置を返す
+    using ObstacleQuery = std::function<bool(const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos)>;
 
-    // 飛行中の卵それぞれを onHit(卵位置, 卵半径) で判定し、true が返ったら卵を割る。
+    // 卵と吐き出し弾が壁・ブロック・道に当たるようにする（シーンが一度渡す。
+    //   ブロックやレールを知っているのはシーンなので、判定の中身は外から貰う）。
+    //   未設定の間は従来どおり「高さ0の床」だけで止まる
+    void SetObstacleQuery(ObstacleQuery query){ obstacleQuery_ = std::move(query); }
+
+    // 飛行中の吐き出し弾を onHit(動く前の位置, 今の位置, 半径) で判定し、true が返ったら弾を消す。
+    //   （卵の ResolveHits と同じ流儀。敵側の処理は CombatSystem が行う）
+    void ResolveSpitHits(const SweepHit& onHit);
+
+    // 飛行中の卵それぞれを onHit(動く前の位置, 今の位置, 半径) で判定し、true が返ったら卵を割る。
     //   敵を知るのはシーンなので、当たり判定の中身はシーンから渡す（割れ演出は Update が拾う）。
-    void ResolveHits(const std::function<bool(const Vector3&, float)>& onHit);
+    void ResolveHits(const SweepHit& onHit);
+
+    // 飛んでいる卵・吐き出し弾の当たり判定の形をワイヤーで描く（デバッグ表示用）
+    void DrawHitShapes(const Vector4& color) const;
 
     // --- イベント別の演出（実体パフ。踏みつけのリングとは別物にして使い回しに見せない）---
     void SpawnSwallowFx(const Vector3& pos); // 飲み込み：緑がふわっと上へ吸い込まれる
@@ -77,6 +91,7 @@ public:
 private:
     std::vector<std::unique_ptr<Egg>> eggs_;
     int stomach_ = 0; // お腹にためた敵の数（産むと卵になる）
+    ObstacleQuery obstacleQuery_; // 壁・ブロック・道への問い合わせ（シーンが渡す）
 
     // --- 産卵エロージョン演出の状態 ---
     std::unique_ptr<SDFVolumeObject> birthFx_; // SDFの卵（1個を使い回す）
@@ -108,11 +123,13 @@ private:
     struct SpitBall {
         std::unique_ptr<Obj3d> obj;
         Vector3 pos { 0.0f, 0.0f, 0.0f };
+        Vector3 prevPos { 0.0f, 0.0f, 0.0f }; // 直前の更新で動く前の位置（区間での当たり判定用）
         Vector3 vel { 0.0f, 0.0f, 0.0f };
         float   life   = 2.0f;   // 保険の寿命(秒)
         float   radius = 0.45f;  // 当たり判定＆見た目の半径
         float   spin   = 0.0f;   // 転がり回転
         bool    dead   = false;
+        bool    hitObstacle = false; // 壁/地面に当たって止まった（敵の判定を1回通してから消える）
     };
     std::vector<SpitBall> spits_;
 

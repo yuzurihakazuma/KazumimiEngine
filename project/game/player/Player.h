@@ -26,11 +26,22 @@ public:
 
     // 接地状態の取得（空中判定、および踏みつけ判定に使用）
     bool IsGrounded() const{ return isGrounded_; }
+
+    // 向いている方向に、足元の道の坂を足した向き（長さ1）。坂道で前へ物を出す時に使う
+    //   （水平の向きのまま出すと、上り坂では出した直後に道へぶつかってしまう）。
+    //   レールを離れて空中にいる間は水平の向き
+    Vector3 GetFacingAlongGround() const;
     // 今乗っているレール番号（「乗ったら動き出すレール」の発動判定に使用）
     int GetCurrentRail() const{ return currentRailIndex_; }
 
     // 踏みつけ成功時にプレイヤーを上へ跳ね上がらせる
     void Bounce();
+
+    // 敵にぶつかった時：awayDir（敵→自分の水平方向）へ小さく跳ねながら弾かれる。
+    //   弾かれている間は操作不可、その後もしばらく無敵（連続で当たり続けない）
+    void Knockback(const Vector3& awayDir);
+    bool IsInvincible() const{ return invincibleTimer_ > 0.0f; }
+    bool IsKnockedBack() const{ return knockTimer_ > 0.0f; }
 
     // 卵を構えている間など、移動・ジャンプを止める（その場で待機）
     void SetMovementLocked(bool locked){ movementLocked_ = locked; }
@@ -73,6 +84,14 @@ private: // メンバ変数
 
     // 落下死→リスポーンが起きた瞬間のフラグ（シーンが Consume して演出に使う）
     bool fellRespawned_ = false;
+
+    // 最後にレールの上にいた時の、足元のレールの進む向き（坂の向きを知るため）
+    Vector3 groundTangent_ { 0.0f, 0.0f, 1.0f };
+
+    // ---- 敵にぶつかった時のノックバック ----
+    float   knockTimer_      = 0.0f;            // 弾かれている残り時間（この間は操作不可）
+    float   invincibleTimer_ = 0.0f;            // 無敵の残り時間
+    Vector3 knockDir_ { 0.0f, 0.0f, 0.0f };     // 弾かれる水平方向（単位ベクトル）
 
 
     Vector3 position_ { 0.0f, 0.0f, 0.0f };

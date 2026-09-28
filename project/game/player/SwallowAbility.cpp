@@ -205,9 +205,9 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
 
     // --- F：お腹の敵を吐き出す（プレイヤーの向いている方向へ発射。敵にぶつけて倒せる）---
     if ( input->Triggerkey(DIK_F) ) {
-        float yaw = player.GetRotation().y;
-        Vector3 facing = { std::sin(yaw), 0.0f, std::cos(yaw) };
-        Vector3 spitMouth = { playerPos.x + facing.x * 0.6f, playerPos.y + 0.5f, playerPos.z + facing.z * 0.6f };
+        // 坂道では坂に沿って前へ吐く（水平に吐くと、上り坂では吐いた直後に道へぶつかって消える）
+        Vector3 facing = player.GetFacingAlongGround();
+        Vector3 spitMouth = { playerPos.x + facing.x * 0.6f, playerPos.y + 0.5f + facing.y * 0.6f, playerPos.z + facing.z * 0.6f };
         if ( eggs.SpitOut(spitMouth, facing) ) {
             hitFeel.Trigger(0.03f, 0.1f);   // 吐き出しの軽い手応え
             AudioManager::GetInstance()->PlayWave("resources/se/eggThrow.wav", false, 0.5f); // 発射音

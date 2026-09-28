@@ -50,6 +50,13 @@ public:
     void DrawDissolveFx(ID3D12GraphicsCommandList* commandList);
     void ClearEffects();          // モード切替時など（SDF消滅も止める）
 
+    // 敵に横や下からぶつかった時に弾かれるか（false=従来どおり素通り）
+    void SetContactKnockback(bool enabled){ contactKnockback_ = enabled; }
+    bool IsContactKnockback() const{ return contactKnockback_; }
+
+    // プレイヤーの当たり判定の形をワイヤーで描く（デバッグ表示用）
+    void DrawPlayerHitShape(const Player& player, const Vector4& color) const;
+
     // エフェクト初回使用のウォームアップ：SDF溶けを画面外で1回発火させ、初回描画時の
     // パイプライン遅延構築（実測で1秒超のフリーズ）をシーン開始直後に前倒しする。
     // 呼んだ後は ClearEffects で止めること（シーン側のウォームアップ処理が数フレーム後に行う）
@@ -66,6 +73,10 @@ private:
     std::vector<std::unique_ptr<StompEffect>> stompPool_;
     uint32_t circleTex_ = 0;
     uint32_t envTex_    = 0;
+
+    bool  contactKnockback_ = true;  // 敵に横からぶつかると弾かれる
+    Vector3 prevPlayerFoot_ { 0.0f, 0.0f, 0.0f }; // 前フレームの足元（落ちてきたか・体の中にいたかの判定用）
+    bool    hasPrevPlayerFoot_ = false;           // 前フレームの足元を持っているか（モード切替で捨てる）
 
     // --- 敵のSDF消滅演出（同時数ぶんの固定プール）---
     struct DissolveFx {

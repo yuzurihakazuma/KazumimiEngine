@@ -21,8 +21,20 @@ struct LevelEnemyData{
     int   railIndex = 0;
     float distance = 0.0f;
     int   patrol = 0; // 1=レールを往復パトロール（旧データはフィールド無し=0で動かない）
-    float patrolMin = -1.0f; // 巡回範囲の始点(m)。-1=レール全体を往復
-    float patrolMax = -1.0f; // 巡回範囲の終点(m)。-1=レール全体を往復
+    float patrolMin = -1.0f; // 行動範囲の始点(m)。-1=レール全体
+    float patrolMax = -1.0f; // 行動範囲の終点(m)。-1=レール全体
+    // --- 個体ごとの動き（game 側 EnemySpawnData と同じ意味。旧データは項目なし＝既定値）---
+    std::string name;            // 一覧に出す名前（空=種類名）
+    float speed         = 0.0f;  // 移動速度(m/s)。0以下=種類の既定値
+    int   startDir      = 1;     // 最初の進行方向（+1/-1）
+    float turnWait      = 0.0f;  // 折り返しで立ち止まる秒数
+    float chaseRange    = 0.0f;  // プレイヤーを追い始める距離(m)。0=追わない
+    float chaseSpeedMul = 1.5f;  // 追跡中の速度倍率
+    float hoverHeight   = -1.0f; // レールから浮く高さ(m)。負=種類の既定
+    float bobAmp        = 0.0f;  // 上下に揺れる幅(m)
+    float bobSpeed      = 2.0f;  // 揺れの速さ
+    float biteRange     = -1.0f; // カミバナの噛みつき距離(m)。負=既定
+    float scale         = 1.0f;  // 大きさの倍率
     bool operator==(const LevelEnemyData&) const = default; // 未保存判定（dirty）用
 };
 

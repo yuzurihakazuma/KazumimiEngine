@@ -90,8 +90,11 @@ public:
         Panel_Perf,        // パフォーマンスモニター
         Panel_File,        // ファイルエディタ
         Panel_Minimap,     // ミニマップ（俯瞰ビュー）※保存の並び維持のため必ず末尾に追加する
+        Panel_Layout,      // 配置ビュー（レール展開図。ブロック・敵・コインをパネルの中で配置する）
         Panel_Count
     };
+    // 横に広く使うパネルか。アイコンモードでは右の縦積みドロワーに入れず、画面の下に横長で出す
+    static bool IsWidePanel(int panel){ return panel == Panel_Layout; }
     UiShell GetUiShell() const{ return uiShell_; }
     // このパネルを今フレーム描くべきか。どちらのモードでも開閉できる（機能は両モード共通）：
     //   Dockモード＝既定は全部表示で、メニューバー「ウィンドウ」から非表示にできる。
@@ -100,6 +103,12 @@ public:
         if ( panel < 0 || panel >= Panel_Count ) return false;
         if ( uiShellFrame_ == UiShell::Dock ) return !dockPanelHidden_[panel]; // フレーム先頭で確定した値で判定
         return panelVisible_[panel];
+    }
+    // パネルを開く/閉じる（今のUIモード側の表示状態を変える。Game View の操作からパネルを開く用）
+    void SetPanelVisible(int panel, bool visible){
+        if ( panel < 0 || panel >= Panel_Count ) return;
+        if ( uiShell_ == UiShell::Dock ) { dockPanelHidden_[panel] = !visible; }
+        else                             { panelVisible_[panel] = visible; }
     }
 
 	// シーンから SkinnedObj3d を登録する。シーン終了時は必ず nullptr を渡してリセットすること

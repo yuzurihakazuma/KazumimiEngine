@@ -31,6 +31,19 @@ static bool MotionsEqual(const std::vector<Vector4>& lhs, const std::vector<Vect
 	return true;
 }
 
+// 履歴・初期状態との比較用：ブロックの「置き方」だけを比べる（ノード錨は見ない）。
+//   錨は UpdateBlockAnchors が後から自動で埋める値。これを変化に数えると、マウスを離した瞬間に
+//   置いたブロック（範囲フィル等）で「錨が入る→もう1手積まれる」が起き、その手を Ctrl+Z で戻しても
+//   また錨が入って積み直されるため、そこから先へ戻れなくなる
+static bool BlocksEqualForHistory(const std::vector<BlockData>& lhs, const std::vector<BlockData>& rhs){
+	if ( lhs.size() != rhs.size() ) return false;
+	for ( size_t i = 0; i < lhs.size(); ++i ) {
+		if ( lhs[i].rail != rhs[i].rail || lhs[i].level != rhs[i].level || lhs[i].type != rhs[i].type
+			|| lhs[i].dist != rhs[i].dist || lhs[i].side != rhs[i].side ) return false;
+	}
+	return true;
+}
+
 // 折れ線を Catmull-Rom 補間でなめらかにする（手描きキャンバス・なめらか化ボタンで共用）。
 //   divisions: 区間あたりの分割数（多いほど滑らか）。点が3個未満ならそのまま返す。
 static std::vector<Vector3> SmoothPolylineCR(const std::vector<Vector3>& points, int divisions){
@@ -91,6 +104,14 @@ void RailEditor::OnMapChanged(){
     initialMotions_ = data_->railMotions;
     initialCoins_   = data_->coins;
     initialBlocks_  = data_->blocks;
+    initialEnemies_ = data_->enemies;
+    // 別のマップになったのでレールの固定IDを振り直す（前のマップの付け替え待ちも捨てる）
+    railIds_.clear();
+    railRemaps_.clear();
+    SyncRailArraySizes();
+    EnsureRailIds();
+    initialRailIds_  = railIds_;
+    initialSettings_ = CaptureRailSettings();
     hasInitial_     = true;
     ++blockVersion_; // マップ差し替え時もゲーム側にブロック作り直しを通知
 
@@ -673,6 +694,7 @@ int RailEditor::GetNodeCountOf(int rail) const{
 //   追加・削除・読込・Undoのどこで数がズレても、ここを通れば安全になる（配列ズレ事故の一元対策）
 void RailEditor::SyncRailArraySizes(){
 	size_t n = data_->railLines.size();
+	EnsureRailIds();
 	data_->railTypes.resize(n, -1);
 	data_->railMotions.resize(n, Vector4 { 0.0f, 0.0f, 0.0f, 2.0f });
 	data_->railGroundTypes.resize(n, 1); // 既定は Gap
@@ -810,6 +832,15 @@ void RailEditor::EraseRail(int idx){
 		if ( block.rail > idx ) { --block.rail; }
 	}
 	++blockVersion_;
+	// 敵の付け替えはゲーム側（敵エディタが配置の正本）で行うので、付け替え方を知らせる
+	//   （消したレールの敵は外し、後ろのレールの敵は番号を1つ前へ）
+	RailRemap remap;
+	remap.oldToNew.resize(data_->railLines.size() + 1);
+	for ( int oldIndex = 0; oldIndex < ( int ) remap.oldToNew.size(); ++oldIndex ) {
+		remap.oldToNew[oldIndex] = ( oldIndex == idx ) ? -1 : ( ( oldIndex > idx ) ? oldIndex - 1 : oldIndex );
+	}
+	railRemaps_.push_back(std::move(remap));
+	if ( idx < ( int ) railIds_.size() ) { railIds_.erase(railIds_.begin() + idx); }
 }
 
 // =====================================================================
@@ -1325,26 +1356,69 @@ int RailEditor::FindBlock(int rail, float dist, int level, float side) const{
 	return -1;
 }
 
-void RailEditor::AddBlock(int rail, float dist, int level, float side, int type){
-	if ( rail < 0 || rail >= ( int ) data_->railLines.size() ) return;
-	if ( level < 0 ) return;
-	// 占有幅同士の重なりチェック（2m級を既存ブロックへ食い込ませない）
+// そのマスに type のブロックを置けるか。占有幅同士の重なりを見る（2m級を既存ブロックへ食い込ませない）
+bool RailEditor::CanPlaceBlock(int rail, float dist, int level, float side, int type, int ignoreIndex) const{
+	if ( rail < 0 || rail >= ( int ) data_->railLines.size() ) return false;
+	if ( level < 0 ) return false;
 	float newHalf = BlockOccupyHalf(type);
-	for ( const BlockData& block : data_->blocks ) {
+	for ( int i = 0; i < ( int ) data_->blocks.size(); ++i ) {
+		if ( i == ignoreIndex ) continue;
+		const BlockData& block = data_->blocks[i];
 		if ( block.rail == rail && block.level == level
 			&& std::abs(block.dist - dist) < BlockOccupyHalf(block.type) + newHalf - 0.01f
 			&& std::abs(block.side - side) < 0.51f ) {
-			return; // 重なる配置は無視
+			return false;
 		}
 	}
+	return true;
+}
+
+void RailEditor::AddBlock(int rail, float dist, int level, float side, int type){
+	if ( !CanPlaceBlock(rail, dist, level, side, type) ) return; // 重なる配置は無視
 	data_->blocks.push_back({ rail, dist, level, side, type });
 	++blockVersion_;
+}
+
+bool RailEditor::MoveBlock(int index, int rail, float dist, int level, float side){
+	if ( index < 0 || index >= ( int ) data_->blocks.size() ) return false;
+	BlockData& block = data_->blocks[index];
+	if ( !CanPlaceBlock(rail, dist, level, side, block.type, index) ) return false;
+	if ( block.rail == rail && block.dist == dist && block.level == level && block.side == side ) return false;
+	block.rail  = rail;
+	block.dist  = dist;
+	block.level = level;
+	block.side  = side;
+	// 錨は場所に紐づくので引き直す（次の UpdateBlockAnchors が新しい場所で記録する）
+	block.anchorNode   = -1;
+	block.anchorOffset = 0.0f;
+	++blockVersion_;
+	return true;
 }
 
 bool RailEditor::RemoveBlock(int rail, float dist, int level, float side){
 	int found = FindBlock(rail, dist, level, side);
 	if ( found < 0 ) return false;
 	data_->blocks.erase(data_->blocks.begin() + found);
+	++blockVersion_;
+	return true;
+}
+
+float RailEditor::BlockOccupyHalfOf(int type){ return BlockOccupyHalf(type); }
+
+bool RailEditor::ReplaceBlockType(int rail, float dist, int level, float side, int type){
+	return ReplaceBlockTypeAt(FindBlock(rail, dist, level, side), type);
+}
+
+bool RailEditor::ReplaceBlockTypeAt(int index, int type){
+	if ( index < 0 || index >= ( int ) data_->blocks.size() ) return false;
+	BlockData& target = data_->blocks[index];
+	if ( target.type == type ) return false;
+	// 大きくなる塗り替え（1m→2m級）は、広がった先が隣のブロックへ食い込まないか確かめる
+	if ( BlockOccupyHalf(type) > BlockOccupyHalf(target.type)
+		&& !CanPlaceBlock(target.rail, target.dist, target.level, target.side, type, index) ) {
+		return false;
+	}
+	target.type = type;
 	++blockVersion_;
 	return true;
 }
@@ -1360,22 +1434,48 @@ void RailEditor::UpdateBlockAnchors(const std::vector<SplineRail>& splineRails){
 		if ( arcs.empty() ) {
 			const SplineRail& rail = splineRails[railIdx];
 			arcs.reserve(rail.nodes.size());
-			for ( const Vector3& node : rail.nodes ) { arcs.push_back(rail.GetClosestDistance(node)); }
+			// ノード i はスプラインの t=i。弧長は距離テーブルから引く（レールの形だけで決まる）。
+			//   ※以前は「ノード座標にいちばん近いレール上の点」を探していたが、動くレールは
+			//     今の位置（ずれ・回転込み）で探すため、レールが動くたびに弧長が変わった扱いになり、
+			//     リフト上のブロックが滑る／毎フレーム作り直されて？ブロックが復活する原因だった
+			for ( int node = 0; node < ( int ) rail.nodes.size(); ++node ) {
+				arcs.push_back(rail.GetDistanceFromT(( float ) node));
+			}
 		}
 		return arcs;
 	};
+	// 直近のチェックポイント（履歴の基準）と並びが同じなら、自動で引き直した結果をそちらにも写す。
+	//   引き直しはユーザーの操作ではないので履歴の1手に数えない。写さないと、レール編集の次のフレームに
+	//   「ブロックが追従した」が別の1手として積まれ、その手を戻しても また追従して積み直されるため
+	//   Ctrl+Z がそこから先へ戻れなくなる
+	//   ※チェックポイントのレールの形が今と違う時（ドラッグ中・編集をまだ積んでいないフレーム）は写さない。
+	//     写すと「編集前の形」と「編集後の位置」が組になった、ちぐはぐな「戻り先」ができてしまう
+	const bool mirrorToCheckpoint = committedInit_ && committed_.blocks.size() == data_->blocks.size()
+		&& RailLinesEqual(committed_.lines, data_->railLines);
 	bool moved = false;
-	for ( auto& block : data_->blocks ) {
+	for ( int i = 0; i < ( int ) data_->blocks.size(); ++i ) {
+		BlockData& block = data_->blocks[i];
 		if ( block.rail < 0 || block.rail >= ( int ) splineRails.size() ) continue;
 		if ( splineRails[block.rail].nodes.size() < 2 ) continue;
 		const auto& arcs = arcsOf(block.rail);
+
+		// 引き直す前の時点で、チェックポイントの同じ番号が同じブロックを指しているか
+		BlockData* checkpoint = nullptr;
+		if ( mirrorToCheckpoint ) {
+			BlockData& candidate = committed_.blocks[i];
+			if ( candidate.rail == block.rail && candidate.level == block.level && candidate.type == block.type
+				&& candidate.side == block.side && candidate.dist == block.dist ) {
+				checkpoint = &candidate;
+			}
+		}
+
 		// ノード削除などで番号が範囲外になったら錨を引き直す（現在位置は維持）
 		if ( block.anchorNode >= ( int ) arcs.size() ) { block.anchorNode = -1; }
 		if ( block.anchorNode < 0 ) {
 			// 現在位置の手前にある最後のノードを錨として記録
 			int anchor = 0;
-			for ( int i = 0; i < ( int ) arcs.size(); ++i ) {
-				if ( arcs[i] <= block.dist + 0.01f ) { anchor = i; } else { break; }
+			for ( int node = 0; node < ( int ) arcs.size(); ++node ) {
+				if ( arcs[node] <= block.dist + 0.01f ) { anchor = node; } else { break; }
 			}
 			block.anchorNode   = anchor;
 			block.anchorOffset = block.dist - arcs[anchor];
@@ -1384,6 +1484,11 @@ void RailEditor::UpdateBlockAnchors(const std::vector<SplineRail>& splineRails){
 			float newDist = arcs[block.anchorNode] + block.anchorOffset;
 			newDist = std::clamp(newDist, 0.0f, splineRails[block.rail].GetLength());
 			if ( std::abs(newDist - block.dist) > 0.001f ) { block.dist = newDist; moved = true; }
+		}
+		if ( checkpoint ) {
+			checkpoint->dist         = block.dist;
+			checkpoint->anchorNode   = block.anchorNode;
+			checkpoint->anchorOffset = block.anchorOffset;
 		}
 	}
 	if ( moved ) { ++blockVersion_; } // シーン側のブロック再同期を促す
@@ -1810,12 +1915,121 @@ void RailEditor::DeleteRailNode(int idx){
 // ============================================================
 // Undo / Redo
 // ============================================================
+// レールの固定IDをレールの数にそろえる。足りない分（追加されたレール）には新しい ID を振る。
+//   レールの追加は必ず末尾なので、末尾に足せば並びと一致する
+void RailEditor::EnsureRailIds(){
+	const size_t railCount = data_->railLines.size();
+	if ( railIds_.size() > railCount ) { railIds_.resize(railCount); }
+	while ( railIds_.size() < railCount ) { railIds_.push_back(nextRailId_++); }
+}
+
+RailEditor::RailSettings RailEditor::CaptureRailSettings() const{
+	RailSettings settings;
+	settings.groundTypes    = data_->railGroundTypes;
+	settings.visible        = data_->railVisible;
+	settings.lineModes      = data_->railLineModes;
+	settings.roadModes      = data_->railRoadModes;
+	settings.endPlazas      = data_->railEndPlazas;
+	settings.guideRails     = data_->railGuideRails;
+	settings.guideModes     = data_->railGuideModes;
+	settings.guideAligns    = data_->railGuideAligns;
+	settings.guideStarts    = data_->railGuideStarts;
+	settings.guideEnds      = data_->railGuideEnds;
+	settings.guideDwells    = data_->railGuideDwells;
+	settings.groups         = data_->railGroups;
+	settings.nodeHoles      = data_->railNodeHoles;
+	settings.motionTypes    = data_->railMotionTypes;
+	settings.motionTriggers = data_->railMotionTriggers;
+	settings.appearTriggers = data_->railAppearTriggers;
+	settings.oneWay         = data_->railOneWay;
+	settings.motionPhases   = data_->railMotionPhases;
+	settings.speedMuls      = data_->railSpeedMuls;
+	return settings;
+}
+
+void RailEditor::ApplyRailSettings(const RailSettings& settings){
+	data_->railGroundTypes    = settings.groundTypes;
+	data_->railVisible        = settings.visible;
+	data_->railLineModes      = settings.lineModes;
+	data_->railRoadModes      = settings.roadModes;
+	data_->railEndPlazas      = settings.endPlazas;
+	data_->railGuideRails     = settings.guideRails;
+	data_->railGuideModes     = settings.guideModes;
+	data_->railGuideAligns    = settings.guideAligns;
+	data_->railGuideStarts    = settings.guideStarts;
+	data_->railGuideEnds      = settings.guideEnds;
+	data_->railGuideDwells    = settings.guideDwells;
+	data_->railGroups         = settings.groups;
+	data_->railNodeHoles      = settings.nodeHoles;
+	data_->railMotionTypes    = settings.motionTypes;
+	data_->railMotionTriggers = settings.motionTriggers;
+	data_->railAppearTriggers = settings.appearTriggers;
+	data_->railOneWay         = settings.oneWay;
+	data_->railMotionPhases   = settings.motionPhases;
+	data_->railSpeedMuls      = settings.speedMuls;
+	SyncRailArraySizes(); // 古い履歴（配列が足りない）でも数だけは必ずそろえる
+}
+
+RailEditor::RailSnapshot RailEditor::CaptureSnapshot(){
+	EnsureRailIds();
+	RailSnapshot snapshot;
+	snapshot.lines    = data_->railLines;
+	snapshot.types    = data_->railTypes;
+	snapshot.motions  = data_->railMotions;
+	snapshot.coins    = data_->coins;
+	snapshot.blocks   = data_->blocks;
+	snapshot.railIds  = railIds_;
+	snapshot.settings = CaptureRailSettings();
+	snapshot.enemies  = data_->enemies;
+	return snapshot;
+}
+
+// レールの並びが「今の railIds_」から restoredIds へ変わる時の、敵の付け替えを積む。
+//   ・今あるレールのうち、戻った先にも同じ ID があるもの → その番号へ付け替え（敵の編集はそのまま残る）
+//   ・戻った先に無いレール（戻すと無くなるレール）→ そのレールの敵は外す
+//   ・戻った先にだけあるレール（よみがえるレール）→ その時点に載っていた敵をよみがえらせる
+void RailEditor::QueueRailRemap(const std::vector<int>& restoredIds, const std::vector<LevelEnemyData>& restoredEnemies){
+	RailRemap remap;
+	remap.oldToNew.assign(railIds_.size(), -1);
+	for ( size_t oldIndex = 0; oldIndex < railIds_.size(); ++oldIndex ) {
+		auto found = std::find(restoredIds.begin(), restoredIds.end(), railIds_[oldIndex]);
+		if ( found != restoredIds.end() ) { remap.oldToNew[oldIndex] = ( int ) ( found - restoredIds.begin() ); }
+	}
+	for ( const LevelEnemyData& enemy : restoredEnemies ) {
+		if ( enemy.railIndex < 0 || enemy.railIndex >= ( int ) restoredIds.size() ) continue;
+		const int railId = restoredIds[enemy.railIndex];
+		if ( std::find(railIds_.begin(), railIds_.end(), railId) == railIds_.end() ) {
+			remap.revived.push_back(enemy);
+		}
+	}
+	railRemaps_.push_back(std::move(remap));
+}
+
+bool RailEditor::ConsumeRailRemap(RailRemap& out){
+	if ( railRemaps_.empty() ) return false;
+	out = std::move(railRemaps_.front());
+	railRemaps_.erase(railRemaps_.begin());
+	return true;
+}
+
 void RailEditor::RestoreSnapshot(const RailSnapshot& s){
+	EnsureRailIds();
+	// レールの数や並びが変わる手（削除・追加）を戻す/やり直す時だけ、レールごとの設定と敵の付け替えも行う。
+	//   並びの変化はレールの固定IDで判定する（形で推測しない）。それ以外の手ではどちらも触らない
+	//   （ブロックを戻しただけで、敵やレールの設定の編集まで戻らないように）
+	const bool idsKnown = ( s.railIds.size() == s.lines.size() );
+	const bool structureChanges = idsKnown && ( s.railIds != railIds_ );
+	if ( structureChanges ) {
+		QueueRailRemap(s.railIds, s.enemies);
+	}
 	data_->railLines = s.lines;
 	data_->railTypes = s.types;
 	if ( !s.motions.empty() ) { data_->railMotions = s.motions; } // 動くレール設定も復元
 	data_->coins = s.coins; // コイン配置も復元（レール削除のUndoでrail番号がズレないように）
 	data_->blocks = s.blocks; // ブロック配置も復元
+	if ( structureChanges ) { ApplyRailSettings(s.settings); }
+	if ( idsKnown ) { railIds_ = s.railIds; }
+	else            { railIds_.clear(); EnsureRailIds(); } // ID の無い古い履歴：振り直す
 	++blockVersion_;          // ゲーム側にブロック作り直しを通知
 	multiSelection_.clear(); // ノード構成が変わるので選択を解除
 	if ( currentEditRailIndex_ >= ( int ) data_->railLines.size() ) {
@@ -1823,11 +2037,7 @@ void RailEditor::RestoreSnapshot(const RailSnapshot& s){
 	}
 	if ( currentEditRailIndex_ < 0 ) currentEditRailIndex_ = 0;
 	selectedRailNode_ = -1;
-	committed_.lines   = data_->railLines; // 復元直後を基準に
-	committed_.types   = data_->railTypes;
-	committed_.motions = data_->railMotions;
-	committed_.coins   = data_->coins;
-	committed_.blocks  = data_->blocks;
+	committed_ = CaptureSnapshot(); // 復元直後を基準に
 	++railVersion_;
 }
 
@@ -1838,38 +2048,36 @@ void RailEditor::CommitIfStable(){
 	if ( input->PushMouseButton(0) || input->PushMouseButton(1) ) return;
 
 	if ( !committedInit_ ) {
-		committed_.lines   = data_->railLines;
-		committed_.types   = data_->railTypes;
-		committed_.motions = data_->railMotions;
-		committed_.coins   = data_->coins;
-		committed_.blocks  = data_->blocks;
+		committed_ = CaptureSnapshot();
 		committedInit_ = true;
 		return;
 	}
 
 	// 変化していなければ何もしない（配置・タイプ・動くレール設定・コイン・ブロックのいずれかが変わったら記録）
+	//   敵・レールごとの設定は履歴の変化には数えない（敵は敵エディタが別の履歴を持つ）。ただし
+	//   「レールを消す直前の敵と設定」を手元に持っておくため、何も変わっていないフレームでは
+	//   控えを今の状態に合わせておく（レールを消すと次のフレームで敵の番号が詰められる。
+	//   積む時点の控えは詰める前のもの＝消したのを戻す時にそのレールの敵をよみがえらせられる）
 	if ( RailLinesEqual(committed_.lines, data_->railLines)
 		&& committed_.types == data_->railTypes
 		&& MotionsEqual(committed_.motions, data_->railMotions)
 		&& committed_.coins == data_->coins
-		&& committed_.blocks == data_->blocks ) return;
+		&& BlocksEqualForHistory(committed_.blocks, data_->blocks) ) {
+		committed_ = CaptureSnapshot();
+		return;
+	}
 
 	// 直前の安定状態を undo へ積み、現在を新しいチェックポイントに
 	undoStack_.push_back(committed_);
 	if ( undoStack_.size() > 100 ) undoStack_.erase(undoStack_.begin());
 	redoStack_.clear();
-	committed_.lines   = data_->railLines;
-	committed_.types   = data_->railTypes;
-	committed_.motions = data_->railMotions;
-	committed_.coins   = data_->coins;
-	committed_.blocks  = data_->blocks;
+	committed_ = CaptureSnapshot();
 }
 
 void RailEditor::Undo(){
 	if ( undoStack_.empty() ) return;
 	// 現在をredoへ
-	RailSnapshot cur; cur.lines = data_->railLines; cur.types = data_->railTypes; cur.motions = data_->railMotions; cur.coins = data_->coins; cur.blocks = data_->blocks;
-	redoStack_.push_back(cur);
+	redoStack_.push_back(CaptureSnapshot());
 	RailSnapshot prev = undoStack_.back();
 	undoStack_.pop_back();
 	RestoreSnapshot(prev);
@@ -1877,8 +2085,7 @@ void RailEditor::Undo(){
 
 void RailEditor::Redo(){
 	if ( redoStack_.empty() ) return;
-	RailSnapshot cur; cur.lines = data_->railLines; cur.types = data_->railTypes; cur.motions = data_->railMotions; cur.coins = data_->coins; cur.blocks = data_->blocks;
-	undoStack_.push_back(cur);
+	undoStack_.push_back(CaptureSnapshot());
 	RailSnapshot next = redoStack_.back();
 	redoStack_.pop_back();
 	RestoreSnapshot(next);
@@ -1891,7 +2098,7 @@ bool RailEditor::CanResetToInitial() const{
 		&& initialTypes_ == data_->railTypes
 		&& MotionsEqual(initialMotions_, data_->railMotions)
 		&& initialCoins_ == data_->coins
-		&& initialBlocks_ == data_->blocks );
+		&& BlocksEqualForHistory(initialBlocks_, data_->blocks) );
 }
 
 // 編集開始時（マップ読込直後）の状態へ一発で戻す。
@@ -1899,16 +2106,23 @@ bool RailEditor::CanResetToInitial() const{
 void RailEditor::ResetToInitial(){
 	if ( !CanResetToInitial() ) return;
 
-	RailSnapshot cur; cur.lines = data_->railLines; cur.types = data_->railTypes; cur.motions = data_->railMotions; cur.coins = data_->coins; cur.blocks = data_->blocks;
-	undoStack_.push_back(cur);
+	undoStack_.push_back(CaptureSnapshot());
 	if ( undoStack_.size() > 100 ) undoStack_.erase(undoStack_.begin());
 	redoStack_.clear();
+
+	// 読込の後にレールを消した/足した時は、レールごとの設定と敵の番号も読込の時へ戻す
+	const bool idsKnown = ( initialRailIds_.size() == initialLines_.size() );
+	const bool structureChanges = idsKnown && ( initialRailIds_ != railIds_ );
+	if ( structureChanges ) { QueueRailRemap(initialRailIds_, initialEnemies_); }
 
 	data_->railLines   = initialLines_;
 	data_->railTypes   = initialTypes_;
 	data_->railMotions = initialMotions_; // 動くレール設定も初期へ戻す
 	data_->coins       = initialCoins_;   // コイン配置も初期へ戻す
 	data_->blocks      = initialBlocks_;  // ブロック配置も初期へ戻す
+	if ( structureChanges ) { ApplyRailSettings(initialSettings_); }
+	if ( idsKnown ) { railIds_ = initialRailIds_; }
+	else            { railIds_.clear(); EnsureRailIds(); }
 	++blockVersion_;
 	multiSelection_.clear();
 	selectedRailNode_ = -1;
@@ -1917,11 +2131,7 @@ void RailEditor::ResetToInitial(){
 	}
 	if ( currentEditRailIndex_ < 0 ) currentEditRailIndex_ = 0;
 
-	committed_.lines   = data_->railLines; // 戻した直後を基準に
-	committed_.types   = data_->railTypes;
-	committed_.motions = data_->railMotions; // これを忘れると直後に偽のUndo履歴が1つ積まれる
-	committed_.coins   = data_->coins;
-	committed_.blocks  = data_->blocks;
+	committed_ = CaptureSnapshot(); // 戻した直後を基準に（忘れると直後に偽のUndo履歴が1つ積まれる）
 	++railVersion_;
 }
 
@@ -2148,9 +2358,17 @@ void RailEditor::TickEditing(){
     CommitIfStable();
     {
         Input* in = Input::GetInstance();
-        bool ctrl = in->Pushkey(DIK_LCONTROL) || in->Pushkey(DIK_RCONTROL);
-        if ( ctrl && in->Triggerkey(DIK_Z) ) Undo();
-        if ( ctrl && in->Triggerkey(DIK_Y) ) Redo();
+        // このフレームだけ別の履歴（敵）へ譲る指定があれば、レールの Ctrl+Z/Y は動かさない
+        const bool skipHotkey = skipUndoHotkey_;
+        skipUndoHotkey_ = false; // 毎フレーム下ろす
+        // ドラッグ中（塗っている途中・つかんで動かしている途中）は戻さない。
+        //   途中で配列が入れ替わると、続きの操作が別のブロックやコインへ書き込んでしまう
+        const bool mouseHeld = in->PushMouseButton(0) || in->PushMouseButton(1);
+        if ( !skipHotkey && !mouseHeld ) {
+            bool ctrl = in->Pushkey(DIK_LCONTROL) || in->Pushkey(DIK_RCONTROL);
+            if ( ctrl && in->Triggerkey(DIK_Z) ) Undo();
+            if ( ctrl && in->Triggerkey(DIK_Y) ) Redo();
+        }
     }
 #endif
 }
@@ -4144,10 +4362,11 @@ void RailEditor::DrawItemWindow(){
 		}
 		if ( paintOn ) { ImGui::PopStyleColor(); }
 		if ( ImGui::IsItemHovered() ) {
-			ImGui::SetTooltip("Game View でレールの近くをクリック：左=置く / 右クリック=消す（ブロックを左クリックでも消える）\n"
-				"マウスを上に動かすと高い段、横に動かすと道の脇に置ける。押しっぱなしで連続配置\n"
+			ImGui::SetTooltip("Game View でクリック：左=置く / 右クリック=指したブロックを消す\n"
+				"ブロックの上の面を指すと上に積み、横の面を指すと隣に置ける。押しっぱなしで連続配置\n"
 				"1マス=1m。道の中心のブロックは乗れて壁になる（脇にずらしたものは飾り）");
 		}
+		ImGui::TextDisabled("B キー（Game View 上）でも切り替えできます");
 		if ( blockPaintMode_ ) {
 			// 置く/消す のモード切替（右クリックでも常に消せるが、明示モードがあると確実）
 			int eraseModeInt = blockPaintErase_ ? 1 : 0;
@@ -4155,13 +4374,56 @@ void RailEditor::DrawItemWindow(){
 			ImGui::SameLine();
 			ImGui::RadioButton("消しゴム##blockmode", &eraseModeInt, 1);
 			blockPaintErase_ = ( eraseModeInt == 1 );
-			// ブロックの種類（見た目＋性質）
+			ImGui::SameLine();
+			ImGui::TextDisabled("(Shift を押している間だけ消しゴム)");
+
+			// 狙い方と、置く場所の絞り込み（思った場所と違う所に置かれるのを防ぐ）
+			const char* pickModeNames[] = {
+				"面に積む（指したブロックの隣に置く）", "断面から選ぶ（マウスの高さで段が決まる）" };
+			ImGui::SetNextItemWidth(280.0f);
+			ImGui::Combo("狙い方##blockpick", &blockPickMode_, pickModeNames, IM_ARRAYSIZE(pickModeNames));
+			ImGui::Checkbox("段を固定##blocklock", &blockLevelLocked_);
+			ImGui::SameLine();
+			ImGui::BeginDisabled(!blockLevelLocked_);
+			ImGui::SetNextItemWidth(140.0f);
+			int shownLevel = blockLockedLevel_ + 1; // 表示は1段目から
+			if ( ImGui::SliderInt("段目##blocklevel", &shownLevel, 1, 8) ) { blockLockedLevel_ = shownLevel - 1; }
+			ImGui::EndDisabled();
+			if ( ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) ) {
+				ImGui::SetTooltip("ON の間はマウスの位置に関係なく、決めた段にだけ置く（空中の足場を並べる時に）\n"
+					"Game View 上で数字キー 1〜8 ＝その段に固定 / 0 ＝固定を解除");
+			}
+			ImGui::Checkbox("道の中心だけに置く##blockcenter", &blockCenterOnly_);
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("OFF にすると道の脇（横ずれ）にも置ける。脇のブロックは当たらない飾りになる");
+			}
+			ImGui::Checkbox("置いてあるブロックを左クリックで消す##blockclickerase", &blockClickErase_);
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("OFF（おすすめ）：別の種類を選んでクリックすると、その種類に塗り替える\n"
+					"ON：以前の動作。置いてあるブロックを左クリックすると消える");
+			}
+
+			// ブロックの種類（見た目＋性質）。ボタンを並べて1クリックで選べるようにする
 			const char* blockTypeNames[] = {
 				"スポンジ (黄)", "段ボール層", "斜面 45°", "ゆるい斜面 26°",
 				"ジャンプ台 (緑)", "？ブロック (金)", "すり抜け床 (白)",
 				"横長ブロック (2m)", "台座ブロック (2×2m)" };
-			ImGui::SetNextItemWidth(200.0f);
-			ImGui::Combo("種類##blocktype", &blockPaintType_, blockTypeNames, IM_ARRAYSIZE(blockTypeNames));
+			ImGui::TextUnformatted("種類");
+			{
+				const int   kColumns = 3;
+				const float buttonWidth = ( ImGui::GetContentRegionAvail().x
+					- ImGui::GetStyle().ItemSpacing.x * ( float ) ( kColumns - 1 ) ) / ( float ) kColumns;
+				for ( int t = 0; t < IM_ARRAYSIZE(blockTypeNames); ++t ) {
+					if ( t % kColumns != 0 ) { ImGui::SameLine(); }
+					bool chosen = ( blockPaintType_ == t );
+					if ( chosen ) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.45f, 0.75f, 1.0f)); }
+					ImGui::PushID(t);
+					if ( ImGui::Button(blockTypeNames[t], ImVec2(buttonWidth, 0.0f)) ) { blockPaintType_ = t; }
+					ImGui::PopID();
+					if ( chosen ) { ImGui::PopStyleColor(); }
+				}
+			}
+			ImGui::TextDisabled("(?) 種類ごとの性質");
 			if ( ImGui::IsItemHovered() ) {
 				ImGui::SetTooltip("斜面＝歩いて登れる坂（隣のブロックへ向けて自動で向く）\n"
 					"ジャンプ台＝上に飛び乗ると大きく跳ね返る\n"

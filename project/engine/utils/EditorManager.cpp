@@ -76,7 +76,7 @@ namespace {
     //   アイコンは Segoe MDL2 のグリフ（UTF-8直書き）。EditorPanel と同じ並び順。
     //   アイコンツールバーとメニューバー「ウィンドウ」の両方から参照する
     struct PanelIconDef { const char* icon; const char* name; const char* windowTitle; };
-    const PanelIconDef kPanelIcons[EditorManager::Panel_Count] = {
+    const PanelIconDef kPanelIcons[] = {
         { "\xEE\x9D\xA8\n操作", "コントロール（Play / Stop・タイムスケール）", "コントロール (Play / Stop)" },        // E768 ▶
         { "\xEE\xA3\xB1\n階層", "ヒエラルキー（配置リスト・マップ保存/読込）", "ヒエラルキー (配置リスト)" },          // E8F1 リスト
         { "\xEE\xA2\xB7\n資産", "アセットブラウザ（モデルのドラッグ配置）", "アセットブラウザ (Assets)" },            // E8B7 フォルダ
@@ -91,7 +91,11 @@ namespace {
         { "\xEE\xA0\xA3\n計測", "パフォーマンスモニター", "パフォーマンスモニター" },                              // E823 時計
         { "\xEE\xA2\xA5\n書類", "ファイルエディタ（Project）", "ファイルエディタ (Project)" },                     // E8A5 ドキュメント
         { "\xEE\x9C\x87\nマップ", "ミニマップ（俯瞰ビュー。クリックでカメラ移動）", "ミニマップ (俯瞰)" },            // E707 地図
+        { "\xEE\xA2\xA9\n展開図", "配置ビュー（レール展開図。ブロック・敵・コインをマス目で配置）", "配置ビュー (レール展開図)" }, // E8A9 マス目
     };
+    // パネルを増やした時に行を足し忘れると、名前が空のまま参照されて実行時に落ちる。ビルド時に気づけるようにする
+    static_assert(sizeof(kPanelIcons) / sizeof(kPanelIcons[0]) == EditorManager::Panel_Count,
+        "kPanelIcons の行数を EditorPanel と合わせること");
     // 単発アクションのアイコングリフ
     const char* kIconGlyphBack = "\xEE\x9C\x80"; // U+E700 メニュー（三本線）
     const char* kIconGlyphSave = "\xEE\x9D\x8E"; // U+E74E フロッピー（保存）
@@ -158,6 +162,10 @@ void EditorManager::Begin(){
     }
     uiShellFrame_ = uiShell_; // このフレームのUI分岐はここで確定（F2切替は次フレームから効く）
     ImGuiManager::GetInstance()->Begin();
+    // 入力欄に文字を打っている間は、ゲーム側のキー操作（T=タイトルへ / R=読み直し / Ctrl+Z 等）を止める
+    if ( ImGui::GetCurrentContext() ) {
+        Input::GetInstance()->SetTextInputActive(ImGui::GetIO().WantTextInput);
+    }
 #endif
 }
 
@@ -203,8 +211,11 @@ void EditorManager::Update(){
     }
 
     if ( !isEditorActive_ ) {
-        // エディタ非表示（フルスクリーン）ではホイールズームを常に許可
-        if ( debugCamera_ ) { debugCamera_->SetGameViewHovered(true); }
+        // エディタ非表示（フルスクリーン）ではホイールズーム・視点ドラッグを常に許可
+        if ( debugCamera_ ) {
+            debugCamera_->SetGameViewHovered(true);
+            debugCamera_->SetGameViewDragHovered(true);
+        }
         return;
     }
 
@@ -243,11 +254,12 @@ void EditorManager::Update(){
         ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->WorkSize);
 
-        // 左ペイン(25%) → 中央 → 右ペイン(30%) → 中央下(25%) に分割
+        // 左ペイン(25%) → 中央 → 右ペイン(30%) → 中央下(32%) に分割
+        //   下は配置ビュー（レール展開図）が入るので、マス目が4〜5段見える高さを取る
         ImGuiID dock_center = dockspace_id;
         ImGuiID dock_left   = ImGui::DockBuilderSplitNode(dock_center, ImGuiDir_Left,  0.25f, nullptr, &dock_center);
         ImGuiID dock_right  = ImGui::DockBuilderSplitNode(dock_center, ImGuiDir_Right, 0.30f, nullptr, &dock_center);
-        ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_center, ImGuiDir_Down,  0.25f, nullptr, &dock_center);
+        ImGuiID dock_bottom = ImGui::DockBuilderSplitNode(dock_center, ImGuiDir_Down,  0.32f, nullptr, &dock_center);
 
         // 各ウィンドウを対応するペインに割り当て
         // 4ゾーン構成（同じゾーンに入れたウィンドウはタブとしてまとまる）
@@ -270,6 +282,7 @@ void EditorManager::Update(){
         ImGui::DockBuilderDockWindow("SDF (フォント/画像)",          dock_bottom);
         ImGui::DockBuilderDockWindow("ファイルエディタ (Project)",    dock_bottom);
         ImGui::DockBuilderDockWindow("敵配置エディタ (Enemy Editor)", dock_right);
+        ImGui::DockBuilderDockWindow("配置ビュー (レール展開図)",     dock_bottom);
 
         ImGui::DockBuilderFinish(dockspace_id);
     }
@@ -369,6 +382,7 @@ void EditorManager::Update(){
                 if ( ImGui::MenuItem("調整（インスペクタ＋計測＋操作）") ) { ApplyWorkspace(1); }
                 if ( ImGui::MenuItem("線路（レール＋カメラ＋階層）") )     { ApplyWorkspace(2); }
                 if ( ImGui::MenuItem("敵配置（敵エディタ＋操作）") )       { ApplyWorkspace(3); }
+                if ( ImGui::MenuItem("展開図（配置ビュー＋敵エディタ＋操作）") ) { ApplyWorkspace(5); }
                 if ( ImGui::MenuItem("全部閉じる（ゲーム画面のみ）") )     { ApplyWorkspace(4); }
                 ImGui::EndMenu();
             }
@@ -482,7 +496,15 @@ void EditorManager::Update(){
 
     // デバッグカメラのホイールズームは Game View にマウスがある時だけ許可する
     // （レールエディタ等のパネル上でスクロールしてもカメラがズームしないように）。
-    if ( debugCamera_ ) { debugCamera_->SetGameViewHovered(imageHovered); }
+    //   右/中ドラッグ（視点の回転・平行移動）の始まりは、入力欄が有効なまま・メニューが開いている時でも
+    //   Game View の上なら認める（ふつうのホバー判定だと、それらの間は Game View が反応しなくなるため）。
+    //   他の窓が Game View に重なっている所では認めない（パネル内の右ドラッグで視点が回らないように）
+    const bool cameraDragHovered = ImGui::IsItemHovered(
+        ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+    if ( debugCamera_ ) {
+        debugCamera_->SetGameViewHovered(imageHovered);
+        debugCamera_->SetGameViewDragHovered(cameraDragHovered);
+    }
 
     // ゲーム側の配置エディタ（敵ドラッグ等）が独自ピッキングに使う Game View 情報を控える
     {
@@ -1576,6 +1598,7 @@ void EditorManager::DrawIconToolbar(){
     if ( iconButton("\xEE\x9E\x90\n調整##ws1", "調整：インスペクタ＋パフォーマンス（スライダーを動かしながら画を見る）", false) ) { ApplyWorkspace(1); workspaceApplied = true; }
     if ( iconButton("\xEE\x9D\xB4\n線路##ws2", "レール：レールエディタ＋カメラ＋ヒエラルキー", false) ) { ApplyWorkspace(2); workspaceApplied = true; }
     if ( iconButton("\xEE\x9D\xBB\n敵##ws3",   "敵配置：敵エディタだけ表示", false) ) { ApplyWorkspace(3); workspaceApplied = true; }
+    if ( iconButton("\xEE\xA2\xA9\n展開図##ws5", "展開図：配置ビュー（下）＋敵エディタ。ブロック・敵・コインをマス目で配置", false) ) { ApplyWorkspace(5); workspaceApplied = true; }
     if ( iconButton("\xEE\x9C\x91\n全閉##ws4", "全部閉じる（ゲーム画面のみ）", false) ) { ApplyWorkspace(4); workspaceApplied = true; }
     ( void ) workspaceApplied; // ドロワーが毎フレーム自動整列するので個別配置は不要
     newRow();
@@ -1622,7 +1645,7 @@ void EditorManager::DrawIconToolbar(){
         // 手動リサイズの取り込み：パネルの縁をドラッグして変えた幅をドロワー幅として採用する
         //（毎フレーム幅を強制する方式のままでも、採用→強制の順なのでドラッグが効く）
         for ( int i = 0; i < Panel_Count; ++i ) {
-            if ( !panelVisible_[i] ) continue;
+            if ( !panelVisible_[i] || IsWidePanel(i) ) continue; // 横長パネルはドロワーの外（下）に出す
             ImGuiWindow* panelWindow = ImGui::FindWindowByName(kPanelIcons[i].windowTitle);
             if ( panelWindow && !panelWindow->Collapsed && fabsf(panelWindow->Size.x - uiDrawerWidth_) > 0.5f ) {
                 uiDrawerWidth_ = ( std::max )( 300.0f, ( std::min )( 800.0f, panelWindow->Size.x ) );
@@ -1643,7 +1666,7 @@ void EditorManager::DrawIconToolbar(){
         bool  isCollapsed[Panel_Count] = {};
         int   visibleCount = 0;
         for ( int i = 0; i < Panel_Count; ++i ) {
-            if ( !panelVisible_[i] ) continue;
+            if ( !panelVisible_[i] || IsWidePanel(i) ) continue;
             ++visibleCount;
             ImGuiWindow* panelWindow = ImGui::FindWindowByName(kPanelIcons[i].windowTitle);
             isCollapsed[i] = ( panelWindow && panelWindow->Collapsed );
@@ -1658,13 +1681,51 @@ void EditorManager::DrawIconToolbar(){
                 ( drawerViewport->WorkSize.y - collapsedTotal ) / ( float ) ( std::max )( 1, expandedCount ) );
             float y = drawerViewport->WorkPos.y;
             for ( int i = 0; i < Panel_Count; ++i ) {
-                if ( !panelVisible_[i] ) continue;
+                if ( !panelVisible_[i] || IsWidePanel(i) ) continue;
                 const char* windowName = kPanelIcons[i].windowTitle;
                 const float height = isCollapsed[i] ? collapsedHeight : expandedHeight;
                 ImGui::SetWindowPos(windowName, ImVec2(drawerX, y), ImGuiCond_Always);
                 ImGui::SetWindowSize(windowName, ImVec2(drawerWidth, expandedHeight), ImGuiCond_Always);
                 y += height;
             }
+        }
+
+        // --- 横長パネル（配置ビュー）：画面の下に、ツールバーとドロワーの間いっぱいの幅で出す ---
+        //   右の縦積みドロワーは幅が狭く、横に長い展開図が入らないため置き場所を分ける。
+        //   高さは上の縁をドラッグして変えられる（幅と下端は毎フレーム合わせ直す）
+        //   ※ゲームの窓が最小化中・閉じる途中などで作業領域がほとんど無い時は触らない。
+        //     その時の大きさ（最小の高さ）が imgui.ini に保存され、次に起動した時に
+        //     パネルが低いまま開いてしまうため
+        const bool viewportUsable = drawerViewport->WorkSize.x >= 640.0f && drawerViewport->WorkSize.y >= 400.0f;
+        for ( int i = 0; i < Panel_Count && viewportUsable; ++i ) {
+            if ( !panelVisible_[i] || !IsWidePanel(i) ) continue;
+            const char* windowName = kPanelIcons[i].windowTitle;
+            const float margin = 6.0f;
+            float leftEdge  = drawerViewport->WorkPos.x + margin;
+            float rightEdge = drawerViewport->WorkPos.x + drawerViewport->WorkSize.x - margin;
+            // ツールバー側とドロワー側（開いている時だけ）を空ける
+            const float toolbarSpace = toolbarWidth + margin * 2.0f;
+            const float drawerSpace  = ( visibleCount > 0 ) ? drawerWidth + margin : 0.0f;
+            if ( drawerOnLeft ) { leftEdge += drawerSpace;  rightEdge -= toolbarSpace; }
+            else                { leftEdge += toolbarSpace; rightEdge -= drawerSpace; }
+            const float width = ( std::max )( 360.0f, rightEdge - leftEdge );
+
+            float height = 330.0f;
+            ImGuiWindow* wideWindow = ImGui::FindWindowByName(windowName);
+            // 畳んでいる間も「開いた時の高さ」（SizeFull）を使う。見えている高さ（Size）を使うと、
+            // 畳んだ瞬間に既定の高さで上書きされ、自分で広げた高さが開き直すと元に戻ってしまう
+            if ( wideWindow ) { height = wideWindow->SizeFull.y; }
+            // 以前の不具合で低い高さ（220 以下）が保存されていた時は、既定の高さへ戻す
+            //   （自分で縁を動かした高さは下の最小 240 より下にならないので、取り違えない）
+            if ( height <= 221.0f ) { height = 330.0f; }
+            height = ( std::max )( 240.0f, ( std::min )( height, drawerViewport->WorkSize.y * 0.75f ) );
+            // タイトルの▼が押されたフレームは、この後の Begin で開閉が切り替わる。先回りして位置を合わせる
+            const bool collapsed = ( wideWindow && ( wideWindow->Collapsed != wideWindow->WantCollapseToggle ) );
+            const float shownHeight = collapsed ? collapsedHeight : height;
+            ImGui::SetWindowPos(windowName,
+                ImVec2(leftEdge, drawerViewport->WorkPos.y + drawerViewport->WorkSize.y - shownHeight - margin),
+                ImGuiCond_Always);
+            ImGui::SetWindowSize(windowName, ImVec2(width, height), ImGuiCond_Always);
         }
     }
 #endif
@@ -1705,11 +1766,12 @@ void EditorManager::DrawUiSettingsWindow(){
 #endif
 }
 
-// ワークスペース：作業内容に合わせてパネル一式を切り替える（0=設置/1=調整/2=レール/3=敵/4=全部閉じる）
+// ワークスペース：作業内容に合わせてパネル一式を切り替える（0=設置/1=調整/2=レール/3=敵/4=全部閉じる/5=展開図）
 //   ドック・アイコン両モード共通の機能。今のモード側のパネル表示設定に適用する
 void EditorManager::ApplyWorkspace(int index){
     bool enable[Panel_Count] = {};
     switch ( index ) {
+    case 5: enable[Panel_Layout] = true; enable[Panel_Enemy] = true; enable[Panel_Control] = true; break;
     case 0: enable[Panel_Items] = true;  enable[Panel_Control] = true; break;
     case 1: enable[Panel_Inspector] = true; enable[Panel_Perf] = true; enable[Panel_Control] = true; break;
     case 2: enable[Panel_Rail] = true; enable[Panel_Camera] = true; enable[Panel_Hierarchy] = true; break;
@@ -1762,11 +1824,17 @@ void EditorManager::LoadUiConfig(){
             uiAutoShowEditor_ = ( atoi(found + 9) == 1 );
             if ( uiAutoShowEditor_ ) { isEditorActive_ = true; } // 起動時からエディタを開く設定
         }
+        bool needsSave = false;
         if ( ( found = strstr(buffer, "panels=") ) ) {
             found += 7;
-            for ( int i = 0; i < Panel_Count && ( found[i] == '0' || found[i] == '1' ); ++i ) {
-                panelVisible_[i] = ( found[i] == '1' );
+            int parsed = 0;
+            for ( ; parsed < Panel_Count && ( found[parsed] == '0' || found[parsed] == '1' ); ++parsed ) {
+                panelVisible_[parsed] = ( found[parsed] == '1' );
             }
+            // 配置ビューが追加される前の設定ファイル：新しいパネルは最初の1回だけ開いた状態にする
+            //   （アイコンモードでは既定が非表示なので、そのままだと追加されたことに気づけない）。
+            //   すぐ保存し直すので、閉じた後にまた勝手に開くことはない
+            if ( parsed <= Panel_Layout ) { panelVisible_[Panel_Layout] = true; needsSave = true; }
         }
         if ( ( found = strstr(buffer, "dockhide=") ) ) {
             found += 9;
@@ -1774,6 +1842,7 @@ void EditorManager::LoadUiConfig(){
                 dockPanelHidden_[i] = ( found[i] == '1' );
             }
         }
+        if ( needsSave ) { SaveUiConfig(); }
     } else {
         // 初回は「設置ワークスペース」相当（アイコンモードにした時に画面が広い状態から始まる）
         panelVisible_[Panel_Items]   = true;

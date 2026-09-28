@@ -2,6 +2,7 @@
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/model/Model.h"
 #include "engine/audio/AudioManager.h"
+#include "engine/graphics/DebugDraw.h"
 #include "engine/sdf/SDFVolumeObject.h"
 #include <algorithm>
 #include <cstdlib>
@@ -20,6 +21,11 @@ namespace {
     const float kBirthFxScale    = 0.91f; // メッシュ卵(モデル高さ1.3×スケール0.7=0.91m)と同じ大きさ
     const float kBirthFullErode  = 0.5f * kBirthFxScale; // これだけ痩せると完全に消える量
     const Vector4 kBirthFxColor  = { 0.98f, 0.96f, 0.86f, 1.0f }; // 予備色（αはフェードで使う）
+
+    // 壁・ブロック・道に対する当たりの大きさ（敵に対する半径への倍率）。
+    //   敵には当てやすく大きめの半径を使うが、壁にも同じ大きさを使うと
+    //   壁際や足場の上から投げた瞬間に自分の足元へ引っかかって割れてしまう
+    const float kObstacleRadiusScale = 0.6f;
 }
 
 void EggSystem::Initialize(){
@@ -178,6 +184,21 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
                       { 0.95f, 0.97f, 1.0f, 1.0f }, 0.28f, 0.4f); // 白い煙
         }
         egg->Update(dt);
+        // 飛行中：動いた区間で壁・ブロック・道に当たったら、当たった位置で止める
+        if ( egg->IsFlying() && !egg->HitObstacle() ) {
+            if ( obstacleQuery_ ) {
+                Vector3 hitPos {};
+                if ( obstacleQuery_(egg->GetPrevPosition(), egg->GetPosition(),
+                                    egg->GetRadius() * kObstacleRadiusScale, hitPos) ) {
+                    egg->StopAtObstacle(hitPos);
+                }
+            } else if ( egg->GetPosition().y <= egg->GetRadius() ) {
+                // 問い合わせ先が無い時の保険：高さ0の床で止まる（従来の挙動）
+                Vector3 floorPos = egg->GetPosition();
+                floorPos.y = egg->GetRadius();
+                egg->StopAtObstacle(floorPos);
+            }
+        }
         if ( egg->JustBroke() ) { // 着弾／時間切れ：殻の欠片が飛び散り、黄身が splash する
             AudioManager::GetInstance()->PlayWave("resources/se/eggBreak.wav", false, 0.4f); // 割れる音
             Vector3 breakPos = egg->GetPosition();
@@ -197,14 +218,31 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
     for ( auto& spit : spits_ ) {
         if ( spit.dead ) continue;
         spit.life  -= dt;
-        spit.vel.y -= 10.0f * dt; // 軽い重力＝少し先で落ちる放物線
-        spit.pos.x += spit.vel.x * dt;
-        spit.pos.y += spit.vel.y * dt;
-        spit.pos.z += spit.vel.z * dt;
-        spit.spin  += 12.0f * dt;
+        bool stopped = spit.hitObstacle; // 前の更新で壁/地面に当たって止まっていた
+        if ( !stopped ) {
+            spit.prevPos = spit.pos;
+            spit.vel.y -= 10.0f * dt; // 軽い重力＝少し先で落ちる放物線
+            spit.pos.x += spit.vel.x * dt;
+            spit.pos.y += spit.vel.y * dt;
+            spit.pos.z += spit.vel.z * dt;
+            spit.spin  += 12.0f * dt;
 
-        if ( spit.pos.y - spit.radius <= 0.0f || spit.life <= 0.0f ) {
-            // 地面(Y=0)に落ちた or 時間切れ → 白い煙を出して消える
+            // 動いた区間で壁・ブロック・道に当たったら、当たった位置で止める
+            //   （消えるのは次の更新。その前に敵の判定が1回通る＝手前の敵への命中を取りこぼさない）
+            if ( obstacleQuery_ ) {
+                Vector3 hitPos {};
+                if ( obstacleQuery_(spit.prevPos, spit.pos, spit.radius * kObstacleRadiusScale, hitPos) ) {
+                    spit.pos = hitPos;
+                    spit.vel = { 0.0f, 0.0f, 0.0f };
+                    spit.hitObstacle = true;
+                }
+            } else if ( spit.pos.y - spit.radius <= 0.0f ) {
+                stopped = true; // 問い合わせ先が無い時の保険：高さ0の床（従来の挙動）
+            }
+        }
+
+        if ( stopped || spit.life <= 0.0f || spit.pos.y < -30.0f ) {
+            // 壁/地面に当たった or 時間切れ → 白い煙を出して消える
             for ( int i = 0; i < 5; ++i ) {
                 SpawnPuff(spit.pos, { Rand11() * 1.5f, 0.8f + Rand11() * 0.6f, Rand11() * 1.5f },
                           { 0.95f, 0.97f, 1.0f, 1.0f }, 0.22f, 0.35f);
@@ -363,7 +401,9 @@ bool EggSystem::SpitOut(const Vector3& from, const Vector3& dir, float speed){
     SpitBall ball;
     ball.obj = Obj3d::Create("sphere"); // 敵と同じモンスターボール柄＝「飲んだ敵」がそのまま出てくる
     ball.pos = from;
-    ball.vel = { dir.x * speed, 1.5f, dir.z * speed }; // 少し上向きに発射→軽い放物線を描く
+    ball.prevPos = from;
+    // 少し上向きに発射→軽い放物線を描く。dir が坂に沿って上/下を向いていれば、その分も足す
+    ball.vel = { dir.x * speed, 1.5f + dir.y * speed, dir.z * speed };
     if ( ball.obj ) {
         ball.obj->SetScale({ ball.radius, ball.radius, ball.radius });
         ball.obj->SetTranslation(ball.pos);
@@ -380,10 +420,10 @@ bool EggSystem::SpitOut(const Vector3& from, const Vector3& dir, float speed){
 }
 
 // 飛行中の吐き出し弾を当たり判定にかけ、当たった弾を消す（敵側の処理は CombatSystem が行う）
-void EggSystem::ResolveSpitHits(const std::function<bool(const Vector3&, float)>& onHit){
+void EggSystem::ResolveSpitHits(const SweepHit& onHit){
     for ( auto& spit : spits_ ) {
         if ( spit.dead ) continue;
-        if ( onHit(spit.pos, spit.radius) ) {
+        if ( onHit(spit.prevPos, spit.pos, spit.radius) ) {
             for ( int i = 0; i < 5; ++i ) { // ぶつかって弾けた煙
                 SpawnPuff(spit.pos, { Rand11() * 2.0f, 0.8f + Rand11() * 1.0f, Rand11() * 2.0f },
                           { 1.0f, 0.9f, 0.8f, 1.0f }, 0.2f, 0.3f);
@@ -394,12 +434,28 @@ void EggSystem::ResolveSpitHits(const std::function<bool(const Vector3&, float)>
 }
 
 // 飛行中の卵を当たり判定にかけ、当たった卵を割る（敵側の処理は onHit 内でシーンが行う）。
-void EggSystem::ResolveHits(const std::function<bool(const Vector3&, float)>& onHit){
+void EggSystem::ResolveHits(const SweepHit& onHit){
     for ( auto& egg : eggs_ ) {
         if ( !egg->IsFlying() ) continue;
-        if ( onHit(egg->GetPosition(), egg->GetRadius()) ) {
+        if ( onHit(egg->GetPrevPosition(), egg->GetPosition(), egg->GetRadius()) ) {
             egg->Break(); // 命中 → 割れる（星は次の Update が JustBroke を拾って出す）
         }
+    }
+}
+
+// 飛んでいる卵・吐き出し弾の当たり判定の形（敵に対する球／壁に対する球）を描く
+void EggSystem::DrawHitShapes(const Vector4& color) const{
+    DebugDraw* debugDraw = DebugDraw::GetInstance();
+    Vector4 obstacleColor = { color.x, color.y, color.z, color.w * 0.5f };
+    for ( const auto& egg : eggs_ ) {
+        if ( !egg->IsFlying() ) continue;
+        debugDraw->Sphere(egg->GetPosition(), egg->GetRadius(), color, 12);
+        debugDraw->Sphere(egg->GetPosition(), egg->GetRadius() * kObstacleRadiusScale, obstacleColor, 8);
+    }
+    for ( const auto& spit : spits_ ) {
+        if ( spit.dead ) continue;
+        debugDraw->Sphere(spit.pos, spit.radius, color, 12);
+        debugDraw->Sphere(spit.pos, spit.radius * kObstacleRadiusScale, obstacleColor, 8);
     }
 }
 

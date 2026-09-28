@@ -209,6 +209,18 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
         enemyJson["patrol"]    = enemy.patrol;
         enemyJson["patrolMin"] = enemy.patrolMin;
         enemyJson["patrolMax"] = enemy.patrolMax;
+        // 個体ごとの動き
+        enemyJson["name"]          = enemy.name;
+        enemyJson["speed"]         = enemy.speed;
+        enemyJson["startDir"]      = enemy.startDir;
+        enemyJson["turnWait"]      = enemy.turnWait;
+        enemyJson["chaseRange"]    = enemy.chaseRange;
+        enemyJson["chaseSpeedMul"] = enemy.chaseSpeedMul;
+        enemyJson["hoverHeight"]   = enemy.hoverHeight;
+        enemyJson["bobAmp"]        = enemy.bobAmp;
+        enemyJson["bobSpeed"]      = enemy.bobSpeed;
+        enemyJson["biteRange"]     = enemy.biteRange;
+        enemyJson["scale"]         = enemy.scale;
         enemiesArray.push_back(enemyJson);
     }
     rootJson["enemies"] = enemiesArray;
@@ -459,6 +471,18 @@ LevelData LevelManager::Load(const std::string& fileName){
             enemy.patrol    = enemyJson.value("patrol", 0); // 旧データは0=動かない
             enemy.patrolMin = enemyJson.value("patrolMin", -1.0f); // 旧データは-1=レール全体
             enemy.patrolMax = enemyJson.value("patrolMax", -1.0f);
+            // 個体ごとの動き（旧データは項目なし＝既定値＝従来と同じ動き）
+            enemy.name          = enemyJson.value("name", std::string());
+            enemy.speed         = enemyJson.value("speed", 0.0f);
+            enemy.startDir      = enemyJson.value("startDir", 1);
+            enemy.turnWait      = enemyJson.value("turnWait", 0.0f);
+            enemy.chaseRange    = enemyJson.value("chaseRange", 0.0f);
+            enemy.chaseSpeedMul = enemyJson.value("chaseSpeedMul", 1.5f);
+            enemy.hoverHeight   = enemyJson.value("hoverHeight", -1.0f);
+            enemy.bobAmp        = enemyJson.value("bobAmp", 0.0f);
+            enemy.bobSpeed      = enemyJson.value("bobSpeed", 2.0f);
+            enemy.biteRange     = enemyJson.value("biteRange", -1.0f);
+            enemy.scale         = enemyJson.value("scale", 1.0f);
             levelData.enemies.push_back(enemy);
         }
     }

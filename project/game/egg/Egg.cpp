@@ -3,7 +3,12 @@
 #include <algorithm>
 #include <cmath>
 
-Egg::Egg(const Vector3& birthPos) : pos_(birthPos), target_(birthPos) {}
+namespace {
+    // ここより下へ落ちた卵は割る（どこにも当たらず奈落へ落ちた時の後始末）
+    const float kEggKillY = -30.0f;
+}
+
+Egg::Egg(const Vector3& birthPos) : pos_(birthPos), prevPos_(birthPos), target_(birthPos) {}
 Egg::~Egg() = default; // unique_ptr<Obj3d> のため cpp 側で定義
 
 void Egg::AttachVisual(std::unique_ptr<Obj3d> obj, const Vector3& baseScale){
@@ -23,14 +28,18 @@ void Egg::Update(float dt){
         break;
     }
     case EggState::Flying:
+        if ( hitObstacle_ ) { // 壁/地面に当たって止まっている → 割れる
+            Break();
+            break;
+        }
+        prevPos_ = pos_;
         pos_.x += vel_.x * dt;
         pos_.y += vel_.y * dt;
         pos_.z += vel_.z * dt;
         flyTimer_ -= dt;
-        if ( flyTimer_ <= 0.0f ) {           // 何にも当たらず時間切れ → 割れる（無限飛行防止）
-            Break();
-        } else if ( pos_.y <= radius_ ) {    // 地面(Y=0の床)に当たった → めり込む前にその場で割る
-            pos_.y = radius_;
+        // 壁・ブロック・道との当たりは EggSystem が「動いた区間」で判定する。
+        // ここは何にも当たらなかった時の後始末だけ（時間切れ／奈落へ落ちた）
+        if ( flyTimer_ <= 0.0f || pos_.y < kEggKillY ) {
             Break();
         }
         break;
@@ -61,9 +70,22 @@ void Egg::Draw() const{
     if ( obj_ && !IsDead() && !visualHidden_ ) { obj_->Draw(); }
 }
 
+// 壁や地面に当たった位置で止める（見た目もその場へ。割れるのは次の判定）
+void Egg::StopAtObstacle(const Vector3& hitPos){
+    pos_ = hitPos;
+    vel_ = { 0.0f, 0.0f, 0.0f };
+    hitObstacle_ = true;
+    if ( obj_ ) {
+        obj_->SetTranslation(pos_);
+        obj_->Update();
+    }
+}
+
 // Held → Flying：指定方向へ初速を与える。
 void Egg::Throw(const Vector3& dir, float speed){
     if ( state_ != EggState::Held ) return;
+    prevPos_ = pos_;
+    hitObstacle_ = false;
     vel_      = { dir.x * speed, dir.y * speed, dir.z * speed };
     flyTimer_ = 1.5f;
     state_    = EggState::Flying;

@@ -35,6 +35,12 @@ public:
 	bool Pushkey(BYTE keyNumber);
 	bool Triggerkey(BYTE keyNumber);
 
+	// 文字入力中（エディタの入力欄に文字を打っている間）はキーボードを「押されていない」扱いにする。
+	//   これが無いと、名前を入力中に T を打っただけでタイトルへ戻る・R でシーンが読み直される等、
+	//   ゲーム側のホットキーが誤って発動する。EditorManager が毎フレーム渡す
+	void SetTextInputActive(bool active){ textInputActive_ = active; }
+	bool IsTextInputActive() const{ return textInputActive_; }
+
 	// ==========================================
 	// 🖱 マウス
 	// ==========================================
@@ -86,6 +92,7 @@ private:
 	ComPtr<IDirectInputDevice8> keyboard;
 	BYTE keys[256] = {};
 	BYTE preKeys[256] = {};
+	bool textInputActive_ = false; // 文字入力中（true の間 Pushkey / Triggerkey は常に false）
 
 	// マウス用
 	ComPtr<IDirectInputDevice8> mouse;

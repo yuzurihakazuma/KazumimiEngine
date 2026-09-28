@@ -59,8 +59,9 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
             // 構え中も移動・ジャンプ・踏ん張りは受け付ける（狙いは矢印キーで別操作なので競合しない）
             // カーソルの初期位置：プレイヤーの少し前方上をスクリーン投影（無理なら画面中央）
             float projectedX, projectedY;
-            Vector3 facing = { std::sin(player.GetRotation().y), 0.0f, std::cos(player.GetRotation().y) };
-            Vector3 ahead = { playerPos.x + facing.x * 5.0f, playerPos.y + 1.0f, playerPos.z + facing.z * 5.0f };
+            // 坂道では坂に沿った前方を初めの狙いにする（水平だと上り坂では道へ向けて投げることになる）
+            Vector3 facing = player.GetFacingAlongGround();
+            Vector3 ahead = { playerPos.x + facing.x * 5.0f, playerPos.y + 1.0f + facing.y * 5.0f, playerPos.z + facing.z * 5.0f };
             if ( project(ahead, projectedX, projectedY) ) { cursorX_ = projectedX; cursorY_ = projectedY; }
             else { cursorX_ = screenWidth * 0.5f; cursorY_ = screenHeight * 0.45f; }
             // ★1f点滅対策：入場フレームのうちにカーソル位置を確定（return せず下の処理へ落ちる）

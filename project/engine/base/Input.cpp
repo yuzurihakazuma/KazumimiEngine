@@ -95,10 +95,12 @@ void Input::Update() {
 //  キーボード処理
 // =====================================
 bool Input::Pushkey(BYTE keyNumber) {
+	if (textInputActive_) { return false; } // 文字入力中はゲーム側のキー操作を止める
 	// キーが押されているかを判定 (0x80は最上位ビットで、キーが押されているときにセットされる)
 	return (keys[keyNumber] & 0x80);
 }
 bool Input::Triggerkey(BYTE keyNumber) {
+	if (textInputActive_) { return false; } // 文字入力中はゲーム側のキー操作を止める
 	// キーが押された瞬間を判定 (前フレームでは押されていなくて、今フレームで押されている場合)
 	return !(preKeys[keyNumber] & 0x80) && (keys[keyNumber] & 0x80);
 }

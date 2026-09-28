@@ -40,8 +40,16 @@ public:
     bool IsDead()   const { return state_ == EggState::Broken && brokenTimer_ <= 0.0f; }
 
     const Vector3& GetPosition() const { return pos_; }
-    void  SetPosition(const Vector3& p) { pos_ = p; }
+    void  SetPosition(const Vector3& p) { pos_ = p; prevPos_ = p; }
     float GetRadius() const { return radius_; }
+
+    // 直前の更新で動く前にいた位置（当たり判定を「動いた区間」で取ってすり抜けを防ぐ）
+    const Vector3& GetPrevPosition() const { return prevPos_; }
+
+    // 飛行中に壁や地面へ当たった：当たった位置で止め、次の判定で割る。
+    //   その場ですぐ割らないのは、同じ区間の手前に敵がいた時に命中を取りこぼさないため
+    void StopAtObstacle(const Vector3& hitPos);
+    bool HitObstacle() const { return hitObstacle_; }
 
     // 割れた「瞬間」を1回だけ拾うためのフラグ（パーティクルを弾けさせる用）
     bool JustBroke() const { return justBroke_; }
@@ -54,6 +62,8 @@ public:
 private:
     EggState state_ = EggState::Held;
     Vector3  pos_ { 0.0f, 0.0f, 0.0f };
+    Vector3  prevPos_ { 0.0f, 0.0f, 0.0f }; // 直前の更新で動く前の位置
+    bool     hitObstacle_ = false;         // 壁/地面に当たって止まった（次の判定で割れる）
     Vector3  target_ { 0.0f, 0.0f, 0.0f }; // 並ぶ目標（後ろのスロット）
     Vector3  vel_ { 0.0f, 0.0f, 0.0f };    // 飛行中の速度
     float    radius_ = 0.4f;

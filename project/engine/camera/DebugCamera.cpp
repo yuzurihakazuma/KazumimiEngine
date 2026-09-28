@@ -40,8 +40,20 @@ void DebugCamera::Update(Camera* camera) {
     // Inputクラスのインスタンスを取得
     Input* input = Input::GetInstance();
 
+    // ドラッグを押し始めた瞬間に、Game View の上だったかを覚える（パネル上で始めたドラッグは無視する）
+    const bool rightDown  = input->PushMouseButton(1);
+    const bool middleDown = input->PushMouseButton(2);
+    if (rightDown  && !rightWasDown_)  { rotateDragValid_ = gameViewDragHovered_; }
+    if (middleDown && !middleWasDown_) { panDragValid_    = gameViewDragHovered_; }
+    if (!rightDown)  { rotateDragValid_ = false; }
+    if (!middleDown) { panDragValid_    = false; }
+    rightWasDown_  = rightDown;
+    middleWasDown_ = middleDown;
+    const bool rotating = rightDown && rotateDragValid_;
+    const bool panning  = middleDown && panDragValid_;
+
     // 右ドラッグ中：視点回転（先に回転を確定させてから移動方向を計算する）
-    if (input->PushMouseButton(1)) {
+    if (rotating) {
         // フォーカス復帰直後などの巨大な差分スパイクで視点が吹っ飛ばないようクランプ
         float dx = std::clamp(input->GetMouseMoveX(), -200.0f, 200.0f);
         float dy = std::clamp(input->GetMouseMoveY(), -200.0f, 200.0f);
@@ -62,7 +74,7 @@ void DebugCamera::Update(Camera* camera) {
     if (input->Pushkey(DIK_LSHIFT)) { moveSpeed *= 3.0f; } // Shiftで高速
 
     // WASD / Q,E で移動（右ドラッグ中のみ。視点を回しながら飛び回る用）
-    if (input->PushMouseButton(1)) {
+    if (rotating) {
         if (input->Pushkey(DIK_W)) translation = Add(translation, Multiply( moveSpeed, forward));
         if (input->Pushkey(DIK_S)) translation = Add(translation, Multiply(-moveSpeed, forward));
         if (input->Pushkey(DIK_D)) translation = Add(translation, Multiply( moveSpeed, right));
@@ -81,7 +93,7 @@ void DebugCamera::Update(Camera* camera) {
     }
 
     // ★中ドラッグ：平行移動（パン）。画面の右/上方向にスライド
-    if (input->PushMouseButton(2)) {
+    if (panning) {
         float dx = std::clamp(input->GetMouseMoveX(), -200.0f, 200.0f);
         float dy = std::clamp(input->GetMouseMoveY(), -200.0f, 200.0f);
         const float panSpeed = 0.01f;
