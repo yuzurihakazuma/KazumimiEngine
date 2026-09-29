@@ -8,12 +8,8 @@
 #include "game/rail/RoadMesh.h"
 #include "game/stage/BlockSystem.h"
 #include "game/stage/CoinSystem.h"
-#include "engine/3d/obj/Obj3dCommon.h"
 #include "engine/camera/Camera.h"
-#include "engine/camera/DebugCamera.h"
-#include "engine/particle/ParticleManager.h"
 #include "engine/utils/EditorManager.h"
-#include "engine/utils/TextManager.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -21,18 +17,8 @@
 
 void PlaySceneInspector::Draw(const Targets& targets){
 #ifdef USE_IMGUI
-    // エンジン側の各部品のUI（同じ「詳細設定」ウィンドウへ合流する）
-    Obj3dCommon::GetInstance()->DrawDebugUI();
-    targets.camera->DrawDebugUI();
-    targets.debugCamera->DrawDebugUI();
-    ParticleManager::GetInstance()->DrawDebugUI();
-    TextManager::GetInstance()->DrawDebugUI();
-
-    ImGui::Begin("インスペクター (詳細設定)");
     DrawRailAndCamera(targets);
-    DrawDebugDrawSettings(targets);
     DrawCollisionSettings(targets);
-    ImGui::End();
 #else
     ( void ) targets;
 #endif
@@ -109,18 +95,15 @@ void PlaySceneInspector::DrawRoadSettings(const Targets& targets){
 #endif
 }
 
-void PlaySceneInspector::DrawDebugDrawSettings(const Targets& targets){
+void PlaySceneInspector::DrawHitShapeToggle(bool* showHitShapes){
 #ifdef USE_IMGUI
-    if ( !ImGui::CollapsingHeader("デバッグ描画 (DebugDraw)") ) return;
-    ImGui::Checkbox("グリッドを表示", targets.showDebugGrid);
-    ImGui::Checkbox("当たり判定を表示", targets.showHitShapes);
+    ImGui::Checkbox("当たり判定を表示", showHitShapes);
     if ( ImGui::IsItemHovered() ) {
         ImGui::SetTooltip("敵（赤）・プレイヤー（緑）・ブロック（水色）・飛んでいる卵（黄）の\n"
             "当たり判定の形を線で表示する。見た目とずれていないかの確認用");
     }
-    ImGui::TextDisabled("Box/Sphere/Line はコードから積む。Game View にも表示されます");
 #else
-    ( void ) targets;
+    ( void ) showHitShapes;
 #endif
 }
 

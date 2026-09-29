@@ -1,18 +1,18 @@
 #pragma once
 // =====================================================================
 //  GamePlayScene：ゲームプレイシーン。
-//   各システム（レール・プレイヤー・敵・卵・ブロック・コイン・カメラ・演出）を持ち、
+//   全シーン共通の部分（カメラ・描画の流れ・デバッグ描画・展示物・インスペクターの共通項目）は
+//   BaseScene が持つ。ここはゲームの中身（レール・プレイヤー・敵・卵・ブロック・コイン・演出）を持ち、
 //   「どの順番で更新・描画するか」と「エディタの編集をいつ反映するか」だけを決める。
 //   中身の処理はそれぞれのクラスへ分けてある：
 //     見た目 … PlayerAvatar（プレイヤーのモデル）/ GameHud（画面の表示）/ PlayScreenEffects（画面効果）
 //     エディタ … PlaySceneEditor（Game View の操作・パネル一式）/ EditorCameraUtil（カメラの置き直し）
 //     判定 …… StageObstacles（卵の壁・地面）/ CombatSystem（踏みつけ・卵命中）
 // =====================================================================
-#include "engine/scene/IScene.h"
+#include "game/scene/BaseScene.h"
 #include "engine/graphics/TextureManager.h"
 #include "engine/utils/EditorManager.h" // EngineMode
 
-#include "game/demo/DemoShowcase.h"
 #include "game/rail/RailField.h"
 #include "game/rail/RoadMesh.h"
 #include "game/rail/DissolveRoad.h"
@@ -36,27 +36,32 @@
 #include <string>
 #include <unordered_map>
 
-class Camera;
-class DebugCamera;
 class Player;
 class EnemyEditor;
 
-class GamePlayScene : public IScene {
+class GamePlayScene : public BaseScene {
 public:
 	GamePlayScene();
-	~GamePlayScene();
-
-	void Initialize() override;
-	void Finalize() override;
-	void Update() override;
-	void Draw() override;
-	void DrawDebugUI() override;
+	~GamePlayScene() override;
 
 private:
-	// --- Initialize の段階 ---
-	void LoadResources();    // BGM・SE・モデル・テクスチャの読み込み
-	void SetupCameras();     // メインカメラ／デバッグカメラの生成・登録
-	void SetupVisuals();     // 展示物・プレイヤーの見た目・HUD
+	// --- BaseScene の差し込み口 ---
+	void OnLoadResources() override;  // BGM・SE・モデル・テクスチャ・SDF演出のパイプライン
+	void OnInitialize() override;     // 見た目・HUD・プレイヤー・敵エディタ・レール
+	void OnFinalize() override;
+	void OnPreUpdate() override;      // ヒットストップ＋エディタ編集の反映（カメラ更新の前）
+	void UpdateCamera() override;     // カメラ更新＋シェイク＋ヒット点のポストエフェクト
+	void OnUpdate() override;         // Edit↔Play の切替・プレイ中の進行・見た目
+	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawInstanced() override;
+	void OnDrawTransparent(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawSdf(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawUI(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawInspector() override;
+	void OnDrawDebugDrawOptions() override;
+	void OnDebugUI() override;
+
 	void SetupGameplay();    // プレイヤー・敵エディタ・レール・各種システム
 
 	// --- エディタの編集をシーンへ反映（Update の最初）---
@@ -65,41 +70,27 @@ private:
 	void SyncRailsLive();          // レール編集のライブ同期（ドラッグ中は10Hzの軽量同期）
 	void SyncEnemyEdits();         // マップ読込の敵配置の復元・敵エディタの変更
 	void SyncBlockEdits();         // ブロック配置のライブ同期
-	void HandleCameraRequests();   // 「カメラをここへ」・Blender/カメラエディタからの画角
+	void HandleCameraRequests();   // 「カメラをここへ」・カメラエディタからの画角
 	// エディタの最新レールから railField_ を作り直し、敵・コイン・ブロックも配置し直す。
 	//   simple=true はドラッグ中の軽量同期（道は簡易リボン・敵の再配置なし）
 	void SyncRailsFromEditor(bool simple = false);
 	void SpawnEnemies(); // 配置テンプレートを元に敵の実体を再構築する
 
 	// --- Update の段階 ---
-	void UpdateCameraAndPostEffect();              // カメラ更新＋シェイク＋ヒット点のポストエフェクト
 	void HandleModeTransition(EngineMode current); // Edit↔Play 切替時のリセット
 	void OnPlayStart();
 	void OnEditStart();
 	void UpdatePlayMode();                         // プレイ中のゲーム進行
 	void UpdateSceneVisuals(EngineMode mode);      // モード問わず毎フレーム行う見た目の更新
 
-	// --- Draw の段階 ---
-	void DrawScene3D(ID3D12GraphicsCommandList* commandList);  // MRT へ3D一式
-	void ComposeFrame(ID3D12GraphicsCommandList* commandList); // ポストエフェクト→Bloom→SDF→最終出力
-	void DrawScreenUI(ID3D12GraphicsCommandList* commandList); // スプライト・HUD
-
 	// --- DrawDebugUI の段階 ---
-	void DrawInspectorUI(); // 共有の「インスペクター (詳細設定)」に足す項目
 	void DrawHitShapes();   // 当たり判定の形をワイヤーで表示
 	SceneEditContext MakeEditContext();
 
 private:
-	// カメラ
-	std::unique_ptr<Camera>      camera_;
-	std::unique_ptr<DebugCamera> debugCamera_;
-
 	// 読み込んだテクスチャ（展示物にも名前で渡す）
 	std::unordered_map<std::string, TextureData> textures_;
 	std::string bgmFile_ = "resources/BGMDon.mp3";
-
-	// エンジン機能の展示（ゲーム本編と無関係の見本一式。デモ表示OFFで丸ごと止まる）
-	DemoShowcase demo_;
 
 	EngineMode prevMode_ = EngineMode::Edit;
 
@@ -139,6 +130,5 @@ private:
 	bool  railFullSyncPending_ = false;    // ドラッグ終了後に本同期を1回行うフラグ
 	int   testPlayRail_ = -1;              // 「ここからテストプレイ」：次の Edit→Play の開始地点（-1=通常）
 	float testPlayDist_ = 0.0f;
-	bool  showDebugGrid_ = true;           // デバッグ描画のグリッド
 	bool  showHitShapes_ = false;          // 当たり判定の形の表示
 };

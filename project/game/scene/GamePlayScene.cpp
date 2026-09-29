@@ -7,6 +7,7 @@
 #include "game/enemy/EnemyRailPin.h"
 #include "game/camera/EditorCameraUtil.h"
 #include "game/scene/GamePlayAssets.h"
+#include "game/demo/DemoShowcase.h"
 #include "game/editor/PlaySceneInspector.h"
 
 // --- エンジン側のファイル ---
@@ -34,27 +35,21 @@
 
 #include <cmath>
 
-GamePlayScene::GamePlayScene() = default;
+GamePlayScene::GamePlayScene(){
+	features_.demoShowcase = true; // エンジン機能の展示を出す
+	features_.railEditing  = true; // レール・道・敵の配置を編集する
+}
 GamePlayScene::~GamePlayScene() = default;
 
 // =====================================================================
-//  初期化：読み込み → カメラ → 見た目 → ゲーム部品 の順
+//  初期化：読み込み（BaseScene がカメラを作る前）→ 見た目 → ゲーム部品
 // =====================================================================
-void GamePlayScene::Initialize(){
-	LoadResources();
-	SetupCameras();
-	SetupVisuals();
-	SetupGameplay();
-}
-
-// BGM・SE・モデル・テクスチャの読み込み
-void GamePlayScene::LoadResources(){
+// BGM・SE・モデル・テクスチャの読み込みと、SDF演出のパイプライン構築
+void GamePlayScene::OnLoadResources(){
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
 	// 音・モデル・テクスチャ（ゲーム中に名前で引かれる物は全部ここで先に読む）
 	GamePlayAssets::Load(bgmFile_, textures_);
-	// 環境マップ（Obj3d 全般の映り込み）
-	Obj3dCommon::GetInstance()->SetEnvironmentTexture(textures_["skybox"].srvIndex);
 
 	// ブロックの一括描画を準備（見た目グループごとに1ドローコール）。
 	//   モデルとテクスチャが揃った後に呼ぶ（ディゾルブ用SRVの束縛先が必要なため）
@@ -71,29 +66,12 @@ void GamePlayScene::LoadResources(){
 	SDFManager::GetInstance()->SetExtraPanelUI([this]{ dissolveRoad_.DrawImGui(); });
 }
 
-// メインカメラ／デバッグカメラの生成・登録
-void GamePlayScene::SetupCameras(){
-	camera_ = Camera::Create(); // ウィンドウサイズ等は内部で自動取得
-	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
-	// 既定（アクティブ）カメラに設定 → 以降の Obj3d::Create は自動でこのカメラを使う
-	Obj3dCommon::GetInstance()->SetDefaultCamera(camera_.get());
-
-	debugCamera_ = std::make_unique<DebugCamera>();
-	debugCamera_->Initialize();
-	EditorManager::GetInstance()->SetDebugCamera(debugCamera_.get()); // メニュー「表示」でON/OFF
-	EditorManager::GetInstance()->SetCamera(camera_.get());
-}
-
-// 展示物・プレイヤーの見た目・HUD（Obj3d::Create がデフォルトカメラを掴むため、必ず SetupCameras の後）
-void GamePlayScene::SetupVisuals(){
-	demo_.Initialize(DirectXCommon::GetInstance()->GetCommandList(), textures_);
+// カメラ・共通機能の用意が済んだ後（Obj3d::Create がデフォルトカメラを掴むため）
+void GamePlayScene::OnInitialize(){
 	avatar_.Initialize(textures_["skybox"].srvIndex);
 	aimThrow_.Initialize(textures_["circle2"].srvIndex); // 狙い用カーソル（構え中だけ表示）
 	hud_.Initialize(textures_["circle2"].srvIndex);
-
-	// GPUパーティクル基盤の初期化（エミッターのデモは DemoShowcase が持つ）
-	GPUParticleManager::GetInstance()->Initialize(
-		DirectXCommon::GetInstance(), SrvManager::GetInstance(), "resources/uvChecker.png");
+	SetupGameplay();
 }
 
 // プレイヤー・敵エディタ・レール・各種シーン部品の用意
@@ -116,7 +94,7 @@ void GamePlayScene::SetupGameplay(){
 	// エフェクトの事前生成：初撃破の瞬間に Obj3d を数十個作るとゲームが固まるので、
 	// ロード中のいま全部作ってプールに積んでおく。パフの数は最悪フレーム
 	// （卵トレイル約13個借用中＋命中バースト8＋割れ演出6＋投げ煙6）を賄う量＝返却上限に合わせる
-	combat_.Prewarm(camera_.get(), 4);
+	combat_.Prewarm(GetCamera(), 4);
 	eggSystem_.PrewarmPuffPool("fxSphere", 32);
 	eggSystem_.PrewarmPuffPool("eggShell", 28);
 
@@ -226,27 +204,20 @@ void GamePlayScene::HandleCameraRequests(){
 	int focusIndex = -1;
 	if ( enemyEditor_ && enemyEditor_->ConsumeFocusRequest(focusIndex) ) {
 		const EnemySpawnData& spawnData = enemyEditor_->GetSpawnDatas()[focusIndex];
-		EditorCameraUtil::FocusOnRail(*camera_, rails, spawnData.railIndex, spawnData.distance,
+		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, spawnData.railIndex, spawnData.distance,
 		                              Enemy::PickHeightOf(spawnData));
 	}
 	// 配置ビュー（レール展開図）の「カメラをここへ」
 	int focusRail = -1; float focusDist = 0.0f, focusHeight = 0.0f;
 	if ( editorTools_.ConsumeStripFocusRequest(focusRail, focusDist, focusHeight) ) {
-		EditorCameraUtil::FocusOnRail(*camera_, rails, focusRail, focusDist, focusHeight);
+		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, focusRail, focusDist, focusHeight);
 	}
-	// Blenderインポータからの「カメラに適用」要求
+	// カメラエディタからの「この画角をプレビュー」要求（Blenderからのカメラ要求は BaseScene が受け持つ）
 	Vector3 requestPos, requestRot;
-	if ( BlenderImporter* importer = editorManager->GetBlenderImporter() ) {
-		if ( importer->ConsumeCameraRequest(requestPos, requestRot) ) {
-			camera_->SetTranslation(requestPos);
-			camera_->SetRotation(requestRot);
-		}
-	}
-	// カメラエディタからの「この画角をプレビュー」要求
 	if ( LevelEditor* levelEditor = editorManager->GetLevelEditor() ) {
 		if ( levelEditor->GetRailEditor()->ConsumeCameraPreviewRequest(requestPos, requestRot) ) {
-			camera_->SetTranslation(requestPos);
-			camera_->SetRotation(requestRot);
+			GetCamera()->SetTranslation(requestPos);
+			GetCamera()->SetRotation(requestRot);
 		}
 	}
 }
@@ -260,8 +231,8 @@ void GamePlayScene::SyncRailsFromEditor(bool simple){
 	const uint32_t whiteTex = textures_.count("white") ? textures_["white"].srvIndex : 0;
 
 	if ( simple ) {
-		railField_.Sync(camera_.get(), whiteTex);                     // レール本体＋緑線
-		roadMesh_.Build(railField_.GetRails(), camera_.get(), true);  // 道は簡易プレビュー
+		railField_.Sync(GetCamera(), whiteTex);                     // レール本体＋緑線
+		roadMesh_.Build(railField_.GetRails(), GetCamera(), true);  // 道は簡易プレビュー
 		return;
 	}
 
@@ -280,8 +251,8 @@ void GamePlayScene::SyncRailsFromEditor(bool simple){
 		pin.Capture(*enemyEditor_, railField_.GetRails());
 	}
 
-	railField_.Sync(camera_.get(), whiteTex);               // レール本体＋緑線を作り直す
-	roadMesh_.Build(railField_.GetRails(), camera_.get());  // レール下の道メッシュも敷き直す
+	railField_.Sync(GetCamera(), whiteTex);               // レール本体＋緑線を作り直す
+	roadMesh_.Build(railField_.GetRails(), GetCamera());  // レール下の道メッシュも敷き直す
 	dissolveRoad_.Build(railField_.GetRails());             // SDF溶け道のパネル敷設点も打ち直す
 
 	if ( repin ) {
@@ -311,11 +282,12 @@ void GamePlayScene::SpawnEnemies(){
 // =====================================================================
 //  更新
 // =====================================================================
-void GamePlayScene::Update(){
+void GamePlayScene::OnPreUpdate(){
 	hitFeel_.UpdateHitStop();     // 踏みつけ等のヒットストップ
 	SyncFromEditors();            // エディタ編集（レール／敵／カメラ要求）をシーンへ反映
-	UpdateCameraAndPostEffect();  // カメラ更新＋シェイク＋踏みつけポストエフェクト
+}
 
+void GamePlayScene::OnUpdate(){
 	EngineMode currentMode = EditorManager::GetInstance()->GetMode();
 	HandleModeTransition(currentMode);
 	if ( currentMode == EngineMode::Play ) { UpdatePlayMode(); }
@@ -331,11 +303,19 @@ void GamePlayScene::Update(){
 }
 
 // カメラ更新（デバッグカメラ＋ヒット時のシェイク）とヒット点中心のポストエフェクト
-void GamePlayScene::UpdateCameraAndPostEffect(){
-	if ( debugCamera_ ) { debugCamera_->Update(camera_.get()); }
-	hitFeel_.ApplyCameraShake(camera_.get());          // ヒット時に一瞬揺らす
-	camera_->Update();
-	hitFeel_.UpdateImpactPostEffect(camera_.get());    // カメラ確定後にスクリーン投影する
+void GamePlayScene::UpdateCamera(){
+	if ( GetDebugCamera() ) { GetDebugCamera()->Update(GetCamera()); }
+	hitFeel_.ApplyCameraShake(GetCamera());          // ヒット時に一瞬揺らす
+	GetCamera()->Update();
+	hitFeel_.UpdateImpactPostEffect(GetCamera());    // カメラ確定後にスクリーン投影する
+}
+
+// SDF看板の近接表示：プレイ中はプレイヤー位置を基準に「近づいた時だけ表示」が効く
+//   （エディット中は配置作業ができるよう常に全表示）
+bool GamePlayScene::GetSdfViewerPosition(Vector3& outPos) const{
+	if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play || !player_ ) return false;
+	outPos = player_->GetPosition();
+	return true;
 }
 
 // Edit↔Play の切り替わり瞬間のリセット処理
@@ -359,7 +339,7 @@ void GamePlayScene::OnPlayStart(){
 	player_->Initialize();
 	player_->SetMovementLocked(false);
 	camCtrl_.Reset();        // 向き切替トリガーの状態を初期化（前回プレイの向きを持ち越さない）
-	demo_.OnPlayStart();     // デモの HitEffect を消す
+	if ( Demo() ) { Demo()->OnPlayStart(); } // デモの HitEffect を消す
 	combat_.ClearEffects();
 	eggSystem_.Initialize();
 	aimThrow_.Reset();       // 構え状態を解除
@@ -378,7 +358,7 @@ void GamePlayScene::OnEditStart(){
 	//   ・回転フリーズ中に Stop しても時間が止まったままにならないよう Reset（内部で TimeScale を戻す）
 	//   ・ゾーンで視野角を変えたまま戻るとエディタ画面が広角/望遠のままになるので標準に戻す
 	camCtrl_.Reset();
-	camera_->SetFovY(0.78f);
+	GetCamera()->SetFovY(0.78f);
 }
 
 // プレイ中（時間が動いている時）のゲーム進行
@@ -393,7 +373,7 @@ void GamePlayScene::UpdatePlayMode(){
 
 	// カメラの向きを渡す：向き切替（180°回り込み等）の後も「Dで画面の右へ」進めるように、
 	// プレイヤー側でキー→ワールド方向の割り当てを回す
-	player_->SetCameraYaw(camera_->GetRotation().y);
+	player_->SetCameraYaw(GetCamera()->GetRotation().y);
 	// ベロを出している間は振り向き禁止（移動は可）。出したまま反転して見た目が破綻するのを防ぐ
 	player_->SetTurnLocked(swallow_.IsTongueActive());
 	// 卵の構え中は狙い（カーソル）方向を向く（後ろ狙いなら振り向く）
@@ -411,9 +391,9 @@ void GamePlayScene::UpdatePlayMode(){
 		eggSystem_.SpawnSwallowFx(pos);
 	}, &blockSystem_);
 
-	combat_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, camera_.get());               // 当たり判定＋踏みつけ
-	swallow_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, camera_.get(), deltaTime);  // 舌・産卵
-	aimThrow_.Update(*player_, enemyMgr_, eggSystem_, camera_.get(), deltaTime);           // 卵の構え・投げ
+	combat_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera());               // 当たり判定＋踏みつけ
+	swallow_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera(), deltaTime);  // 舌・産卵
+	aimThrow_.Update(*player_, enemyMgr_, eggSystem_, GetCamera(), deltaTime);           // 卵の構え・投げ
 
 	// 卵の追従・飛行・割れの更新
 	float yaw = player_->GetRotation().y;
@@ -423,13 +403,13 @@ void GamePlayScene::UpdatePlayMode(){
 	stageFlow_.Update(player_->GetPosition(), railField_, hitFeel_);
 
 	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
-	camCtrl_.Update(camera_.get(), player_->GetPosition(), railField_.GetRails(),
-		debugCamera_ && debugCamera_->IsActive(), deltaTime);
+	camCtrl_.Update(GetCamera(), player_->GetPosition(), railField_.GetRails(),
+		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
 	hitFeel_.NotifyCameraOverridden(); // カメラ位置を上書きしたのでシェイクの自己相殺をリセット
 
 	// デモ入力（Space=BGM+HitEffect / P=パーティクル）。デモ表示OFF（表示メニュー）の間は入力ごと無効
-	if ( EditorManager::GetInstance()->IsDemoVisible() ) {
-		demo_.UpdatePlay(Input::GetInstance(), camera_.get(), textures_, bgmFile_);
+	if ( IsDemoVisible() ) {
+		Demo()->UpdatePlay(Input::GetInstance(), GetCamera(), textures_, bgmFile_);
 	}
 
 	// エフェクトの更新（timeScale 適用 deltaTime → ヒットストップで一緒に止まる）
@@ -471,7 +451,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 			//   「乗ったら動き出す」は待機に、「出現する道」は消えた状態に戻る＝区間をやり直せる）
 			railField_.ResetMotion();
 		}
-		screenFx_.UpdateIris({ playerPos.x, playerPos.y + 0.8f, playerPos.z }, *camera_); // 円の中心＝胸元
+		screenFx_.UpdateIris({ playerPos.x, playerPos.y + 0.8f, playerPos.z }, *GetCamera()); // 円の中心＝胸元
 	}
 
 	// ？ブロックから出たコイン：カウント加算＋金色の粒が飛び出す演出
@@ -495,46 +475,15 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatarContext.eggSystem = &eggSystem_;
 	avatar_.Update(avatarContext);
 
-	// SDF看板の近接表示：プレイ中はプレイヤー位置を基準に「近づいた時だけ表示」が効く。
-	// エディット中は配置作業ができるよう常に全表示（Clear）
-	if ( playing ) { SDFManager::GetInstance()->SetViewerPosition(playerPos); }
-	else           { SDFManager::GetInstance()->ClearViewerPosition(); }
-
 	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
-
-	PostEffect::GetInstance()->Update();
-	ParticleManager::GetInstance()->Update(camera_.get());
-
-	// 展示物の見た目更新（デモ表示OFFの間はスキップ）
-	if ( editorManager->IsDemoVisible() ) { demo_.UpdateVisuals(Input::GetInstance(), camera_.get()); }
 }
 
 // =====================================================================
 //  描画
 // =====================================================================
-void GamePlayScene::Draw(){
-	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
-	GPUParticleManager::GetInstance()->Dispatch(commandList);
-
-	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);   // MRT開始
-	DrawScene3D(commandList);
-	PostEffect::GetInstance()->PostDrawSceneMRT(commandList);  // MRT終了（2枚のキャンバスを読み込みモードへ）
-
-	ComposeFrame(commandList);
-	DrawScreenUI(commandList);
-}
-
-// 3D一式を MRT（色＋マスク）へ描く。不透明 → インスタンシング → 透明・加算 → SDF → デバッグ線 の順
-void GamePlayScene::DrawScene3D(ID3D12GraphicsCommandList* commandList){
-	EditorManager* editorManager = EditorManager::GetInstance();
-	const bool demoVisible = editorManager->IsDemoVisible(); // デモ展示のON/OFF（表示メニュー）
-	const bool playing = ( editorManager->GetMode() == EngineMode::Play );
-
-	Obj3dCommon::GetInstance()->PreDraw(commandList);
-	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, textures_["skybox"].srvIndex);
-
-	// --- 不透明 ---
-	if ( demoVisible ) { demo_.DrawOpaque(); } // 展示物（回転キューブ・スキンメッシュ）
+// 不透明（Obj3d の準備・環境マップの束縛は BaseScene が済ませている）
+void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
+	const bool playing = ( EditorManager::GetInstance()->GetMode() == EngineMode::Play );
 	avatar_.Draw(playing, player_.get());      // プレイヤー（無敵中は点滅）＋手持ちの卵
 	enemyMgr_.Draw();
 	eggSystem_.Draw();
@@ -542,78 +491,37 @@ void GamePlayScene::DrawScene3D(ID3D12GraphicsCommandList* commandList){
 	swallow_.Draw();                           // 舌（伸ばす/引き込む動作中だけ）
 	roadMesh_.Draw();                          // 道メッシュ（Edit/Play どちらでも見える本番の見た目）
 	// レール経路の緑線マーカーは「エディット中だけ」（Play中・リリース版では道メッシュだけが残る）
-	if ( editorManager->GetMode() == EngineMode::Edit ) { railField_.DrawMarkers(); }
-	editorManager->Draw();
+	if ( !playing ) { railField_.DrawMarkers(); }
+}
 
-	// --- インスタンシング ---
-	blockSystem_.Draw(camera_.get()); // 配置ブロック（見た目グループごとに1ドローコール）
+void GamePlayScene::OnDrawInstanced(){
+	blockSystem_.Draw(GetCamera()); // 配置ブロック（見た目グループごとに1ドローコール）
+}
 
-	// --- 透明・加算合成（順番が大事：不透明を全部描き切った後）---
-	if ( demoVisible ) { demo_.DrawAdditive(); } // オーラ2種＋SpaceデモのHitEffect
-	combat_.Draw();                              // 踏みつけ/命中の立体エフェクト
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
-	GPUParticleManager::GetInstance()->Draw(commandList);
+void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/){
+	combat_.Draw(); // 踏みつけ/命中の立体エフェクト
+}
 
-	// --- SDFボリューム（専用PSOに切り替えるので、通常のObj3d描画が全部終わった後に描く）---
-	if ( demoVisible ) { demo_.DrawSdf(commandList); } // SDF卵のエロージョン/モーフデモ
+void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
 	eggSystem_.DrawBirthFx(commandList);   // 産卵エロージョン演出中のSDF卵
 	combat_.DrawDissolveFx(commandList);   // 倒された敵がSDFで溶けて消える演出
 	dissolveRoad_.Draw(commandList);       // SDF溶け道
 	swallow_.DrawEatFx(commandList);       // 舌で捕まえた敵がSDFで溶けて消える演出
-	SDFManager::GetInstance()->DrawVolumes(commandList); // エディタで配置した3Dボリューム
-
-	// デバッグ描画：MRT（シーンRT）内で線を描く → ポストエフェクト/Bloomを通って
-	//   Game View にも単体表示にも反映される（深度テストありで3D形状に隠れる）
-	if ( showDebugGrid_ ) {
-		DebugDraw::GetInstance()->Grid(20.0f, 1.0f, { 0.3f, 0.3f, 0.35f, 0.5f }, 0.0f);
-	}
-	DebugDraw::GetInstance()->Render(camera_.get());
 }
 
-// ポストエフェクト → Bloom → SDF（文字/画像）の焼き込み → バックバッファへ最終出力
-void GamePlayScene::ComposeFrame(ID3D12GraphicsCommandList* commandList){
-	PostEffect* postEffect = PostEffect::GetInstance();
-	Bloom* bloom = Bloom::GetInstance();
-
-	postEffect->Draw(commandList, false); // バックバッファへの最終出力は FinalBlit に任せる
-	bloom->Render(commandList, postEffect->GetSrvIndex(), postEffect->GetMaskSrvIndex()); // 「色」と「マスク」
-	uint32_t finalSrv = bloom->GetResultSrvIndex();
-
-	// SDF（文字/画像）を最終画像に焼き込む → エディタの Game View にもそのまま映る。
-	//   Bloom有効時は合成RT、無効時は PostEffect の最終RTが finalSrv の実体なので、
-	//   どちらの場合も「FinalBlit が読むテクスチャ」へ焼き込めばフルスクリーンにも映る
-	RenderTexture* sdfTarget = bloom->IsEnabled() ? bloom->GetCombineTexture() : postEffect->GetFinalTexture();
-	SDFManager::GetInstance()->DrawIntoTexture(commandList, sdfTarget);
-
-	// エディタに最終的なゲーム画面のSRVを渡す（Game View 表示用）
-	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
-	// 最終結果をバックバッファへ（エディタアクティブ時はRTVのセットのみ行い描画はスキップ）
-	postEffect->FinalBlit(commandList, finalSrv, EditorManager::GetInstance()->IsActive());
-}
-
-// スプライト・HUD
-void GamePlayScene::DrawScreenUI(ID3D12GraphicsCommandList* commandList){
-	SpriteCommon::GetInstance()->PreDraw(commandList);
+// スプライト・HUD（画面出力の後）
+void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
 	aimThrow_.DrawSprite(); // 構え中だけ狙いカーソル
 	// 卵・コインのHUD（プレイ中のみ。エディット中は編集の邪魔になるので出さない）
 	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play ) { hud_.Draw(commandList); }
-	TextManager::GetInstance()->Draw();
 }
 
 // =====================================================================
 //  デバッグUI（ImGui）
 // =====================================================================
-void GamePlayScene::DrawDebugUI(){
+void GamePlayScene::OnDebugUI(){
 #ifdef USE_IMGUI
-	EditorManager* editorManager = EditorManager::GetInstance();
-
-	// 共有の「インスペクター (詳細設定)」へ合流する組（アイコンモードでは詳細パネルOFF時に丸ごと省略）
-	if ( editorManager->IsPanelVisible(EditorManager::Panel_Inspector) ) { DrawInspectorUI(); }
-	// 展示物のパネル（SDF卵のエロージョン操作）。デモ表示OFFの間はウィンドウごと出さない
-	if ( editorManager->IsDemoVisible() ) { demo_.DrawImGui(); }
 	stageFlow_.DrawDebugUI(); // ゴール到達表示
-
 	DrawHitShapes();
 
 	SceneEditContext editContext = MakeEditContext();
@@ -634,7 +542,7 @@ SceneEditContext GamePlayScene::MakeEditContext(){
 	context.enemyEditor = enemyEditor_.get();
 	context.blockSystem = &blockSystem_;
 	context.coinSystem  = &coinSystem_;
-	context.camera      = camera_.get();
+	context.camera      = GetCamera();
 	context.player      = player_.get();
 	context.editing     = ( editorManager->GetMode() == EngineMode::Edit );
 	return context;
@@ -649,10 +557,10 @@ void GamePlayScene::DrawHitShapes(){
 	eggSystem_.DrawHitShapes({ 1.0f, 0.9f, 0.2f, 1.0f });
 }
 
-void GamePlayScene::DrawInspectorUI(){
+// 共有の「インスペクター (詳細設定)」へ足す項目（レール表示・道・視点プリセット・当たり判定）
+void GamePlayScene::OnDrawInspector(){
 	PlaySceneInspector::Targets targets;
-	targets.camera           = camera_.get();
-	targets.debugCamera      = debugCamera_.get();
+	targets.camera           = GetCamera();
 	targets.railField        = &railField_;
 	targets.roadMesh         = &roadMesh_;
 	targets.dissolveRoad     = &dissolveRoad_;
@@ -661,23 +569,20 @@ void GamePlayScene::DrawInspectorUI(){
 	targets.blockSystem      = &blockSystem_;
 	targets.combat           = &combat_;
 	targets.avatar           = &avatar_;
-	targets.showDebugGrid    = &showDebugGrid_;
-	targets.showHitShapes    = &showHitShapes_;
 	PlaySceneInspector::Draw(targets);
+}
+
+// インスペクターの「デバッグ描画」へ足す項目
+void GamePlayScene::OnDrawDebugDrawOptions(){
+	PlaySceneInspector::DrawHitShapeToggle(&showHitShapes_);
 }
 
 // =====================================================================
 //  終了
 // =====================================================================
-void GamePlayScene::Finalize(){
-	EditorManager* editorManager = EditorManager::GetInstance();
-	// エディタが保持している外部ポインタをリセット（ダングリングポインタ防止）
-	editorManager->ResetSceneReferences();
-	// ノードエディタに登録したゲーム値（player_ 等のポインタ）も解除する
-	editorManager->ClearNodeGameValues();
-	// SDFパネルへ差し込んだ溶け道設定UI（this をキャプチャ）も解除する
+void GamePlayScene::OnFinalize(){
+	// SDFパネルへ差し込んだ溶け道設定UI（this をキャプチャ）を解除する
+	//   （エディタの外部ポインタ・ノードのゲーム値・GPUパーティクルの後始末は BaseScene が行う）
 	SDFManager::GetInstance()->SetExtraPanelUI(nullptr);
-
-	GPUParticleManager::GetInstance()->Finalize();
 	textures_.clear();
 }

@@ -177,6 +177,9 @@ public:
 	const GameViewMouse& GetGameViewMouse() const{ return gameViewMouse_; }
 	// ゲーム側がドラッグ操作中（敵の直接ドラッグ等）にレール編集のマウス操作を止める
 	void SetExternalDragActive(bool active){ externalDragActive_ = active; }
+	// このシーンがレール編集を使うか（false の間は Game View にレールの線・ノードを出さず、操作もしない）。
+	//   レールを持たないシーン（タイトルなど）が初期化時に false を渡す
+	void SetRailEditingEnabled(bool enabled){ railEditingEnabled_ = enabled; }
 	// ゲームビューのガイドハンドル（足場のガイドを直接つかむ操作）でドラッグ中か。
 	//   道の再生成を10Hzに間引く判定（IsRailDragging）に含める
 	void SetGameViewGuideDragging(bool v){ gameViewGuideDragging_ = v; }
@@ -282,6 +285,7 @@ private:
     // Game View マウス情報（毎フレーム更新。ゲーム側の配置エディタへの橋渡し）
     GameViewMouse gameViewMouse_ {};
     bool externalDragActive_ = false; // ゲーム側がドラッグ中（レール編集のマウス操作を止める）
+    bool railEditingEnabled_ = true;  // 今のシーンがレール編集を使うか（SetRailEditingEnabled）
     bool gameViewGuideDragging_ = false; // ゲームビューのガイドハンドルをドラッグ中（同期間引き用）
 
 	// カメラ（SceneManagerから渡してもらう）

@@ -232,7 +232,6 @@ exit 0</Command>
     <ClCompile Include="engine\scene\SceneManager.cpp" />
     <ClCompile Include="game\base\Game.cpp" />
     <ClCompile Include="game\base\main.cpp" />
-    <ClCompile Include="game\scene\AnimationEditorScene.cpp" />
     <ClCompile Include="game\scene\GamePlayScene.cpp" />
     <ClCompile Include="game\scene\SceneFactory.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
@@ -261,6 +260,7 @@ exit 0</Command>
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\enemy\EnemyEditor.cpp" />
     <ClCompile Include="game\editor\RailStripPanel.cpp" />
+    <ClCompile Include="game\scene\BaseScene.cpp" />
     <ClCompile Include="game\editor\strip\StripRailSelector.cpp" />
     <ClCompile Include="game\editor\strip\StripControls.cpp" />
     <ClCompile Include="game\editor\strip\StripRenderer.cpp" />
@@ -425,7 +425,6 @@ exit 0</Command>
     <ClInclude Include="engine\scene\SceneManager.h" />
     <ClInclude Include="externals\nlohmann\json.hpp" />
     <ClInclude Include="game\base\Game.h" />
-    <ClInclude Include="game\scene\AnimationEditorScene.h" />
     <ClInclude Include="game\scene\GamePlayScene.h" />
     <ClInclude Include="game\scene\SceneFactory.h" />
     <ClInclude Include="game\scene\TitleScene.h" />
@@ -460,6 +459,7 @@ exit 0</Command>
     <ClInclude Include="game\editor\strip\StripLayout.h" />
     <ClInclude Include="game\editor\strip\StripState.h" />
     <ClInclude Include="game\editor\RailStripPanel.h" />
+    <ClInclude Include="game\scene\BaseScene.h" />
     <ClInclude Include="game\editor\strip\StripRailSelector.h" />
     <ClInclude Include="game\editor\strip\StripControls.h" />
     <ClInclude Include="game\editor\strip\StripRenderer.h" />

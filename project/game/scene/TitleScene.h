@@ -1,55 +1,47 @@
 #pragma once
 // =====================================================================
 //  TitleScene：タイトルシーン。
-//   SDFのタイトルロゴ（拡大しても滲まない。グローと点滅はパラメータ制御）とスタート案内を出し、
-//   T でゲームプレイシーンへ進む。マップエディタもここから触れる
+//   スタート案内を出し、T でゲームプレイシーンへ進む。
+//   レールは使わない（エディタもタイトルではレールの線・ノードを出さない）。
+//   カメラ・ポストエフェクト/Bloom・デバッグ描画・エディタで置いた物・展示物などは
+//   BaseScene が持つので、ゲームプレイシーンと同じようにエディタで編集・確認できる
 // =====================================================================
-#include "engine/scene/IScene.h"
-#include "engine/graphics/TextureManager.h"
+#include "game/scene/BaseScene.h"
 #include "engine/math/struct.h"
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 
-class DebugCamera;
-class Camera;
 class Sprite;
-class LevelEditor;
-class SDFSprite;
 class SDFText;
 
-class TitleScene : public IScene{
+class TitleScene : public BaseScene {
 public:
 	TitleScene();
-	~TitleScene();
+	~TitleScene() override;
 
-	void Initialize() override;
-	void Finalize() override;
-	void Update() override;
-	void Draw() override;
-	void Reload() override;
-	void DrawDebugUI() override;
+	void Reload() override {}
 
 private:
-	// タイトルロゴの脈動・スタート案内の点滅
-	void UpdateTitleAnimation();
+	// --- BaseScene の差し込み口 ---
+	void OnLoadResources() override;
+	void OnInitialize() override;
+	void OnUpdate() override;
+	void OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList) override; // スタート案内（Game View にも映る）
+	void OnDrawUI(ID3D12GraphicsCommandList* commandList) override;        // スプライト
+	void OnDebugUI() override;
 
-	std::unique_ptr<Camera>      camera_;
-	std::unique_ptr<DebugCamera> debugCamera_;
+	// スタート案内の点滅
+	void UpdateTitleAnimation();
 
 	// uvChecker のスプライト（位置はデバッグUIで調整できる）
 	std::unique_ptr<Sprite> sprite_;
 	Vector2 spritePos_ = { 100.0f, 100.0f };
+	uint32_t spriteTexture_ = 0;
 
-	std::unordered_map<std::string, TextureData> textures_;
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
-	// マップエディタ
-	std::unique_ptr<LevelEditor> levelEditor_;
-
-	// SDFタイトルロゴ＋スタート案内
-	std::unique_ptr<SDFSprite> logoSprite_;
-	std::unique_ptr<SDFText>   startText_;
+	// スタート案内
+	std::unique_ptr<SDFText> startText_;
 	float titleAnimTime_ = 0.0f;
 };

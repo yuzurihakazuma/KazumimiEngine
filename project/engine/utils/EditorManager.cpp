@@ -401,9 +401,6 @@ void EditorManager::Update(){
             if (ImGui::MenuItem("ゲームプレイ (GamePlay Scene)")) {
                 SceneManager::GetInstance()->ChangeSceneWithFade("GAMEPLAY");
             }
-            if (ImGui::MenuItem("アニメーションエディタ (Animation Editor)")) {
-                SceneManager::GetInstance()->ChangeSceneWithFade("ANIMATION_EDITOR");
-            }
             ImGui::EndMenu();
         }
         // 表示メニュー：デバッグカメラのON/OFF をメニューバーに集約（チェックボックス）
@@ -527,8 +524,8 @@ void EditorManager::Update(){
         Matrix4x4 view = editorCamera_->GetViewMatrix();
         Matrix4x4 proj = editorCamera_->GetProjectionMatrix();
 
-        // レール編集（ノードのギズモ／クリック追加）は Edit モード時のみ
-        const bool railEditMode = ( currentMode_ == EngineMode::Edit );
+        // レール編集（ノードのギズモ／クリック追加・線の表示）は Edit モードで、レールを使うシーンの時だけ
+        const bool railEditMode = ( currentMode_ == EngineMode::Edit ) && railEditingEnabled_;
 
         // レール編集は RailEditor クラスへ分離。Game View 上の操作はこの railEditor を介して行う。
         RailEditor* railEditor = levelEditor_ ? levelEditor_->GetRailEditor() : nullptr;
@@ -1628,7 +1625,6 @@ void EditorManager::DrawIconToolbar(){
     ImGui::TextDisabled("シーン");
     if ( iconButton("\xEE\xA1\x8A\n題名", "タイトルシーンへ", false) ) { SceneManager::GetInstance()->ChangeSceneWithFade("TITLE"); }
     if ( iconButton("\xEE\x9D\xA8\n遊ぶ", "ゲームプレイシーンへ", false) ) { SceneManager::GetInstance()->ChangeSceneWithFade("GAMEPLAY"); }
-    if ( iconButton("\xEE\x9D\x95\n動作", "アニメーションエディタへ", false) ) { SceneManager::GetInstance()->ChangeSceneWithFade("ANIMATION_EDITOR"); }
     newRow();
     ImGui::Separator();
     if ( iconButton("\xEE\x9D\x8E\n保存", "マップを上書き保存 (Ctrl+S)", false) ) { if ( levelEditor_ ) { levelEditor_->QuickSave(); } }
