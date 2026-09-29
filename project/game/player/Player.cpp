@@ -168,7 +168,7 @@ void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float mo
         jump_.height += oldFootY - rail.GetPositionByDistance(currentDistance_).y;
     }
     // ブロックの横当たり（壁）
-    currentDistance_ = blockContact_.ResolveWalk(currentRailIndex_, prevDistance, currentDistance_, jump_.height);
+    currentDistance_ = blockContact_.ResolveWalk(currentRailIndex_, prevDistance, currentDistance_, jump_.height, jump_.grounded);
 }
 
 // 敵にぶつかったノックバック：弾かれる方向に近いレールの向きへ押し戻す（壁は越えない）
@@ -332,6 +332,11 @@ bool Player::UpdateJumpAndLand(const SplineRail& rail, const std::vector<SplineR
     const float groundHeight = blockContact_.GroundHeight(currentRailIndex_, currentDistance_,
                                                           ( std::max )( prevFootY, jump_.height ));
 
+    // 上昇中でも、足が乗れる上面より下にある（段差の許容内で上面の真上に来た）なら上面まで持ち上げる。
+    //   着地の判定は下降中だけなので、ふんばりでゆっくり上がっている間は、段差の許容（0.3m）ぶん
+    //   ブロックにめり込んだまま中を進んでいた（階段を登る途中で長押しジャンプすると埋まる）
+    if ( jump_.velocity > 0.0f && jump_.height < groundHeight ) { jump_.height = groundHeight; }
+
     // 接地中に足場が下がった時：
     //   小さな下り（斜面を歩いて降りる・小段差）は足を地面に吸い付けたまま歩く。
     //   大きく下がった（ブロックの端から歩き出た）時だけ落下を開始する
@@ -436,7 +441,8 @@ void Player::UpdateAir(const std::vector<SplineRail>& rails, float dt){
     PlayerJump::StepFlutterOrGravity(airVelocity_.y, jump_.flutterTime, PlayerJump::kFlutterTarget,
                                      jump_.gravity, input_.JumpHeld(), dt);
 
-    // 移動前のYを覚えておく：着地はレール面を上→下に通過した瞬間に判定
+    // 移動前の位置を覚えておく：着地はレール面を上→下に通過した瞬間に判定
+    const Vector3 prevPos = position_;
     const float prevY = position_.y;
     position_.x += airVelocity_.x * dt;
     position_.y += airVelocity_.y * dt;
@@ -446,32 +452,92 @@ void Player::UpdateAir(const std::vector<SplineRail>& rails, float dt){
     // 飛び出した直後の "元レール" 再着地を抑止する猶予を減らす
     if ( airLandCooldown_ > 0.0f ) { airLandCooldown_ -= dt; }
 
+    // レールの外でも、真下のレールに置かれたブロックとは当たる（側面・天井・上面への着地）
+    if ( CollideAirWithBlocks(rails, prevPos) ) return;
+
     // 下降中だけ着地判定（上昇中にレールへ吸い付かないように）。
     //   飛び出した直後だけ元のレールへの再着地を抑止（端で跳ね返らない）。
     //   別のレールへは猶予中でも着地できる（同じ高さの渡りを取りこぼさない）
     PlayerRailQuery::Spot landing;
     const int ignoreRail = ( airLandCooldown_ > 0.0f ) ? airFromRail_ : -1;
     if ( airVelocity_.y <= 0.0f && PlayerRailQuery::FindLanding(rails, position_, prevY, ignoreRail, landing) ) {
-        // 着地：到達したレール点に合わせる。水平のズレは平滑化に回して見た目を滑らかに
-        Vector3 jump = { position_.x - landing.pos.x, 0.0f, position_.z - landing.pos.z };
-        if ( Length(jump) < 3.0f ) posSmooth_ = jump;
-        inAir_ = false;
-        currentRailIndex_ = landing.rail;
-        currentDistance_  = landing.dist;
-        position_ = landing.pos;
-        facing_.SetGroundTangent(rails[landing.rail].GetTangentByDistance(landing.dist)); // 着地したレールの坂（このフレームから使われる）
-        // ふんばりの回数は持ち越す（次のジャンプかレール上の着地でリセット。以前からの挙動）
-        jump_.height      = 0.0f;
-        jump_.velocity    = 0.0f;
-        jump_.grounded    = true;
-        jump_.flutterTime = 0.0f;
-        airVelocity_    = { 0.0f, 0.0f, 0.0f };
-        dsSign_         = 0.0f; // 次の入力で進行方向を決め直す
-        switchCooldown_ = 0.1f;
+        LandFromAir(rails, landing.rail, landing.dist, 0.0f);
         return;
     }
 
     if ( position_.y < kKillY ) { RespawnAfterFall(); }
+}
+
+// 空中（レールの外）でのブロックとの当たり。真下のレールを基準に、レール空間の判定をそのまま使う。
+//   以前は空中の間はブロックを一切見ていなかったため、穴に落ちる途中で縁のブロックの側面を
+//   通り抜けたり、上から落ちてきてブロックを素通りしてレール面から押し上げられたりしていた。
+//   ブロックの上面に降りたら true（そのレールに乗って着地済み）
+bool Player::CollideAirWithBlocks(const std::vector<SplineRail>& rails, const Vector3& prevPos){
+    PlayerRailQuery::Spot below;
+    if ( !PlayerRailQuery::FindRailBelow(rails, position_, below) ) return false;
+    const SplineRail& rail = rails[below.rail];
+    // 最寄り点探しはレールの距離テーブルの刻み（数cm）でしか求まらないので、接線方向へ1回寄せて正確にする
+    //   （ずれたままだと壁の手前で止めても数cm食い込んで見える）
+    auto preciseDist = [&](const Vector3& pos, float roughDist){
+        Vector3 railPos = rail.GetPositionByDistance(roughDist);
+        Vector3 tangent = rail.GetTangentByDistance(roughDist);
+        float along = ( pos.x - railPos.x ) * tangent.x + ( pos.y - railPos.y ) * tangent.y + ( pos.z - railPos.z ) * tangent.z;
+        return std::clamp(roughDist + along, 0.0f, rail.GetLength());
+    };
+    const float prevDist = preciseDist(prevPos, rail.GetClosestDistance(prevPos));
+
+    // 横：ブロックの側面は通り抜けない（当たったら面の手前で止め、前後の勢いを消す）
+    float dist = preciseDist(position_, below.dist);
+    float footY = position_.y - rail.GetPositionByDistance(dist).y;
+    const float resolved = blockContact_.ResolveWalk(below.rail, prevDist, dist, footY, false);
+    if ( resolved != dist ) {
+        Vector3 wallPos = rail.GetPositionByDistance(resolved);
+        position_.x = wallPos.x;
+        position_.z = wallPos.z;
+        airVelocity_.x = 0.0f;
+        airVelocity_.z = 0.0f;
+        dist  = resolved;
+        footY = position_.y - wallPos.y;
+    }
+    const float railY = position_.y - footY; // このレール上の dist の高さ
+
+    // 上：上昇中に頭をぶつけたら止める
+    if ( airVelocity_.y > 0.0f && blockContact_.ClampToCeiling(below.rail, dist, footY) ) {
+        position_.y = railY + footY;
+        airVelocity_.y = 0.0f;
+    }
+
+    // 下：降りてきてブロックの上面に届いたら、そのレールのブロックの上に着地する。
+    //   飛び出した直後の元のレールには乗らない（端で跳ね返らない。レール面への着地と同じ猶予）
+    if ( airVelocity_.y > 0.0f ) return false;
+    if ( airLandCooldown_ > 0.0f && below.rail == airFromRail_ ) return false;
+    const float prevFootY = prevPos.y - railY;
+    const float ground = blockContact_.GroundHeight(below.rail, dist, ( std::max )( prevFootY, footY ));
+    if ( ground <= 0.0f || footY > ground ) return false;
+    LandFromAir(rails, below.rail, dist, ground);
+    return true;
+}
+
+// 空中からレールの dist へ着地する（footHeight=レール面からの足の高さ。ブロックの上なら上面）
+void Player::LandFromAir(const std::vector<SplineRail>& rails, int rail, float dist, float footHeight){
+    const Vector3 railPos = rails[rail].GetPositionByDistance(dist);
+    const Vector3 landPos = { railPos.x, railPos.y + footHeight, railPos.z };
+    // 水平のズレは平滑化に回して見た目を滑らかに
+    Vector3 jump = { position_.x - landPos.x, 0.0f, position_.z - landPos.z };
+    if ( Length(jump) < 3.0f ) posSmooth_ = jump;
+    inAir_ = false;
+    currentRailIndex_ = rail;
+    currentDistance_  = dist;
+    position_ = landPos;
+    facing_.SetGroundTangent(rails[rail].GetTangentByDistance(dist)); // 着地したレールの坂（このフレームから使われる）
+    // ふんばりの回数は持ち越す（次のジャンプかレール上の着地でリセット。以前からの挙動）
+    jump_.height      = footHeight;
+    jump_.velocity    = 0.0f;
+    jump_.grounded    = true;
+    jump_.flutterTime = 0.0f;
+    airVelocity_    = { 0.0f, 0.0f, 0.0f };
+    dsSign_         = 0.0f; // 次の入力で進行方向を決め直す
+    switchCooldown_ = 0.1f;
 }
 
 void Player::RespawnAfterFall(){

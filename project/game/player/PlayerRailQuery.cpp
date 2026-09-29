@@ -123,6 +123,29 @@ bool FindBranch(const std::vector<SplineRail>& rails, int currentRail, float cur
     return false;
 }
 
+bool FindRailBelow(const std::vector<SplineRail>& rails, const Vector3& pos, Spot& out){
+    const float kReachXZ = 0.8f; // 着地と同じ「レールの真上」の幅
+    const float kAboveMax = 1.0f; // 足よりこれ以上高いレールは対象外（頭の上の別の階）
+    float best = 1e9f;
+    bool found = false;
+    for ( int i = 0; i < ( int ) rails.size(); ++i ) {
+        const SplineRail& rail = rails[i];
+        if ( rail.nodes.size() < 2 || !rail.visible || rail.IsRideBlocked() ) continue;
+        float closestDist = rail.GetClosestDistance(pos);
+        Vector3 closestPos = rail.GetPositionByDistance(closestDist);
+        float dx = closestPos.x - pos.x, dz = closestPos.z - pos.z;
+        if ( std::sqrt(dx * dx + dz * dz) > kReachXZ ) continue;
+        if ( closestPos.y > pos.y + kAboveMax ) continue;
+        // 上下に重なったレールでは、高さが一番近いもの（＝足の下の階）を選ぶ
+        float vertical = std::abs(pos.y - closestPos.y);
+        if ( vertical >= best ) continue;
+        best = vertical;
+        out = { i, closestDist, closestPos };
+        found = true;
+    }
+    return found;
+}
+
 bool FindLanding(const std::vector<SplineRail>& rails, const Vector3& pos, float prevY,
                  int ignoreRail, Spot& out){
     const float kLandXZ = 0.8f; // 水平にこの距離以内なら「レールの真上」とみなす

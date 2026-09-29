@@ -102,6 +102,10 @@ private:
     void DetachToAir(const SplineRail& rail, float edgeDistance);
     // 自由落下・着地判定・落下死
     void UpdateAir(const std::vector<SplineRail>& rails, float dt);
+    // 空中でも真下のレールのブロックと当たる（側面・天井・上面）。ブロックの上に着地したら true
+    bool CollideAirWithBlocks(const std::vector<SplineRail>& rails, const Vector3& prevPos);
+    // 空中からレールの dist へ着地する（footHeight=レール面からの足の高さ）
+    void LandFromAir(const std::vector<SplineRail>& rails, int rail, float dist, float footHeight);
     // 落下死 → スタートへリスポーン
     void RespawnAfterFall();
 
