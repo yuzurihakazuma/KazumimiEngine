@@ -20,8 +20,6 @@ namespace {
         modelManager->LoadModel("block", "resources/block", "block.obj");
         modelManager->CreateSphereModel("sphere", 16);
         modelManager->CreatePlaneModel("plane");
-        modelManager->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
-        modelManager->LoadModel("human", "resources/human", "walk.gltf");
         modelManager->LoadModel("egg", "resources/egg", "egg.obj"); // ヨッシーの卵（専用モデル）
         modelManager->LoadModel("player", "resources/player", "player.gltf"); // プレイヤー（リグ付きマスコット。7色パレット焼き込み済み）
         // 敵キャラ3種（リグ+クリップ入りglb。プレイヤーと同じトイ風の公式デザイン）

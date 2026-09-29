@@ -21,7 +21,6 @@
 #include <cmath>
 
 TitleScene::TitleScene(){
-	features_.demoShowcase = true; // エンジン機能の展示（表示メニューの「デモ表示」でON/OFF）
 	features_.overlay2D    = true; // スタート案内を最終画像へ重ねる
 }
 TitleScene::~TitleScene() = default;
@@ -37,15 +36,13 @@ void TitleScene::OnLoadResources(){
 	modelManager->CreateSphereModel("sphere", 16);
 
 	TextureManager* textureManager = TextureManager::GetInstance();
-	spriteTexture_ = textureManager->Load("resources/uvChecker.png").srvIndex;
 	textureManager->Load("resources/monsterBall.png");
 	textureManager->Load("resources/fence.png");
 	textureManager->Load("resources/circle.png");
 }
 
 void TitleScene::OnInitialize(){
-	sprite_ = Sprite::Create(spriteTexture_, spritePos_);
-
+	
 	// スタート案内（アトラスは SDFManager が resources/sdf/ から自動ロードするので、ここではアイテムを作るだけ）
 	startText_ = std::make_unique<SDFText>();
 	startText_->Initialize();
@@ -68,10 +65,7 @@ void TitleScene::OnUpdate(){
 		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
 	}
 
-	if ( sprite_ ) {
-		sprite_->SetPosition(spritePos_);
-		sprite_->Update();
-	}
+	
 	UpdateTitleAnimation();
 }
 
@@ -93,15 +87,11 @@ void TitleScene::OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList){
 }
 
 void TitleScene::OnDrawUI(ID3D12GraphicsCommandList* /*commandList*/){
-	if ( sprite_ ) { sprite_->Draw(); }
+
 }
 
 void TitleScene::OnDebugUI(){
 #ifdef USE_IMGUI
-	// スプライト調整用UI
-	ImGui::SetNextWindowSize(ImVec2(500, 100));
-	ImGui::Begin("Sprite Setup");
-	ImGui::DragFloat2("Position", &spritePos_.x, 0.1f, -2000.0f, 2000.0f, "% 06.1f");
-	ImGui::End();
+
 #endif
 }

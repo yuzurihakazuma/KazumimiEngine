@@ -36,7 +36,6 @@
 #include <cmath>
 
 GamePlayScene::GamePlayScene(){
-	features_.demoShowcase = true; // エンジン機能の展示を出す
 	features_.railEditing  = true; // レール・道・敵の配置を編集する
 }
 GamePlayScene::~GamePlayScene() = default;

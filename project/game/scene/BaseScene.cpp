@@ -52,9 +52,27 @@ void BaseScene::Initialize(){
     GPUParticleManager::GetInstance()->Initialize(
         DirectXCommon::GetInstance(), SrvManager::GetInstance(), "resources/uvChecker.png");
 
-    if ( features_.demoShowcase ) { SetupDemo(); }
+    // 展示物は「デモ展示」ON の時だけ作る（OFF なら読み込みもしない）。展示の無いシーンではトグル自体を出さない
+    EditorManager::GetInstance()->SetDemoAvailable(features_.demoShowcase);
+    if ( features_.demoShowcase && EditorManager::GetInstance()->IsDemoVisible() ) { SetupDemo(); }
 
     OnInitialize();
+}
+
+// 表示メニュー「デモ展示」の ON/OFF に合わせて展示物を作る／削除する。
+//   フレーム先頭（前フレームの GPU 完了待ちの後・今フレームの記録前）に呼ぶこと
+void BaseScene::SyncDemoPresence(){
+    if ( !features_.demoShowcase ) return;
+    const bool wanted = EditorManager::GetInstance()->IsDemoVisible();
+    if ( wanted && !demo_ ) {
+        // テクスチャ転送があるので、シーン切替と同じく専用にコマンドを記録して完了まで待つ
+        DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+        dxCommon->BeginCommandRecording();
+        SetupDemo();
+        dxCommon->EndCommandRecording();
+    } else if ( !wanted && demo_ ) {
+        demo_.reset();
+    }
 }
 
 // メインカメラ／デバッグカメラの生成・エディタへの登録
@@ -110,6 +128,7 @@ void BaseScene::Finalize(){
 //  更新
 // =====================================================================
 void BaseScene::Update(){
+    SyncDemoPresence();
     OnPreUpdate();
     HandleEditorCameraRequests();
     UpdateCamera();
@@ -196,7 +215,7 @@ void BaseScene::DrawScene3D(ID3D12GraphicsCommandList* commandList){
 
     // デバッグ描画：MRT（シーンRT）内で線を描く → ポストエフェクト/Bloomを通って
     //   Game View にも単体表示にも反映される（深度テストありで3D形状に隠れる）
-    if ( showDebugGrid_ ) {
+    if ( EditorManager::GetInstance()->IsGridVisible() ) {
         DebugDraw::GetInstance()->Grid(20.0f, 1.0f, { 0.3f, 0.3f, 0.35f, 0.5f }, 0.0f);
     }
     DebugDraw::GetInstance()->Render(camera_.get());
@@ -281,7 +300,8 @@ void BaseScene::DrawInspector(){
     ImGui::Begin("インスペクター (詳細設定)");
     OnDrawInspector();
     if ( ImGui::CollapsingHeader("デバッグ描画 (DebugDraw)") ) {
-        ImGui::Checkbox("グリッドを表示", &showDebugGrid_);
+        bool grid = EditorManager::GetInstance()->IsGridVisible();
+        if ( ImGui::Checkbox("グリッドを表示", &grid) ) { EditorManager::GetInstance()->SetGridVisible(grid); }
         OnDrawDebugDrawOptions();
         ImGui::TextDisabled("Box/Sphere/Line はコードから積む。Game View にも表示されます");
     }

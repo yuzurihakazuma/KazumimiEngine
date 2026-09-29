@@ -34,11 +34,7 @@ private:
 	// スタート案内の点滅
 	void UpdateTitleAnimation();
 
-	// uvChecker のスプライト（位置はデバッグUIで調整できる）
-	std::unique_ptr<Sprite> sprite_;
-	Vector2 spritePos_ = { 100.0f, 100.0f };
-	uint32_t spriteTexture_ = 0;
-
+	
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
 	// スタート案内

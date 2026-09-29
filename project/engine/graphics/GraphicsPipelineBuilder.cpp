@@ -1,4 +1,5 @@
 #include "GraphicsPipelineBuilder.h"
+#include "engine/graphics/D3DDebugName.h"
 #include <cassert>
 
 GraphicsPipelineBuilder::GraphicsPipelineBuilder(){
@@ -73,9 +74,11 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDepthStencil(bool isDepthEn
 	return *this;
 }
 
-void GraphicsPipelineBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState){
+void GraphicsPipelineBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState,
+	const std::source_location& where){
 	HRESULT hr = device->CreateGraphicsPipelineState(&psoDesc_, IID_PPV_ARGS(&outPipelineState));
 	assert(SUCCEEDED(hr));
+	SetD3DDebugName(outPipelineState.Get(), L"PSO", where);
 }
 
 // PipelineManager から移動してきた BlendMode 取得関数

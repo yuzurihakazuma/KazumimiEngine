@@ -4,6 +4,7 @@
 #include <wrl.h>
 #include <vector>
 #include <memory>
+#include <source_location>
 
 // ルートシグネチャを簡単に構築するための便利クラス
 class RootSignatureBuilder {
@@ -20,12 +21,14 @@ public:
     // サンプラー（s0
     void AddDefaultSampler(UINT shaderRegister = 0);
 
-    // 構築してルートシグネチャを生成
-    void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig);
+    // 構築してルートシグネチャを生成（where：呼び出し元。リークレポートに出る名前になる）
+    void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig,
+        const std::source_location& where = std::source_location::current());
 
     // Computeシェーダー専用 (IAフラグなし)
     void BuildForCompute(ID3D12Device* device,
-        Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig);
+        Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig,
+        const std::source_location& where = std::source_location::current());
 
 
     // UAVをDescriptorTableで追加 (Computeシェーダー用)

@@ -418,10 +418,16 @@ void EditorManager::Update(){
             ImGui::Checkbox("Blenderインポータ", &showBlenderImporter_);
             ImGui::Separator();
             // デモ・デバッグ系の表示（マップ制作には不要なので既定OFF。必要な時だけON）
-            ImGui::Checkbox("デモ展示（回転ブロック・オーラ・SDF卵・見本の人形）", &showDemo_);
-            if ( ImGui::IsItemHovered() ) {
-                ImGui::SetTooltip("エンジン機能の見本オブジェクト一式（ヒットエフェクト・サークル・ブロック群など）。\nゲーム本編とは無関係の展示なので、マップ制作中はOFFのままでよい");
+            if ( demoAvailable_ ) {
+                if ( ImGui::Checkbox("デモ展示（回転ブロック・オーラ・SDF卵・見本の人形）", &showDemo_) ) { SaveUiConfig(); }
+                if ( ImGui::IsItemHovered() ) {
+                    ImGui::SetTooltip("エンジン機能の見本オブジェクト一式（ヒットエフェクト・サークル・ブロック群など）。\n"
+                        "OFFにすると展示物そのものを削除する（読み込みもしない）。ONにした時だけ作り直す。\n"
+                        "設定は保存され、次回起動もそのまま");
+                }
             }
+            bool grid = showGrid_;
+            if ( ImGui::Checkbox("床のグリッド", &grid) ) { SetGridVisible(grid); }
             ImGui::Checkbox("調整項目 (GlobalVariables)", &showGlobalVars_);
             ImGui::EndMenu();
         }
@@ -1616,7 +1622,10 @@ void EditorManager::DrawIconToolbar(){
     ImGui::TextDisabled("他");
     if ( iconButton("\xEE\xA5\x90\nノード", "ノードエディタ", showNodeEditor_) ) { showNodeEditor_ = !showNodeEditor_; }
     if ( iconButton("\xEE\xA2\x98\nBlend", "Blenderインポータ", showBlenderImporter_) ) { showBlenderImporter_ = !showBlenderImporter_; }
-    if ( iconButton("\xEE\x9E\x8A\nデモ", "デモ展示（回転ブロック・オーラ・SDF卵・人形）", showDemo_) ) { showDemo_ = !showDemo_; }
+    if ( demoAvailable_ && iconButton("\xEE\x9E\x8A\nデモ", "デモ展示（回転ブロック・オーラ・SDF卵・人形）。OFFで展示物を削除", showDemo_) ) {
+        showDemo_ = !showDemo_;
+        SaveUiConfig();
+    }
     if ( iconButton("\xEE\x9C\x9C\n調整値", "調整項目 (GlobalVariables)", showGlobalVars_) ) { showGlobalVars_ = !showGlobalVars_; }
     newRow();
 
@@ -1793,6 +1802,7 @@ void EditorManager::SaveUiConfig() const{
     fputs("dockhide=", fp);
     for ( int i = 0; i < Panel_Count; ++i ) { fputc(dockPanelHidden_[i] ? '1' : '0', fp); }
     fputc('\n', fp);
+    fprintf(fp, "showdemo=%d\nshowgrid=%d\n", showDemo_ ? 1 : 0, showGrid_ ? 1 : 0);
     fclose(fp);
 }
 
@@ -1838,6 +1848,8 @@ void EditorManager::LoadUiConfig(){
                 dockPanelHidden_[i] = ( found[i] == '1' );
             }
         }
+        if ( ( found = strstr(buffer, "showdemo=") ) ) { showDemo_ = ( atoi(found + 9) == 1 ); }
+        if ( ( found = strstr(buffer, "showgrid=") ) ) { showGrid_ = ( atoi(found + 9) == 1 ); }
         if ( needsSave ) { SaveUiConfig(); }
     } else {
         // 初回は「設置ワークスペース」相当（アイコンモードにした時に画面が広い状態から始まる）

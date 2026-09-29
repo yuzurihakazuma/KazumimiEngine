@@ -61,6 +61,7 @@ public:
 	RenderTexture* GetCombineTexture() const { return combineTexture_.get(); }
 
 	void SetTargetEmissivePower(float* emissivePower){ targetEmissivePower_ = emissivePower; }
+	float* GetTargetEmissivePower() const { return targetEmissivePower_; }
 
 	void DrawDebugUI();
 public:

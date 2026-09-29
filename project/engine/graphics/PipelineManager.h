@@ -4,6 +4,7 @@
 #include <wrl.h>
 #include <string>
 #include <vector>
+#include <source_location>
 
 // --- エンジン側のファイル ---
 #include "engine/graphics/PipelineType.h"
@@ -97,7 +98,8 @@ private:
 		D3D12_CULL_MODE cullMode,     // カリングモード (None, Backなど)
 		bool isDepthWrite,            // 深度を書き込むか (Spriteはfalse, 3Dはtrue)
 		const std::vector<DXGI_FORMAT>& rtvFormats,
-		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState // 結果を入れる変数
+		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState, // 結果を入れる変数
+		const std::source_location& where = std::source_location::current() // 呼び出し元（リークレポート用の名前）
 	);
 
 

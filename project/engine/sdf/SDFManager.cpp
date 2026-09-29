@@ -527,6 +527,25 @@ void SDFManager::DrawDebugUI() {
     if ( ImGui::Button("配置を保存") ) { SaveScene(); status_ = "配置を保存しました"; }
     ImGui::SameLine();
     ImGui::TextDisabled("アトラス %d 件", ( int ) atlases_.size());
+    // 置いてある文字・画像・3Dボリュームを丸ごと削除（確認つき。削除は即保存＝次回起動でも出ない）
+    ImGui::SameLine();
+    if ( ImGui::Button("配置をすべて削除") ) { ImGui::OpenPopup("SDF配置の全削除"); }
+    if ( ImGui::BeginPopupModal("SDF配置の全削除", nullptr, ImGuiWindowFlags_AlwaysAutoResize) ) {
+        ImGui::Text("文字 %d 件・画像 %d 件・3Dボリューム %d 件を削除して保存します。",
+            ( int ) texts_.size(), ( int ) sprites_.size(), ( int ) volumes_.size());
+        ImGui::TextDisabled("（アトラスや素材ファイルは消えません。元に戻すには置き直してください）");
+        if ( ImGui::Button("削除する") ) {
+            texts_.clear();
+            sprites_.clear();
+            volumes_.clear();
+            SaveScene();
+            status_ = "配置をすべて削除して保存しました";
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if ( ImGui::Button("やめる") ) { ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
     if ( !status_.empty() ) { ImGui::TextDisabled("%s", status_.c_str()); }
     ImGui::Separator();
 
@@ -630,7 +649,11 @@ void SDFManager::DrawDebugUI() {
             }
             ImGui::PopID();
         }
-        if ( deleteIndex >= 0 ) { texts_.erase(texts_.begin() + deleteIndex); }
+        if ( deleteIndex >= 0 ) {
+            texts_.erase(texts_.begin() + deleteIndex);
+            SaveScene(); // 削除は即保存（保存し忘れて次回起動で復活するのを防ぐ）
+            status_ = "文字を削除して保存しました";
+        }
     }
 
     // --- スプライト配置 ---
@@ -739,7 +762,11 @@ void SDFManager::DrawDebugUI() {
             }
             ImGui::PopID();
         }
-        if ( deleteIndex >= 0 ) { sprites_.erase(sprites_.begin() + deleteIndex); }
+        if ( deleteIndex >= 0 ) {
+            sprites_.erase(sprites_.begin() + deleteIndex);
+            SaveScene();
+            status_ = "画像を削除して保存しました";
+        }
     }
 
     ImGui::Separator();
@@ -804,7 +831,11 @@ void SDFManager::DrawDebugUI() {
             }
             ImGui::PopID();
         }
-        if ( deleteIndex >= 0 ) { volumes_.erase(volumes_.begin() + deleteIndex); }
+        if ( deleteIndex >= 0 ) {
+            volumes_.erase(volumes_.begin() + deleteIndex);
+            SaveScene();
+            status_ = "3Dボリュームを削除して保存しました";
+        }
     }
 
     // --- ゲーム側のSDF関連設定（SDF溶け道の消え方調整など）をパネル最下部に表示 ---

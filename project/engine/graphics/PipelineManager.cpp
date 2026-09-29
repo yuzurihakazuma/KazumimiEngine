@@ -7,6 +7,7 @@
 #include "engine/graphics/ShaderCompiler.h"
 #include "engine/graphics/RootSignatureBuilder.h"
 #include "engine/graphics/GraphicsPipelineBuilder.h"
+#include "engine/graphics/D3DDebugName.h"
 #include "engine/postEffect/PostEffect.h"
 
 // 終了処理
@@ -618,7 +619,8 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	D3D12_CULL_MODE cullMode, 				// カリングモード
 	bool isDepthWrite, 					// 深度書き込みの有無
 	const std::vector<DXGI_FORMAT>& rtvFormats,
-	Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState// 生成結果
+	Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState,// 生成結果
+	const std::source_location& where
 ){
 	// 1. シェーダーコンパイル
 	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob =
@@ -677,6 +679,7 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	pipelineState = nullptr;
 	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)); // PSO生成
 	assert(SUCCEEDED(hr));
+	SetD3DDebugName(pipelineState.Get(), L"PSO", where);
 }
 
 // ブレンドステートの共通関数

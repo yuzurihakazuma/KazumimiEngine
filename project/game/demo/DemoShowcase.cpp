@@ -25,7 +25,17 @@
 using namespace MatrixMath;
 
 DemoShowcase::DemoShowcase() = default;
-DemoShowcase::~DemoShowcase() = default;
+// 削除時：エディタ／Bloom に登録した操作対象がまだ自分の物なら外す（消えた物を触らせない）
+DemoShowcase::~DemoShowcase(){
+    EditorManager* editor = EditorManager::GetInstance();
+    if ( dissolveCube_ && editor->GetGizmoTarget() == dissolveCube_.get() ) { editor->SetGizmoTarget(nullptr); }
+    if ( skinnedHuman_ && editor->GetTargetSkinnedObj() == skinnedHuman_.get() ) { editor->SetTargetSkinnedObj(nullptr); }
+    if ( dissolveCube_ && dissolveCube_->GetModel()
+        && Bloom::GetInstance()->GetTargetEmissivePower() == &dissolveCube_->GetModel()->GetMaterial()->emissive ) {
+        Bloom::GetInstance()->SetTargetEmissivePower(nullptr);
+    }
+    editor->SetParticleEmitter(nullptr); // 登録しているエミッターは展示物のものだけ
+}
 
 void DemoShowcase::Initialize(ID3D12GraphicsCommandList* commandList,
                               std::unordered_map<std::string, TextureData>& textures){

@@ -113,9 +113,11 @@ public:
 
 	// シーンから SkinnedObj3d を登録する。シーン終了時は必ず nullptr を渡してリセットすること
 	void SetTargetSkinnedObj(SkinnedObj3d* obj){ targetSkinnedObj_ = obj; }
+	SkinnedObj3d* GetTargetSkinnedObj() const{ return targetSkinnedObj_; }
 
 	// ギズモ／インスペクタで操作する対象オブジェクトを登録する（シーンから渡す）
 	void SetGizmoTarget(Obj3d* obj){ gizmoTarget_ = obj; }
+	Obj3d* GetGizmoTarget() const{ return gizmoTarget_; }
 
 	// --- レール編集データの公開（ゲーム側が同じレールを使うため）---
 	// 編集の世代番号。ノード移動/追加/削除/直線/カーブ/読込のたびに増える
@@ -159,8 +161,14 @@ public:
 	void SetEditorRailMotionPreview(bool v); // 同（ゲームビュー右クリックメニューからの切替用）
 	// ゲーム側から Play モードを開始する（右クリック「ここからテストプレイ」用。Playボタンと同じ処理）
 	void RequestPlay();
-	// デモ展示（回転ブロック/オーラ/SDF卵/見本の人形）を表示するか（表示メニューでON/OFF）
+	// デモ展示（回転ブロック/オーラ/SDF卵/見本の人形）を置くか（表示メニューでON/OFF）。
+	//   OFF の間はシーンが展示物を作らない（ON→OFF で削除される）。editor_ui.ini に保存
 	bool IsDemoVisible() const{ return showDemo_; }
+	// 今のシーンがデモ展示を持つか（持たないシーンでは表示メニュー／ツールバーの「デモ」を出さない）
+	void SetDemoAvailable(bool v){ demoAvailable_ = v; }
+	// 床のデバッググリッドを出すか（表示メニュー／インスペクターでON/OFF）。editor_ui.ini に保存
+	bool IsGridVisible() const{ return showGrid_; }
+	void SetGridVisible(bool v){ if ( showGrid_ != v ) { showGrid_ = v; SaveUiConfig(); } }
 	// レールエディタで選択中のノード（レール番号＋ワールド座標）。
 	//   敵エディタの「選択ノードの位置に配置」用。未選択なら false
 	bool GetEditorSelectedNode(int& outRail, Vector3& outPos) const;
@@ -255,6 +263,8 @@ private:
     // デモ展示（回転ブロック/オーラ/SDF卵/見本の人形）と調整項目ウィンドウの表示。
     //   マップ制作には不要なので既定OFF。表示メニューでON/OFF（GamePlaySceneが参照）
     bool showDemo_ = false;
+    bool demoAvailable_ = false;
+    bool showGrid_ = false;
     bool showGlobalVars_ = false;
 
     // --- UIシェル（アイコンモード）の状態 ---

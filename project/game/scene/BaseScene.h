@@ -82,6 +82,7 @@ protected:
 private:
     void SetupCameras();
     void SetupDemo();
+    void SyncDemoPresence();
     void HandleEditorCameraRequests();
     void UpdateCommonVisuals();
     void DrawScene3D(ID3D12GraphicsCommandList* commandList);
@@ -93,5 +94,4 @@ private:
     std::unique_ptr<DebugCamera>  debugCamera_;
     std::unique_ptr<DemoShowcase> demo_;
     uint32_t envMapSrv_ = 0;
-    bool     showDebugGrid_ = true;
 };

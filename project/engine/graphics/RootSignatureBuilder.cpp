@@ -1,4 +1,5 @@
 #include "RootSignatureBuilder.h"
+#include "engine/graphics/D3DDebugName.h"
 // --- 標準ライブラリ ---
 #include <cassert>
 
@@ -55,7 +56,8 @@ void RootSignatureBuilder::AddDefaultSampler(UINT shaderRegister) {
 	samplers_.push_back(sampler); // サンプラーのリストに追加
 }
 // ルートシグネチャを構築して生成
-void RootSignatureBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig) {
+void RootSignatureBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig,
+	const std::source_location& where) {
 	D3D12_ROOT_SIGNATURE_DESC desc = {}; // ルートシグネチャの説明を初期化
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 入力レイアウトを許可
 	desc.NumParameters = static_cast<UINT>(parameters_.size()); // ルートパラメータの数を指定
@@ -74,10 +76,12 @@ void RootSignatureBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID
 	// 生成
     hr = device->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(), IID_PPV_ARGS(&outRootSig));
     assert(SUCCEEDED(hr));
+	SetD3DDebugName(outRootSig.Get(), L"RootSig", where);
 }
 
 void RootSignatureBuilder::BuildForCompute(
-	ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig){
+	ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig,
+	const std::source_location& where){
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE; // IAフラグ不要
 	desc.NumParameters = static_cast<UINT>(parameters_.size());
@@ -96,6 +100,7 @@ void RootSignatureBuilder::BuildForCompute(
 		0, signatureBlob->GetBufferPointer(),
 		signatureBlob->GetBufferSize(), IID_PPV_ARGS(&outRootSig));
 	assert(SUCCEEDED(hr));
+	SetD3DDebugName(outRootSig.Get(), L"RootSig(CS)", where);
 }
 
 
