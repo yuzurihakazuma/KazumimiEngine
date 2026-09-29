@@ -39,6 +39,10 @@ namespace PlayerRailQuery {
     bool FindBranch(const std::vector<SplineRail>& rails, int currentRail, float currentDist,
                     int switchDir, Spot& out);
 
+    // 空中の pos の真下（水平に0.8m以内）にある、見えているレールのうち一番近いもの（高さは問わない）。
+    //   レールから離れて空中にいる間も、その下のレールを基準にブロックとの当たりを調べるために使う
+    bool FindRailBelow(const std::vector<SplineRail>& rails, const Vector3& pos, Spot& out);
+
     // 空中の pos（前フレームの高さ prevY）から、降りてきて着地できるレール。ignoreRail は候補から外す
     bool FindLanding(const std::vector<SplineRail>& rails, const Vector3& pos, float prevY,
                      int ignoreRail, Spot& out);

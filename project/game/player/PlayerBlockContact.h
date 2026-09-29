@@ -17,11 +17,15 @@ public:
     static constexpr float kBodyBottom = 0.05f; // 足元のすき間（地面と重なって壁扱いにならない）
     static constexpr float kBodyTop    = 0.95f; // 体の上端（横当たりの帯）
     static constexpr float kHeadHeight = 1.0f;  // 頭の高さ（天井の判定）
+    // 「ブロックに埋まった」とみなす横の広がり。BlockSystem の支持面の縁（ブロックの端＋0.1m）と同じにする
+    //   （押し出した先の上面に必ず立てる範囲だけを「埋まった」とする）
+    static constexpr float kEmbedRadius = 0.10f;
 
     void SetBlocks(BlockSystem* blocks){ blocks_ = blocks; }
 
-    // 横：prevDist から newDist へ進んだ時、壁に当たれば面の手前へ戻した距離を返す（当たらなければ newDist）
-    float ResolveWalk(int rail, float prevDist, float newDist, float footY) const;
+    // 横：prevDist から newDist へ進んだ時、壁に当たれば面の手前へ戻した距離を返す（当たらなければ newDist）。
+    //   grounded=true なら、進んだ先で立つ高さ（斜面・小段差）で壁を調べる
+    float ResolveWalk(int rail, float prevDist, float newDist, float footY, bool grounded) const;
     // その位置で体がブロックに重なっているか（ノックバックで押し戻す時の判定）
     bool  IsBodyBlocked(int rail, float dist, float footY) const;
 
