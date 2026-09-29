@@ -6,11 +6,10 @@
 #include "game/enemy/EnemyLevelConvert.h"
 #include "game/enemy/EnemyRailPin.h"
 #include "game/camera/EditorCameraUtil.h"
+#include "game/scene/GamePlayAssets.h"
+#include "game/editor/PlaySceneInspector.h"
 
 // --- エンジン側のファイル ---
-#include "Engine/Audio/AudioManager.h"
-#include "Engine/3D/Model/ModelManager.h"
-#include "Engine/3D/Model/Model.h"
 #include "Engine/Particle/ParticleManager.h"
 #include "Engine/Graphics/PipelineManager.h"
 #include "Engine/Scene/SceneManager.h"
@@ -52,96 +51,8 @@ void GamePlayScene::Initialize(){
 void GamePlayScene::LoadResources(){
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
-	// BGM と卵アクションのSE（投げ/命中/割れ。自前生成のプレースホルダ音源）
-	AudioManager* audio = AudioManager::GetInstance();
-	audio->LoadWave(bgmFile_);
-	audio->LoadWave("resources/se/eggThrow.wav");
-	audio->LoadWave("resources/se/eggHit.wav");
-	audio->LoadWave("resources/se/eggBreak.wav");
-
-	// モデル
-	ModelManager* modelManager = ModelManager::GetInstance();
-	modelManager->LoadModel("fence", "resources", "fence.obj");
-	modelManager->LoadModel("grass", "resources", "terrain.obj");
-	modelManager->LoadModel("block", "resources/block", "block.obj");
-	modelManager->CreateSphereModel("sphere", 16);
-	modelManager->CreatePlaneModel("plane");
-	modelManager->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
-	modelManager->LoadModel("human", "resources/human", "walk.gltf");
-	modelManager->LoadModel("egg", "resources/egg", "egg.obj"); // ヨッシーの卵（専用モデル）
-	modelManager->LoadModel("player", "resources/player", "player.gltf"); // プレイヤー（リグ付きマスコット。7色パレット焼き込み済み）
-	// 敵キャラ3種（リグ+クリップ入りglb。プレイヤーと同じトイ風の公式デザイン）
-	modelManager->LoadModel("enemyGround", "resources/enemy", "enemy_ground.glb"); // 地上「ドングリン」(Idle/Walk)
-	modelManager->LoadModel("enemyAir",    "resources/enemy", "enemy_air.glb");    // 空中「フワリン」(Fly)
-	modelManager->LoadModel("enemyPlant",  "resources/enemy", "enemy_plant.glb");  // 植物「カミバナ」(Idle/Bite)
-	modelManager->LoadModel("roadStraight", "resources/road", "road_straight.obj"); // 道の直線ピース（グリッド組み用）
-	modelManager->LoadModel("roadEnd",      "resources/road", "road_end.obj");      // 道の終端キャップ（自由端を閉じる）
-	modelManager->LoadModel("roadCorner",   "resources/road", "road_corner.obj");   // 交差点ピース：直角コーナー
-	modelManager->LoadModel("roadT",        "resources/road", "road_t.obj");        // 交差点ピース：T字路
-	modelManager->LoadModel("roadCross",    "resources/road", "road_cross.obj");    // 交差点ピース：十字路
-	modelManager->LoadModel("roadJoint",    "resources/road", "road_joint.obj");    // 接続ノードの凸ジョイント（プラレール風）
-	modelManager->CreateEggShellModel("eggShell", 0.3f);        // 卵の殻の欠片（割れ演出用）
-
-	// 汎用パーティクル用の粒（"sphere" は敵と共有＋モンスターボール柄がデフォルトなので、
-	//   色を付けるだけの粒には専用の白い球を使う）
-	modelManager->CreateSphereModel("fxSphere", 8);
-	if ( auto* fxModel = modelManager->FindModel("fxSphere") ) {
-		fxModel->SetTexture("resources/block/white1x1.png");
-	}
-	// 収集物（コイン）用の金色の球
-	modelManager->CreateSphereModel("coin", 12);
-	if ( auto* coinModel = modelManager->FindModel("coin") ) {
-		coinModel->SetTexture("resources/block/white1x1.png");
-		if ( coinModel->GetMaterial() ) { coinModel->GetMaterial()->color = { 1.0f, 0.85f, 0.2f, 1.0f }; }
-	}
-
-	// クラフトブロック一式（全モデルが block_atlas.png 1枚を共有。原点=底面中心・実寸1m角）。
-	//   keepOrigin=true：ローダーの重心センタリングを止めてファイルの底面原点を維持する
-	//   （センタリングされると描画だけ半分沈む＝長年の「ブロックが浮く/埋まる」の根本原因だった）
-	modelManager->LoadModel("craftSponge",  "resources/block/craft", "block_1x1x1_sponge.obj", true);
-	modelManager->LoadModel("craftLayer",   "resources/block/craft", "block_1x1x1_layer.obj", true);
-	modelManager->LoadModel("craftSlope45", "resources/block/craft", "slope_1x1_rolls.obj", true);
-	modelManager->LoadModel("craftSlope26", "resources/block/craft", "slope_2x1_rolls.obj", true);
-	modelManager->LoadModel("flowerOrange", "resources/block/craft", "flower_orange.obj", true);
-	modelManager->LoadModel("flowerWhite",  "resources/block/craft", "flower_white_face.obj", true);
-	// 性質つきブロック：既存モデルを別名で読み、着色して見分ける
-	auto loadTintedBlock = [&](const char* name, const char* file, const Vector4& color){
-		modelManager->LoadModel(name, "resources/block/craft", file, true);
-		if ( auto* model = modelManager->FindModel(name) ) {
-			if ( model->GetMaterial() ) { model->GetMaterial()->color = color; }
-		}
-	};
-	loadTintedBlock("craftSpring",     "block_1x1x1_sponge.obj", { 0.5f, 1.0f, 0.55f, 1.0f }); // ジャンプ台（緑）
-	loadTintedBlock("craftHatena",     "block_1x1x1_layer.obj",  { 1.0f, 0.8f, 0.15f, 1.0f }); // ？ブロック（金）
-	loadTintedBlock("craftHatenaUsed", "block_1x1x1_layer.obj",  { 0.45f, 0.42f, 0.4f, 1.0f }); // 使用済み（灰）
-	loadTintedBlock("craftCloud",      "block_1x1x1_layer.obj",  { 0.9f, 0.97f, 1.0f, 1.0f }); // すり抜け床（白）
-	// 大型ブロック（road_system_4）：横長2m（進行方向）と2×2m台座
-	modelManager->LoadModel("craftWide",     "resources/block/craft", "block_2x1x1_sponge.obj", true);
-	modelManager->LoadModel("craftPedestal", "resources/block/craft", "block_2x2x1_layer.obj", true);
-	// レール可視化用モデル（通常=緑 / 穴=赤 の2モデル。マテリアルはモデル単位で共有のため別モデルが必要）
-	modelManager->CreateCubeModel("railLineCube", 1.0f);
-	modelManager->CreateCubeModel("railLineCubeHole", 1.0f);
-
-	// パーティクルグループ
-	//   ※ 卵の煙／殻の飛び散りは加算パーティクルだと明るい背景で見えないため、
-	//      EggSystem 側で実体(Obj3d)の小球として描画する
-	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
-
-	// テクスチャ
-	TextureManager* textureManager = TextureManager::GetInstance();
-	textures_["uvChecker"]     = textureManager->Load("resources/uvChecker.png");
-	textures_["monsterBall"]   = textureManager->Load("resources/monsterBall.png");
-	textures_["fence"]         = textureManager->Load("resources/fence.png");
-	textures_["circle"]        = textureManager->Load("resources/circle.png");
-	textures_["circle2"]       = textureManager->Load("resources/circle2.png");
-	textures_["noise0"]        = textureManager->Load("Resources/noise0.png");
-	textures_["noise1"]        = textureManager->Load("Resources/noise1.png");
-	textures_["gradationLine"] = textureManager->Load("Resources/gradationLine.png");
-	textures_["white"]         = textureManager->Load("resources/block/white1x1.png");
-	// 道アトラスの先読み：RoadMesh はレール編集のたび（=フレーム途中）に参照するので、
-	// ここでキャッシュに載せておく（実行中のテクスチャ読み込みはデバッグレイヤーが嫌うため）
-	textures_["roadAtlas"]     = textureManager->Load("resources/road/road_atlas.png");
-	textures_["skybox"]        = textureManager->LoadCube("resources/StandardCubeMap.dds");
+	// 音・モデル・テクスチャ（ゲーム中に名前で引かれる物は全部ここで先に読む）
+	GamePlayAssets::Load(bgmFile_, textures_);
 	// 環境マップ（Obj3d 全般の映り込み）
 	Obj3dCommon::GetInstance()->SetEnvironmentTexture(textures_["skybox"].srvIndex);
 
@@ -739,90 +650,20 @@ void GamePlayScene::DrawHitShapes(){
 }
 
 void GamePlayScene::DrawInspectorUI(){
-#ifdef USE_IMGUI
-	Obj3dCommon::GetInstance()->DrawDebugUI();
-	camera_->DrawDebugUI();
-	debugCamera_->DrawDebugUI();
-	ParticleManager::GetInstance()->DrawDebugUI();
-	TextManager::GetInstance()->DrawDebugUI();
-
-	ImGui::Begin("インスペクター (詳細設定)");
-
-	if ( ImGui::CollapsingHeader("レール表示・カメラ視点 (Rail Debug)") ) {
-		bool showMarkers = railField_.ShowMarkers();
-		if ( ImGui::Checkbox("レール経路を表示", &showMarkers) ) { railField_.SetShowMarkers(showMarkers); }
-		camCtrl_.DrawDebugUI(); // プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
-		ImGui::Text("マーカー数: %d", railField_.MarkerCount());
-		if ( ImGui::Button("マーカー再構築") ) { railField_.RebuildMarkers(); }
-
-		// --- 道の設定（危険帯の長さ／両面描画／再生成）---
-		ImGui::Separator();
-		ImGui::TextDisabled("道の設定:");
-		bool roadVisible = roadMesh_.IsVisible();
-		if ( ImGui::Checkbox("道を表示", &roadVisible) ) { roadMesh_.SetVisible(roadVisible); }
-		bool cullNone = roadMesh_.IsCullNone();
-		if ( ImGui::Checkbox("両面描画（OFF=背面カリングで軽量化）", &cullNone) ) {
-			roadMesh_.SetCullNone(cullNone); // 即時反映（再生成不要）
-		}
-		int cornerStyle = roadMesh_.GetCornerStyle();
-		const char* cornerStyleLabels[] = { "自動（角度で判定）", "いつも丸広場（ヨッシー風）", "丸なし（角ばり）" };
-		ImGui::SetNextItemWidth(200.0f);
-		if ( ImGui::Combo("曲がり角の形", &cornerStyle, cornerStyleLabels, 3) ) {
-			roadMesh_.SetCornerStyle(cornerStyle);
-			roadMesh_.Build(railField_.GetRails(), camera_.get()); // 選んだ瞬間に道を作り直して反映
-		}
-		if ( ImGui::IsItemHovered() ) ImGui::SetTooltip("レールが曲がって繋がる角の見た目：\n 自動＝鋭い角はマイター、大きく回る角は丸広場\n いつも丸広場＝全部の角に丸い広場を出す\n 丸なし＝丸広場を出さず角ばった接続にする");
-		float warnLength = roadMesh_.GetWarnLength();
-		ImGui::SetNextItemWidth(160.0f);
-		if ( ImGui::SliderFloat("危険帯の長さ(m)", &warnLength, 0.5f, 5.0f, "%.1f") ) {
-			roadMesh_.SetWarnLength(warnLength);
-		}
-		// スライダーを離した時に道を作り直して反映（ドラッグ中の連続再生成はしない）
-		if ( ImGui::IsItemDeactivatedAfterEdit() ) { roadMesh_.Build(railField_.GetRails(), camera_.get()); }
-		ImGui::SameLine();
-		if ( ImGui::Button("道を再生成") ) {
-			EditorManager* editorManager = EditorManager::GetInstance();
-			roadMesh_.Build(railField_.GetRails(), camera_.get());
-			dissolveRoad_.Build(railField_.GetRails());
-			coinSystem_.Sync(editorManager->GetEditorCoins(), railField_.GetRails());
-			blockSystem_.Sync(editorManager->GetEditorBlocks(), &railField_.GetRails());
-		}
-		ImGui::Text("SDF溶け道: チェーン点 %d / 描画チャンク %d", dissolveRoad_.PieceCount(), dissolveRoad_.ActiveCount());
-		ImGui::SetNextItemWidth(160.0f);
-		ImGui::SliderFloat("プレイヤーモデル高さ補正(m)", avatar_.ModelYOffsetPtr(), -0.6f, 0.6f, "%.2f");
-		if ( ImGui::IsItemHovered() ) ImGui::SetTooltip("プレイヤーの足元と道の上面が合うように調整（マイナスで下がる）");
-		ImGui::Text("道メッシュ/ピース数: %d", roadMesh_.TileCount());
-		ImGui::Text("道の頂点数: %d / 三角形: %d", roadMesh_.VertexCount(), roadMesh_.TriangleCount());
-
-		// --- カメラ視点プリセット（レールを編集しやすく）---
-		ImGui::Separator();
-		ImGui::TextDisabled("カメラ視点プリセット:");
-		if ( ImGui::Button("トップビュー（真上から）") ) { EditorCameraUtil::TopView(*camera_, railField_.GetRails()); }
-		ImGui::SameLine();
-		if ( ImGui::Button("斜め視点に戻す") ) { EditorCameraUtil::DefaultAngle(*camera_); }
-		ImGui::TextDisabled("※デバッグカメラONなら右ドラッグで自由に回せます");
-	}
-
-	// デバッグ描画（DebugDraw）の表示設定
-	if ( ImGui::CollapsingHeader("デバッグ描画 (DebugDraw)") ) {
-		ImGui::Checkbox("グリッドを表示", &showDebugGrid_);
-		ImGui::Checkbox("当たり判定を表示", &showHitShapes_);
-		if ( ImGui::IsItemHovered() ) {
-			ImGui::SetTooltip("敵（赤）・プレイヤー（緑）・ブロック（水色）・飛んでいる卵（黄）の\n"
-				"当たり判定の形を線で表示する。見た目とずれていないかの確認用");
-		}
-		ImGui::TextDisabled("Box/Sphere/Line はコードから積む。Game View にも表示されます");
-	}
-	// 当たり判定のふるまい
-	if ( ImGui::CollapsingHeader("当たり判定 (Collision)") ) {
-		bool contactKnockback = combat_.IsContactKnockback();
-		if ( ImGui::Checkbox("敵に横からぶつかると弾かれる", &contactKnockback) ) {
-			combat_.SetContactKnockback(contactKnockback);
-		}
-		ImGui::TextDisabled("OFF にすると敵をすり抜ける（踏みつけ・卵・舌は OFF でも当たる）");
-	}
-	ImGui::End();
-#endif
+	PlaySceneInspector::Targets targets;
+	targets.camera           = camera_.get();
+	targets.debugCamera      = debugCamera_.get();
+	targets.railField        = &railField_;
+	targets.roadMesh         = &roadMesh_;
+	targets.dissolveRoad     = &dissolveRoad_;
+	targets.cameraController = &camCtrl_;
+	targets.coinSystem       = &coinSystem_;
+	targets.blockSystem      = &blockSystem_;
+	targets.combat           = &combat_;
+	targets.avatar           = &avatar_;
+	targets.showDebugGrid    = &showDebugGrid_;
+	targets.showHitShapes    = &showHitShapes_;
+	PlaySceneInspector::Draw(targets);
 }
 
 // =====================================================================

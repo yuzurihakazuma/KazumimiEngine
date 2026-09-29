@@ -1,76 +1,22 @@
 #include "BlockSystem.h"
-#include "engine/3d/obj/Obj3d.h"
-#include "engine/graphics/InstancedGroup.h"
-#include "engine/graphics/DebugDraw.h"
 #include "engine/rail/SplineRail.h"
 #include <algorithm>
 #include <cmath>
 
 namespace {
-    const float kHalf = BlockSystem::kSize * 0.5f;   // ブロック半幅 (0.5m)
-    const float kPlayerRadius = 0.30f;               // プレイヤーの横当たり半径
-    const float kStepTolerance = 0.25f;              // これ以下の段差は支持面として拾う（小さなガタつき吸収）
-    const float kVisualEmbed   = 0.02f;              // 見た目だけ道へ2cm沈める（スプライン曲率の継ぎ目で髪の毛ほど浮くのを隠す）
+    const float kHalf = BlockShape::kHalf;
+    const float kPlayerRadius  = 0.30f; // プレイヤーの横当たり半径
+    const float kStepTolerance = 0.25f; // これ以下の段差は支持面として拾う（小さなガタつき吸収）
     // 支持面（乗れる範囲）はブロックの実寸＋わずかな縁の許容だけ。
-    //   壁当たり半径(0.8m)をそのまま使うと1マス空きの落とし穴を歩いて渡れてしまう
-    const float kSupportReach = kHalf + 0.10f;
-    const uint32_t kMaxPerLook = 4000;               // 見た目グループごとの最大インスタンス数
-
-    // (レール, 1mセル) を1つの整数キーにまとめる
-    uint64_t CellKey(int rail, int cell){
-        return ( static_cast< uint64_t >( static_cast< uint32_t >( rail ) ) << 32 )
-             | static_cast< uint32_t >( cell );
-    }
-    // 距離 → 1mセル番号
-    int CellOf(float dist){ return ( int ) std::lround(dist); }
+    //   壁当たり半径をそのまま使うと1マス空きの落とし穴を歩いて渡れてしまう
+    const float kSupportEdge = 0.10f;
+    // 当たり判定で見るセルの範囲（±2セル）：斜面26°・横長・台座（半幅1m）は、レール編集後に
+    //   距離が半端な値へ引き直されると ±1セルの窓から漏れて「見えているのに当たらない」ことがあった
+    const int kQueryCells = 2;
 
     // プレイヤーは道の中心線上を進むので、横へずらしたブロック（壁の飾り等）は当たらない。
     //   side=0 のみ当たる（1mずらすと 1.0 > 0.8 で判定から外れる）
     bool OverlapsCenterLine(float side){ return std::abs(side) < kHalf + kPlayerRadius; }
-}
-
-namespace {
-    // 種類 → モデル名（GamePlayScene::LoadResources が先に読み込む）
-    const char* kTypeModelNames[BlockSystem::kTypeCount] = {
-        "craftSponge",   // 0: 1m角スポンジ
-        "craftLayer",    // 1: 1m角の段ボール層
-        "craftSlope45",  // 2: 斜面45°（巻き段ボール筒）
-        "craftSlope26",  // 3: ゆるい斜面26.6°
-        "craftSpring",   // 4: ジャンプ台（緑のスポンジ。上に飛び乗ると跳ねる）
-        "craftHatena",   // 5: ？ブロック（金色。下から頭突きでコイン）
-        "craftCloud",    // 6: すり抜け床（白。上にだけ乗れる薄い板）
-        "craftWide",     // 7: 横長ブロック（進行方向2m×1m。スポンジ側面）
-        "craftPedestal", // 8: 台座ブロック（2×2m×高さ1m。段ボール層側面）
-    };
-    const char* kFlowerModelNames[2] = { "flowerOrange", "flowerWhite" };
-
-    // セル座標から決まる擬似乱数（花の有無・向きに使う。毎回同じ結果＝チラつかない）
-    uint32_t CellHash(int rail, int cell, int level, int side){
-        uint32_t h = ( uint32_t ) ( rail * 73856093 ) ^ ( uint32_t ) ( cell * 19349663 )
-                   ^ ( uint32_t ) ( level * 83492791 ) ^ ( uint32_t ) ( ( side + 8 ) * 2971215073u );
-        h ^= h >> 13; h *= 0x85ebca6bu; h ^= h >> 16;
-        return h;
-    }
-}
-
-BlockSystem::BlockSystem() = default;
-BlockSystem::~BlockSystem() = default;
-
-void BlockSystem::Initialize(uint32_t noiseSrvIndex){
-    // 種類ごと＋花2種の一括描画グループを用意（モデルは GamePlayScene が先に作る）
-    for ( int t = 0; t < kTypeCount; ++t ) {
-        typeLooks_[t].batch = std::make_unique<InstancedGroup>();
-        typeLooks_[t].batch->Initialize(kTypeModelNames[t], kMaxPerLook);
-        typeLooks_[t].batch->SetNoiseTexture(noiseSrvIndex);
-    }
-    usedHatenaLook_.batch = std::make_unique<InstancedGroup>();
-    usedHatenaLook_.batch->Initialize("craftHatenaUsed", kMaxPerLook);
-    usedHatenaLook_.batch->SetNoiseTexture(noiseSrvIndex);
-    for ( int f = 0; f < 2; ++f ) {
-        flowerLooks_[f].batch = std::make_unique<InstancedGroup>();
-        flowerLooks_[f].batch->Initialize(kFlowerModelNames[f], kMaxPerLook);
-        flowerLooks_[f].batch->SetNoiseTexture(noiseSrvIndex);
-    }
 }
 
 void BlockSystem::Sync(const std::vector<BlockData>& blockDatas, const std::vector<SplineRail>* rails){
@@ -89,427 +35,87 @@ void BlockSystem::Sync(const std::vector<BlockData>& blockDatas, const std::vect
             blocks_.push_back({ data.rail, dist, data.level, data.side, data.type });
         }
     }
-    RebuildCellMap();
-    BuildLookGroups();
+    grid_.Rebuild(blocks_);
+    // 斜面の登り方向を隣のブロックから自動決定（例：ブロックの手前に斜面を置くと、そのブロックへ登るスロープになる）
+    for ( PlacedBlock& block : blocks_ ) {
+        if ( BlockShape::IsSlope(block.type) ) { block.ascend = SlopeAscendAt(block.rail, block.dist, block.level, block.side); }
+    }
+    RebuildLooks();
     Update(); // 生成直後に位置を確定（原点に一瞬出るのを防ぐ）
 }
 
-// (レール, セル) の索引を作り直す。当たり判定・隣接判定はここから引く
-void BlockSystem::RebuildCellMap(){
-    cellMap_.clear();
-    for ( int i = 0; i < ( int ) blocks_.size(); ++i ) {
-        cellMap_[CellKey(blocks_[i].rail, CellOf(blocks_[i].dist))].push_back(i);
-    }
-}
-
-bool BlockSystem::HasBlockAt(int rail, int cell, int level, float side) const{
-    return FindBlockIndexAt(rail, cell, level, side) >= 0;
-}
-
-int BlockSystem::FindBlockIndexAt(int rail, int cell, int level, float side) const{
-    auto found = cellMap_.find(CellKey(rail, cell));
-    if ( found == cellMap_.end() ) return -1;
-    for ( int idx : found->second ) {
-        const Block& block = blocks_[idx];
-        if ( block.level == level && std::abs(block.side - side) < 0.51f ) return idx;
-    }
-    return -1;
-}
-
-// このブロックの dist 位置での表面高さ（レール面からの相対）。
-//   矩形は上面一定、斜面はセル内で線形に上がる（登り方向は ascend が持つ）
-float BlockSystem::SurfaceHeightAt(const Block& block, float dist) const{
-    float bottom = ( float ) block.level * kSize;
-    if ( IsSlopeType(block.type) ) {
-        float run = FootprintHalf(block.type) * 2.0f; // 45°=1m / 26°=2m
-        float t = std::clamp(( dist - ( block.dist - run * 0.5f ) ) / run, 0.0f, 1.0f);
-        if ( block.ascend < 0 ) { t = 1.0f - t; }
-        return bottom + t * kSize;
-    }
-    return bottom + kSize;
-}
-
-// 行列計算用プールを count 個まで育てる（縮めない）。
-//   Obj3d は行列計算にしか使わない（描画は InstancedGroup）ので、モデルは何でもよく、
-//   使い回す＝ペイントのたびにGPUリソースを作り直さない
-void BlockSystem::EnsurePool(size_t count){
-    while ( objPool_.size() < count ) {
-        auto obj = Obj3d::Create("craftSponge");
-        objPool_.push_back(std::move(obj));
-    }
-}
-
-// 種類ごとの見た目グループへ振り分け、さらに「並んだブロックのつなぎ目」へ紙花を自動配置する。
-//   本家（ヨッシークラフトワールド）の「継ぎ目を花で隠す」演出：2個以上並べると勝手に咲く
-void BlockSystem::BuildLookGroups(){
-    for ( int t = 0; t < kTypeCount; ++t ) { typeLooks_[t].objs.clear(); typeLooks_[t].blockIndices.clear(); }
-    usedHatenaLook_.objs.clear(); usedHatenaLook_.blockIndices.clear();
-    for ( int f = 0; f < 2; ++f )          { flowerLooks_[f].objs.clear(); flowerLooks_[f].blockIndices.clear(); }
-    flowers_.clear();
-
-    // --- 斜面の登り方向を隣のブロックから自動決定：高い側が隣のブロックへ向く ---
-    //   （例：ブロックの手前に斜面を置くと、そのブロックへ登るスロープになる）
-    for ( Block& block : blocks_ ) {
-        if ( !IsSlopeType(block.type) ) continue;
-        int cell = CellOf(block.dist);
-        if      ( HasBlockAt(block.rail, cell + 1, block.level, block.side) ) { block.ascend = +1; }
-        else if ( HasBlockAt(block.rail, cell - 1, block.level, block.side) ) { block.ascend = -1; }
-        else { block.ascend = +1; } // 隣がいなければ進行方向へ登る向き
-    }
-
-    // --- 花の自動配置：右隣（dist+1）に同じ段・同じ横位置のブロックがあり、
-    //     両方とも上が空いている継ぎ目に、セルハッシュで約半分だけ咲かせる ---
-    for ( const Block& block : blocks_ ) {
-        int cell = CellOf(block.dist);
-        int sideKey = ( int ) std::lround(block.side);
-        if ( IsSlopeType(block.type) ) continue; // 斜面の上面は斜めなので花は咲かせない
-        int rightIdx = FindBlockIndexAt(block.rail, cell + 1, block.level, block.side);
-        if ( rightIdx < 0 || IsSlopeType(blocks_[rightIdx].type) ) continue; // 右隣なし/斜面
-        if ( HasBlockAt(block.rail, cell, block.level + 1, block.side) ) continue;     // 自分の上が塞がり
-        if ( HasBlockAt(block.rail, cell + 1, block.level + 1, block.side) ) continue; // 隣の上が塞がり
-        uint32_t hash = CellHash(block.rail, cell, block.level, sideKey);
-        if ( ( hash & 3 ) == 0 ) continue; // 1/4は咲かせない（並びすぎ防止のゆらぎ）
-        FlowerSpot flower;
-        flower.rail = block.rail;
-        flower.dist = block.dist + 0.5f; // 継ぎ目（セルの中間）
-        flower.side = block.side;
-        flower.topY = ( float ) block.level * kSize + kSize;
-        flower.yawOffset = ( ( float ) ( hash % 628 ) ) * 0.01f; // 0〜2π
-        flower.kind = ( hash >> 4 ) & 1;
-        flowers_.push_back(flower);
-    }
-
-    EnsurePool(blocks_.size() + flowers_.size());
-
-    // ブロック本体を種類ごとに振り分け（使用済みの？ブロックは灰色グループへ）
-    for ( int i = 0; i < ( int ) blocks_.size(); ++i ) {
-        int type = std::clamp(blocks_[i].type, 0, kTypeCount - 1);
-        LookGroup& look = ( type == kTypeHatena && blocks_[i].used ) ? usedHatenaLook_ : typeLooks_[type];
-        look.objs.push_back(objPool_[i].get());
-        look.blockIndices.push_back(i);
-    }
-    // 花はプールの後半を使う（blockIndices は花配列の番号を負で持たず、-1-花番号で区別）
-    for ( int f = 0; f < ( int ) flowers_.size(); ++f ) {
-        LookGroup& look = flowerLooks_[flowers_[f].kind];
-        look.objs.push_back(objPool_[blocks_.size() + f].get());
-        look.blockIndices.push_back(-1 - f);
-    }
-}
-
-// レール上 (rail, dist) の基準位置・道幅方向（右）・向き(yaw)を求める。
-// 動くレールの現在位置（animOffset込み）を毎フレーム反映するので、リフト上のブロックも一緒に動く
-bool BlockSystem::BlockWorldPos(const Block& block, Vector3& outPos, float& outYaw, float* outPitch) const{
-    if ( !rails_ ) return false;
-    if ( block.rail < 0 || block.rail >= ( int ) rails_->size() ) return false;
-    const SplineRail& rail = ( *rails_ )[block.rail];
-    if ( rail.nodes.size() < 2 ) return false;
-
-    float dist = std::clamp(block.dist, 0.0f, rail.GetLength());
-    Vector3 base    = rail.GetPositionByDistance(dist);
-    Vector3 tangent = rail.GetTangentByDistance(dist);
-
-    // 道幅方向（水平の右）＝ up × tangent。接線がほぼ真上を向く場合はずらさない
-    float horizLen = std::sqrt(tangent.x * tangent.x + tangent.z * tangent.z);
-    Vector3 right { 0.0f, 0.0f, 0.0f };
-    if ( horizLen > 1e-4f ) { right = { tangent.z / horizLen, 0.0f, -tangent.x / horizLen }; }
-
-    // モデルは原点が底面中心・実寸1m角。底面は「道の上面」（＝レール線）＋段数に置く。
-    //   これでブロックが道にぴったり接地し、プレイヤーが上に乗った時の見た目も
-    //   道に立つ時と同じ基準になる（当たり判定はレール線基準のままで整合する）
-    outPos = { base.x + right.x * block.side,
-               base.y + kSurfaceY + ( float ) block.level * kSize - kVisualEmbed,
-               base.z + right.z * block.side };
-    outYaw = ( horizLen > 1e-4f ) ? std::atan2(tangent.x, tangent.z) : 0.0f;
-    // 道の勾配（ピッチ）。道はレールに沿って傾くのに、ブロックを水平のまま置くと
-    // 坂で縁が浮く/めり込む。この角度で傾ければ底面が道と平行になり、
-    // 上面もレール相対で一定＝当たり判定(SurfaceHeightAt)と見た目が一致する
-    if ( outPitch ) {
-        *outPitch = ( horizLen > 1e-4f ) ? std::atan2(-tangent.y, horizLen) : 0.0f;
-    }
-    return true;
+int BlockSystem::SlopeAscendAt(int rail, float dist, int level, float side) const{
+    const int cell = BlockGrid::CellOf(dist);
+    if ( grid_.Has(rail, cell + 1, level, side) ) return +1;
+    if ( grid_.Has(rail, cell - 1, level, side) ) return -1;
+    return +1; // 隣がいなければ進行方向へ登る向き
 }
 
 void BlockSystem::Update(){
     if ( !rails_ ) return;
-    auto updateLook = [&](LookGroup& look){
-        for ( size_t i = 0; i < look.objs.size(); ++i ) {
-            Obj3d* obj = look.objs[i];
-            if ( !obj ) continue;
-            int idx = look.blockIndices[i];
-            if ( idx >= 0 ) {
-                // ブロック本体
-                const Block& block = blocks_[idx];
-                Vector3 pos {}; float yaw = 0.0f; float pitch = 0.0f;
-                if ( !BlockWorldPos(block, pos, yaw, &pitch) ) continue;
-                if ( block.type == kTypeCloud ) {
-                    // すり抜け床：セル上端に薄い板として置く（当たりの支持面＝セル上端と一致）
-                    pos.y += 0.7f;
-                    obj->SetScale({ 1.0f, 0.3f, 1.0f });
-                } else {
-                    obj->SetScale({ 1.0f, 1.0f, 1.0f }); // プール使い回しなので毎回戻す
-                }
-                if ( IsSlopeType(block.type) ) {
-                    // 斜面モデルは「高い側の縁が原点」なので、走行方向へ半分ずらしてセル中央に合わせ、
-                    // 登り方向が -側 なら180°回して高い側を隣のブロックへ向ける
-                    const float kPi = 3.14159265f;
-                    float run = FootprintHalf(block.type) * 2.0f;
-                    float forward = ( float ) block.ascend * run * 0.5f;
-                    Vector3 tangentDir = { std::sin(yaw), 0.0f, std::cos(yaw) };
-                    pos.x += tangentDir.x * forward;
-                    pos.z += tangentDir.z * forward;
-                    pos.y += -std::tan(pitch) * forward; // 原点も勾配に沿って上下（レール相対の高さを保つ）
-                    if ( block.ascend < 0 ) { yaw += kPi; pitch = -pitch; } // 180°回すと勾配の向きも反転
-                }
-                obj->SetTranslation(pos);
-                // ピッチ＝道の勾配。回転は Rx→Ry の順に掛かるので、モデルの左右軸で傾けてから向きを合わせる
-                obj->SetRotation({ pitch, yaw, 0.0f });
-            } else {
-                // 花（-1-花番号 で持っている）。継ぎ目のブロック上面に立てる
-                const FlowerSpot& flower = flowers_[-1 - idx];
-                Block asBlock { flower.rail, flower.dist, 0, flower.side, 0 };
-                Vector3 pos {}; float yaw = 0.0f;
-                if ( !BlockWorldPos(asBlock, pos, yaw) ) continue;
-                pos.y += flower.topY;
-                obj->SetTranslation(pos);
-                obj->SetRotation({ 0.0f, yaw + flower.yawOffset, 0.0f });
-            }
-            obj->Update();
-        }
-        // 計算済みの行列をまとめてGPU送信用配列へ写す
-        if ( look.batch ) { look.batch->Update(look.objs); }
-    };
-    for ( int t = 0; t < kTypeCount; ++t ) { updateLook(typeLooks_[t]); }
-    updateLook(usedHatenaLook_);
-    for ( int f = 0; f < 2; ++f )          { updateLook(flowerLooks_[f]); }
-
-    RebuildWorldBoxes(); // 卵などが使うワールド空間の箱も、同じ位置・向きで作り直す
+    renderer_.Update(blocks_, *rails_);
+    shapes_.Rebuild(blocks_, *rails_); // 卵などが使うワールド空間の箱も、同じ位置・向きで作り直す
 }
 
-// =====================================================================
-//  ワールド空間の当たり判定（卵・吐き出し弾・エディタのレイキャスト用）
-//   描画と同じ BlockWorldPos（位置・向き・勾配）から箱を作るので、見た目と必ず一致する
-// =====================================================================
-bool BlockSystem::MakeWorldBox(const Block& block, WorldBox& box) const{
-    Vector3 origin {}; float yaw = 0.0f; float pitch = 0.0f;
-    if ( !BlockWorldPos(block, origin, yaw, &pitch) ) return false;
-
-    // 描画の回転（Rx(pitch)→Ry(yaw)）と同じ向きの3軸
-    float sinYaw = std::sin(yaw), cosYaw = std::cos(yaw);
-    float sinPitch = std::sin(pitch), cosPitch = std::cos(pitch);
-    box.right   = { cosYaw, 0.0f, -sinYaw };
-    box.up      = { sinPitch * sinYaw, cosPitch, sinPitch * cosYaw };
-    box.forward = { sinYaw * cosPitch, -sinPitch, cosYaw * cosPitch };
-
-    // 寸法はモデルの実寸：斜面と台座は道幅2m、横長・台座・ゆるい斜面は進行方向2m
-    float halfSide   = ( IsSlopeType(block.type) || block.type == kTypePedestal ) ? 1.0f : kHalf;
-    float halfAlong  = FootprintHalf(block.type);
-    float halfHeight = kHalf;
-    float centerUp   = kHalf; // 底面中心（原点）から箱の中心までの高さ
-    if ( block.type == kTypeCloud ) { centerUp = 0.85f; halfHeight = 0.15f; } // セル上端の薄い板
-    box.half   = { halfSide, halfHeight, halfAlong };
-    box.center = { origin.x + box.up.x * centerUp,
-                   origin.y + box.up.y * centerUp,
-                   origin.z + box.up.z * centerUp };
-    box.slope  = IsSlopeType(block.type);
-    box.ascend = block.ascend;
+bool BlockSystem::Raycast(const Vector3& origin, const Vector3& direction, RayHit& outHit) const{
+    BlockWorldShapes::Hit hit;
+    if ( !shapes_.Raycast(origin, direction, hit) ) return false;
+    const PlacedBlock& block = blocks_[hit.blockIndex];
+    outHit.cell.rail  = block.rail;
+    outHit.cell.dist  = block.dist;
+    outHit.cell.level = block.level;
+    outHit.cell.side  = block.side;
+    outHit.cell.type  = block.type;
+    outHit.distance   = hit.distance;
+    outHit.faceAxis   = hit.faceAxis;
+    outHit.faceSign   = hit.faceSign;
+    outHit.halfAlong  = hit.halfAlong;
+    outHit.halfSide   = hit.halfSide;
     return true;
 }
 
-void BlockSystem::RebuildWorldBoxes(){
-    worldBoxes_.clear();
-    worldBoxes_.reserve(blocks_.size());
-    for ( int i = 0; i < ( int ) blocks_.size(); ++i ) {
-        WorldBox box;
-        if ( !MakeWorldBox(blocks_[i], box) ) continue;
-        box.blockIndex = i;
-        worldBoxes_.push_back(box);
-    }
-}
-
 int BlockSystem::AscendAt(int rail, float dist, int level, float side) const{
-    int found = FindBlockIndexAt(rail, CellOf(dist), level, side);
+    int found = grid_.Find(rail, BlockGrid::CellOf(dist), level, side);
     return ( found >= 0 ) ? blocks_[found].ascend : +1;
 }
 
 bool BlockSystem::CellCenter(int rail, float dist, int level, float side, Vector3& outCenter) const{
-    Block cell { rail, dist, level, side, 0 };
-    WorldBox box;
-    if ( !MakeWorldBox(cell, box) ) return false;
+    if ( !rails_ ) return false;
+    BlockWorldShapes::Box box;
+    if ( !BlockWorldShapes::MakeBox(*rails_, PlacedBlock { rail, dist, level, side, 0 }, box) ) return false;
     outCenter = box.center;
     return true;
 }
 
 void BlockSystem::DrawCellGhost(int rail, float dist, int level, float side, int type,
                                 const Vector4& color, float inflate) const{
-    Block cell { rail, dist, level, side, type };
+    if ( !rails_ ) return;
+    PlacedBlock cell { rail, dist, level, side, type };
     // 斜面の向きは、置いた後と同じ決め方（隣のブロックの方へ登る）で予告する
-    if ( IsSlopeType(type) ) {
-        int cellIndex = CellOf(dist);
-        if      ( HasBlockAt(rail, cellIndex + 1, level, side) ) { cell.ascend = +1; }
-        else if ( HasBlockAt(rail, cellIndex - 1, level, side) ) { cell.ascend = -1; }
-    }
-    WorldBox box;
-    if ( !MakeWorldBox(cell, box) ) return;
-    DrawBoxWire(box, color, inflate);
-}
-
-// 点と箱の距離の2乗（箱のローカル座標へ直してから、箱の中の一番近い点までを測る）
-float BlockSystem::DistSqToBox(const WorldBox& box, const Vector3& worldPoint){
-    Vector3 delta = { worldPoint.x - box.center.x, worldPoint.y - box.center.y, worldPoint.z - box.center.z };
-    float localX = delta.x * box.right.x   + delta.y * box.right.y   + delta.z * box.right.z;
-    float localY = delta.x * box.up.x      + delta.y * box.up.y      + delta.z * box.up.z;
-    float localZ = delta.x * box.forward.x + delta.y * box.forward.y + delta.z * box.forward.z;
-
-    float nearX = std::clamp(localX, -box.half.x, box.half.x);
-    float nearY = std::clamp(localY, -box.half.y, box.half.y);
-    float nearZ = std::clamp(localZ, -box.half.z, box.half.z);
-    if ( box.slope ) {
-        // 斜面：上面は進行方向へ直線的に高くなる。坂の上の空間は箱の外として扱う
-        float t = ( nearZ + box.half.z ) / ( box.half.z * 2.0f );
-        if ( box.ascend < 0 ) { t = 1.0f - t; }
-        float surfaceY = -box.half.y + t * box.half.y * 2.0f;
-        nearY = ( std::min )( nearY, surfaceY );
-    }
-    float dx = localX - nearX, dy = localY - nearY, dz = localZ - nearZ;
-    return dx * dx + dy * dy + dz * dz;
-}
-
-bool BlockSystem::SweepSphere(const Vector3& from, const Vector3& to, float radius, Vector3* outHitPos) const{
-    if ( worldBoxes_.empty() ) return false;
-    Vector3 delta = { to.x - from.x, to.y - from.y, to.z - from.z };
-    float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
-    Vector3 middle = { from.x + delta.x * 0.5f, from.y + delta.y * 0.5f, from.z + delta.z * 0.5f };
-
-    // 移動区間に届きうる箱だけを先に拾う（箱の外接球 ＋ 区間の半分 ＋ 球の半径）
-    const float kBoxBound = 1.75f; // 一番大きい箱（2×1×2m）の対角の半分より少し大きい値
-    float reach = length * 0.5f + radius + kBoxBound;
-    std::vector<const WorldBox*> candidates;
-    for ( const WorldBox& box : worldBoxes_ ) {
-        float dx = box.center.x - middle.x, dy = box.center.y - middle.y, dz = box.center.z - middle.z;
-        if ( dx * dx + dy * dy + dz * dz <= reach * reach ) { candidates.push_back(&box); }
-    }
-    if ( candidates.empty() ) return false;
-
-    // 区間を球の半径の半分刻みで進めて調べる（速い弾が薄い壁を1フレームで飛び越さない）
-    int steps = std::clamp(( int ) std::ceil(length / ( std::max )( radius * 0.5f, 0.05f )), 1, 96);
-    Vector3 lastFree = from;
-    for ( int i = 1; i <= steps; ++i ) {
-        float t = ( float ) i / ( float ) steps;
-        Vector3 point = { from.x + delta.x * t, from.y + delta.y * t, from.z + delta.z * t };
-        for ( const WorldBox* box : candidates ) {
-            if ( DistSqToBox(*box, point) <= radius * radius ) {
-                if ( outHitPos ) { *outHitPos = lastFree; }
-                return true;
-            }
-        }
-        lastFree = point;
-    }
-    return false;
-}
-
-bool BlockSystem::Raycast(const Vector3& origin, const Vector3& direction, RayHit& outHit) const{
-    bool found = false;
-    float bestDistance = 1e9f;
-    for ( const WorldBox& box : worldBoxes_ ) {
-        // レイを箱のローカル座標へ
-        Vector3 delta = { origin.x - box.center.x, origin.y - box.center.y, origin.z - box.center.z };
-        const Vector3* axes[3] = { &box.right, &box.up, &box.forward };
-        const float halves[3] = { box.half.x, box.half.y, box.half.z };
-        float tEnter = 0.0f, tExit = 1e9f;
-        int   enterAxis = 1, enterSign = 1;
-        bool  miss = false;
-        for ( int axis = 0; axis < 3 && !miss; ++axis ) {
-            float localOrigin = delta.x * axes[axis]->x + delta.y * axes[axis]->y + delta.z * axes[axis]->z;
-            float localDir    = direction.x * axes[axis]->x + direction.y * axes[axis]->y + direction.z * axes[axis]->z;
-            if ( std::abs(localDir) < 1e-6f ) {
-                if ( std::abs(localOrigin) > halves[axis] ) { miss = true; }
-                continue;
-            }
-            float t0 = ( -halves[axis] - localOrigin ) / localDir;
-            float t1 = (  halves[axis] - localOrigin ) / localDir;
-            int   sign = -1; // t0 は「−側の面」から入る場合
-            if ( t0 > t1 ) { std::swap(t0, t1); sign = 1; }
-            if ( t0 > tEnter ) { tEnter = t0; enterAxis = axis; enterSign = sign; }
-            if ( t1 < tExit )  { tExit = t1; }
-            if ( tEnter > tExit ) { miss = true; }
-        }
-        if ( miss || tExit < 0.0f ) continue;
-        if ( tEnter < bestDistance ) {
-            const Block& block = blocks_[box.blockIndex];
-            bestDistance = tEnter;
-            outHit.cell.rail  = block.rail;
-            outHit.cell.dist  = block.dist;
-            outHit.cell.level = block.level;
-            outHit.cell.side  = block.side;
-            outHit.cell.type  = block.type;
-            outHit.distance   = tEnter;
-            outHit.faceAxis   = enterAxis;
-            outHit.faceSign   = enterSign;
-            outHit.halfAlong  = box.half.z;
-            outHit.halfSide   = box.half.x;
-            found = true;
-        }
-    }
-    return found;
-}
-
-void BlockSystem::DrawBoxWire(const WorldBox& box, const Vector4& color, float inflate){
-    DebugDraw* debugDraw = DebugDraw::GetInstance();
-    // 8頂点（ビット0=道幅 / ビット1=上下 / ビット2=進行方向）
-    Vector3 corners[8];
-    for ( int i = 0; i < 8; ++i ) {
-        float signX = ( i & 1 ) ? 1.0f : -1.0f;
-        float signY = ( i & 2 ) ? 1.0f : -1.0f;
-        float signZ = ( i & 4 ) ? 1.0f : -1.0f;
-        float heightScale = 1.0f;
-        if ( box.slope && signY > 0.0f ) {
-            // 斜面の上面：低い側の縁は底面と同じ高さまで下げる
-            bool highEdge = ( signZ > 0.0f ) == ( box.ascend > 0 );
-            if ( !highEdge ) { heightScale = -1.0f; }
-        }
-        float offsetX = signX * ( box.half.x + inflate );
-        float offsetY = signY * ( box.half.y + inflate ) * heightScale;
-        float offsetZ = signZ * ( box.half.z + inflate );
-        corners[i] = {
-            box.center.x + box.right.x * offsetX + box.up.x * offsetY + box.forward.x * offsetZ,
-            box.center.y + box.right.y * offsetX + box.up.y * offsetY + box.forward.y * offsetZ,
-            box.center.z + box.right.z * offsetX + box.up.z * offsetY + box.forward.z * offsetZ };
-    }
-    const int edges[12][2] = {
-        { 0, 1 }, { 2, 3 }, { 4, 5 }, { 6, 7 },   // 道幅方向
-        { 0, 2 }, { 1, 3 }, { 4, 6 }, { 5, 7 },   // 上下
-        { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 } }; // 進行方向
-    for ( const auto& edge : edges ) { debugDraw->Line(corners[edge[0]], corners[edge[1]], color); }
-}
-
-void BlockSystem::DrawHitShapes(const Vector4& color) const{
-    for ( const WorldBox& box : worldBoxes_ ) { DrawBoxWire(box, color, 0.0f); }
+    if ( BlockShape::IsSlope(type) ) { cell.ascend = SlopeAscendAt(rail, dist, level, side); }
+    BlockWorldShapes::Box box;
+    if ( BlockWorldShapes::MakeBox(*rails_, cell, box) ) { BlockWorldShapes::DrawWire(box, color, inflate); }
 }
 
 // 頭をぶつけた時に Player が呼ぶ。ぶつけた先が未使用の？ブロックならコインを出して使用済みにする
 void BlockSystem::NotifyHeadBump(int rail, float dist, float headY){
     bool changed = false;
-    int center = CellOf(dist);
-    for ( int cell = center - 1; cell <= center + 1; ++cell ) {
-        auto found = cellMap_.find(CellKey(rail, cell));
-        if ( found == cellMap_.end() ) continue;
-        for ( int idx : found->second ) {
-            Block& block = blocks_[idx];
-            if ( block.type != kTypeHatena || block.used ) continue;
-            if ( !OverlapsCenterLine(block.side) ) continue;
-            if ( std::abs(block.dist - dist) > kHalf + kPlayerRadius ) continue;
-            float bottom = ( float ) block.level * kSize;
-            if ( std::abs(bottom - headY) > 0.15f ) continue; // 頭が当たった面のブロックだけ
-            block.used = true;
-            changed = true;
-            // コインの飛び出し位置＝ブロックの上面中央
-            Vector3 pos {}; float yaw = 0.0f;
-            if ( BlockWorldPos(block, pos, yaw) ) {
-                bumpCoinQueue_.push_back({ pos.x, pos.y + kSize + 0.3f, pos.z });
-            }
+    grid_.ForEachNear(rail, dist, 1, [&](int index){
+        PlacedBlock& block = blocks_[index];
+        if ( block.type != kTypeHatena || block.used ) return;
+        if ( !OverlapsCenterLine(block.side) ) return;
+        if ( std::abs(block.dist - dist) > kHalf + kPlayerRadius ) return;
+        float bottom = ( float ) block.level * kSize;
+        if ( std::abs(bottom - headY) > 0.15f ) return; // 頭が当たった面のブロックだけ
+        block.used = true;
+        changed = true;
+        // コインの飛び出し位置＝ブロックの上面中央
+        Vector3 pos {}; float yaw = 0.0f;
+        if ( rails_ && BlockShape::PoseOnRail(*rails_, block, pos, yaw) ) {
+            bumpCoinQueue_.push_back({ pos.x, pos.y + kSize + 0.3f, pos.z });
         }
-    }
-    if ( changed ) { BuildLookGroups(); } // 使用済みの見た目（灰色）へ差し替え
+    });
+    if ( changed ) { RebuildLooks(); } // 使用済みの見た目（灰色）へ差し替え
 }
 
 bool BlockSystem::ConsumeBumpCoin(Vector3& outPos){
@@ -526,111 +132,77 @@ void BlockSystem::ResetPlay(){
         if ( block.used ) { block.used = false; changed = true; }
     }
     bumpCoinQueue_.clear();
-    if ( changed ) { BuildLookGroups(); }
+    if ( changed ) { RebuildLooks(); }
 }
 
-void BlockSystem::Draw(const Camera* camera){
-    // 見た目グループごとに1ドローコール（何百個置いても種類数ぶんだけ）
-    for ( int t = 0; t < kTypeCount; ++t ) {
-        if ( typeLooks_[t].batch ) { typeLooks_[t].batch->Draw(camera); }
-    }
-    if ( usedHatenaLook_.batch ) { usedHatenaLook_.batch->Draw(camera); }
-    for ( int f = 0; f < 2; ++f ) {
-        if ( flowerLooks_[f].batch ) { flowerLooks_[f].batch->Draw(camera); }
-    }
-}
-
-// 足元の支持面（レール空間）。footY より少し上までの上面を「乗れる面」として拾う。
+// 足元の支持面（レール空間）。footY より少し上までの上面を「乗れる面」として拾い、一番高いものを選ぶ。
 //   斜面は位置に応じた表面高さ（＝そのまま歩いて登り降りできる）
+void BlockSystem::FindSupport(int rail, float dist, float footY, float& outTop, int& outType) const{
+    outTop = 0.0f;  // レール面
+    outType = -1;
+    grid_.ForEachNear(rail, dist, kQueryCells, [&](int index){
+        const PlacedBlock& block = blocks_[index];
+        if ( !OverlapsCenterLine(block.side) ) return;
+        float reach = BlockShape::FootprintHalf(block.type) + kSupportEdge; // 乗れるのは実寸＋縁だけ
+        if ( std::abs(block.dist - dist) > reach ) return;
+        float top = block.SurfaceHeightAt(dist);
+        if ( top <= footY + kStepTolerance && top > outTop ) { outTop = top; outType = block.type; }
+    });
+}
+
 float BlockSystem::GroundHeightAt(int rail, float dist, float footY) const{
-    float best = 0.0f; // レール面
-    int center = CellOf(dist);
-    for ( int cell = center - 2; cell <= center + 2; ++cell ) { // 斜面26°(半幅1m)も拾える範囲
-        auto found = cellMap_.find(CellKey(rail, cell));
-        if ( found == cellMap_.end() ) continue;
-        for ( int idx : found->second ) {
-            const Block& block = blocks_[idx];
-            if ( !OverlapsCenterLine(block.side) ) continue;
-            float reach = FootprintHalf(block.type) + 0.10f; // 乗れるのは実寸＋縁だけ
-            if ( std::abs(block.dist - dist) > reach ) continue;
-            float top = SurfaceHeightAt(block, dist);
-            if ( top <= footY + kStepTolerance && top > best ) { best = top; }
-        }
-    }
-    return best;
+    float top = 0.0f; int type = -1;
+    FindSupport(rail, dist, footY, top, type);
+    return top;
+}
+
+int BlockSystem::SupportTypeAt(int rail, float dist, float footY) const{
+    float top = 0.0f; int type = -1;
+    FindSupport(rail, dist, footY, top, type);
+    return type;
 }
 
 // 体の高さ帯がブロックへ横から重なるか（支持面として乗っている場合は重ならない）
 bool BlockSystem::BlockedAt(int rail, float dist, float bodyBottom, float bodyTop,
                             float* outMin, float* outMax, float* outTop, float bodyRadius) const{
     const float radius = ( bodyRadius >= 0.0f ) ? bodyRadius : kPlayerRadius;
-    int center = CellOf(dist);
-    // ±2セルを見る：横長・台座（半幅1m）は、レール編集後に距離が半端な値へ引き直されると
-    // ±1セルの窓から漏れて「見えているのに当たらない」ことがあった
-    for ( int cell = center - 2; cell <= center + 2; ++cell ) {
-        auto found = cellMap_.find(CellKey(rail, cell));
-        if ( found == cellMap_.end() ) continue;
-        for ( int idx : found->second ) {
-            const Block& block = blocks_[idx];
-            if ( !OverlapsCenterLine(block.side) ) continue;
-            if ( IsSlopeType(block.type) ) continue;      // 斜面は壁にならない（歩いて登る）
-            if ( block.type == kTypeCloud ) continue;     // すり抜け床は横から通り抜けられる
-            // 型別の footprint（横長2m/台座2×2m は半幅1.0m）で壁の届く範囲を決める
-            float reach = FootprintHalf(block.type) + radius;
-            if ( std::abs(block.dist - dist) > reach ) continue;
-            float bottom = ( float ) block.level * kSize;
-            float top    = bottom + kSize;
-            // 面ぴったり（乗っている/頭が触れているだけ）は重なり扱いしない。
-            // 上側の許容はステップ許容と同じ幅にする：横長/台座は壁帯が広い（半幅1.3m）ため、
-            // 斜面で登り切る直前（残り0.25m以内）に側面へ引っかかって坂の途中で止まるのを防ぐ
-            if ( bodyBottom < top - kStepTolerance && bodyTop > bottom + 0.05f ) {
-                if ( outMin ) { *outMin = block.dist - reach; }
-                if ( outMax ) { *outMax = block.dist + reach; }
-                if ( outTop ) { *outTop = top; }
-                return true;
-            }
+    bool blocked = false;
+    grid_.ForEachNear(rail, dist, kQueryCells, [&](int index){
+        if ( blocked ) return;
+        const PlacedBlock& block = blocks_[index];
+        if ( !OverlapsCenterLine(block.side) ) return;
+        if ( BlockShape::IsSlope(block.type) ) return;    // 斜面は壁にならない（歩いて登る）
+        if ( block.type == kTypeCloud ) return;           // すり抜け床は横から通り抜けられる
+        // 型別の footprint（横長2m/台座2×2m は半幅1.0m）で壁の届く範囲を決める
+        float reach = BlockShape::FootprintHalf(block.type) + radius;
+        if ( std::abs(block.dist - dist) > reach ) return;
+        float bottom = ( float ) block.level * kSize;
+        float top    = bottom + kSize;
+        // 面ぴったり（乗っている/頭が触れているだけ）は重なり扱いしない。
+        // 上側の許容はステップ許容と同じ幅にする：横長/台座は壁帯が広い（半幅1.3m）ため、
+        // 斜面で登り切る直前（残り0.25m以内）に側面へ引っかかって坂の途中で止まるのを防ぐ
+        if ( bodyBottom < top - kStepTolerance && bodyTop > bottom + 0.05f ) {
+            if ( outMin ) { *outMin = block.dist - reach; }
+            if ( outMax ) { *outMax = block.dist + reach; }
+            if ( outTop ) { *outTop = top; }
+            blocked = true;
         }
-    }
-    return false;
-}
-
-// 今の足元を支えているブロックの種類（GroundHeightAt と同じ条件で「一番高い支持面」の持ち主を返す）
-int BlockSystem::SupportTypeAt(int rail, float dist, float footY) const{
-    float best = 0.0f;
-    int bestType = -1; // レール面
-    int center = CellOf(dist);
-    for ( int cell = center - 2; cell <= center + 2; ++cell ) {
-        auto found = cellMap_.find(CellKey(rail, cell));
-        if ( found == cellMap_.end() ) continue;
-        for ( int idx : found->second ) {
-            const Block& block = blocks_[idx];
-            if ( !OverlapsCenterLine(block.side) ) continue;
-            float reach = FootprintHalf(block.type) + 0.10f;
-            if ( std::abs(block.dist - dist) > reach ) continue;
-            float top = SurfaceHeightAt(block, dist);
-            if ( top <= footY + kStepTolerance && top > best ) { best = top; bestType = block.type; }
-        }
-    }
-    return bestType;
+    });
+    return blocked;
 }
 
 // 頭上の天井（footY より上にあるブロックの底面のうち一番低いもの）
 float BlockSystem::CeilingHeightAt(int rail, float dist, float footY) const{
     float best = 1e9f;
-    int center = CellOf(dist);
-    for ( int cell = center - 2; cell <= center + 2; ++cell ) { // 窓の広さは BlockedAt と同じ理由
-        auto found = cellMap_.find(CellKey(rail, cell));
-        if ( found == cellMap_.end() ) continue;
-        for ( int idx : found->second ) {
-            const Block& block = blocks_[idx];
-            if ( !OverlapsCenterLine(block.side) ) continue;
-            if ( IsSlopeType(block.type) ) continue;      // 斜面の下は薄いので頭ぶつけ無し
-            if ( block.type == kTypeCloud ) continue;     // すり抜け床は下から通り抜けられる
-            // 型別の footprint（横長・台座は半幅1.0m）。外縁の下でも頭がぶつかるように
-            if ( std::abs(block.dist - dist) > FootprintHalf(block.type) + kPlayerRadius ) continue;
-            float bottom = ( float ) block.level * kSize;
-            if ( bottom > footY + 0.1f && bottom < best ) { best = bottom; }
-        }
-    }
+    grid_.ForEachNear(rail, dist, kQueryCells, [&](int index){
+        const PlacedBlock& block = blocks_[index];
+        if ( !OverlapsCenterLine(block.side) ) return;
+        if ( BlockShape::IsSlope(block.type) ) return;    // 斜面の下は薄いので頭ぶつけ無し
+        if ( block.type == kTypeCloud ) return;           // すり抜け床は下から通り抜けられる
+        // 型別の footprint（横長・台座は半幅1.0m）。外縁の下でも頭がぶつかるように
+        if ( std::abs(block.dist - dist) > BlockShape::FootprintHalf(block.type) + kPlayerRadius ) return;
+        float bottom = ( float ) block.level * kSize;
+        if ( bottom > footY + 0.1f && bottom < best ) { best = bottom; }
+    });
     return best;
 }

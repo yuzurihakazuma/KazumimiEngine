@@ -1,19 +1,20 @@
 #pragma once
 #include "engine/math/struct.h"
-#include "engine/3d/model/Model.h"
+#include "game/rail/road/RoadMeshBuilder.h"
+#include "game/rail/road/RoadRenderSlots.h"
 #include <vector>
-#include <memory>
 
-class Obj3d;
 class Camera;
 class SplineRail;
+struct RoadCut;
+struct RoadJunction;
 
 // =====================================================================
 //  RoadMesh：レールの下に敷く「クラフト風の道」の管理クラス（道システム設計書 §4-§5）。
 //   ・レール1本 = 1メッシュ（= 1ドローコール）。SplineRail::FrameCache の
 //     フレーム（位置+right/up/tangent）に12頂点の断面プロファイルを掃引する
 //   ・曲率適応サンプリング／内側折返しの溶接／坂UV切替（ヒステリシス＋二重リング）
-//   ・穴区間は面を張らず、両端に road_end を自動配置。手前後 1m の上面は
+//   ・穴区間は面を張らず、切り口に暗色の奈落フタ。手前後 1m の上面は
 //     危険帯テクスチャ（赤ストライプ）に切り替える（仕様書_穴区間 §2）
 //   ・接続ノード（溶接コーナー/T字/十字）は任意角度の「ジャンクションパッチ」
 //     （上面扇+ベベル+壁+底）をその場で生成して繋ぐ（GUIDE_ジャンクション生成）。
@@ -23,12 +24,13 @@ class SplineRail;
 //   ・GPUバッファはレール毎の固定容量スロットを使い回す（編集中の作り直しゼロ）。
 //     simple=true の軽量ビルド（ドラッグ中用）はリング1m固定・交差点/キャップ省略
 //   ・動くレールへは「基準位置 + animOffset」で毎フレーム追従（再生成不要）
+//
+//  実体は road/ 以下のクラスに分けてあり、ここは「どの順で作って、どこへ出すか」だけを持つ：
+//    RoadJunctionDetector（検出＋t_cut）→ RoadJunctionPatchBuilder（パッチ）／
+//    RoadSweepBuilder（掃引）→ RoadRenderSlots（GPUスロット・追従・描画）
 // =====================================================================
 class RoadMesh {
 public:
-    RoadMesh();
-    ~RoadMesh(); // unique_ptr<Model>/<Obj3d> のため cpp 側で定義
-
     // レールに沿って道を生成し直す（RailField::Sync の直後に呼ぶ）。
     // simple=true はドラッグ中の軽量プレビュー（マウスアップ後に false で本生成する）
     void Build(const std::vector<SplineRail>& rails, Camera* camera, bool simple = false);
@@ -38,11 +40,11 @@ public:
 
     void Draw() const;
 
-    int  TileCount() const { return ( int ) ( slotsUsed_ + piecesUsed_ + jointsUsed_ ); }
+    int  TileCount() const { return ( int ) slots_.TileCount(); }
 
     // 直近 Build の総頂点数/三角形数（負荷確認用。パフォーマンスパネルに表示する）
-    int  VertexCount() const { return ( int ) lastVertexCount_; }
-    int  TriangleCount() const { return ( int ) lastTriangleCount_; }
+    int  VertexCount() const { return ( int ) slots_.VertexCount(); }
+    int  TriangleCount() const { return ( int ) slots_.TriangleCount(); }
     bool IsVisible() const { return visible_; }
     void SetVisible(bool v){ visible_ = v; } // デバッグUIから道のON/OFFを切り替える用
 
@@ -58,102 +60,26 @@ public:
 
     // 背面カリングの切替（true=両面描画・従来 / false=背面カリングでオーバードロー削減）。
     // 既存スロットにも即時反映される（再生成不要）
-    void SetCullNone(bool cullNone);
-    bool IsCullNone() const{ return cullNone_; }
+    void SetCullNone(bool cullNone){ slots_.SetCullNone(cullNone); }
+    bool IsCullNone() const{ return slots_.IsCullNone(); }
 
 private:
-    // 掃引をスキップする区間（ジャンクションパッチに譲る範囲）
-    struct Cut { float s0, s1; };
-
-    // ジャンクション（共有ノード）の1本ぶんの腕
-    struct Arm {
-        int     rail = -1;
-        float   nodeS = 0.0f;   // ノードのレール距離
-        float   cutS = 0.0f;    // 道を切るレール距離（= 入口リングの位置）
-        float   tCut = 0.35f;   // ノードから入口までの距離
-        bool    forward = true; // true = ノードから +s 方向へ伸びる腕
-        Vector3 dir {};         // ノードから出ていく方向（水平・正規化）
-    };
-    struct Junction {
-        Vector3 center {};
-        int     followRail = -1; // 動くレール追従用
-        std::vector<Arm> arms;
-    };
-
-    // --- 動的メッシュスロット（VB/IB を使い回す。編集中の CreateBuffers ゼロ）---
-    struct MeshSlot {
-        std::unique_ptr<Model> model;
-        std::unique_ptr<Obj3d> obj;
-        int rail = -1;
-        bool isJoint = false;   // ジョイントのベイクメッシュ（表示モードで描画を切替）
-        bool hiddenNow = false; // 出現前の道（Update で毎フレーム判定 → Draw でスキップ）
-    };
-    // --- ピース（road_end / road_joint）スロット。Obj3d を使い回す ---
-    struct PieceSlot {
-        std::unique_ptr<Obj3d> obj;
-        int rail = -1;
-        Vector3 base {};
-        bool hiddenNow = false; // 出現前の道（同上）
-    };
-
-    // 生成済みメッシュを空きスロットへ書き込む（スロットが足りなければ1個だけ確保）
-    void EmitMesh(const Model::ModelData& data, int followRail, Camera* camera, uint32_t atlasSrv,
-                  bool isJoint = false);
-
-    // ピースモデルを回転+平行移動してベイク先メッシュへ焼き込む（静的レール用のDC削減。
-    // 全ピースがアトラス共有なので、1つの動的メッシュにまとめて1ドローコールで描ける）
-    void AppendPieceBake(Model* model, const Vector3& pos, float yaw, float pitch,
-                         Model::ModelData& out) const;
-
-    // ジャンクション検出（溶接/T字/十字）＋パッチ生成＋切り詰め範囲の登録
-    void CollectJunctions(const std::vector<SplineRail>& rails, Camera* camera, uint32_t atlasSrv,
-                          std::vector<std::vector<Cut>>& cuts);
-
-    // 1ジャンクションの t_cut 計算（ウェッジのマイター交点）＋Cut登録
-    void ComputeArmCuts(const std::vector<SplineRail>& rails, Junction& junc,
-                        std::vector<std::vector<Cut>>& cuts) const;
-
-    // 1ジャンクションのパッチ（上面扇+ベベル+壁+底）を生成する
-    void BuildJunctionPatch(const std::vector<SplineRail>& rails, const Junction& junc,
-                            Camera* camera, uint32_t atlasSrv);
-
-    // レール1本ぶんの掃引メッシュを生成する（cuts の区間は張らない）。
-    //   capFront/capBack: 自由端に平らな暗色フタを張る（丸い road_end の代わり）
-    void BuildRailMesh(const SplineRail& rail, int railIdx, Camera* camera, uint32_t atlasSrv,
-                       const std::vector<Cut>& cuts, bool simple,
-                       bool capFront = false, bool capBack = false);
-
-    // ピース（road_end / road_joint）を1個置く
-    void PlacePiece(Model* model, std::vector<std::unique_ptr<PieceSlot>>& pool, size_t& used,
-                    int railIdx, const std::vector<SplineRail>& rails,
-                    const Vector3& pos, float yaw, float pitch, Camera* camera);
+    // ジャンクション（丸広場/溶接/T字/十字）の検出→パッチ・コネクタ生成→ジョイント配置。
+    // 各レールの「掃引しない区間」も cuts に決まる
+    void BuildJunctions(const std::vector<SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
 
     // ジャンクションのジョイント（road_joint）配置
-    void PlaceJoints(const std::vector<SplineRail>& rails, const Junction& junc, Camera* camera);
-    void PlaceJointPiece(const std::vector<SplineRail>& rails, int railIdx,
-                         const Vector3& railPos, float yaw, Camera* camera);
+    void PlaceJoints(const std::vector<SplineRail>& rails, const RoadJunction& junc);
+    void PlaceJointPiece(const std::vector<SplineRail>& rails, int railIdx, const Vector3& railPos, float yaw);
 
-    // --- 掃引メッシュ/パッチのスロットプール ---
-    std::vector<std::unique_ptr<MeshSlot>> slots_;
-    size_t slotsUsed_ = 0;
-
-    // --- ピースプール（終端キャップ＝road_end / ジョイント＝road_joint）---
-    std::vector<std::unique_ptr<PieceSlot>> pieces_;
-    size_t piecesUsed_ = 0;
-    std::vector<std::unique_ptr<PieceSlot>> joints_;
-    size_t jointsUsed_ = 0;
+    RoadRenderSlots slots_; // 掃引メッシュ/パッチ/ジョイントの GPU スロット
 
     bool visible_ = true;
     int  jointVisible_ = 1; // 0=エディタのみ / 1=常に / 2=非表示
 
     float warnLength_ = 1.0f; // 穴の手前後に危険帯（赤ストライプ・上面のみ）を敷く長さ(m)
     int   cornerStyle_ = 0;   // 曲がり角の形（0=自動/1=いつも丸広場/2=丸なし）
-    bool  cullNone_   = true; // true=両面描画（従来） / false=背面カリング
 
-    size_t lastVertexCount_ = 0;   // 直近 Build の総頂点数（表示用）
-    size_t lastTriangleCount_ = 0; // 直近 Build の総三角形数（表示用）
-
-    // 静的レールのピースをまとめるベイク先（Build 中だけ使い、最後に EmitMesh する）
-    Model::ModelData bakeCaps_;   // 終端キャップ（road_end）
-    Model::ModelData bakeJoints_; // ジョイント（road_joint）
+    // 静的レールのジョイントをまとめるベイク先（Build 中だけ使い、最後に EmitMesh する）
+    RoadMeshBuilder bakeJoints_;
 };
