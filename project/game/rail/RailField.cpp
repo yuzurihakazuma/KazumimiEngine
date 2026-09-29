@@ -6,6 +6,7 @@
 #include "engine/camera/Camera.h"
 #include "engine/utils/EditorManager.h"
 #include "engine/graphics/PipelineManager.h"
+#include "engine/graphics/DebugDraw.h"
 
 #include <cmath>
 #include <algorithm>
@@ -306,8 +307,6 @@ void RailField::Sync(Camera* camera, uint32_t whiteTexIndex){
     if ( startRail_ < 0 ) { startRail_ = 0; startDist_ = 0.0f; } // 未設定はレール0の先頭
     nodeToDist(em->GetEditorGoalRail(), em->GetEditorGoalNode(), goalRail_, goalDist_);
 
-    animTime_ = 0.0f;
-
     BuildMarkers();
     lastVersion_ = em->GetRailEditVersion();
 }
@@ -317,7 +316,6 @@ void RailField::Sync(Camera* camera, uint32_t whiteTexIndex){
 //   motionPhase(0〜1)で複数レールの動きをずらせる（0.5=半周期ずれ）。
 //   motionTrigger=1（乗ったら動き出す）のレールは、プレイヤーが乗るまで基準位置で待機する
 void RailField::UpdateMotion(float dt, int ridingRail){
-    animTime_ += dt;
     const float kTwoPi = 2.0f * 3.14159265f;
     bool anyMotion = false;
     for ( size_t railIndex = 0; railIndex < rails_.size(); ++railIndex ) {
@@ -435,9 +433,31 @@ void RailField::UpdateMotion(float dt, int ridingRail){
     if ( anyMotion ) { UpdateMarkerPositions(); }
 }
 
+// 動くレールのエディタプレビュー（OFFにした瞬間に基準位置へ戻す）
+void RailField::UpdateEditorPreview(bool enabled){
+    if ( enabled ) { UpdateMotion(1.0f / 60.0f, kMotionStartAll); }
+    else if ( prevEditorPreview_ ) { ResetMotion(); }
+    prevEditorPreview_ = enabled;
+}
+
+// 「乗ったら動き出す」で待機中のリフトへ金色の「！」目印（乗れば動くことが一目で分かる）
+void RailField::DrawWaitingLiftMarkers(float dt){
+    liftMarkerTime_ += dt;
+    const Vector4 gold { 1.0f, 0.85f, 0.2f, 1.0f };
+    for ( const auto& rail : rails_ ) {
+        if ( !rail.HasMotion() || rail.motionTrigger != 1 || rail.motionStarted ) continue;
+        if ( rail.nodes.size() < 2 || !rail.visible ) continue;
+        Vector3 markPos = rail.GetPositionByDistance(rail.GetLength() * 0.5f);
+        float bob = std::sin(liftMarkerTime_ * 4.0f) * 0.08f;
+        float baseY = markPos.y + 1.4f + bob;
+        DebugDraw::GetInstance()->Line({ markPos.x, baseY + 0.5f, markPos.z },
+                                       { markPos.x, baseY + 0.18f, markPos.z }, gold);
+        DebugDraw::GetInstance()->Sphere({ markPos.x, baseY, markPos.z }, 0.06f, gold, 6);
+    }
+}
+
 // 編集モードへ戻った時：動くレールを基準位置へ戻す（発動状態・出現状態もリセット）。
 void RailField::ResetMotion(){
-    animTime_ = 0.0f;
     for ( auto& r : rails_ ) {
         r.animOffset = { 0.0f, 0.0f, 0.0f };
         r.motionTime = 0.0f;

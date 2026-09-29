@@ -71,8 +71,6 @@ public:
     //   （呼ばないと Shooting 中の target_ がダングリングポインタになる）
     void Reset();
 
-    bool IsActive() const { return state_ != State::Idle; }
-
     // ノードエディタの「→ ゲーム値」用（舌の届く距離・再使用間隔を外から調整できる）
     float* SwallowReachPtr(){ return &swallowReach_; }
     float* SwallowCooldownPtr(){ return &swallowCooldown_; }

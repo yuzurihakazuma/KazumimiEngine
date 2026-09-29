@@ -78,7 +78,6 @@ public:
     void SpawnHitFx(const Vector3& pos);     // 命中：黄＆オレンジが鋭く飛び散る（衝撃）
 
     int HeldCount() const;    // 保持中の卵の数
-    int FlyingCount() const;  // 飛行中の卵の数
     int TotalCount() const { return ( int ) eggs_.size(); }
 
     // --- 産卵エロージョン演出（SDFの卵が芯から育ち、育ちきったら実体メッシュへ交代）---

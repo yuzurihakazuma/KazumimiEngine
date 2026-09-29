@@ -68,6 +68,9 @@ public:
     static EnemyTypeSpec TypeSpecOf(EnemyType type);
     // 配置データでの実際の浮遊高さ（個体の指定が無ければ種類の既定）
     static float HoverOf(const EnemySpawnData& spawn);
+    // エディタ上で敵をつかむ/印を付ける高さ（レール線から）。見えている体の中心に合わせる
+    //   （フワリンは浮いているので、足元の高さで探すと見えているモデルをつかめない）
+    static float PickHeightOf(const EnemySpawnData& spawn);
 
     // 配置データから生成する（モデルの読み込みを伴う）
     void Initialize(const EnemySpawnData& spawn);

@@ -42,7 +42,6 @@ void Player::Initialize(){
     // マップで指定されたスタート地点から開始（リスポーンもここへ戻る）
     currentDistance_  = spawnDist_;
     currentRailIndex_ = spawnRail_;
-    moveSign_         = 1;
     dsSign_           = 0.0f;
     prevMoveInput_    = 0.0f;
     atJunction_       = false;

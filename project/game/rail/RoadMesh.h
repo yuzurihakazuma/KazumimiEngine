@@ -116,9 +116,6 @@ private:
     // 1ジャンクションのパッチ（上面扇+ベベル+壁+底）を生成する
     void BuildJunctionPatch(const std::vector<SplineRail>& rails, const Junction& junc,
                             Camera* camera, uint32_t atlasSrv);
-    // 端の丸広場（エディタの「始点/終点に丸広場」指定で円形の広場を敷く）
-    void BuildEndPlaza(const std::vector<SplineRail>& rails, int railIdx, bool front,
-                       Camera* camera, uint32_t atlasSrv);
 
     // レール1本ぶんの掃引メッシュを生成する（cuts の区間は張らない）。
     //   capFront/capBack: 自由端に平らな暗色フタを張る（丸い road_end の代わり）

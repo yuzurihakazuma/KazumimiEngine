@@ -63,10 +63,8 @@ private:
         float originX = 0.0f, originY = 0.0f; // キャンバス左上（スクリーン座標）
         float cellPx  = 28.0f;                // 1m = 何ピクセルか
         float padLeft = 0.0f;
-        float rulerHeight = 0.0f;
         float groundY = 0.0f;                 // 道の上面のスクリーンY
-        float groundHeight = 0.0f;            // 道の帯の厚み(px)
-        float infoTop = 0.0f, infoHeight = 0.0f; // 下の情報帯（高さの変化・接続）
+        float infoTop = 0.0f;                 // 下の情報帯（高さの変化・接続）の上端
         float width = 0.0f, height = 0.0f;    // キャンバス全体
         float railLength = 0.0f;
         int   lastCell = 0;                   // 置ける一番端のマス（距離）
@@ -162,7 +160,6 @@ private:
     // 敵のドラッグ
     EnemyDrag enemyDrag_ = EnemyDrag::None;
     int   enemyDragIndex_ = -1;
-    bool  enemyDragChanged_ = false;
     float enemyGrabMouseY_ = 0.0f;    // つかんだ時のマウスY（上下に動かしたかの判定）
     bool  enemyHoverAdjust_ = false;  // 上下ドラッグで浮く高さを変えている
     int   contextEnemy_ = -1;         // 右クリックメニューの対象

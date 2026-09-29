@@ -1,267 +1,144 @@
 #pragma once
-// --- エンジン側のファイル ---
-#include "Engine/Scene/IScene.h"
-#include "Engine/Math/Matrix4x4.h"
-#include "Engine/graphics/TextureManager.h"
-#include "engine/3d/animation/Animation.h"
-#include "engine/3d/animation/CustomAnimation.h"
-#include "engine/3d/obj/SkinnedObj3d.h"
-#include "engine/utils/EditorManager.h"  // EngineMode のために必要
-#include "game/demo/DemoShowcase.h"
+// =====================================================================
+//  GamePlayScene：ゲームプレイシーン。
+//   各システム（レール・プレイヤー・敵・卵・ブロック・コイン・カメラ・演出）を持ち、
+//   「どの順番で更新・描画するか」と「エディタの編集をいつ反映するか」だけを決める。
+//   中身の処理はそれぞれのクラスへ分けてある：
+//     見た目 … PlayerAvatar（プレイヤーのモデル）/ GameHud（画面の表示）/ PlayScreenEffects（画面効果）
+//     エディタ … PlaySceneEditor（Game View の操作・パネル一式）/ EditorCameraUtil（カメラの置き直し）
+//     判定 …… StageObstacles（卵の壁・地面）/ CombatSystem（踏みつけ・卵命中）
+// =====================================================================
+#include "engine/scene/IScene.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/utils/EditorManager.h" // EngineMode
 
-#include "engine/rail/SplineRail.h"
+#include "game/demo/DemoShowcase.h"
 #include "game/rail/RailField.h"
 #include "game/rail/RoadMesh.h"
 #include "game/rail/DissolveRoad.h"
 #include "game/camera/PlayCameraController.h"
 #include "game/combat/HitFeel.h"
 #include "game/combat/CombatSystem.h"
-#include "game/player/Player.h"
 #include "game/player/SwallowAbility.h"
 #include "game/player/AimThrowController.h"
+#include "game/player/PlayerAvatar.h"
 #include "game/stage/StageFlow.h"
 #include "game/stage/CoinSystem.h"
 #include "game/stage/BlockSystem.h"
-#include "game/enemy/Enemy.h"
-#include "game/enemy/EnemyEditor.h"
+#include "game/stage/StageObstacles.h"
 #include "game/enemy/EnemyManager.h"
 #include "game/egg/EggSystem.h"
-#include "game/editor/RailStripPanel.h"
+#include "game/effect/PlayScreenEffects.h"
+#include "game/ui/GameHud.h"
+#include "game/editor/PlaySceneEditor.h"
 
-#include "Skybox.h"
-#include "StompEffect.h"
-
-// --- 標準ライブラリ ---
-#include <vector>
 #include <memory>
-#include <unordered_map>
 #include <string>
-#include <list>
+#include <unordered_map>
 
-// 前方宣言
-class DebugCamera;
 class Camera;
-class Sprite;
-class Obj3d;
-class SDFVolumeObject;
-class SDFText;
-class DirectXCommon;
-class Input;
-class RenderTexture;
-class PostEffect;
+class DebugCamera;
 class Player;
+class EnemyEditor;
 
-	// ゲームプレイシーン
 class GamePlayScene : public IScene {
 public:
-	// 初期化
-	void Initialize() override;
-	// 終了
-	void Finalize() override;
-	// 更新
-	void Update() override;
-	// 描画
-	void Draw() override;
-
-	// デバッグ用UIの描画
-	void DrawDebugUI() override;
-	void ReloadMap();
-
 	GamePlayScene();
-
 	~GamePlayScene();
 
-private: // 初期化・更新の内部処理（べた書きを段階ごとに関数化したもの）
+	void Initialize() override;
+	void Finalize() override;
+	void Update() override;
+	void Draw() override;
+	void DrawDebugUI() override;
 
-	// --- Initialize の分割 ---
-	void LoadResources();      // BGM・モデル・テクスチャ・Skybox の読み込み
-	void SetupCameras();       // メインカメラ／デバッグカメラの生成・登録
-	void SetupDemoObjects();   // 装飾/デモ用オブジェクト（testObj・オーラ・スキンメッシュ）
-	void SetupGameplay();      // プレイヤー・敵エディタ・レール・各種シーン部品
+private:
+	// --- Initialize の段階 ---
+	void LoadResources();    // BGM・SE・モデル・テクスチャの読み込み
+	void SetupCameras();     // メインカメラ／デバッグカメラの生成・登録
+	void SetupVisuals();     // 展示物・プレイヤーの見た目・HUD
+	void SetupGameplay();    // プレイヤー・敵エディタ・レール・各種システム
 
-	// --- Update の分割 ---
-	void SyncFromEditors();            // エディタ編集（レール／敵／カメラ要求）をシーンへ反映
-	void UpdateCameraAndPostEffect();  // カメラ更新＋シェイク＋踏みつけポストエフェクト
-	void HandleModeTransition(EngineMode current); // Edit↔Play 切替時のリセット処理
-	void UpdatePlayMode();             // プレイ中のゲーム進行（レール／プレイヤー／敵／踏みつけ／エフェクト）
+	// --- エディタの編集をシーンへ反映（Update の最初）---
+	void SyncFromEditors();
+	void ApplyRailRemaps();        // レールの数・並びが変わった時の敵のレール番号の付け替え
+	void SyncRailsLive();          // レール編集のライブ同期（ドラッグ中は10Hzの軽量同期）
+	void SyncEnemyEdits();         // マップ読込の敵配置の復元・敵エディタの変更
+	void SyncBlockEdits();         // ブロック配置のライブ同期
+	void HandleCameraRequests();   // 「カメラをここへ」・Blender/カメラエディタからの画角
+	// エディタの最新レールから railField_ を作り直し、敵・コイン・ブロックも配置し直す。
+	//   simple=true はドラッグ中の軽量同期（道は簡易リボン・敵の再配置なし）
+	void SyncRailsFromEditor(bool simple = false);
+	void SpawnEnemies(); // 配置テンプレートを元に敵の実体を再構築する
 
-	// --- 飲み込み/産卵アクション（E / 左Ctrl。処理は SwallowAbility へ分離）---
-	SwallowAbility swallow_;
+	// --- Update の段階 ---
+	void UpdateCameraAndPostEffect();              // カメラ更新＋シェイク＋ヒット点のポストエフェクト
+	void HandleModeTransition(EngineMode current); // Edit↔Play 切替時のリセット
+	void OnPlayStart();
+	void OnEditStart();
+	void UpdatePlayMode();                         // プレイ中のゲーム進行
+	void UpdateSceneVisuals(EngineMode mode);      // モード問わず毎フレーム行う見た目の更新
 
-	// --- 卵の投擲（Q構え→矢印で狙う→離して投げる。処理は AimThrowController へ分離）---
-	AimThrowController aimThrow_;
+	// --- Draw の段階 ---
+	void DrawScene3D(ID3D12GraphicsCommandList* commandList);  // MRT へ3D一式
+	void ComposeFrame(ID3D12GraphicsCommandList* commandList); // ポストエフェクト→Bloom→SDF→最終出力
+	void DrawScreenUI(ID3D12GraphicsCommandList* commandList); // スプライト・HUD
 
-	void UpdateSceneVisuals();         // モード問わず毎フレーム行う描画用更新
+	// --- DrawDebugUI の段階 ---
+	void DrawInspectorUI(); // 共有の「インスペクター (詳細設定)」に足す項目
+	void DrawHitShapes();   // 当たり判定の形をワイヤーで表示
+	SceneEditContext MakeEditContext();
 
-private: // メンバ変数
-
+private:
 	// カメラ
-	std::unique_ptr<Camera> camera_ = nullptr;
-	// デバッグカメラ
-	std::unique_ptr<DebugCamera> debugCamera_ = nullptr;
+	std::unique_ptr<Camera>      camera_;
+	std::unique_ptr<DebugCamera> debugCamera_;
 
-	// 3Dオブジェクト
-	std::vector<std::unique_ptr<Obj3d>> object3ds_;
-
-	// スプライト
-	std::vector<std::unique_ptr<Sprite>> sprites_;
-
-	// 卵保持数HUD（画面左上）：保持卵のスロット6個＋お腹にためた数の小さい丸（T-07）
-	std::vector<std::unique_ptr<Sprite>> eggHudSlots_;
-	std::vector<std::unique_ptr<Sprite>> bellyHudIcons_;
-
-	// テクスチャデータ
+	// 読み込んだテクスチャ（展示物にも名前で渡す）
 	std::unordered_map<std::string, TextureData> textures_;
-
-	// デプスステンシル
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
-
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
-	std::unique_ptr<Skybox> skybox_ = nullptr;
-
-	// --- エンジン機能の展示（回転キューブ・オーラ・ブロック群・SDF卵デモ・Space/Pデモ）---
-	//   ゲーム本編と無関係の見本一式。DemoShowcase に分離した（不要になったら丸ごと外せる）
+	// エンジン機能の展示（ゲーム本編と無関係の見本一式。デモ表示OFFで丸ごと止まる）
 	DemoShowcase demo_;
-
-	std::unique_ptr<SkinnedObj3d> skinnedObj_ = nullptr;
-
-	// アニメーション再生用（編集なし・読み込みのみ）
-	CustomAnimationTrack skinnedAnimTrack_;
-	float skinnedAnimTime_ = 0.0f;
-
-	// --- プレイヤーの見た目（リグ付きマスコット resources/player/player.gltf）---
-	//   Play中はプレイヤーに追従。Idle/Walk/TongueOut のクリップを状況で切り替える
-	//   （歩けば Walk、止まれば Idle、ベロ動作中は TongueOut）。Edit中はスタート地点プレビュー
-	std::unique_ptr<SkinnedObj3d> playerObj_ = nullptr;
-	Vector3 playerPrevPos_ {};          // 前フレームの見た目位置（移動速度の算出用）
-	bool    playerPrevPosValid_ = false;
-	float   playerModelYOffset_ = 0.0f; // モデル原点（足元）を道の上面に乗せる補正（道の上面＝レール線に統一したので既定0）
-	bool    playerTongueSeeked_ = false;  // 捕獲時の収納パートへのシークを1回だけ行うためのフラグ
-	float   playerThrowTimer_ = 0.0f;     // 投げリリース後の復帰モーション再生の残り時間
-	std::unique_ptr<Obj3d> heldEggObj_ = nullptr; // 構え中に Item ジョイントへ持たせる卵の見た目
-	bool    heldEggVisible_ = false;
 
 	EngineMode prevMode_ = EngineMode::Edit;
 
-	std::unique_ptr<Player> player_ = nullptr;
+	// --- プレイヤー ---
+	std::unique_ptr<Player> player_;
+	PlayerAvatar      avatar_;    // 見た目（モデル・アニメ・手持ちの卵）
+	SwallowAbility    swallow_;   // E=舌で捕まえる / 左Ctrl=産卵
+	AimThrowController aimThrow_; // Q構え→狙う→離して投げる
 
-	// --- レール実行時管理（レール本体・緑線マーカー・動くレールを RailField に集約）---
-	RailField railField_;
+	// --- ステージ ---
+	RailField      railField_;    // 実行時レール（本体・緑線・動くレール）
+	RoadMesh       roadMesh_;     // レール下の道メッシュ
+	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
+	StageFlow      stageFlow_;    // ゴール判定
+	CoinSystem     coinSystem_;   // 収集物（コイン）
+	BlockSystem    blockSystem_;  // 乗れる/ぶつかるブロック
+	StageObstacles obstacles_;    // 卵・吐き出し弾の壁・地面判定（ブロック＋道）
+	int lastBlockVersion_ = -1;   // ブロック編集のライブ同期用（レール全体は作り直さない）
 
-	// --- レール下の道メッシュ（クラフト風の地面。緑線と違い Play 中も見せる本番の見た目）---
-	RoadMesh roadMesh_;
-
-	// --- SDF溶け道（道の種類=SDF溶け道のレール。近づくと現れ、離れると溶けて消える）---
-	DissolveRoad dissolveRoad_;
-
-	// --- ステージ進行（ゴール判定・表示。処理は StageFlow へ分離）---
-	StageFlow stageFlow_;
-
-	// --- 収集物（コイン）。エディタで配置され、プレイ中に触れると取得 ---
-	CoinSystem coinSystem_;
-
-	// --- ブロック（乗れる/ぶつかる1m角。マリオメーカー風配置）---
-	BlockSystem blockSystem_;
-	int lastBlockVersion_ = -1; // ブロック編集のライブ同期用（レール全体は作り直さない）
-	// ゲームビュー右クリック配置メニューの対象（開いた瞬間のレール/距離を保持）
-	int   ctxPlaceRail_ = -1;
-	float ctxPlaceDist_ = 0.0f;
-	// 右クリック地点の近くにあった既存配置物（-1=なし。削除/種類切替メニュー用）
-	int   ctxEnemyIdx_ = -1;
-	int   ctxBlockIdx_ = -1;
-	int   ctxCoinIdx_  = -1;
-	// 配置済みブロックのつかみ移動（-1=なし。ドラッグ中は移動先セルをゴースト表示）
-	int       blockDragIdx_ = -1;
-	BlockData blockDragOrig_ {}; // つかんだ時のブロック（キャンセル復帰用）
-	BlockData blockDragCell_ {}; // ドラッグ中の移動先セル候補
-	bool      blockDragDup_ = false; // Ctrl押下＝複製モード（元を残して移動先へコピー）
-	// コインのつかみ移動（-1=なし。Shift+ドラッグで高さ調整。離した時に確定→Sync）
-	int      coinDragIdx_ = -1;
-	CoinData coinDragData_ {}; // ドラッグ中の移動先候補（rail/dist/height）
-	CoinData coinDragOrig_ {}; // つかんだ瞬間のコイン（クリックだけ/Undo割込み時に書き込まない照合用）
-	int      coinHover_ = -1;  // 今フレームにマウス直下だったコイン（ブロックつかみとの優先制御用）
-	// 右クリック「ここからテストプレイ」：次の Edit→Play でこの地点から開始（-1=通常スタート）
-	int   testPlayRail_ = -1;
-	float testPlayDist_ = 0.0f;
-	// ゲームビューのガイドハンドル（選択中の足場のガイドを直接つかんで編集する）
-	int  guideHandleRail_     = -1;    // ドラッグ中のガイドレール番号（-1=なし）
-	int  guideHandleDragNode_ = -1;    // ドラッグ中のノード番号
-	bool guideHandleHover_    = false; // 今フレームにハンドル圏内だったか（右クリックメニュー抑制用）
-	// ミニマップの表示・操作状態（ズーム/パン/ノードドラッグ。ドラッグ中は表示範囲を凍結）
-	float minimapZoom_ = 1.0f;
-	float minimapPanX_ = 0.0f, minimapPanY_ = 0.0f;
-	int   minimapDragRail_ = -1, minimapDragNode_ = -1;
-	bool  minimapHasBounds_ = false;
-	float minimapMinX_ = 0.0f, minimapMaxX_ = 0.0f, minimapMinZ_ = 0.0f, minimapMaxZ_ = 0.0f;
-
-	// --- プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン。処理は PlayCameraController へ分離）---
-	PlayCameraController camCtrl_;
-	// エディタの最新レールから railField_ を作り直し、敵も配置し直す（緑線・プレイヤー一本化）
-	//   simple=true はドラッグ中の軽量同期（道は簡易リボン・敵の再配置なし）
-	void SyncRailsFromEditor(bool simple = false);
-
-	// --- 敵（生成・更新・描画は EnemyManager へ分離）---
+	// --- 敵・卵・戦闘 ---
 	EnemyManager                 enemyMgr_;
-	std::unique_ptr<EnemyEditor> enemyEditor_; // エネミーの配置テンプレートを管理するエディタ
-	void SpawnEnemies();                       // 配置テンプレートを元に敵の実体を再構築する
-	bool railErasedPending_ = false;           // レール削除の直後（敵の距離の張り直しを1回見送る）
+	std::unique_ptr<EnemyEditor> enemyEditor_; // 敵の配置テンプレート（配置の正本）
+	EggSystem    eggSystem_;
+	HitFeel      hitFeel_;  // ヒットストップ/シェイク/歪み+グロー
+	CombatSystem combat_;   // 踏みつけ/卵命中の判定＋エフェクト
 
-	// 配置ビュー（レール展開図）：ブロック・敵・コインを ImGui のパネルの中で配置する2Dエディタ
-	RailStripPanel stripPanel_;
-	// レール上の場所が画面の中央に来るようにカメラを置く（エディタの「カメラをここへ」用）
-	void FocusCameraOnRail(int railIndex, float distance, float height);
+	// --- カメラ・画面 ---
+	PlayCameraController camCtrl_;   // プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
+	PlayScreenEffects    screenFx_;  // プレイ用の見た目・落下ミスのアイリス・起動時ウォームアップ
+	GameHud              hud_;       // 卵の数・コインの数
 
-	// 卵・吐き出し弾の「壁・地面」への当たり判定（ブロック＋道の上面）。EggSystem から呼ばれる
-	bool QueryObstacle(const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos) const;
-
-	// 当たり判定の形をワイヤーで表示する（デバッグ用。敵・プレイヤー・ブロック・卵）
-	bool showHitShapes_ = false;
-
-	// --- ヨッシーの卵（敵を飲み込む→保持→投げる。今は状態管理のみ）---
-	EggSystem eggSystem_;
-	int  lastMapLoadVersion_ = -1;                    // マップ読込を検知して敵配置を復元するため
-	float railSyncTimer_ = 0.0f;                      // ドラッグ中の道再生成を10Hzに間引くタイマー（§1）
-	bool  railFullSyncPending_ = false;               // ドラッグ終了後に本同期を1回行うフラグ（§1）
-
-	// --- ヒット時の手応え（ヒットストップ/シェイク/ポストエフェクト。処理は HitFeel へ分離）---
-	HitFeel hitFeel_;
-
-	// --- 戦闘（踏みつけ/卵命中の判定＋StompEffect の管理。処理は CombatSystem へ分離）---
-	CombatSystem combat_;
-
-	// デバッグ描画のグリッド表示ON/OFF
-	bool showDebugGrid_ = true;
-
-	// Game View で直接ドラッグ中の敵（-1=なし。エディット中の敵つまみ移動）
-	int enemyDragIdx_ = -1;
-	bool enemyDragMoved_ = false; // つかんでから実際に動かしたか（クリックだけなら確定しない）
-
-	// アイリスワイプ演出（落下死→リスポーン時。0=停止/1=閉じる/2=閉じたまま/3=開く）
-	int   irisPhase_ = 0;
-	float irisTimer_ = 0.0f;
-
-	// ブロック配置モードのペイント状態（押した瞬間に置く/消すを決めて塗り続ける）
-	bool  blockPaintErasing_ = false;
-	int   lastPaintRail_  = -1;
-	float lastPaintDist_  = 0.0f;
-	int   lastPaintLevel_ = -1;
-	float lastPaintSide_  = 0.0f;
-
-	// 範囲フィル（塗り方=矩形）のドラッグ状態（始点〜終点をボタンを離した時に一括適用）
-	bool  rectFillActive_   = false;
-	bool  rectFillErase_    = false;
-	int   rectFillRail_     = -1;
-	float rectFillDist_     = 0.0f;
-	int   rectFillLevel_    = 0;
-	float rectFillSide_     = 0.0f;
-	float rectFillEndDist_  = 0.0f;
-	int   rectFillEndLevel_ = 0;
-
-	// --- 卵保持数の数字表示（SDFText。HUDアイコン列の右に「×N」）---
-	std::unique_ptr<SDFText> eggCountText_;
-
-	// --- コイン取得数の表示（SDFText。「コイン n/全体」）---
-	std::unique_ptr<SDFText> coinCountText_;
-
+	// --- エディタ ---
+	PlaySceneEditor editorTools_;          // Game View の操作・配置ビュー・ミニマップ
+	int   lastMapLoadVersion_ = -1;        // マップ読込を検知して敵配置を復元するため
+	bool  railErasedPending_ = false;      // レール番号が変わった直後（敵の距離の張り直しを1回見送る）
+	float railSyncTimer_ = 0.0f;           // ドラッグ中の道再生成を10Hzに間引くタイマー
+	bool  railFullSyncPending_ = false;    // ドラッグ終了後に本同期を1回行うフラグ
+	int   testPlayRail_ = -1;              // 「ここからテストプレイ」：次の Edit→Play の開始地点（-1=通常）
+	float testPlayDist_ = 0.0f;
+	bool  showDebugGrid_ = true;           // デバッグ描画のグリッド
+	bool  showHitShapes_ = false;          // 当たり判定の形の表示
 };

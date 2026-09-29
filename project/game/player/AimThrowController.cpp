@@ -6,7 +6,6 @@
 #include "engine/2d/Sprite.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/base/Input.h"
-#include "engine/base/TimeManager.h"
 #include "engine/base/WindowProc.h"
 #include "engine/camera/Camera.h"
 #include "engine/graphics/DebugDraw.h"

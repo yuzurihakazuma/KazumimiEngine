@@ -33,6 +33,11 @@ public:
     static constexpr int kMotionStartAll = -2;
     void UpdateMotion(float dt, int ridingRail = -1);
     void ResetMotion();          // 編集モードへ戻った時：動くレールを基準位置へ戻す
+    // 動くレールのエディタプレビュー：Playを押さなくても動きを再生して組み方を確認できる。
+    //   enabled が false に変わった瞬間に基準位置へ戻す（編集と表示がずれないように）。Edit中に毎フレーム呼ぶ
+    void UpdateEditorPreview(bool enabled);
+    // 「乗ったら動き出す」で待機中のリフトへ金色の「！」目印を描く（乗れば動くことが一目で分かる）
+    void DrawWaitingLiftMarkers(float dt);
     void UpdateMarkers();         // マーカーの行列更新（毎フレーム。カメラ移動に追従）
     void DrawMarkers() const;     // マーカー描画
     void RebuildMarkers();        // マーカーだけ作り直す（デバッグUI用。Sync 済み前提）
@@ -76,9 +81,10 @@ private:
     std::vector<std::unique_ptr<MarkerSlot>> markerSlots_;
     size_t markerSlotsUsed_ = 0;
 
-    float    animTime_ = 0.0f;     // 動くレール用の経過時間
     int      lastVersion_ = -1;    // 直近に同期したエディタ編集世代
     bool     showMarkers_ = true;  // 緑線表示ON/OFF
+    bool     prevEditorPreview_ = false; // 前フレームにエディタプレビュー中だったか
+    float    liftMarkerTime_ = 0.0f;     // 「！」目印の上下の揺れ用
 
     // スタート/ゴール（Sync 時にノード番号から距離へ変換して保持）
     int   startRail_ = 0;   float startDist_ = 0.0f;

@@ -67,14 +67,10 @@ void HitFeel::UpdateImpactPostEffect(Camera* camera){
     progress = std::clamp(progress, 0.0f, 1.0f);
 
     // ワールド位置 → スクリーンUV（行ベクトル規約 v*VP）
-    const Matrix4x4& vp = camera->GetViewProjectionMatrix();
-    const Vector3& w = fxWorldPos_;
-    float cw = w.x * vp.m[0][3] + w.y * vp.m[1][3] + w.z * vp.m[2][3] + vp.m[3][3];
-    if ( cw <= 0.0001f ) { disableFx(); return; } // カメラ後方なら出さない
-    float cx = w.x * vp.m[0][0] + w.y * vp.m[1][0] + w.z * vp.m[2][0] + vp.m[3][0];
-    float cy = w.x * vp.m[0][1] + w.y * vp.m[1][1] + w.z * vp.m[2][1] + vp.m[3][1];
-    float uvX = cx / cw * 0.5f + 0.5f;
-    float uvY = 1.0f - ( cy / cw * 0.5f + 0.5f );
+    Vector2 ndc;
+    if ( !MatrixMath::WorldToNdc(fxWorldPos_, camera->GetViewProjectionMatrix(), ndc) ) { disableFx(); return; } // カメラ後方なら出さない
+    float uvX = ndc.x * 0.5f + 0.5f;
+    float uvY = 1.0f - ( ndc.y * 0.5f + 0.5f );
 
     // 半径アニメ：歪みは外へ広がる衝撃波、グローはパッと出て消えるパルス
     float t = 1.0f - progress;

@@ -53,6 +53,11 @@ float Enemy::HoverOf(const EnemySpawnData& spawn){
     return ( spawn.hoverHeight >= 0.0f ) ? spawn.hoverHeight : TypeSpecOf(spawn.type).hover;
 }
 
+float Enemy::PickHeightOf(const EnemySpawnData& spawn){
+    EnemyTypeSpec spec = TypeSpecOf(spawn.type);
+    return HoverOf(spawn) + ( spec.bodyBottom + spec.bodyTop ) * 0.5f * spawn.scale;
+}
+
 // 配置データをメンバへ写して初期状態に戻す（モデルには触らない）
 void Enemy::ApplySpawn(const EnemySpawnData& spawn){
     const EnemyTypeSpec spec = TypeSpecOf(spawn.type);

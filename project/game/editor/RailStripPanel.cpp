@@ -36,15 +36,9 @@ namespace {
     float SnapTo(float value, float step){ return std::round(value / step) * step; }
 
     // 敵の体の中心の高さ（レール面から。浮いている敵は浮いた分も含む）
-    float EnemyCenterHeight(const EnemySpawnData& spawn){
-        EnemyTypeSpec spec = Enemy::TypeSpecOf(spawn.type);
-        return Enemy::HoverOf(spawn) + ( spec.bodyBottom + spec.bodyTop ) * 0.5f * spawn.scale;
-    }
+    float EnemyCenterHeight(const EnemySpawnData& spawn){ return Enemy::PickHeightOf(spawn); }
     // 足元から体の中心までの高さ
-    float EnemyBodyMid(const EnemySpawnData& spawn){
-        EnemyTypeSpec spec = Enemy::TypeSpecOf(spawn.type);
-        return ( spec.bodyBottom + spec.bodyTop ) * 0.5f * spawn.scale;
-    }
+    float EnemyBodyMid(const EnemySpawnData& spawn){ return Enemy::PickHeightOf(spawn) - Enemy::HoverOf(spawn); }
     // 動ける範囲を決めてある敵か
     bool EnemyHasRange(const EnemySpawnData& spawn){
         return ( spawn.patrol || spawn.chaseRange > 0.0f )
@@ -126,7 +120,6 @@ void RailStripPanel::CancelInteractions(){
     moveDragged_ = false;
     enemyDrag_ = EnemyDrag::None;
     enemyDragIndex_ = -1;
-    enemyDragChanged_ = false;
     enemyHoverAdjust_ = false;
     rangeAmbiguous_ = false;
     coinDragIndex_ = -1;
@@ -659,9 +652,6 @@ void RailStripPanel::DrawCanvas(const Context& context){
     lastLevels_ = levels;
     layout.levels       = levels;
     layout.padLeft      = kPadLeft;
-    layout.rulerHeight  = kRulerHeight;
-    layout.groundHeight = kGroundHeight;
-    layout.infoHeight   = kInfoHeight;
     layout.width  = kPadLeft + ( float ) ( layout.lastCell + 1 ) * layout.cellPx + kPadRight;
     layout.height = kRulerHeight + ( float ) layout.levels * layout.cellPx + kGroundHeight + kInfoHeight;
 
@@ -1550,7 +1540,6 @@ void RailStripPanel::UpdateEnemyTool(const Context& context, const Layout& layou
                 }
             }
             if ( !( spawn == before ) ) {
-                enemyDragChanged_ = true;
                 enemyEditor->MarkChanged(); // Game View の敵もその場で動く（実体は使い回すので軽い）
             }
             ImGui::SetMouseCursor(enemyDrag_ == EnemyDrag::Move ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_ResizeEW);
@@ -1559,7 +1548,6 @@ void RailStripPanel::UpdateEnemyTool(const Context& context, const Layout& layou
         } else {
             enemyDrag_ = EnemyDrag::None;
             enemyDragIndex_ = -1;
-            enemyDragChanged_ = false;
             enemyHoverAdjust_ = false;
             rangeAmbiguous_ = false;
         }
@@ -1622,7 +1610,6 @@ void RailStripPanel::UpdateEnemyTool(const Context& context, const Layout& layou
             rangeAmbiguous_ = std::abs(rangeMax - rangeMin) < 0.01f;
             enemyDrag_ = overHandle;
             enemyDragIndex_ = overHandleEnemy;
-            enemyDragChanged_ = false;
         }
         return;
     }
@@ -1641,7 +1628,6 @@ void RailStripPanel::UpdateEnemyTool(const Context& context, const Layout& layou
             SelectEnemy(context, overEnemy);
             enemyDrag_ = EnemyDrag::Move;
             enemyDragIndex_ = overEnemy;
-            enemyDragChanged_ = false;
             enemyHoverAdjust_ = false;
             enemyGrabMouseY_ = io.MousePos.y;
         } else if ( ImGui::IsMouseClicked(ImGuiMouseButton_Right) ) {

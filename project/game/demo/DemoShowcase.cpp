@@ -3,7 +3,7 @@
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
-#include "engine/2d/Sprite.h"
+#include "engine/3d/obj/SkinnedObj3d.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/base/Input.h"
 #include "engine/camera/Camera.h"
@@ -15,7 +15,6 @@
 #include "engine/math/Matrix4x4.h"
 #include "Bloom.h"
 #include "HitEffect.h"
-#include "InstancedGroup.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -31,7 +30,6 @@ DemoShowcase::~DemoShowcase() = default;
 void DemoShowcase::Initialize(ID3D12GraphicsCommandList* commandList,
                               std::unordered_map<std::string, TextureData>& textures){
     // --- 回転キューブ（ディゾルブ＋ブルーム。エディタのギズモ操作対象）---
-    cubeAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
     dissolveCube_ = Obj3d::Create("animatedCube");
     if ( dissolveCube_ ) {
         dissolveCube_->SetEnvironmentMap(textures["skybox"].srvIndex);
@@ -66,10 +64,15 @@ void DemoShowcase::Initialize(ID3D12GraphicsCommandList* commandList,
         auraCylinder_->SetPipelineType(PipelineType::Object3D_Additive);
     }
 
-    // --- ブロックのインスタンシング一括描画 ---
-    blockGroup_ = std::make_unique<InstancedGroup>();
-    blockGroup_->Initialize("block", 10000);
-    blockGroup_->SetNoiseTexture(textures["uvChecker"].srvIndex);
+    // --- スキンメッシュの人形（Skinning機能の展示。定位置でその場歩き）---
+    skinnedHuman_ = SkinnedObj3d::Create("human", "resources/human", "walk.gltf");
+    if ( skinnedHuman_ ) {
+        skinnedHuman_->SetEnvironmentMap(textures["skybox"].srvIndex);
+        skinnedHuman_->SetTranslation({ 0.0f, 0.0f, 5.0f });
+        skinnedHuman_->SetScale({ 1.0f, 1.0f, 1.0f });
+        skinnedHuman_->SetRotation({ 0.0f, 3.14159f, 0.0f });
+        EditorManager::GetInstance()->SetTargetSkinnedObj(skinnedHuman_.get()); // エディタのアニメ操作対象
+    }
 
     // --- GPUパーティクルのエミッター（ノードエディタからも操作できるよう登録）---
     GPUParticleEmitterData emitterData;
@@ -87,9 +90,6 @@ void DemoShowcase::Initialize(ID3D12GraphicsCommandList* commandList,
         // モーフのデモ：スライダーで卵⇔敵ボールに変形できる
         sdfEgg_->LoadMorphTarget("resources/sdf3d/enemyBall.sdf3d", commandList);
     }
-
-    // --- uvChecker のスクリーンスプライト（更新のみ。描画は現状オフ）---
-    screenSprite_ = Sprite::Create(textures["uvChecker"].srvIndex, { 100.0f, 100.0f });
 }
 
 // プレイ中のデモ入力＋HitEffect の進行
@@ -135,8 +135,11 @@ void DemoShowcase::UpdateVisuals(Input* input, Camera* camera){
         auraRing_->Update();
     }
 
-    // スクリーンスプライト
-    if ( screenSprite_ ) { screenSprite_->Update(); }
+    // スキンメッシュの人形
+    if ( skinnedHuman_ ) {
+        skinnedHuman_->SetPlaybackSpeed(1.0f);
+        skinnedHuman_->Update();
+    }
 
     // SDF卵（カメラ追従のCB更新＋エロージョン自動デモ）
     if ( sdfEgg_ ) {
@@ -149,13 +152,11 @@ void DemoShowcase::UpdateVisuals(Input* input, Camera* camera){
         sdfEgg_->Update();
     }
 
-    // ブロック群＋GPUパーティクル
-    for ( auto& block : blocks_ ) { block->Update(); }
+    // GPUパーティクル
     if ( input->Triggerkey(DIK_G) ) {
         GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera);
     }
     particleEmitter_.Update(1.0f / 60.0f);
-    if ( blockGroup_ ) { blockGroup_->Update(blocks_); }
 }
 
 void DemoShowcase::OnPlayStart(){
@@ -164,10 +165,7 @@ void DemoShowcase::OnPlayStart(){
 
 void DemoShowcase::DrawOpaque(){
     if ( dissolveCube_ ) { dissolveCube_->Draw(); }
-}
-
-void DemoShowcase::DrawInstanced(Camera* camera){
-    if ( blockGroup_ ) { blockGroup_->Draw(camera); }
+    if ( skinnedHuman_ ) { skinnedHuman_->Draw(); }
 }
 
 void DemoShowcase::DrawAdditive(){

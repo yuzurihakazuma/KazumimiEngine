@@ -1,6 +1,5 @@
 #pragma once
 #include "game/enemy/Enemy.h"
-#include "game/enemy/EnemyEditor.h" // EnemySpawnData
 #include <vector>
 #include <memory>
 #include <functional>

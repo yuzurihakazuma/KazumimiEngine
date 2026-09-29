@@ -464,9 +464,3 @@ int EggSystem::HeldCount() const{
     for ( const auto& egg : eggs_ ) { if ( egg->IsHeld() ) ++count; }
     return count;
 }
-
-int EggSystem::FlyingCount() const{
-    int count = 0;
-    for ( const auto& egg : eggs_ ) { if ( egg->IsFlying() ) ++count; }
-    return count;
-}

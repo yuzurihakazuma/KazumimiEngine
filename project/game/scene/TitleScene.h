@@ -1,90 +1,55 @@
 #pragma once
-// --- エンジン側のファイル ---
-#include "Engine/Scene/IScene.h"
-#include "Engine/Math/Matrix4x4.h"
-#include "Engine/graphics/TextureManager.h"
+// =====================================================================
+//  TitleScene：タイトルシーン。
+//   SDFのタイトルロゴ（拡大しても滲まない。グローと点滅はパラメータ制御）とスタート案内を出し、
+//   T でゲームプレイシーンへ進む。マップエディタもここから触れる
+// =====================================================================
+#include "engine/scene/IScene.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/math/struct.h"
 
-// --- 標準ライブラリ ---
-#include <vector>
 #include <memory>
+#include <string>
+#include <unordered_map>
 
-// 前方宣言
 class DebugCamera;
 class Camera;
 class Sprite;
-class Obj3d;
-class DirectXCommon;
-class Input;
-class RenderTexture;
-class PostEffect;
 class LevelEditor;
 class SDFSprite;
 class SDFText;
 
-
-
-
-	// ゲームプレイシーン
 class TitleScene : public IScene{
 public:
-	// 初期化
-	void Initialize() override;
-	// 終了
-	void Finalize() override;
-	// 更新
-	void Update() override;
-	// 描画
-	void Draw() override;
-
-	void Reload() override;
-
-	// デバッグ用UIの描画
-	void DrawDebugUI() override;
-
 	TitleScene();
-
 	~TitleScene();
 
-private: // メンバ変数
+	void Initialize() override;
+	void Finalize() override;
+	void Update() override;
+	void Draw() override;
+	void Reload() override;
+	void DrawDebugUI() override;
 
-	// カメラ
-	std::unique_ptr<Camera> camera_ = nullptr;
-	// デバッグカメラ
-	std::unique_ptr<DebugCamera> debugCamera_ = nullptr;
+private:
+	// タイトルロゴの脈動・スタート案内の点滅
+	void UpdateTitleAnimation();
 
-	// 3Dオブジェクト
-	std::vector<std::unique_ptr<Obj3d>> object3ds_;
+	std::unique_ptr<Camera>      camera_;
+	std::unique_ptr<DebugCamera> debugCamera_;
 
-	// スプライト
-	std::vector<std::unique_ptr<Sprite>> sprites_;
-	std::unique_ptr<Sprite> sprite_ = nullptr;
-
+	// uvChecker のスプライト（位置はデバッグUIで調整できる）
+	std::unique_ptr<Sprite> sprite_;
 	Vector2 spritePos_ = { 100.0f, 100.0f };
 
-	// テクスチャデータ
 	std::unordered_map<std::string, TextureData> textures_;
-
-	// デプスステンシル
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
-
-
 	std::string bgmFile_ = "resources/BGMDon.mp3";
-
-	// 描画先を切り替えるためのRenderTexture
-	std::unique_ptr<PostEffect> postEffect_ = nullptr;
-
 
 	// マップエディタ
 	std::unique_ptr<LevelEditor> levelEditor_;
 
-	bool isEditorActive_ = true;
-
-	// --- SDFタイトルロゴ＋スタート案内（拡大しても滲まない。グローと点滅はパラメータ制御）---
+	// SDFタイトルロゴ＋スタート案内
 	std::unique_ptr<SDFSprite> logoSprite_;
 	std::unique_ptr<SDFText>   startText_;
 	float titleAnimTime_ = 0.0f;
-
-	
-
-
 };
