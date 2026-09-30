@@ -134,6 +134,7 @@ void TitleScene::OnInitialize(){
 	logo_.Initialize();
 	menu_.Initialize();
 	paperBits_.Initialize();
+	ambience_.Initialize(GetCamera());
 	egg_ = Obj3d::Create("egg");
 
 	// 文字（アトラスは SDFManager が resources/sdf/ から自動ロードするので、ここではアイテムを作るだけ）
@@ -164,6 +165,7 @@ void TitleScene::OnFinalize(){
 	logo_.Finalize();
 	menu_.Finalize();
 	paperBits_.Finalize();
+	ambience_.Finalize();
 	egg_.reset();
 	guideText_.reset();
 	noticeText_.reset();
@@ -359,6 +361,7 @@ void TitleScene::OnUpdate(){
 	logo_.Update(kDeltaTime);
 	menu_.Update(kDeltaTime);
 	paperBits_.Update(kDeltaTime);
+	ambience_.Update(kDeltaTime, player_.GetPosition()); // 草花は恐竜が通ると押される
 	UpdateEgg(kDeltaTime);       // 恐竜の手の位置を使うので、恐竜の後
 	UpdateIrisOut(kDeltaTime);
 	UpdateTexts(kDeltaTime);
@@ -593,6 +596,7 @@ void TitleScene::UpdateTexts(float deltaTime){
 //  描画
 // =====================================================================
 void TitleScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
+	ambience_.Draw();                             // 紙の波（草原と丘の間）
 	roadMesh_.Draw();                             // レールの下の道（本編と同じ自動生成）
 	if ( editRails_ ) { railField_.DrawMarkers(); } // レールの線（編集する時だけ）
 	logo_.Draw();
@@ -625,6 +629,13 @@ void TitleScene::OnDrawInspector(){
 	}
 	ImGui::TextDisabled("レールは title.json に保存されます。道は編集に合わせて作り直されます");
 	ImGui::TextDisabled("登場の自動操縦は「奥右の角→手前右の角→スタート地点」を目指します");
+
+	ImGui::SeparatorText("背景の動き");
+	ImGui::Checkbox("風（草・花・木・雲がゆれる）", &ambience_.RefWindEnabled());
+	ImGui::SliderFloat("風の強さ", &ambience_.RefWindStrength(), 0.0f, 2.5f);
+	ImGui::Checkbox("紙の波", &ambience_.RefWavesEnabled());
+	ImGui::Checkbox("エディタを出している間も動かす", &ambience_.RefMoveWhileEditing());
+	ImGui::TextDisabled("置いた位置は変えず、表示だけを動かしています（保存しても揺れは書き込まれません）");
 
 	ImGui::SeparatorText("紙ふぶき");
 	bool ambient = paperBits_.IsAmbient();

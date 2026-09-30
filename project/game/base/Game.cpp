@@ -2,6 +2,7 @@
 // ---  ゲーム固有のファイル ---
 #include "SceneFactory.h"
 #include "GamePlayScene.h"
+#include "TitleScene.h"
 
 // ---  エンジン側のファイル ---
 #include "engine/scene/SceneManager.h"
@@ -26,7 +27,7 @@ void Game::Initialize(){
 	if ( GetEnvironmentVariableA("CG2_START_SCENE", startSceneName, sizeof(startSceneName)) > 0 ) {
 		startScene = sceneFactory_->CreateScene(startSceneName);
 	}
-	if ( !startScene ) { startScene = std::make_unique<GamePlayScene>(); }
+	if ( !startScene ) { startScene = std::make_unique<TitleScene>(); }
 	SceneManager::GetInstance()->ChangeScene(std::move(startScene));
 }
 

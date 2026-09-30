@@ -82,6 +82,8 @@ public:
     void SpawnObject(const std::string& type);
     // 配置オブジェクトへのアクセス（NodeEditor のターゲット選択用）
     int         GetObjectCount() const;
+    // 配置物のデータ（置いた位置・回転・種類。保存される値）を読む
+    const std::vector<LevelObjectData>& GetObjects() const{ return levelData_.objects; }
     std::string GetObjectLabel(int index) const;    // 表示用 "0: block"
     Obj3d*      GetObject3d(int index);             // 表示オブジェクトを取得（シェーダー適用用）
     // ノード駆動でオブジェクトを動かす（Undo履歴には積まない）

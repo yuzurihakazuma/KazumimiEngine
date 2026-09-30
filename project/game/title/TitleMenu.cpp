@@ -122,6 +122,8 @@ void TitleMenu::Update(float deltaTime){
         const float size = kTargetScale * appear * Easing::Lerp(1.0f, kSelectedScale * pulse, target.focus);
 
         Vector3 rotation { 0.0f, kFacingYaw, 0.0f };
+        // 地面に刺した棒の先なので、いつもほんの少しゆらゆらしている（的ごとにずらす）
+        rotation.z = 0.022f * appear * std::sin(time_ * 1.4f + ( float ) i * 1.9f);
         // ベロが当たった：奥へ倒れかけて、揺れながら戻る
         if ( target.hitTime >= 0.0f ) {
             target.hitTime += deltaTime;
@@ -131,7 +133,7 @@ void TitleMenu::Update(float deltaTime){
         // 断る：横に小刻みに震える
         if ( target.refuseTime >= 0.0f ) {
             target.refuseTime += deltaTime;
-            rotation.z = 0.14f * std::exp(-6.0f * target.refuseTime) * std::sin(target.refuseTime * 40.0f);
+            rotation.z += 0.14f * std::exp(-6.0f * target.refuseTime) * std::sin(target.refuseTime * 40.0f);
             if ( target.refuseTime > 1.0f ) { target.refuseTime = -1.0f; }
         }
 

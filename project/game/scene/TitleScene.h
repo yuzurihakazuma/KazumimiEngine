@@ -12,13 +12,14 @@
 //   背景（地面・丘・木など動かない物）とレールはシーン専用のマップ title.json。
 //     エディタで置いた物としてそのまま表示・編集・保存できる（ステージのマップとは別ファイル）
 //   動く物はシーンが持つ：恐竜の見た目 TitleDino / ロゴ看板 TitleLogoBoard / メニュー TitleMenu /
-//     紙ふぶき TitlePaperBits
+//     紙ふぶき TitlePaperBits / 背景の動き TitleAmbience
 //   カメラ・ポストエフェクト・デバッグ描画などの土台は BaseScene
 // =====================================================================
 #include "game/scene/BaseScene.h"
 #include "game/player/Player.h"
 #include "game/rail/RailField.h"
 #include "game/rail/RoadMesh.h"
+#include "game/title/TitleAmbience.h"
 #include "game/title/TitleDino.h"
 #include "game/title/TitleLogoBoard.h"
 #include "game/title/TitleMenu.h"
@@ -96,6 +97,7 @@ private:
 	TitleLogoBoard logo_;
 	TitleMenu      menu_;
 	TitlePaperBits paperBits_;
+	TitleAmbience  ambience_;   // 風でゆれる草花・流れる雲・紙の波
 	bool logoThrown_ = false;
 
 	// 登場の自動操縦

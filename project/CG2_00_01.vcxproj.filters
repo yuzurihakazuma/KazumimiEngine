@@ -231,6 +231,9 @@
     <ClCompile Include="game\editor\RailStripPanel.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\title\TitleAmbience.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\title\TitlePaperBits.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -760,6 +763,9 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\RailStripPanel.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitleAmbience.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\title\TitlePaperBits.h">
