@@ -188,6 +188,8 @@ public:
 	// このシーンがレール編集を使うか（false の間は Game View にレールの線・ノードを出さず、操作もしない）。
 	//   レールを持たないシーン（タイトルなど）が初期化時に false を渡す
 	void SetRailEditingEnabled(bool enabled){ railEditingEnabled_ = enabled; }
+	// シーン専用のマップへ切り替える（空文字＝ステージのマップへ戻す）。シーンの初期化から呼ぶ
+	void UseSceneMap(const std::string& fileName);
 	// ゲームビューのガイドハンドル（足場のガイドを直接つかむ操作）でドラッグ中か。
 	//   道の再生成を10Hzに間引く判定（IsRailDragging）に含める
 	void SetGameViewGuideDragging(bool v){ gameViewGuideDragging_ = v; }

@@ -35,6 +35,13 @@ PlayerInput::WorldKeys PlayerInput::GetWorldKeys() const{
 }
 
 PlayerInput::RailInput PlayerInput::ReadRail(bool horizontalRail) const{
+    if ( autoPilotActive_ ) {
+        // 自動操縦：横レールは X が移動・Z が乗り換え、縦レールはその逆（実キーと同じ対応）
+        RailInput piloted;
+        piloted.move      = horizontalRail ? autoPilot_.moveX   : autoPilot_.moveZ;
+        piloted.switchDir = horizontalRail ? autoPilot_.switchZ : autoPilot_.switchX;
+        return piloted;
+    }
     Input* input = Input::GetInstance();
     const WorldKeys keys = GetWorldKeys();
     // 横レールは X が移動・Z が乗り換え、縦レールはその逆
@@ -52,6 +59,9 @@ PlayerInput::RailInput PlayerInput::ReadRail(bool horizontalRail) const{
 }
 
 float PlayerInput::ReadAirForward(const Vector3& forwardDir) const{
+    if ( autoPilotActive_ ) {
+        return autoPilot_.moveX * forwardDir.x + autoPilot_.moveZ * forwardDir.z;
+    }
     Input* input = Input::GetInstance();
     const WorldKeys keys = GetWorldKeys();
     float inputX = 0.0f, inputZ = 0.0f;
@@ -62,5 +72,9 @@ float PlayerInput::ReadAirForward(const Vector3& forwardDir) const{
     return inputX * forwardDir.x + inputZ * forwardDir.z;
 }
 
-bool PlayerInput::JumpPressed() const{ return Input::GetInstance()->Triggerkey(DIK_SPACE); }
-bool PlayerInput::JumpHeld() const{ return Input::GetInstance()->Pushkey(DIK_SPACE); }
+bool PlayerInput::JumpPressed() const{
+    return autoPilotActive_ ? autoPilot_.jumpPressed : Input::GetInstance()->Triggerkey(DIK_SPACE);
+}
+bool PlayerInput::JumpHeld() const{
+    return autoPilotActive_ ? autoPilot_.jumpHeld : Input::GetInstance()->Pushkey(DIK_SPACE);
+}

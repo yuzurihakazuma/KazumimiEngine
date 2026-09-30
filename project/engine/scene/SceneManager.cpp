@@ -29,6 +29,7 @@ SceneManager::~SceneManager(){
 		// シーン情報をクリア
 		currentScene_ = nullptr;
 	}
+	fadeSprite_.reset();
 }
 // シーンマネージャーの更新
 void SceneManager::Update(){
@@ -172,6 +173,7 @@ void SceneManager::Finalize() {
 		currentScene_->Finalize();
 		currentScene_.reset();    
 	}
+	fadeSprite_.reset();
 }
 
 void SceneManager::DrawCurrentSceneDebugUI(){

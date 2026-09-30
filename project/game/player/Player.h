@@ -65,6 +65,8 @@ public:
     void SetSpawn(int rail, float dist){ spawnRail_ = rail; spawnDist_ = dist; }
     // カメラの向き(yaw)。シーンが毎フレーム渡す（キー割り当てを画面基準に回すため）
     void SetCameraYaw(float yawRad){ input_.SetCameraYaw(yawRad); }
+    // 自動操縦（実キーの代わりに入力を与える。タイトルの登場演出用）。active=false で実キーに戻る
+    void SetAutoPilot(bool active, const PlayerInput::AutoPilot& pilot = {}){ input_.SetAutoPilot(active, pilot); }
     // ブロック（乗れる/ぶつかる）の当たり判定窓口。シーンが渡す（所有しない）
     void SetBlocks(BlockSystem* blocks){ blockContact_.SetBlocks(blocks); }
 

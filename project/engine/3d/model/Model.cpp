@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <filesystem>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -45,6 +46,9 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 	// 4. マテリアルデータの読み込み (.mtlファイル)
 	if ( modelData_.material.textureFilePath.empty() ) {
 		modelData_.material.textureFilePath = "resources/uvChecker.png";
+	}
+	for ( auto& subMesh : modelData_.subMeshes ) {
+		if ( subMesh.textureFilePath.empty() ) { subMesh.textureFilePath = modelData_.material.textureFilePath; }
 	}
 
 	// 5. バッファの作成
@@ -350,6 +354,15 @@ void Model::Draw(uint32_t instanceCount) {
 	// プリミティブトポロジの設定（三角形リスト）
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	// 複数テクスチャのモデル：マテリアルごとにテクスチャを張り替えて、その範囲だけ描く
+	if ( !modelData_.subMeshes.empty() ) {
+		for ( size_t i = 0; i < modelData_.subMeshes.size(); ++i ) {
+			const SubMesh& subMesh = modelData_.subMeshes[i];
+			commandList->SetGraphicsRootDescriptorTable(2, subMeshTextureHandles_[i]);
+			commandList->DrawIndexedInstanced(subMesh.indexCount, instanceCount, subMesh.indexStart, 0, 0);
+		}
+		return;
+	}
 
 	// 5. テクスチャの設定 (RootParameter 2番)
 	// ※元のObj3d.cppで 2番 に設定していたものです
@@ -379,6 +392,7 @@ void Model::SetTexture(uint32_t textureIndex){
 
 	// SrvManagerから新しいGPUハンドルを取得して、描画用の textureHandle_ を上書きする
 	textureHandle_ = modelCommon_->GetDxCommon()->GetSrvManager()->GetGPUDescriptorHandle(textureIndex);
+	ApplyTextureToAllSubMeshes();
 }
 
 // ファイルパスを指定して変更（新しく読み込む、またはパス指定で楽をしたい場合）
@@ -399,6 +413,32 @@ void Model::SetTexture(const std::string& textureFilePath){
 	textureHandle_ = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(
 		modelData_.material.textureIndex
 	);
+	ApplyTextureToAllSubMeshes();
+}
+
+// モデル全体のテクスチャ上書きを、マテリアルごとの分にも反映する（SetTexture は「全体をこの1枚に」の意味）
+void Model::ApplyTextureToAllSubMeshes(){
+	for ( size_t i = 0; i < modelData_.subMeshes.size(); ++i ) {
+		modelData_.subMeshes[i].textureFilePath = modelData_.material.textureFilePath;
+		modelData_.subMeshes[i].textureIndex = modelData_.material.textureIndex;
+		subMeshTextureHandles_[i] = textureHandle_;
+	}
+}
+
+// 指定した名前のマテリアルの面だけテクスチャを差し替える
+bool Model::SetMaterialTexture(const std::string& materialName, const std::string& textureFilePath){
+	auto dxCommon = modelCommon_->GetDxCommon();
+	bool found = false;
+	for ( size_t i = 0; i < modelData_.subMeshes.size(); ++i ) {
+		SubMesh& subMesh = modelData_.subMeshes[i];
+		if ( subMesh.materialName != materialName ) { continue; }
+		subMesh.textureFilePath = textureFilePath;
+		subMesh.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+			textureFilePath, dxCommon->GetCommandList()).srvIndex;
+		subMeshTextureHandles_[i] = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(subMesh.textureIndex);
+		found = true;
+	}
+	return found;
 }
 
 void Model::DrawOnly(uint32_t instanceCount){
@@ -458,9 +498,28 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 		aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_GenNormals);
 	assert(scene != nullptr && scene->HasMeshes()); // 読み込めない、またはメッシュがない場合はエラー
 
+	// マテリアルごとのテクスチャ（ディフューズ）を先に調べる。
+	//   "../textures/x.png" のような相対指定は正規化して、同じ画像が別名で二重に読まれないようにする
+	std::vector<std::string> materialTextures(scene->mNumMaterials);
+	std::string firstTexture; // 最初に見つかったテクスチャ（テクスチャ無しマテリアルの代わりにも使う）
+	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
+		aiMaterial* material = scene->mMaterials[materialIndex];
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) == 0) { continue; }
+		aiString textureFilePath;
+		material->GetTexture(aiTextureType_DIFFUSE, 0, &textureFilePath);
+		std::string path = directoryPath + "/" + textureFilePath.C_Str();
+		if (path.find("..") != std::string::npos) {
+			path = std::filesystem::path(path).lexically_normal().generic_string();
+		}
+		materialTextures[materialIndex] = path;
+		if (firstTexture.empty()) { firstTexture = path; }
+	}
+	int lastMaterialIndex = -1; // 直前のメッシュのマテリアル（同じなら描画範囲をつなげる）
+
 	// 2. メッシュの解析
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 		aiMesh* mesh = scene->mMeshes[meshIndex];
+		const uint32_t indexStart = static_cast<uint32_t>(modelData.indices.size());
 		assert(mesh->HasNormals()); // 法線がないモデルは今回は非対応
 		assert(mesh->HasTextureCoords(0)); // UVがないモデルは今回は非対応
 
@@ -536,6 +595,8 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 			vertex.position = { position.x, position.y, position.z, 1.0f };
 			vertex.normal = { normal.x, normal.y, normal.z };
 			vertex.texcoord = { texcoord.x, texcoord.y };
+			// 縦方向に 0〜1 をはみ出す UV があれば、繰り返し貼り（タイル貼り）のモデルとして描く
+			if (texcoord.y < -0.01f || texcoord.y > 1.01f) { modelData.tiledUV = true; }
 			vertex.influence = influences[vertexIndex];
 
 			// もしボーン影響が全くない頂点なら、ルート（またはインデックス0）に100%影響とする
@@ -573,22 +634,32 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 				modelData.indices.push_back(baseVertex + face.mIndices[element]);
 			}
 		}
-	}
 
-	// 5. Material(マテリアル)の解析
-	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
-		aiMaterial* material = scene->mMaterials[materialIndex];
-
-		// テクスチャ（ディフューズマップ）があるか確認
-		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
-			aiString textureFilePath;
-			material->GetTexture(aiTextureType_DIFFUSE, 0, &textureFilePath);
-
-			// パスを結合して自分たちの構造体に保存
-			modelData.material.textureFilePath = directoryPath + "/" + textureFilePath.C_Str();
-			break; // 複数のマテリアルがあっても、一旦最初のものだけ使う
+		// 4. このメッシュの描画範囲をマテリアルと結び付ける
+		const uint32_t indexCount = static_cast<uint32_t>(modelData.indices.size()) - indexStart;
+		const int materialIndex = static_cast<int>(mesh->mMaterialIndex);
+		if (materialIndex == lastMaterialIndex && !modelData.subMeshes.empty()) {
+			modelData.subMeshes.back().indexCount += indexCount;
+		} else {
+			SubMesh subMesh;
+			subMesh.indexStart = indexStart;
+			subMesh.indexCount = indexCount;
+			if (mesh->mMaterialIndex < scene->mNumMaterials) {
+				subMesh.materialName = scene->mMaterials[mesh->mMaterialIndex]->GetName().C_Str();
+				subMesh.textureFilePath = materialTextures[mesh->mMaterialIndex];
+			}
+			// テクスチャを持たないマテリアルは、最初に見つかったテクスチャで描く（これまでの見た目と同じ）
+			if (subMesh.textureFilePath.empty()) { subMesh.textureFilePath = firstTexture; }
+			modelData.subMeshes.push_back(subMesh);
+			lastMaterialIndex = materialIndex;
 		}
 	}
+
+	// 5. モデル全体の既定テクスチャ。全部が同じ1枚なら、範囲分けをせず今まで通り1回で描く
+	modelData.material.textureFilePath = firstTexture;
+	const bool singleTexture = std::all_of(modelData.subMeshes.begin(), modelData.subMeshes.end(),
+		[&](const SubMesh& subMesh){ return subMesh.textureFilePath == firstTexture; });
+	if (singleTexture) { modelData.subMeshes.clear(); }
 	// ノード階層の解析
 	modelData.rootNode = ParseNode(scene->mRootNode);
 
@@ -645,6 +716,14 @@ void Model::CreateBuffers(){
 		modelData_.material.textureIndex
 	);
 
+	// マテリアルごとのテクスチャ（複数テクスチャのモデルだけ）
+	subMeshTextureHandles_.clear();
+	for ( auto& subMesh : modelData_.subMeshes ) {
+		subMesh.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+			subMesh.textureFilePath, commandList).srvIndex;
+		subMeshTextureHandles_.push_back(dxCommon->GetSrvManager()->GetGPUDescriptorHandle(subMesh.textureIndex));
+	}
+
 
 	// 2. 頂点リソースを作る
 	vertexResource_ = resourceFactory->CreateBufferResource(sizeof(VertexData) * modelData_.vertices.size());
@@ -685,6 +764,7 @@ void Model::CreateBuffers(){
 	// デフォルト値
 	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	materialData_->enableLighting = true;
+	materialData_->matte = 0.0f;
 	materialData_->uvTransform = MakeIdentity4x4();
 	materialData_->shininess = 32.0f;
 	materialData_->emissive = 0.0f;
@@ -737,6 +817,7 @@ void Model::InitializeDynamic(ModelCommon* modelCommon, uint32_t vertexCapacity,
 	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
 	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	materialData_->enableLighting = true;
+	materialData_->matte = 0.0f;
 	materialData_->uvTransform = MakeIdentity4x4();
 	materialData_->shininess = 32.0f;
 	materialData_->emissive = 0.0f;

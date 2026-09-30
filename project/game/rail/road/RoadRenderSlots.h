@@ -31,6 +31,8 @@ public:
     void PlaceMovingJoint(Model* model, const Vector3& pos, float yaw, int railIdx, const Vector3& animOffset);
     // Build 終了：余ったスロットは空メッシュにして描かない（バッファは保持＝次の編集で使い回す）
     void EndBuild();
+    // 保持しているメッシュスロット・ジョイントスロットの全GPUリソースを解放する
+    void Clear();
 
     // 毎フレーム：動くレールへの追従＋カメラ行列の焼き直し
     void Update(const std::vector<SplineRail>& rails, bool playMode);

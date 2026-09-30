@@ -332,12 +332,13 @@ bool BlenderImporter::EnsureModelLoaded(const std::string& modelName){
     if ( ModelManager::GetInstance()->FindModel(modelName) ) return true;
 
     namespace fs = std::filesystem;
-    // 探索順: resources/<名前>/<名前>.obj → .gltf → resources/<名前>.obj → .gltf
+    // 探索順: resources/<名前>/<名前>.obj → .gltf → resources/<名前>.obj → .gltf → クラフトキット
     const std::pair<std::string, std::string> candidates[] = {
         { "resources/" + modelName, modelName + ".obj" },
         { "resources/" + modelName, modelName + ".gltf" },
         { "resources",              modelName + ".obj" },
         { "resources",              modelName + ".gltf" },
+        { "resources/craft/models", modelName + ".gltf" }, // CraftKit の file_name はここを指す
     };
     for ( const auto& c : candidates ) {
         std::error_code ec;

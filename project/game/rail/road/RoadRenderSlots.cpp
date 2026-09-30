@@ -77,6 +77,15 @@ void RoadRenderSlots::EndBuild(){
     }
 }
 
+void RoadRenderSlots::Clear(){
+    slots_.clear();
+    slotsUsed_ = 0;
+    joints_.clear();
+    jointsUsed_ = 0;
+    lastVertexCount_ = 0;
+    lastTriangleCount_ = 0;
+}
+
 // 背面カリングの切替（既存スロットにも即時反映）
 void RoadRenderSlots::SetCullNone(bool cullNone){
     if ( cullNone_ == cullNone ) return;

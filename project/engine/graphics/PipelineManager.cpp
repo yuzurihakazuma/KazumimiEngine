@@ -19,6 +19,8 @@ void PipelineManager::Finalize(){
 	object3DRootSignature_.Reset();
 	object3DPipelineState_.Reset();
 	object3DPipelineStateNone_.Reset();
+	object3DWrapRootSignature_.Reset();
+	object3DWrapPipelineState_.Reset();
 
 	// インスタンシング専用のリソースも忘れずに解放
 	instancedObject3DRootSignature_.Reset();
@@ -160,6 +162,10 @@ void PipelineManager::SetPipeline(
 		commandList->SetPipelineState(object3DPipelineStateAdditive_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		break;
+	case PipelineType::Object3D_WrapUV: // タイル貼りのモデル用（バインドの並びは Object3D と同じ）
+		commandList->SetGraphicsRootSignature(object3DWrapRootSignature_.Get());
+		commandList->SetPipelineState(object3DWrapPipelineState_.Get());
+		break;
 
 		//s
 	}
@@ -216,24 +222,27 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PipelineManager::CreateCustomObject3
 // ルートシグネチャの生成 Object3D用
 void PipelineManager::CreateObject3DRootSignature(){
 
-	RootSignatureBuilder builder;
-	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
-	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
-	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
-	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
-	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
-	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
-	builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
+	// 通常版と「縦もリピートする版」を作る。違いはサンプラーだけで、バインドの並びは同じ
+	for ( bool wrapV : { false, true } ) {
+		RootSignatureBuilder builder;
+		builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
+		builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
+		builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
+		builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
+		builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
+		builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
+		builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
 
-	// ディゾルブ用のリソースを追加
-	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
-	builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ進行度 (b5)
+		// ディゾルブ用のリソースを追加
+		builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
+		builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ進行度 (b5)
 
-	builder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [9]: 環境マップ (t2)
+		builder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [9]: 環境マップ (t2)
 
-	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
-	// 構築して object3DRootSignature_ に入れる！
-	builder.Build(dxCommon_->GetDevice(), object3DRootSignature_);
+		builder.AddDefaultSampler(0, wrapV);                             // サンプラー (s0)
+		// 構築して object3DRootSignature_ / object3DWrapRootSignature_ に入れる！
+		builder.Build(dxCommon_->GetDevice(), wrapV ? object3DWrapRootSignature_ : object3DRootSignature_);
+	}
 
 }
 // グラフィックスパイプラインの生成 Object3D用
@@ -259,6 +268,17 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		true,
 		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		object3DPipelineStateNone_
+	);
+	// タイル貼りのモデル用（テクスチャを縦横ともリピート。それ以外はカリングあり用と同じ）
+	CreateGraphicsPipelineCommon(
+		L"resources/shaders/Object3d/Object3d.VS.hlsl",
+		L"resources/shaders/Object3d/Object3d.PS.hlsl",
+		object3DWrapRootSignature_.Get(),
+		BlendMode::kNormal,
+		D3D12_CULL_MODE_BACK,
+		true,
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
+		object3DWrapPipelineState_
 	);
 	// 加算合成用
 	CreateGraphicsPipelineCommon(

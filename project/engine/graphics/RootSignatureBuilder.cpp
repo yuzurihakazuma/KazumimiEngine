@@ -43,11 +43,11 @@ void RootSignatureBuilder::AddDescriptorTableSRV(UINT baseShaderRegister, D3D12_
 	parameters_.push_back(param); // ルートパラメータのリストに追加
 }
 // サンプラーはStaticSamplerで追加
-void RootSignatureBuilder::AddDefaultSampler(UINT shaderRegister) {
+void RootSignatureBuilder::AddDefaultSampler(UINT shaderRegister, bool wrapV) {
 	D3D12_STATIC_SAMPLER_DESC sampler = {}; // サンプラーを初期化
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR; // バイナリアフィルタ
 	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP; // 0∼1の範囲側をリピート
-	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP; // 0∼1の範囲側をリピート
+	sampler.AddressV = wrapV ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP; // 縦は既定でクランプ
 	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP; // 0∼1の範囲側をリピート
 	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // 比較しない
 	sampler.MaxLOD = D3D12_FLOAT32_MAX; // ありったけのMipmap

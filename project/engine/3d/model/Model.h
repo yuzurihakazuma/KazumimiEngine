@@ -43,10 +43,23 @@ public: // サブクラス定義
 		uint32_t textureIndex = 0;
 	};
 
+	// マテリアルごとの描画範囲（1モデルで複数のテクスチャを使う時だけ作る）
+	struct SubMesh{
+		uint32_t indexStart = 0;       // indices の中の開始位置
+		uint32_t indexCount = 0;       // 描くインデックス数
+		std::string materialName;      // ファイル上のマテリアル名（面の差し替えに使う）
+		std::string textureFilePath;
+		uint32_t textureIndex = 0;
+	};
+
 	struct ModelData{
 		std::vector<VertexData> vertices; // 頂点データ
 		std::vector<uint32_t> indices;    // インデックスデータ
-		MaterialData material;            // マテリアルデータ
+		MaterialData material;            // マテリアルデータ（モデル全体の既定＝最初に見つかったテクスチャ）
+		// 複数テクスチャのモデルだけ中身が入る（空＝全体を material の1枚で描く）
+		std::vector<SubMesh> subMeshes;
+		// UV が 0〜1 を超えて繰り返す（タイル貼り）モデルか。true ならテクスチャを縦横ともリピートして描く
+		bool tiledUV = false;
 		Node rootNode; // モデルの階層構造のルートノード
 		std::map<std::string, Matrix4x4>     inverseBindPoseMap;
 		std::vector<std::string> boneOrder; // ボーンの順番（頂点のjointIndicesと対応させるため）
@@ -55,7 +68,8 @@ public: // サブクラス定義
 	struct Material{
 		Vector4 color;// 材質の色
 		int32_t enableLighting;// ライティングの有効無効
-		float padding[3];       // 4 bytes * 3 = 12 bytes (行列を16バイト境界に合わせるための詰め物)
+		float matte;            // 1でハイライト（鏡面反射）を出さない。紙・フェルトなど、つやの無い素材用（既定0）
+		float padding[2];       // 4 bytes * 2 = 8 bytes (行列を16バイト境界に合わせるための詰め物)
 		Matrix4x4 uvTransform;
 		float shininess;       
 		float padding2[2];      // 8バイト (HLSLの float2 padding と一致)
@@ -150,6 +164,15 @@ public: // メンバ関数
 	// テクスチャを「ファイルパス」から読み込んで上書き設定する
 	void SetTexture(const std::string& textureFilePath);
 
+	// タイル貼り（UV が 0〜1 を超えて繰り返す）モデルか。読み込んだモデルは UV から自動で決まる。
+	//   コードで作ったモデルを繰り返し貼りにしたい時は SetTiledUV(true)
+	bool UsesTiledUV() const{ return modelData_.tiledUV; }
+	void SetTiledUV(bool tiled){ modelData_.tiledUV = tiled; }
+
+	// 指定した名前のマテリアルの面だけ、テクスチャを差し替える（看板のロゴ面・的の項目名など）。
+	//   複数テクスチャのモデル専用。その名前のマテリアルが無ければ false
+	bool SetMaterialTexture(const std::string& materialName, const std::string& textureFilePath);
+
 private: // 内部関数
 	 
 	// aiNodeからNode構造体を再帰的に作る関数
@@ -163,6 +186,8 @@ private: // 内部関数
 	void AdjustModelCenter();
 	// / バッファの作成
 	void CreateBuffers();
+	// SetTexture の上書き（モデル全体をこの1枚に）を、マテリアルごとの分にも反映する
+	void ApplyTextureToAllSubMeshes();
 
 
 	
@@ -194,5 +219,7 @@ private: // メンバ変数
 
 	// テクスチャハンドル
 	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle_ {};
+	// マテリアルごとのテクスチャハンドル（modelData_.subMeshes と同じ並び）
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> subMeshTextureHandles_;
 
 };

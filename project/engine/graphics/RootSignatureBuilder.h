@@ -19,7 +19,9 @@ public:
     void AddDescriptorTableSRV(UINT baseShaderRegister, D3D12_SHADER_VISIBILITY visibility);
 
     // サンプラー（s0
-    void AddDefaultSampler(UINT shaderRegister = 0);
+    //   wrapV=true：縦方向もリピートする（UV が 0〜1 を超えて繰り返すタイル貼りのモデル用）。
+    //   既定は縦だけクランプ＝アトラスの上下の段がにじまない
+    void AddDefaultSampler(UINT shaderRegister = 0, bool wrapV = false);
 
     // 構築してルートシグネチャを生成（where：呼び出し元。リークレポートに出る名前になる）
     void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12RootSignature>& outRootSig,

@@ -1,0 +1,1399 @@
+{
+ "name": "title",
+ "objects": [
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -14.4,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -14.4,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -14.4,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    -14.4,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -10.8,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -10.8,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -10.8,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    -10.8,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -7.2,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -7.2,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -7.2,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    -7.2,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -3.6,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -3.6,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    -3.6,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    -3.6,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    0.0,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    0.0,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    0.0,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    3.6,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    3.6,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    3.6,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    3.6,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    7.2,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    7.2,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    7.2,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    7.2,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    10.8,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    10.8,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    10.8,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    10.8,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    14.4,
+    0.0,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    14.4,
+    0.0,
+    0.0
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_tile_grass",
+   "translation": [
+    14.4,
+    0.0,
+    3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "ground_block_step",
+   "translation": [
+    14.4,
+    0.0,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "hill_backdrop_00",
+   "translation": [
+    -4.5,
+    0.0,
+    13.5
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "hill_backdrop_01",
+   "translation": [
+    9.0,
+    0.0,
+    14.76
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.98,
+    1.98,
+    1.98
+   ]
+  },
+  {
+   "type": "hill_backdrop_far",
+   "translation": [
+    0.0,
+    0.0,
+    20.7
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    2.34,
+    2.34,
+    2.34
+   ]
+  },
+  {
+   "type": "sky_backdrop",
+   "translation": [
+    0.0,
+    0.0,
+    25.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "cloud_cutout_00",
+   "translation": [
+    -6.48,
+    5.94,
+    16.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "cloud_cutout_01",
+   "translation": [
+    7.56,
+    7.2,
+    18.9
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    2.34,
+    2.34,
+    2.34
+   ]
+  },
+  {
+   "type": "tree_cutout_00",
+   "translation": [
+    -9.36,
+    1.08,
+    7.74
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "tree_cutout_01",
+   "translation": [
+    10.08,
+    1.08,
+    7.92
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.53,
+    1.53,
+    1.53
+   ]
+  },
+  {
+   "type": "tree_round_small_00",
+   "translation": [
+    -9.0,
+    0.252,
+    2.88
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "tree_round_small_01",
+   "translation": [
+    6.12,
+    1.08,
+    7.2
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    2.16,
+    2.16,
+    2.16
+   ]
+  },
+  {
+   "type": "fence_sticks",
+   "translation": [
+    -4.59,
+    1.08,
+    5.22
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "fence_sticks",
+   "translation": [
+    -2.34,
+    1.08,
+    5.22
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "fence_sticks",
+   "translation": [
+    -0.09,
+    1.08,
+    5.22
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "paper_cup",
+   "translation": [
+    9.0,
+    0.252,
+    2.16
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "paper_rock_00",
+   "translation": [
+    -8.28,
+    0.252,
+    -1.44
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ]
+  },
+  {
+   "type": "paper_rock_01",
+   "translation": [
+    9.0,
+    0.252,
+    -3.6
+   ],
+   "rotation": [
+    0.0,
+    3.14159,
+    0.0
+   ],
+   "scale": [
+    1.08,
+    1.08,
+    1.08
+   ]
+  },
+  {
+   "type": "grass_tuft_00",
+   "translation": [
+    -11.9313,
+    0.252,
+    -2.3852
+   ],
+   "rotation": [
+    0.0,
+    2.98463,
+    0.0
+   ],
+   "scale": [
+    1.7504,
+    1.7504,
+    1.7504
+   ]
+  },
+  {
+   "type": "grass_tuft_01",
+   "translation": [
+    -7.0449,
+    0.252,
+    0.707
+   ],
+   "rotation": [
+    0.0,
+    2.81756,
+    0.0
+   ],
+   "scale": [
+    1.2658,
+    1.2658,
+    1.2658
+   ]
+  },
+  {
+   "type": "grass_tuft_02",
+   "translation": [
+    7.7066,
+    0.252,
+    1.5693
+   ],
+   "rotation": [
+    0.0,
+    3.30888,
+    0.0
+   ],
+   "scale": [
+    1.3999,
+    1.3999,
+    1.3999
+   ]
+  },
+  {
+   "type": "grass_tuft_00",
+   "translation": [
+    11.5218,
+    0.252,
+    -1.2942
+   ],
+   "rotation": [
+    0.0,
+    3.56807,
+    0.0
+   ],
+   "scale": [
+    1.347,
+    1.347,
+    1.347
+   ]
+  },
+  {
+   "type": "grass_tuft_01",
+   "translation": [
+    8.7569,
+    0.252,
+    0.8215
+   ],
+   "rotation": [
+    0.0,
+    2.81997,
+    0.0
+   ],
+   "scale": [
+    1.9168,
+    1.9168,
+    1.9168
+   ]
+  },
+  {
+   "type": "grass_tuft_02",
+   "translation": [
+    4.5129,
+    0.252,
+    3.7471
+   ],
+   "rotation": [
+    0.0,
+    3.26879,
+    0.0
+   ],
+   "scale": [
+    1.7568,
+    1.7568,
+    1.7568
+   ]
+  },
+  {
+   "type": "grass_tuft_00",
+   "translation": [
+    8.301,
+    0.252,
+    0.9387
+   ],
+   "rotation": [
+    0.0,
+    2.76281,
+    0.0
+   ],
+   "scale": [
+    1.7796,
+    1.7796,
+    1.7796
+   ]
+  },
+  {
+   "type": "grass_tuft_02",
+   "translation": [
+    -10.5892,
+    0.252,
+    -2.1163
+   ],
+   "rotation": [
+    0.0,
+    3.55942,
+    0.0
+   ],
+   "scale": [
+    1.5102,
+    1.5102,
+    1.5102
+   ]
+  },
+  {
+   "type": "grass_tuft_00",
+   "translation": [
+    3.4192,
+    0.252,
+    -1.0705
+   ],
+   "rotation": [
+    0.0,
+    3.27754,
+    0.0
+   ],
+   "scale": [
+    1.4486,
+    1.4486,
+    1.4486
+   ]
+  },
+  {
+   "type": "grass_tuft_01",
+   "translation": [
+    -5.8722,
+    0.252,
+    3.4583
+   ],
+   "rotation": [
+    0.0,
+    2.98657,
+    0.0
+   ],
+   "scale": [
+    1.8082,
+    1.8082,
+    1.8082
+   ]
+  },
+  {
+   "type": "grass_tuft_02",
+   "translation": [
+    -8.2873,
+    0.252,
+    1.8147
+   ],
+   "rotation": [
+    0.0,
+    3.49408,
+    0.0
+   ],
+   "scale": [
+    1.6015,
+    1.6015,
+    1.6015
+   ]
+  },
+  {
+   "type": "grass_tuft_00",
+   "translation": [
+    12.336,
+    0.252,
+    1.1088
+   ],
+   "rotation": [
+    0.0,
+    3.08196,
+    0.0
+   ],
+   "scale": [
+    1.8762,
+    1.8762,
+    1.8762
+   ]
+  },
+  {
+   "type": "grass_tuft_01",
+   "translation": [
+    8.6399,
+    0.252,
+    2.1859
+   ],
+   "rotation": [
+    0.0,
+    3.42533,
+    0.0
+   ],
+   "scale": [
+    1.2889,
+    1.2889,
+    1.2889
+   ]
+  },
+  {
+   "type": "flower_red",
+   "translation": [
+    8.807,
+    0.252,
+    -1.3343
+   ],
+   "rotation": [
+    0.0,
+    3.00595,
+    0.0
+   ],
+   "scale": [
+    1.7249,
+    1.7249,
+    1.7249
+   ]
+  },
+  {
+   "type": "flower_orange",
+   "translation": [
+    9.7004,
+    0.252,
+    -0.2963
+   ],
+   "rotation": [
+    0.0,
+    3.34677,
+    0.0
+   ],
+   "scale": [
+    1.6176,
+    1.6176,
+    1.6176
+   ]
+  },
+  {
+   "type": "flower_red",
+   "translation": [
+    -2.354,
+    0.252,
+    -2.0209
+   ],
+   "rotation": [
+    0.0,
+    2.70741,
+    0.0
+   ],
+   "scale": [
+    1.8069,
+    1.8069,
+    1.8069
+   ]
+  },
+  {
+   "type": "flower_orange",
+   "translation": [
+    -9.5727,
+    0.252,
+    -3.2608
+   ],
+   "rotation": [
+    0.0,
+    3.48224,
+    0.0
+   ],
+   "scale": [
+    1.8918,
+    1.8918,
+    1.8918
+   ]
+  },
+  {
+   "type": "flower_orange",
+   "translation": [
+    6.8347,
+    0.252,
+    -0.5604
+   ],
+   "rotation": [
+    0.0,
+    3.52249,
+    0.0
+   ],
+   "scale": [
+    1.7148,
+    1.7148,
+    1.7148
+   ]
+  },
+  {
+   "type": "flower_red",
+   "translation": [
+    11.6092,
+    0.252,
+    0.2096
+   ],
+   "rotation": [
+    0.0,
+    2.7305,
+    0.0
+   ],
+   "scale": [
+    2.0598,
+    2.0598,
+    2.0598
+   ]
+  },
+  {
+   "type": "flower_orange",
+   "translation": [
+    -11.4313,
+    0.252,
+    1.5892
+   ],
+   "rotation": [
+    0.0,
+    2.98302,
+    0.0
+   ],
+   "scale": [
+    1.8266,
+    1.8266,
+    1.8266
+   ]
+  },
+  {
+   "type": "titleDesk",
+   "translation": [
+    0.0,
+    -0.05,
+    14.4
+   ],
+   "rotation": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "scale": [
+    108.0,
+    0.1,
+    72.0
+   ]
+  }
+ ],
+ "railLines": [
+  [
+   [
+    -5.4,
+    0.372,
+    -4.41
+   ],
+   [
+    0.0,
+    0.372,
+    -4.41
+   ],
+   [
+    5.4,
+    0.372,
+    -4.41
+   ]
+  ],
+  [
+   [
+    5.4,
+    0.372,
+    -4.41
+   ],
+   [
+    5.4,
+    0.372,
+    1.62
+   ]
+  ],
+  [
+   [
+    5.4,
+    0.372,
+    1.62
+   ],
+   [
+    0.0,
+    0.372,
+    1.62
+   ],
+   [
+    -5.4,
+    0.372,
+    1.62
+   ]
+  ],
+  [
+   [
+    -5.4,
+    0.372,
+    1.62
+   ],
+   [
+    -5.4,
+    0.372,
+    -4.41
+   ]
+  ]
+ ],
+ "railTypes": [
+  -1,
+  -1,
+  -1,
+  -1
+ ],
+ "railLineModes": [
+  1,
+  1,
+  1,
+  1
+ ],
+ "railGroundTypes": [
+  0,
+  0,
+  0,
+  0
+ ],
+ "startRailIndex": 0,
+ "startNodeIndex": 1
+}

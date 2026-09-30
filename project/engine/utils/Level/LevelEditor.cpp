@@ -188,6 +188,22 @@ void LevelEditor::LoadAndCreateMap(const std::string& fileName){
 	++mapLoadVersion_; // シーンが敵を読み直す合図
 }
 
+// シーン専用のマップへ切り替える／ステージのマップへ戻す
+void LevelEditor::UseSceneMap(const std::string& fileName){
+	std::string target;
+	if ( fileName.empty() ) {
+		if ( stageMapFile_.empty() ) return; // もともとステージのマップを開いている
+		target = stageMapFile_;
+		stageMapFile_.clear();
+	} else {
+		if ( currentMapFile_ == fileName ) return;
+		if ( stageMapFile_.empty() ) { stageMapFile_ = currentMapFile_; } // 戻り先を覚える
+		target = fileName;
+	}
+	if ( dirty_ ) { QuickSave(); } // 編集途中のまま切り替えて失わないように
+	LoadAndCreateMap(target);
+}
+
 // Blenderインポータ等の外部から変換済みデータを受け取って反映する
 void LevelEditor::ApplyImportedData(const LevelData& data, bool additive){
 	PushUndo(); // インポート前を履歴へ（「元に戻す(配置)」で取り消せる）

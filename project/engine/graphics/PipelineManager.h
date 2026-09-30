@@ -116,6 +116,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DRootSignature_; // ルートシグネチャ
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineState_; // カリングあり用
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineStateNone_; // カリングなし用
+	// テクスチャを縦横ともリピートする版（サンプラーだけが違う。Object3D_WrapUV）
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DWrapRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DWrapPipelineState_;
 
 	// インスタンシング専用の変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancedObject3DRootSignature_;

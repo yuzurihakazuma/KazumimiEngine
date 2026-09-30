@@ -1514,6 +1514,12 @@ void EditorManager::Update(){
             ImGui::BringWindowToDisplayFront(toolbarWindow);
         }
     }
+#else
+    // エディタの無いビルド（Release）でも、マップに置いた物は毎フレーム更新する。
+    //   更新しないと、作った瞬間のカメラで計算した位置のまま描かれ、カメラを動かしても付いてこない
+    if ( levelEditor_ ) {
+        levelEditor_->Update();
+    }
 #endif
 }
 // レベルエディタの描画
@@ -1874,6 +1880,10 @@ void EditorManager::SetCamera(const Camera* camera){
     if ( levelEditor_ ) {
         levelEditor_->SetCamera(camera);
     }
+}
+
+void EditorManager::UseSceneMap(const std::string& fileName){
+    if ( levelEditor_ ) { levelEditor_->UseSceneMap(fileName); }
 }
 
 // レール編集データの公開（levelEditor_ → RailEditor へ委譲）

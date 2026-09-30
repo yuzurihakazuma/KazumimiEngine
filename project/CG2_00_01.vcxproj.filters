@@ -231,6 +231,21 @@
     <ClCompile Include="game\editor\RailStripPanel.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\title\TitlePaperBits.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\title\TitleAssets.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\title\TitleDino.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\title\TitleLogoBoard.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\title\TitleMenu.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\scene\BaseScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -741,7 +756,25 @@
     <ClInclude Include="game\editor\strip\StripState.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\title\TitleLayout.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\editor\RailStripPanel.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitlePaperBits.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitleAssets.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitleDino.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitleLogoBoard.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitleMenu.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\BaseScene.h">

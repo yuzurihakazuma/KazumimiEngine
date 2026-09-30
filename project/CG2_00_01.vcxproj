@@ -260,6 +260,11 @@ exit 0</Command>
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\enemy\EnemyEditor.cpp" />
     <ClCompile Include="game\editor\RailStripPanel.cpp" />
+    <ClCompile Include="game\title\TitlePaperBits.cpp" />
+    <ClCompile Include="game\title\TitleAssets.cpp" />
+    <ClCompile Include="game\title\TitleDino.cpp" />
+    <ClCompile Include="game\title\TitleLogoBoard.cpp" />
+    <ClCompile Include="game\title\TitleMenu.cpp" />
     <ClCompile Include="game\scene\BaseScene.cpp" />
     <ClCompile Include="game\editor\strip\StripRailSelector.cpp" />
     <ClCompile Include="game\editor\strip\StripControls.cpp" />
@@ -458,7 +463,13 @@ exit 0</Command>
     <ClInclude Include="game\editor\strip\StripContext.h" />
     <ClInclude Include="game\editor\strip\StripLayout.h" />
     <ClInclude Include="game\editor\strip\StripState.h" />
+    <ClInclude Include="game\title\TitleLayout.h" />
     <ClInclude Include="game\editor\RailStripPanel.h" />
+    <ClInclude Include="game\title\TitlePaperBits.h" />
+    <ClInclude Include="game\title\TitleAssets.h" />
+    <ClInclude Include="game\title\TitleDino.h" />
+    <ClInclude Include="game\title\TitleLogoBoard.h" />
+    <ClInclude Include="game\title\TitleMenu.h" />
     <ClInclude Include="game\scene\BaseScene.h" />
     <ClInclude Include="game\editor\strip\StripRailSelector.h" />
     <ClInclude Include="game\editor\strip\StripControls.h" />

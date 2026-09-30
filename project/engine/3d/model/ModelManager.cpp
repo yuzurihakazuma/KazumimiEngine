@@ -4,6 +4,8 @@
 #include "ModelCommon.h"
 #include "DirectXCommon.h"
 
+#include <algorithm>
+
 
 ModelManager* ModelManager::instance_ = nullptr;
 
@@ -274,6 +276,13 @@ void ModelManager::LoadModel(const std::string& modelName, const std::string& di
 	if ( models_.contains(modelName) ) {
 		return;
 	}
+
+	// クラフト素材（…/craft/ 以下）は全て「原点＝接地面の中心」で作られているので、
+	//   どこから読まれても（エディタの自動読み込み・ファイル一覧のサムネイル・Blenderインポート）原点を維持する。
+	//   モデルは名前ごとに最初の1回しか読まれないため、呼び出し側まかせだと先に読んだ所の指定で決まってしまう
+	std::string normalizedDirectory = directoryPath + "/";
+	std::replace(normalizedDirectory.begin(), normalizedDirectory.end(), '\\', '/');
+	if ( normalizedDirectory.find("/craft/") != std::string::npos ) { keepOrigin = true; }
 
 	// 1. モデル生成
 	std::unique_ptr<Model> newModel = std::make_unique<Model>();

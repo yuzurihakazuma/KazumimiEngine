@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include <d3d12.h>
 
@@ -44,6 +45,9 @@ protected:
         bool demoShowcase = false; // エンジン機能の展示（回転キューブ・オーラ・SDF卵・スキンメッシュ人形）
         bool overlay2D    = false; // OnDrawOverlay2D を使う（最終画像へ重ねる2D。Game View にも映る）
         bool railEditing  = false; // エディタのレール編集を使う（false＝Game View にレールの線・ノードを出さない）
+        // このシーン専用のマップ（エディタで置いた物の保存先）。空＝ステージのマップをそのまま使う。
+        //   タイトルの背景のように、ステージとは別の配置を持つシーンが指定する
+        std::string sceneMap;
     };
     Features features_;
 

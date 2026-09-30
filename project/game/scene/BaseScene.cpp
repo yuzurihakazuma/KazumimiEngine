@@ -46,6 +46,9 @@ void BaseScene::Initialize(){
     SetupCameras();
     // レールを使わないシーンでは、エディタが Game View にレールの線・ノードを出さない
     EditorManager::GetInstance()->SetRailEditingEnabled(features_.railEditing);
+    // エディタで置いた物：シーン専用のマップがあればそれへ、無ければステージのマップへ切り替える。
+    //   モデルは OnLoadResources で読み終えているので、ここで配置物が正しい見た目で作られる
+    EditorManager::GetInstance()->UseSceneMap(features_.sceneMap);
 
     // パーティクル（Pキーのバースト等が使う粒のグループ）と GPUパーティクル基盤
     ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");

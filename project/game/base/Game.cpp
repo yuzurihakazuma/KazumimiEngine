@@ -7,6 +7,8 @@
 #include "engine/scene/SceneManager.h"
 #include "engine/utils/EditorManager.h"
 
+#include <Windows.h>
+
 void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類, EditorManager)
 	Framework::Initialize();
@@ -18,7 +20,14 @@ void Game::Initialize(){
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory_.get());
 
 	// 3. 最初のシーンをリクエストする
-	SceneManager::GetInstance()->ChangeScene(std::make_unique<GamePlayScene>());
+	//    確認用：環境変数 CG2_START_SCENE にシーン名（TITLE / GAMEPLAY）を入れて起動すると、そのシーンから始まる
+	char startSceneName[32] = {};
+	std::unique_ptr<IScene> startScene;
+	if ( GetEnvironmentVariableA("CG2_START_SCENE", startSceneName, sizeof(startSceneName)) > 0 ) {
+		startScene = sceneFactory_->CreateScene(startSceneName);
+	}
+	if ( !startScene ) { startScene = std::make_unique<GamePlayScene>(); }
+	SceneManager::GetInstance()->ChangeScene(std::move(startScene));
 }
 
 void Game::Update(){

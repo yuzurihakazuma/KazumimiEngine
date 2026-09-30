@@ -29,6 +29,10 @@ public:
 
     // マップの読み込み＆生成
     void LoadAndCreateMap(const std::string& fileName);
+    // シーン専用のマップへ切り替える（タイトルの背景など。ステージのマップとは別ファイルで持つ）。
+    //   空文字を渡すと、切り替える前に開いていたステージのマップへ戻す。
+    //   未保存の変更があれば切り替える前に保存する。既にそのマップなら何もしない
+    void UseSceneMap(const std::string& fileName);
     // カメラのセット
     void SetCamera(const Camera* camera);
 
@@ -104,6 +108,7 @@ private:
     std::vector<std::string> mapList_;      // resources/map/ 内の *.json
     int selectedMapIndex_ = -1;             // 一覧で選択中のマップ
     std::string currentMapFile_ = "resources/map/map01.json"; // 今開いているファイル
+    std::string stageMapFile_;              // シーン専用マップを開いている間だけ：戻り先のステージのマップ
     bool  dirty_ = false;                   // 未保存の変更があるか
     int   lastBlockVersion_ = 0;            // ブロック編集の監視用（変化→dirty_）
     bool  autoSave_ = false;                // 自動保存 ON/OFF

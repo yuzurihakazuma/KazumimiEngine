@@ -204,7 +204,12 @@ void Obj3d::Draw(){
 		obj3dCommon_->GetDxCommon()->GetCommandList();
 	assert(commandList != nullptr);
 
-	PipelineManager::GetInstance()->SetPipeline(commandList, pipelineType_);
+	// タイル貼りのモデル（UV が 0〜1 を超えて繰り返す）は、テクスチャを縦もリピートするパイプラインで描く
+	PipelineType pipelineType = pipelineType_;
+	if ( pipelineType == PipelineType::Object3D && model_ && model_->UsesTiledUV() ) {
+		pipelineType = PipelineType::Object3D_WrapUV;
+	}
+	PipelineManager::GetInstance()->SetPipeline(commandList, pipelineType);
 
 	// ノードエディタ製の専用PSOがあれば差し替える
 	// （ルートシグネチャはObject3D互換なのでバインドはそのまま使える）

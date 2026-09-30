@@ -39,6 +39,7 @@ public:
     void Update(const std::vector<SplineRail>& rails);
 
     void Draw() const;
+    void Clear(){ slots_.Clear(); }
 
     int  TileCount() const { return ( int ) slots_.TileCount(); }
 
