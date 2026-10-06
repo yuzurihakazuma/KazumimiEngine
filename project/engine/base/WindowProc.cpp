@@ -100,6 +100,34 @@ void WindowProc::ShowMainWindow(){
 
 }
 
+// フルスクリーン ⇔ ウィンドウ の切り替え
+void WindowProc::ToggleFullscreen(){
+	if ( !hwnd_ ) { return; }
+	if ( !isFullscreen_ ) {
+		// 今のウィンドウの位置・大きさ・枠を覚えてから、枠を外してモニター全体へ広げる
+		GetWindowRect(hwnd_, &windowedRect_);
+		windowedStyle_ = GetWindowLong(hwnd_, GWL_STYLE);
+		MONITORINFO monitorInfo = {};
+		monitorInfo.cbSize = sizeof(monitorInfo);
+		GetMonitorInfo(MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST), &monitorInfo);
+		const RECT& screen = monitorInfo.rcMonitor;
+		SetWindowLong(hwnd_, GWL_STYLE, windowedStyle_ & ~WS_OVERLAPPEDWINDOW);
+		SetWindowPos(hwnd_, HWND_TOP, screen.left, screen.top,
+			screen.right - screen.left, screen.bottom - screen.top,
+			SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+		isFullscreen_ = true;
+	} else {
+		// 覚えておいた枠・位置・大きさへ戻す
+		SetWindowLong(hwnd_, GWL_STYLE, windowedStyle_);
+		SetWindowPos(hwnd_, nullptr, windowedRect_.left, windowedRect_.top,
+			windowedRect_.right - windowedRect_.left, windowedRect_.bottom - windowedRect_.top,
+			SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+		isFullscreen_ = false;
+	}
+	// 大きさが変わるので、描画先（スワップチェーン・深度・ポストエフェクト）を作り直してもらう
+	isResized_ = true;
+}
+
 // ウィンドウの更新
 void WindowProc::Update(){
 
@@ -139,6 +167,14 @@ LRESULT WindowProc::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam){
 			isResized_ = true; // ウィンドウサイズ変更フラグを立てる
 		}
 		break;
+	case WM_KEYDOWN:
+		// F11：フルスクリーン ⇔ ウィンドウ（押しっぱなしの連続入力では切り替えない）
+		if ( wparam == VK_F11 && ( lparam & ( 1 << 30 ) ) == 0 ) {
+			GetInstance()->ToggleFullscreen();
+			return 0;
+		}
+		break;
+
 	case WM_ENTERSIZEMOVE:
 
 		isResized_ = true; // ウィンドウサイズ変更フラグを立てる

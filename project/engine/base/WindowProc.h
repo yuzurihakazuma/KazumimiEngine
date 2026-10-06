@@ -32,6 +32,14 @@ public:
 	void ClearResizeFlag(){ isResized_ = false; }
 
 	/// <summary>
+	/// フルスクリーン ⇔ ウィンドウ の切り替え（F11 キーでも切り替わる）。
+	/// 枠なしのウィンドウを画面いっぱいに広げる方式（ボーダーレス）なので、
+	/// 他のウィンドウへの切り替え（Alt+Tab）でも画面が乱れない。サイズ変更は通常のリサイズ処理に任せる
+	/// </summary>
+	void ToggleFullscreen();
+	bool IsFullscreen() const{ return isFullscreen_; }
+
+	/// <summary>
 	/// エクスプローラーからD&Dされたファイルのパス一覧を取り出す（取り出すと空になる）
 	/// </summary>
 	std::vector<std::string> PopDroppedFiles(){
@@ -94,6 +102,11 @@ private:
 	static inline int32_t kClientHeight_ = kDefaultClientHeight;     // 現在のクライアント縦幅
 
 	HWND hwnd_ = nullptr;          // ウィンドウハンドル
+
+	// フルスクリーン切り替え用（戻す時のためにウィンドウの位置・大きさと枠の種類を覚えておく）
+	bool isFullscreen_ = false;
+	RECT windowedRect_ = {};
+	LONG windowedStyle_ = 0;
 	static inline bool isClosed_ = false;  // ウィンドウが閉じられたかどうか
 	static inline bool isResized_ = false; // ウィンドウサイズが変更されたかどうか
 
