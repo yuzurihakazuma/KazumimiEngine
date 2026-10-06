@@ -91,6 +91,7 @@ public:
         Panel_File,        // ファイルエディタ
         Panel_Minimap,     // ミニマップ（俯瞰ビュー）※保存の並び維持のため必ず末尾に追加する
         Panel_Layout,      // 配置ビュー（レール展開図。ブロック・敵・コインをパネルの中で配置する）
+        Panel_Craft,       // 箱庭エディタ（クラフトの飾り・地面の配置。シーンの CraftEditor が描く）
         Panel_Count
     };
     // 横に広く使うパネルか。アイコンモードでは右の縦積みドロワーに入れず、画面の下に横長で出す
@@ -117,6 +118,8 @@ public:
 
 	// ギズモ／インスペクタで操作する対象オブジェクトを登録する（シーンから渡す）
 	void SetGizmoTarget(Obj3d* obj){ gizmoTarget_ = obj; }
+	// ギズモの種類（7=移動 / 120=回転 / 896=拡縮。ImGuizmo の OPERATION）。W/E/R キーの切替用
+	void SetGizmoOperation(int operation){ gizmoOperation_ = operation; }
 	Obj3d* GetGizmoTarget() const{ return gizmoTarget_; }
 
 	// --- レール編集データの公開（ゲーム側が同じレールを使うため）---

@@ -5,7 +5,7 @@
 #include "engine/3d/model/ModelManager.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/utils/EditorManager.h"
-#include "engine/utils/Level/LevelEditor.h"
+#include "game/craft/CraftStageView.h"
 
 #include <algorithm>
 #include <cmath>
@@ -74,16 +74,13 @@ TitleAmbience::~TitleAmbience() = default;
 
 void TitleAmbience::Initialize(Camera* camera){
     time_ = 0.0f;
-    movers_.clear();
-    boundObjectCount_ = -1;
-    boundMapVersion_ = -1;
-    wasMoving_ = false;
+    bends_.clear();
     CreateWaves(camera);
 }
 
 void TitleAmbience::Finalize(){
     waves_.clear();
-    movers_.clear();
+    bends_.clear();
 }
 
 // 紙の波：草原の段差の奥・丘の手前に3列。奥ほど濃い青で、隣の列と逆向きにすれ違う
@@ -116,95 +113,63 @@ void TitleAmbience::CreateWaves(Camera* camera){
     }
 }
 
-// マップの配置物の中から、草・花・木・雲を探す（type 名＝モデル名で見分ける）
-void TitleAmbience::BindMapObjects(){
-    movers_.clear();
-    LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
-    if ( !levelEditor ) { return; }
-    const auto& objects = levelEditor->GetObjects();
-    for ( int i = 0; i < ( int ) objects.size(); ++i ) {
-        const std::string& type = objects[i].type;
-        Mover mover;
-        mover.index = i;
-        if ( StartsWith(type, "grass_tuft") )       { mover.kind = Kind::Grass; }
-        else if ( StartsWith(type, "flower_") )     { mover.kind = Kind::Flower; }
-        else if ( StartsWith(type, "tree_") )       { mover.kind = Kind::Tree; }
-        else if ( StartsWith(type, "cloud_") )      { mover.kind = Kind::Cloud; }
-        else { continue; }
-        movers_.push_back(mover);
-    }
-    boundObjectCount_ = ( int ) objects.size();
-    boundMapVersion_ = levelEditor->GetMapLoadVersion();
+// 箱庭の描画に「表示だけの動き」を差し込む（置いた位置＝ステージのデータは変えない）
+void TitleAmbience::AttachTo(CraftStageView* view){
+    if ( !view ) { return; }
+    view->SetDisplayModifier([this](const CraftObject& object, Vector3& position, Vector3& rotation){
+        ApplySway(object, position, rotation);
+    });
 }
 
-// 草・花・木・雲：置いた位置（マップの値）を基準に、表示だけをゆらす
-void TitleAmbience::UpdateMapObjects(float deltaTime, const Vector3& dinoPosition, bool moving){
-    LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
-    if ( !levelEditor ) { return; }
-    const auto& objects = levelEditor->GetObjects();
-    // 物が増減した・別のマップを読んだ時は探し直す
-    if ( ( int ) objects.size() != boundObjectCount_ || levelEditor->GetMapLoadVersion() != boundMapVersion_ ) {
-        BindMapObjects();
+// 草・花・木・雲：置いた位置を基準に、表示だけをゆらす
+void TitleAmbience::ApplySway(const CraftObject& placed, Vector3& position, Vector3& rotation){
+    if ( !moving_ ) { return; }
+    Kind kind;
+    if ( StartsWith(placed.asset, "grass_tuft") )   { kind = Kind::Grass; }
+    else if ( StartsWith(placed.asset, "flower_") ) { kind = Kind::Flower; }
+    else if ( StartsWith(placed.asset, "tree_") )   { kind = Kind::Tree; }
+    else if ( StartsWith(placed.asset, "cloud_") )  { kind = Kind::Cloud; }
+    else { return; }
+
+    // 風：左から右へ伝わる波。強くなったり弱くなったりする（そよ風の「むら」）
+    const float travel = placed.position.x * kWindTravel;
+    const float gust = 0.55f + 0.45f * std::sin(time_ * 0.35f - travel * 0.4f);
+    float sway = 0.0f;
+    switch ( kind ) {
+    case Kind::Grass:
+        sway = kGrassSway * gust * std::sin(time_ * 2.3f - travel + placed.position.z);
+        break;
+    case Kind::Flower:
+        sway = kFlowerSway * gust * std::sin(time_ * 1.7f - travel + placed.position.z);
+        break;
+    case Kind::Tree:
+        sway = kTreeSway * gust * std::sin(time_ * 0.9f - travel);
+        break;
+    case Kind::Cloud:
+        // 雲は糸で吊られている：ゆっくり左右へ流れて、少し遅れて傾く
+        position.x += kCloudDrift * std::sin(time_ * 0.22f + placed.position.z);
+        sway = kCloudSwing * std::sin(time_ * 0.22f + placed.position.z + 1.2f);
+        break;
     }
-    if ( !moving && !wasMoving_ ) { return; } // 止まっていて、もう元の位置に戻してある
-    wasMoving_ = moving;
+    sway *= windStrength_;
 
-    for ( Mover& mover : movers_ ) {
-        Obj3d* object = levelEditor->GetObject3d(mover.index);
-        if ( !object ) { continue; }
-        const LevelObjectData& placed = objects[mover.index];
-        Vector3 position = placed.translation;
-        Vector3 rotation = placed.rotation;
-        if ( !moving ) {
-            // 止めた：置いた位置へ戻す
-            mover.bend = mover.bendSpeed = 0.0f;
-            object->SetTranslation(position);
-            object->SetRotation(rotation);
-            continue;
+    // 恐竜への反応：草と花は、恐竜から離れる向きへ押されて倒れ、ばねで揺れながら戻る
+    if ( kind == Kind::Grass || kind == Kind::Flower ) {
+        const float dx = placed.position.x - dinoPosition_.x;
+        const float dz = placed.position.z - dinoPosition_.z;
+        const float distance = std::sqrt(dx * dx + dz * dz);
+        float target = 0.0f;
+        if ( distance < kPushRadius ) {
+            // 画面で見て、恐竜の右にある物は右へ、左にある物は左へ倒れる（Z回転は右へ倒すと負）
+            const float side = ( dx >= 0.0f ) ? -1.0f : 1.0f;
+            target = side * kPushAngle * ( 1.0f - distance / kPushRadius );
         }
-
-        // 風：左から右へ伝わる波。強くなったり弱くなったりする（そよ風の「むら」）
-        const float travel = placed.translation.x * kWindTravel;
-        const float gust = 0.55f + 0.45f * std::sin(time_ * 0.35f - travel * 0.4f);
-        float sway = 0.0f;
-        switch ( mover.kind ) {
-        case Kind::Grass:
-            sway = kGrassSway * gust * std::sin(time_ * 2.3f - travel + placed.translation.z);
-            break;
-        case Kind::Flower:
-            sway = kFlowerSway * gust * std::sin(time_ * 1.7f - travel + placed.translation.z);
-            break;
-        case Kind::Tree:
-            sway = kTreeSway * gust * std::sin(time_ * 0.9f - travel);
-            break;
-        case Kind::Cloud:
-            // 雲は糸で吊られている：ゆっくり左右へ流れて、少し遅れて傾く
-            position.x += kCloudDrift * std::sin(time_ * 0.22f + placed.translation.z);
-            sway = kCloudSwing * std::sin(time_ * 0.22f + placed.translation.z + 1.2f);
-            break;
-        }
-        sway *= windStrength_;
-
-        // 恐竜への反応：草と花は、恐竜から離れる向きへ押されて倒れ、ばねで揺れながら戻る
-        if ( mover.kind == Kind::Grass || mover.kind == Kind::Flower ) {
-            const float dx = placed.translation.x - dinoPosition.x;
-            const float dz = placed.translation.z - dinoPosition.z;
-            const float distance = std::sqrt(dx * dx + dz * dz);
-            float target = 0.0f;
-            if ( distance < kPushRadius ) {
-                // 画面で見て、恐竜の右にある物は右へ、左にある物は左へ倒れる（Z回転は右へ倒すと負）
-                const float side = ( dx >= 0.0f ) ? -1.0f : 1.0f;
-                target = side * kPushAngle * ( 1.0f - distance / kPushRadius );
-            }
-            mover.bendSpeed += ( ( target - mover.bend ) * kSpring - mover.bendSpeed * kDamping ) * deltaTime;
-            mover.bend += mover.bendSpeed * deltaTime;
-            sway += mover.bend;
-        }
-
-        rotation.z += sway;
-        object->SetTranslation(position);
-        object->SetRotation(rotation);
+        Bend& bend = bends_[placed.id];
+        bend.speed += ( ( target - bend.angle ) * kSpring - bend.speed * kDamping ) * deltaTime_;
+        bend.angle += bend.speed * deltaTime_;
+        sway += bend.angle;
     }
+    rotation.z += sway;
 }
 
 void TitleAmbience::Update(float deltaTime, const Vector3& dinoPosition){
@@ -212,7 +177,11 @@ void TitleAmbience::Update(float deltaTime, const Vector3& dinoPosition){
 
     // エディタを出している間は止める（物をつかんで動かす作業の邪魔をしない）
     const bool editing = EditorManager::GetInstance()->IsActive() && !moveWhileEditing_;
-    UpdateMapObjects(deltaTime, dinoPosition, windEnabled_ && !editing);
+    // 草花・木・雲は、箱庭の描画がデータに合わせる時に ApplySway で動かす（ここでは状態だけ決める）
+    moving_ = windEnabled_ && !editing;
+    deltaTime_ = deltaTime;
+    dinoPosition_ = dinoPosition;
+    if ( !moving_ ) { bends_.clear(); }
 
     // 紙の波：列ごとに左右へ行ったり来たり。隣の列とは逆向きで、少しだけ上下にも動く
     for ( size_t i = 0; i < waves_.size(); ++i ) {

@@ -1,5 +1,9 @@
 #include "game/scene/BaseScene.h"
 #include "game/demo/DemoShowcase.h"
+#include "game/craft/CraftAssetCatalog.h"
+#include "game/craft/CraftStage.h"
+#include "game/craft/CraftStageView.h"
+#include "game/craft/editor/CraftEditor.h"
 
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/Input.h"
@@ -59,7 +63,37 @@ void BaseScene::Initialize(){
     EditorManager::GetInstance()->SetDemoAvailable(features_.demoShowcase);
     if ( features_.demoShowcase && EditorManager::GetInstance()->IsDemoVisible() ) { SetupDemo(); }
 
+    SetupCraftStage();
     OnInitialize();
+}
+
+// 箱庭のステージ：アセット一覧（manifest）を読み、ステージのファイルを読み、描画とエディタを用意する
+void BaseScene::SetupCraftStage(){
+    if ( features_.craftStage.empty() ) { return; }
+    CraftAssetCatalog::GetInstance()->Load();
+    craftStage_ = std::make_unique<CraftStage>();
+    const bool loaded = craftStage_->Load(features_.craftStage);
+    craftView_ = std::make_unique<CraftStageView>();
+    craftView_->Initialize(camera_.get());
+    craftEditor_ = std::make_unique<CraftEditor>();
+    craftEditor_->Initialize(camera_.get());
+    CraftEditor::Context context { craftStage_.get(), craftView_.get(), camera_.get(), GetCraftRails(), features_.craftStage };
+    craftEditor_->OnStageLoaded(context, !loaded);
+    // 光のプロフィール（environment.lighting に名前があれば、このシーンの間だけ切り替える）
+    const nlohmann::json& environment = craftStage_->GetEnvironment();
+    if ( environment.contains("lighting") && environment["lighting"].is_string() ) {
+        CraftLighting::Apply(environment["lighting"].get<std::string>(), craftLightSaved_);
+    }
+}
+
+// 箱庭：エディタの毎フレームの処理（自動保存・ギズモ対象の付け替え）を挟んで、描画側をデータに合わせる
+void BaseScene::UpdateCraftStage(){
+    if ( !craftStage_ ) { return; }
+    CraftEditor::Context context { craftStage_.get(), craftView_.get(), camera_.get(), GetCraftRails(), features_.craftStage };
+    craftEditor_->BeforeViewUpdate(context);
+    craftView_->SetCameraPosition(camera_->GetWorldPosition()); // 背景（空・山）をカメラに追従させる
+    craftView_->Update(*craftStage_);
+    craftEditor_->AfterViewUpdate(context);
 }
 
 // 表示メニュー「デモ展示」の ON/OFF に合わせて展示物を作る／削除する。
@@ -118,6 +152,16 @@ bool BaseScene::IsDemoVisible() const{
 // =====================================================================
 void BaseScene::Finalize(){
     OnFinalize();
+    if ( craftStage_ ) {
+        // 未保存の変更があれば、失わないよう自動保存へ書いておく（本体は上書きしない）
+        if ( craftEditor_->IsDirty() ) { craftStage_->SaveAutosave(features_.craftStage); }
+        craftEditor_->Finalize();
+        craftView_->Finalize();
+        craftEditor_.reset();
+        craftView_.reset();
+        craftStage_.reset();
+        CraftLighting::Restore(craftLightSaved_);
+    }
     EditorManager* editorManager = EditorManager::GetInstance();
     // エディタが保持している外部ポインタ（カメラ・ギズモ対象など）をリセット（ダングリングポインタ防止）
     editorManager->ResetSceneReferences();
@@ -136,6 +180,7 @@ void BaseScene::Update(){
     HandleEditorCameraRequests();
     UpdateCamera();
     OnUpdate();
+    UpdateCraftStage();
     UpdateCommonVisuals();
 }
 
@@ -199,6 +244,7 @@ void BaseScene::DrawScene3D(ID3D12GraphicsCommandList* commandList){
     // --- 不透明 ---
     if ( demoVisible ) { demo_->DrawOpaque(); } // 展示物（回転キューブ・スキンメッシュ）
     OnDrawOpaque(commandList);
+    if ( craftView_ ) { craftView_->Draw(); craftEditor_->DrawGhost(); } // 箱庭（地面・木・草花）
     EditorManager::GetInstance()->Draw();        // エディタで置いた配置物
 
     // --- インスタンシング ---
@@ -287,6 +333,11 @@ void BaseScene::DrawDebugUI(){
     if ( EditorManager::GetInstance()->IsPanelVisible(EditorManager::Panel_Inspector) ) { DrawInspector(); }
     // 展示物のパネル（SDF卵のエロージョン操作）。デモ表示OFFの間はウィンドウごと出さない
     if ( IsDemoVisible() ) { demo_->DrawImGui(); }
+    // 箱庭エディタ（パネルを出している時だけ。Game View 上の配置操作もここ）
+    if ( craftEditor_ && EditorManager::GetInstance()->IsPanelVisible(EditorManager::Panel_Craft) ) {
+        CraftEditor::Context context { craftStage_.get(), craftView_.get(), camera_.get(), GetCraftRails(), features_.craftStage };
+        craftEditor_->DrawUI(context);
+    }
     OnDebugUI();
 #endif
 }

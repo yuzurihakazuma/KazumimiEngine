@@ -3,6 +3,7 @@
 #include "GamePlayScene.h"
 #include "game/title/TitleAssets.h"
 #include "game/title/TitleLayout.h"
+#include "game/craft/CraftAssetCatalog.h"
 
 // --- エンジン側のファイル ---
 #include "engine/3d/model/ModelManager.h"
@@ -111,7 +112,8 @@ namespace {
 
 TitleScene::TitleScene(){
 	features_.overlay2D = true;                        // 操作の案内を最終画像へ重ねる
-	features_.sceneMap = "resources/map/title.json";   // 背景とレール（ステージのマップとは別ファイル）
+	features_.sceneMap = "resources/map/title.json";   // レール（ステージのマップとは別ファイル）
+	features_.craftStage = "resources/stage/title.stage.json"; // 背景（地面・丘・木・草花）＝箱庭エディタで編集する
 	// レールは使うが、エディタの線とノードは既定では出さない（インスペクターの「レールを編集する」で出す）
 	features_.railEditing = false;
 }
@@ -122,6 +124,8 @@ TitleScene::~TitleScene(){
 // モデル・画像・音（実行中の読み込みはデバッグレイヤーが嫌うので、使う物は先に読む）
 void TitleScene::OnLoadResources(){
 	TitleAssets::Load();
+	// 机の天板はキットに無いので、箱庭の一覧へ足す（1m角の箱を引き伸ばして置いている）
+	CraftAssetCatalog::GetInstance()->AddBuiltin(TitleAssets::kDeskModel, "builtin", { -0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, 0.5f });
 	// マップにあるのにモデルが見つからない物の代わりの表示
 	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
 }
@@ -135,6 +139,7 @@ void TitleScene::OnInitialize(){
 	menu_.Initialize();
 	paperBits_.Initialize();
 	ambience_.Initialize(GetCamera());
+	ambience_.AttachTo(CraftView()); // 背景の草花・木・雲を風でゆらす
 	egg_ = Obj3d::Create("egg");
 
 	// 文字（アトラスは SDFManager が resources/sdf/ から自動ロードするので、ここではアイテムを作るだけ）

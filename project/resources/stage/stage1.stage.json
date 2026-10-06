@@ -1,0 +1,589 @@
+{
+  "version": 1,
+  "name": "stage1",
+  "environment": {
+    "lighting": "day",
+    "backdrop": "meadow",
+    "backdropAnchor": [
+      -47.546,
+      5.79,
+      -2.576
+    ],
+    "floorY": -0.87
+  },
+  "objects": [
+    {
+      "id": "0c5c7fd0a6a3a450",
+      "asset": "hill_backdrop_far",
+      "layer": "backdrop",
+      "pos": [
+        -117.546,
+        -0.87,
+        82.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        3.4,
+        3.4,
+        3.4
+      ],
+      "params": {
+        "parallax": 0.8
+      }
+    },
+    {
+      "id": "0cb1e29c658cda14",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        96.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.3,
+        2.3,
+        2.3
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "0f21ddb66cad4a26",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        -22.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.9,
+        2.9,
+        2.9
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "0fd630f1f29d0da9",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        62.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.5999999999999996,
+        2.5999999999999996,
+        2.5999999999999996
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "1600a35a099950d8",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        -90.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.5999999999999996,
+        2.5999999999999996,
+        2.5999999999999996
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "1818e811892f902b",
+      "asset": "hill_backdrop_far",
+      "layer": "backdrop",
+      "pos": [
+        -25.546,
+        -0.87,
+        82.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        3.4,
+        3.4,
+        3.4
+      ],
+      "params": {
+        "parallax": 0.8
+      }
+    },
+    {
+      "id": "36f675cc81e74ef5",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        -107.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.3,
+        2.3,
+        2.3
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "3898d190f9ebdacc",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        113.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.5999999999999996,
+        2.5999999999999996,
+        2.5999999999999996
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "3d9c172411e20b8f",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        -56.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.3,
+        2.3,
+        2.3
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "6513270e269e0d37",
+      "asset": "sky_backdrop",
+      "layer": "backdrop",
+      "pos": [
+        -47.546,
+        -0.87,
+        97.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        4.0,
+        4.0,
+        4.0
+      ],
+      "params": {
+        "parallax": 1.0
+      }
+    },
+    {
+      "id": "6b0d549b6f03675a",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        -73.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.9,
+        2.9,
+        2.9
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "6b4cb2424a23d596",
+      "asset": "cloud_cutout_00",
+      "layer": "backdrop",
+      "pos": [
+        -87.546,
+        14.082,
+        87.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        4.0,
+        4.0,
+        4.0
+      ],
+      "params": {
+        "parallax": 0.9
+      }
+    },
+    {
+      "id": "8d116ece1738f7d9",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        -39.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.5999999999999996,
+        2.5999999999999996,
+        2.5999999999999996
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "8e81973e0becd7b0",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        130.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.9,
+        2.9,
+        2.9
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "8f6d05584ef8aa38",
+      "asset": "cloud_cutout_01",
+      "layer": "backdrop",
+      "pos": [
+        -49.661,
+        10.379,
+        87.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        4.0,
+        4.0,
+        4.0
+      ],
+      "params": {
+        "parallax": 0.9
+      }
+    },
+    {
+      "id": "90c192cfd3ac94af",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        -5.546,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.3,
+        2.3,
+        2.3
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "923a736994e3bf91",
+      "asset": "cloud_cutout_00",
+      "layer": "backdrop",
+      "pos": [
+        1.662,
+        10.694,
+        87.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        4.0,
+        4.0,
+        4.0
+      ],
+      "params": {
+        "parallax": 0.9
+      }
+    },
+    {
+      "id": "9531985d5d9dc9f8",
+      "asset": "hill_backdrop_far",
+      "layer": "backdrop",
+      "pos": [
+        20.454,
+        -0.87,
+        82.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        3.4,
+        3.4,
+        3.4
+      ],
+      "params": {
+        "parallax": 0.8
+      }
+    },
+    {
+      "id": "953f48f1a09f76b5",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        45.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.3,
+        2.3,
+        2.3
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "95e60af593bd04cf",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        79.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.9,
+        2.9,
+        2.9
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "a170b33839263059",
+      "asset": "hill_backdrop_00",
+      "layer": "backdrop",
+      "pos": [
+        28.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.9,
+        2.9,
+        2.9
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "d23f0824128b2f33",
+      "asset": "hill_backdrop_far",
+      "layer": "backdrop",
+      "pos": [
+        -71.546,
+        -0.87,
+        82.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        3.4,
+        3.4,
+        3.4
+      ],
+      "params": {
+        "parallax": 0.8
+      }
+    },
+    {
+      "id": "e8e25d940ed90475",
+      "asset": "hill_backdrop_far",
+      "layer": "backdrop",
+      "pos": [
+        66.454,
+        -0.87,
+        82.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        3.4,
+        3.4,
+        3.4
+      ],
+      "params": {
+        "parallax": 0.8
+      }
+    },
+    {
+      "id": "f28c105d1fb17c23",
+      "asset": "hill_backdrop_01",
+      "layer": "backdrop",
+      "pos": [
+        11.454,
+        -0.87,
+        59.424
+      ],
+      "rot": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        2.5999999999999996,
+        2.5999999999999996,
+        2.5999999999999996
+      ],
+      "params": {
+        "parallax": 0.6
+      }
+    },
+    {
+      "id": "f2a74de452e6b438",
+      "asset": "craftDesk",
+      "layer": "backdrop",
+      "pos": [
+        87.678,
+        -0.97,
+        56.0
+      ],
+      "rot": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        570.446590423584,
+        0.2,
+        312.0
+      ]
+    }
+  ],
+  "markers": []
+}

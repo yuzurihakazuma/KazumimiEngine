@@ -47,6 +47,7 @@ private:
 	void OnPreUpdate() override;   // エディタでレールを編集したら、レールと道を作り直す
 	void OnUpdate() override;
 	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	const std::vector<SplineRail>* GetCraftRails() const override { return &railField_.GetRails(); }
 	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList) override; // 操作の案内（Game View にも映る）
 	void OnDrawInspector() override;                                       // 調整項目

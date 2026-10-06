@@ -2,6 +2,7 @@
 // --- ゲーム固有のファイル ---
 #include "TitleScene.h"
 #include "game/player/Player.h"
+#include "game/craft/CraftStage.h"
 #include "game/enemy/EnemyEditor.h"
 #include "game/enemy/EnemyLevelConvert.h"
 #include "game/enemy/EnemyRailPin.h"
@@ -37,6 +38,7 @@
 
 GamePlayScene::GamePlayScene(){
 	features_.railEditing  = true; // レール・道・敵の配置を編集する
+	features_.craftStage   = "resources/stage/stage1.stage.json"; // クラフトの飾り（箱庭エディタで草花・木などを置く）
 }
 GamePlayScene::~GamePlayScene() = default;
 
@@ -289,6 +291,11 @@ void GamePlayScene::OnPreUpdate(){
 void GamePlayScene::OnUpdate(){
 	EngineMode currentMode = EditorManager::GetInstance()->GetMode();
 	HandleModeTransition(currentMode);
+	// 箱庭に机の天板（environment.floorY）があれば、天板に落ちた時点でやり直し（天板を突き抜けて落ち続けない）
+	if ( GetCraftStage() ) {
+		const nlohmann::json& environment = GetCraftStage()->GetEnvironment();
+		player_->SetKillY(environment.contains("floorY") && environment["floorY"].is_number() ? environment["floorY"].get<float>() : -10.0f);
+	}
 	if ( currentMode == EngineMode::Play ) { UpdatePlayMode(); }
 	UpdateSceneVisuals(currentMode);
 

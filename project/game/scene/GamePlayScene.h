@@ -53,6 +53,7 @@ private:
 	void UpdateCamera() override;     // カメラ更新＋シェイク＋ヒット点のポストエフェクト
 	void OnUpdate() override;         // Edit↔Play の切替・プレイ中の進行・見た目
 	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	const std::vector<SplineRail>* GetCraftRails() const override { return &railField_.GetRails(); }
 	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawInstanced() override;
 	void OnDrawTransparent(ID3D12GraphicsCommandList* commandList) override;

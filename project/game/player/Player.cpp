@@ -15,8 +15,6 @@ namespace {
     //   false … 端で停止する（崖なしの安全仕様）
     constexpr bool kFallOffEdges = true;
 
-    // ここより下に落ちたらスタートへリスポーン
-    constexpr float kKillY = -10.0f;
 
     // 水平(x,z)を単位ベクトル化（長さ0なら0ベクトル）
     Vector3 HorizDir(float x, float z){
@@ -383,7 +381,7 @@ void Player::FinalizePosition(const SplineRail& rail, const Vector3& worldBefore
     posSmooth_.z -= posSmooth_.z * smoothingFactor;
     position_ = { basePos.x + posSmooth_.x, basePos.y + posSmooth_.y, basePos.z + posSmooth_.z };
 
-    if ( position_.y < kKillY ) { RespawnAfterFall(); return; }
+    if ( position_.y < killY_ ) { RespawnAfterFall(); return; }
 
     facing_.UpdateOnRail(rail.GetTangentByDistance(currentDistance_), dsSign_, dt, rotation_.y);
     rotation_.x = 0.0f;
@@ -393,7 +391,7 @@ void Player::FinalizePosition(const SplineRail& rail, const Vector3& worldBefore
 // =====================================================================
 //  空中状態：レールから離れて自由落下。
 //   ・下降中に下へレールがあれば着地して復帰
-//   ・kKillY より下に落ちたらスタートへリスポーン
+//   ・killY_ より下に落ちたらスタートへリスポーン
 // =====================================================================
 void Player::EnterAir(const Vector3& startPos, const Vector3& tangent, float upVelocity, float landCooldown){
     inAir_       = true;
@@ -465,7 +463,7 @@ void Player::UpdateAir(const std::vector<SplineRail>& rails, float dt){
         return;
     }
 
-    if ( position_.y < kKillY ) { RespawnAfterFall(); }
+    if ( position_.y < killY_ ) { RespawnAfterFall(); }
 }
 
 // 空中（レールの外）でのブロックとの当たり。真下のレールを基準に、レール空間の判定をそのまま使う。

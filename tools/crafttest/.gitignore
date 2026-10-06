@@ -1,0 +1,5 @@
+crafttest.exe
+crafttest_tmp/
+obj/
+build.log
+*.obj

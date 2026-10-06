@@ -15,10 +15,12 @@
 // =====================================================================
 #include "engine/scene/IScene.h"
 #include "engine/math/struct.h"
+#include "game/craft/CraftLighting.h"
 
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <d3d12.h>
 
@@ -26,6 +28,10 @@ class Camera;
 class DebugCamera;
 class DemoShowcase;
 class RenderTexture;
+class CraftStage;
+class CraftStageView;
+class CraftEditor;
+class SplineRail;
 
 class BaseScene : public IScene {
 public:
@@ -48,6 +54,9 @@ protected:
         // このシーン専用のマップ（エディタで置いた物の保存先）。空＝ステージのマップをそのまま使う。
         //   タイトルの背景のように、ステージとは別の配置を持つシーンが指定する
         std::string sceneMap;
+        // 箱庭のステージ（地面・木・草花などクラフトの配置。resources/stage/*.stage.json）。空＝使わない。
+        //   エディタの「箱庭エディタ」パネルで配置・保存できる
+        std::string craftStage;
     };
     Features features_;
 
@@ -62,6 +71,8 @@ protected:
     virtual void OnUpdate() {}          // シーンの進行
     // SDF看板の「近づいた時だけ表示」の基準位置（無ければ false＝常に全表示）
     virtual bool GetSdfViewerPosition(Vector3& /*outPos*/) const { return false; }
+    // 箱庭エディタの「レール沿いに並べる」で使うレール（レールの無いシーンは nullptr）
+    virtual const std::vector<SplineRail>* GetCraftRails() const { return nullptr; }
 
     // --- 差し込み口：描画（3Dは MRT の中。呼ばれる順） ---
     virtual void OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/) {}      // 不透明（Obj3d の準備済み）
@@ -82,6 +93,8 @@ protected:
     DemoShowcase* Demo() const { return demo_.get(); } // features_.demoShowcase=false なら nullptr
     uint32_t      EnvironmentMapSrv() const { return envMapSrv_; }
     bool          IsDemoVisible() const;             // 展示を使っていて、表示メニューで表示中
+    CraftStage* GetCraftStage() const { return craftStage_.get(); } // 箱庭のデータ（features_.craftStage が空なら nullptr）
+    CraftStageView* CraftView() const { return craftView_.get(); } // 箱庭の描画（features_.craftStage が空なら nullptr）
 
 private:
     void SetupCameras();
@@ -93,6 +106,13 @@ private:
     void ComposeFrame(ID3D12GraphicsCommandList* commandList);
     void DrawOverlayInto(ID3D12GraphicsCommandList* commandList, RenderTexture* target);
     void DrawInspector();
+    void SetupCraftStage();
+    void UpdateCraftStage();
+
+    std::unique_ptr<CraftStage>     craftStage_;
+    std::unique_ptr<CraftStageView> craftView_;
+    std::unique_ptr<CraftEditor>    craftEditor_;
+    CraftLighting::Saved            craftLightSaved_; // 光のプロフィールを切り替える前の光（終了時に戻す）
 
     std::unique_ptr<Camera>       camera_;
     std::unique_ptr<DebugCamera>  debugCamera_;

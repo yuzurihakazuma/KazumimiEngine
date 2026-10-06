@@ -72,6 +72,8 @@ public:
 
     // 落下死でリスポーンした瞬間か（取得するとフラグは消える。アイリスワイプ演出用）
     bool ConsumeFellRespawn(){ bool fell = fellRespawned_; fellRespawned_ = false; return fell; }
+    // ここより下に落ちたらスタートへリスポーン（箱庭の机の天板があれば、その高さ＝机に落ちたらやり直し）
+    void SetKillY(float killY){ killY_ = killY; }
 
 private:
     // --- レールの上 ---
@@ -128,6 +130,7 @@ private:
     float spawnDist_ = 0.0f;
 
     bool movementLocked_ = false; // true の間は移動・ジャンプ入力を無視（構え中など）
+    float killY_ = -10.0f;
     bool fellRespawned_ = false;  // 落下死→リスポーンが起きた瞬間のフラグ（シーンが Consume して演出に使う）
 
     // ---- レール移動の主状態（これだけで位置が決まる）----
