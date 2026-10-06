@@ -1,6 +1,7 @@
 #include "TitleScene.h"
 // --- ゲーム固有のファイル ---
 #include "GamePlayScene.h"
+#include "StageSelectScene.h"
 #include "game/title/TitleAssets.h"
 #include "game/title/TitleLayout.h"
 
@@ -572,7 +573,7 @@ void TitleScene::UpdateEgg(float deltaTime){
 	egg_->Update();
 }
 
-// 画面の中央へ向けて丸く閉じ、閉じ切ったらゲームプレイへ
+// 画面の中央へ向けて丸く閉じ、閉じ切ったらステージ選択へ
 void TitleScene::UpdateIrisOut(float deltaTime){
 	if ( phase_ != Phase::IrisOut ) { return; }
 	irisTime_ += deltaTime;
@@ -580,7 +581,7 @@ void TitleScene::UpdateIrisOut(float deltaTime){
 	PostEffect::GetInstance()->SetIrisParams(1.4f * ( 1.0f - Easing::EaseInQuad(t) ), 0.5f, 0.5f);
 	if ( irisTime_ >= kIrisCloseTime + kIrisHoldTime ) {
 		phase_ = Phase::Done;
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<GamePlayScene>());
+		SceneManager::GetInstance()->ChangeScene(std::make_unique<StageSelectScene>());
 	}
 }
 
