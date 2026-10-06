@@ -43,14 +43,14 @@ namespace {
 	constexpr float kIntroTimeLimit  = 14.0f;  // 何かで進めなくなっても、ここで登場を切り上げる(秒)
 
 	// --- メニュー ---
-	constexpr float kFocusRange     = 3.4f;    // この距離(m)まで近づいた的が選ばれる
+	constexpr float kStopDistance   = 0.12f;   // 的の正面に「着いた」とみなす距離(m)
 	constexpr float kAimTimeLimit   = 0.5f;    // 的へ向き直るのを待つ上限(秒)
 	constexpr float kEggFlightTime  = 0.45f;   // 卵が画面へ届くまで(秒)
 	constexpr float kIrisCloseTime  = 0.35f;   // 画面を閉じる時間(秒)
 	constexpr float kIrisHoldTime   = 0.15f;   // 閉じ切ってからシーンを切り替えるまで(秒)
 	constexpr float kNoticeTime     = 1.4f;    // 「じゅんびちゅう」を出す時間(秒)
 
-	const char* kGuideMessage  = "A/D : いどう   W/S : のりかえ   E : えらぶ";
+	const char* kGuideMessage  = "A/D : えらぶ   SPACE : けってい";
 	const char* kNoticeMessage = "じゅんびちゅう";
 	const char* kFontAtlas = "jpdot";
 	constexpr float kGuideFontSize  = 34.0f;
@@ -79,11 +79,11 @@ namespace {
 #endif
 	}
 
-	// 決定キー（E＝本編のベロと同じ / Enter）
+	// 決定キー（SPACE / Enter / E＝本編のベロと同じ）
 	bool DecidePressed(){
 		if ( IsTypingInEditor() ) { return false; }
 		Input* input = Input::GetInstance();
-		return input->Triggerkey(DIK_E) || input->Triggerkey(DIK_RETURN);
+		return input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN) || input->Triggerkey(DIK_E);
 	}
 
 	// -π〜π に収めた角度の差
@@ -319,9 +319,12 @@ void TitleScene::SkipIntro(){
 	EnterMenu();
 }
 
+// メニュー：A/D で選んだ的の前まで、恐竜が自動で歩く（自分で歩き回らなくてよい）
 void TitleScene::EnterMenu(){
-	player_.SetAutoPilot(false);
 	*player_.MoveSpeedPtr() = kMenuMoveSpeed;
+	player_.SetAutoPilot(true);
+	menu_.SetSelected(TitleMenu::Item_Start);
+	pendingDecide_ = false;
 	phase_ = Phase::Menu;
 }
 
@@ -454,12 +457,29 @@ void TitleScene::UpdateIntro(){
 	if ( arrived && logo_.HasLanded() && menu_.IsReady() ) { EnterMenu(); }
 }
 
-// 自分で歩く：近づいた的が選ばれ、E（Enter）でベロを当てて決定
+// A/D で的を選ぶと、恐竜がその前まで自動で歩く。SPACE（Enter / E）でベロを当てて決定。
+//   歩いている途中で押した決定は、着いた時に行う
 void TitleScene::UpdateMenu(){
-	const int focus = menu_.FindNearest(player_.GetPosition(), kFocusRange);
-	menu_.SetSelected(focus);
+	int selected = menu_.GetSelected();
+	if ( selected < 0 ) { selected = TitleMenu::Item_Start; }
+	if ( !IsTypingInEditor() ) {
+		Input* input = Input::GetInstance();
+		if ( input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT) )  { selected = ( std::max )( selected - 1, 0 ); }
+		if ( input->Triggerkey(DIK_D) || input->Triggerkey(DIK_RIGHT) ) { selected = ( std::min )( selected + 1, ( int ) TitleMenu::Item_Count - 1 ); }
+	}
+	menu_.SetSelected(selected);
 
-	if ( focus >= 0 && player_.IsGrounded() && DecidePressed() ) {
+	// 選んだ的の正面まで、手前のレールの上を歩く（本編と同じ移動処理に、キーの代わりの入力を渡す）
+	const float toTargetX = menu_.RefPosition(selected).x - player_.GetPosition().x;
+	const bool arrived = std::abs(toTargetX) <= kStopDistance;
+	PlayerInput::AutoPilot pilot;
+	if ( !arrived ) { pilot.moveX = Sign(toTargetX); }
+	player_.SetAutoPilot(true, pilot);
+
+	if ( DecidePressed() ) { pendingDecide_ = true; }
+	if ( pendingDecide_ && arrived && player_.IsGrounded() ) {
+		pendingDecide_ = false;
+		const int focus = selected;
 		const Vector3 target = menu_.GetTargetCenter(focus);
 		const float toX = target.x - player_.GetPosition().x;
 		const float toZ = target.z - player_.GetPosition().z;
