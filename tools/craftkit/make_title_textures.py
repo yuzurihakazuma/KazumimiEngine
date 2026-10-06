@@ -4,7 +4,9 @@
 
   python tools/craftkit/make_title_textures.py
 
-  logo.png           看板の面（title_board の M_logo_face）に貼るロゴ。横長の面に合わせて 1024x426
+  logo_kazumimi.png  仮のロゴ（KAZUMIMI）。横長の面に合わせて 1024x426
+                     ※看板に貼られるのは resources/title/logo.png。本番のロゴはそちらに置いてあるので、
+                       このスクリプトは logo.png を上書きしない（仮に戻したい時は logo_kazumimi.png をコピーする）
   menu_continue.png  的の面（menu_target の M_menu_face）に貼る項目名。512x512（円の中に収まる）
   menu_start.png
   menu_options.png
@@ -55,7 +57,7 @@ def make_logo():
         x = int(40 + cell * i + cell / 2 - 130)
         y = int(height / 2 - 150 + (10 if i % 2 else -6))
         base.alpha_composite(tile, (x, y))
-    base.convert("RGB").save(os.path.join(OUT, "logo.png"))
+    base.convert("RGB").save(os.path.join(OUT, "logo_kazumimi.png"))
 
 
 def make_menu(file_name, text, size):
