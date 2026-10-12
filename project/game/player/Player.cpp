@@ -145,10 +145,11 @@ void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float mo
     if ( freshPress || dsSign_ == 0.0f ) {
         Vector3 tangent = rail.GetTangentByDistance(currentDistance_);
         float axisComponent = horizontalRail ? tangent.x : tangent.z;
+        const float pressed = ( moveInput > 0.0f ) ? 1.0f : -1.0f; // 進行符号は ±1（入力の大きさは下で速さに掛ける）
         if ( std::abs(axisComponent) > 0.05f ) {
-            dsSign_ = moveInput * ( ( axisComponent >= 0.0f ) ? 1.0f : -1.0f ); // 接線の軸成分に合わせる
+            dsSign_ = pressed * ( ( axisComponent >= 0.0f ) ? 1.0f : -1.0f ); // 接線の軸成分に合わせる
         } else {
-            dsSign_ = moveInput; // 接線がほぼ直交（円の頂点など）→ 押した向きへ
+            dsSign_ = pressed; // 接線がほぼ直交（円の頂点など）→ 押した向きへ
         }
     }
     // 片方向レール：許可されていない向きへは進めない（ジェットコースター区間など）
@@ -158,7 +159,9 @@ void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float mo
     // レールごとの速度倍率（加速/減速レール）を掛ける
     const float prevDistance = currentDistance_;
     const float oldFootY = rail.GetPositionByDistance(currentDistance_).y;
-    currentDistance_ += dsSign_ * moveSpeed_ * rail.speedMul * dt;
+    // 入力の大きさ（キーは常に1。自動操縦は目標の手前で1未満にして、ぴったり止まる）を速さに掛ける
+    const float inputScale = ( std::min )( std::abs(moveInput), 1.0f );
+    currentDistance_ += dsSign_ * inputScale * moveSpeed_ * rail.speedMul * dt;
     if ( !jump_.grounded ) {
         // 空中（ジャンプ中）はワールド空間の弾道を保つ：
         //   最終位置は「レール上の点 + 高さ」なので、何もしないと

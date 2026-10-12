@@ -28,6 +28,7 @@
 #include "engine/math/struct.h"
 
 #include <memory>
+#include <vector>
 
 class Obj3d;
 class SDFText;
@@ -74,7 +75,10 @@ private:
 	void ReleasePlayer();       // 決定の動きで止めていた移動と向きを元に戻す
 
 	void UpdateIntro();
-	PlayerInput::AutoPilot SteerAutoPilot(); // 次の角へ向かう入力を作る（登場の自動操縦）
+	// 道順（角の並び）の次の角へ向かう入力を作る（登場と、メニューの端から裏を回る時の自動操縦）
+	PlayerInput::AutoPilot SteerAutoPilot(const Vector3* waypoints, int waypointCount);
+	int  PickMenuTarget(int selected, float screenSide); // A/D の行き先を決めて道順を作る（-1=左 / +1=右）。決めた的を返す
+	void BuildMenuRoute(int item, float direction); // 今いる所から的の正面までの道順（direction +1=A の向き / -1=D の向き。端から先は奥を回る）
 	void UpdateMenu();
 	void UpdateAim();
 	void UpdateTongue();
@@ -107,12 +111,14 @@ private:
 	int   pilotSwitchWait_ = 0;    // 乗り換えキーを押し直すまでのフレーム数
 	int   pilotHopFrames_ = 0;     // ジャンプを押しておくフレーム数（ロゴを投げる時の小ジャンプ）
 	float introTime_ = 0.0f;
+	int   menuTarget_ = -1;          // メニューで向かっている的（着いたら光らせる）
+	float menuDirection_ = 0.0f;     // 今の道順で進む周の向き（+1/-1。止まっていれば0）
+	std::vector<Vector3> menuRoute_; // メニューで的へ向かう道順（角の並び＋的の正面。空なら着いている）
 
 	// 決定の動き
 	float aimYaw_ = 0.0f;          // 向き直る先
 	float aimTime_ = 0.0f;
 	float tongueDistance_ = 0.0f;  // 的までの距離
-	bool  pendingDecide_ = false;  // 歩いている途中で決定が押された（着いたら決定する）
 
 	// 決定時に投げる卵
 	std::unique_ptr<Obj3d> egg_;

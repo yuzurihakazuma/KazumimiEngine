@@ -39,12 +39,13 @@ namespace {
 	// --- 登場（自動操縦）---
 	constexpr float kIntroMoveSpeed  = 6.0f;   // 登場中の走る速さ(m/s)
 	constexpr float kMenuMoveSpeed   = 5.0f;   // 自分で歩く時の速さ（本編と同じ）
+	constexpr float kMenuWrapSpeed   = 8.0f;   // 端から奥の道を回って反対の端へ行く時の速さ（一周が長いので速め）
 	constexpr float kArriveDistance  = 0.3f;   // 角に「着いた」とみなす距離(m)
 	constexpr float kLogoThrowX      = -0.3f * kRailX; // 奥のレールのここを通る時にロゴを投げる
 	constexpr float kIntroTimeLimit  = 14.0f;  // 何かで進めなくなっても、ここで登場を切り上げる(秒)
 
 	// --- メニュー ---
-	constexpr float kStopDistance   = 0.12f;   // 的の正面に「着いた」とみなす距離(m)
+	constexpr float kStopDistance   = 0.01f;   // 的の正面に「着いた」とみなす距離(m)。最後は残りの分だけ進むので、ほぼぴったり止まる
 	constexpr float kAimTimeLimit   = 0.5f;    // 的へ向き直るのを待つ上限(秒)
 	constexpr float kEggFlightTime  = 0.45f;   // 卵が画面へ届くまで(秒)
 	constexpr float kIrisCloseTime  = 0.35f;   // 画面を閉じる時間(秒)
@@ -95,6 +96,34 @@ namespace {
 	}
 
 	float Sign(float value){ return ( value > 0.0f ) ? 1.0f : -1.0f; }
+
+	// --- メニューのコース（手前・左・奥・右の4本で一周）---
+	//   周の上の位置＝手前の右の角から「手前を左へ → 左を奥へ → 奥を右へ → 右を手前へ」の向き(+1)に測った長さ
+	constexpr float kLoopDepth  = kRailBack - kRailFront;
+	constexpr float kLoopLength = 4.0f * kRailX + 2.0f * kLoopDepth;
+	const Vector3 kLoopCorners[4] = { // 手前の右 / 手前の左 / 奥の左 / 奥の右
+		{  kRailX, 0.0f, kRailFront }, { -kRailX, 0.0f, kRailFront },
+		{ -kRailX, 0.0f, kRailBack },  {  kRailX, 0.0f, kRailBack },
+	};
+	constexpr float kLoopCornerAt[4] = { 0.0f, 2.0f * kRailX, 2.0f * kRailX + kLoopDepth, 4.0f * kRailX + kLoopDepth };
+
+	// 点を、いちばん近い辺の上の周の位置にする（outOnFront：手前の辺にいるか）
+	float LoopPosition(float x, float z, bool* outOnFront = nullptr){
+		x = std::clamp(x, -kRailX, kRailX);
+		z = std::clamp(z, kRailFront, kRailBack);
+		const float gaps[4]  = { std::abs(z - kRailFront), std::abs(x + kRailX), std::abs(z - kRailBack), std::abs(x - kRailX) };
+		const float along[4] = { kRailX - x, 2.0f * kRailX + ( z - kRailFront ),
+		                         2.0f * kRailX + kLoopDepth + ( x + kRailX ), 4.0f * kRailX + kLoopDepth + ( kRailBack - z ) };
+		int nearest = 0;
+		for ( int edge = 1; edge < 4; ++edge ) { if ( gaps[edge] < gaps[nearest] ) { nearest = edge; } }
+		if ( outOnFront ) { *outOnFront = ( nearest == 0 ); }
+		return along[nearest];
+	}
+	// from から direction(+1/-1) の向きに to まで進む長さ（0〜一周）
+	float LoopAhead(float from, float to, float direction){
+		const float length = ( direction > 0.0f ) ? ( to - from ) : ( from - to );
+		return std::fmod(std::fmod(length, kLoopLength) + kLoopLength, kLoopLength);
+	}
 
 	// position にいちばん近いレールと、その上の距離を探す（無ければ false）
 	bool FindRailNear(const std::vector<SplineRail>& rails, const Vector3& position, int& outRail, float& outDistance){
@@ -325,7 +354,9 @@ void TitleScene::EnterMenu(){
 	*player_.MoveSpeedPtr() = kMenuMoveSpeed;
 	player_.SetAutoPilot(true);
 	menu_.SetSelected(TitleMenu::Item_Start);
-	pendingDecide_ = false;
+	menuTarget_ = TitleMenu::Item_Start;
+	menuRoute_.clear();
+	menuDirection_ = 0.0f;
 	phase_ = Phase::Menu;
 }
 
@@ -374,20 +405,11 @@ void TitleScene::OnUpdate(){
 // 登場の自動操縦：目指す角へ向かう入力を作る。
 //   レールの向きに沿って進めるなら「移動キー」を押し続け、角で曲がる時は「乗り換えキー」を押す
 //   （人がキーを押すのと同じ入力を Player へ渡すので、移動・乗り換えの処理は本編そのもの）
-PlayerInput::AutoPilot TitleScene::SteerAutoPilot(){
+PlayerInput::AutoPilot TitleScene::SteerAutoPilot(const Vector3* waypoints, int waypointCount){
 	PlayerInput::AutoPilot pilot;
 	const auto& rails = railField_.GetRails();
 	const int currentRail = player_.GetCurrentRail();
 	if ( currentRail < 0 || currentRail >= ( int ) rails.size() ) { return pilot; }
-
-	// 奥の右の角 → 手前の右の角 → スタート地点（手前の中央）
-	const Vector3 start = rails[railField_.GetStartRail()].GetPositionByDistance(railField_.GetStartDistance());
-	const Vector3 waypoints[] = {
-		{ kRailX, 0.0f, kRailBack },
-		{ kRailX, 0.0f, kRailFront },
-		{ start.x, 0.0f, start.z },
-	};
-	const int waypointCount = ( int ) ( sizeof(waypoints) / sizeof(waypoints[0]) );
 	if ( waypointIndex_ >= waypointCount ) { return pilot; } // 着いた：何も押さない
 
 	const Vector3& position = player_.GetPosition();
@@ -432,7 +454,15 @@ void TitleScene::UpdateIntro(){
 	introTime_ += kDeltaTime;
 	if ( introTime_ > kIntroTimeLimit ) { SkipIntro(); return; }
 
-	PlayerInput::AutoPilot pilot = SteerAutoPilot();
+	// 奥の右の角 → 手前の右の角 → スタート地点（手前の中央）
+	const auto& rails = railField_.GetRails();
+	const Vector3 start = rails[railField_.GetStartRail()].GetPositionByDistance(railField_.GetStartDistance());
+	const Vector3 waypoints[] = {
+		{ kRailX, 0.0f, kRailBack },
+		{ kRailX, 0.0f, kRailFront },
+		{ start.x, 0.0f, start.z },
+	};
+	PlayerInput::AutoPilot pilot = SteerAutoPilot(waypoints, ( int ) ( sizeof(waypoints) / sizeof(waypoints[0]) ));
 
 	// 奥のレールの途中で、小さく跳ねながらロゴを投げる
 	//   （最初の数フレームは恐竜の位置がまだ決まっていないので見ない）
@@ -461,25 +491,41 @@ void TitleScene::UpdateIntro(){
 // A/D で的を選ぶと、恐竜がその前まで自動で歩く。SPACE（Enter / E）でベロを当てて決定。
 //   歩いている途中で押した決定は、着いた時に行う
 void TitleScene::UpdateMenu(){
-	int selected = menu_.GetSelected();
+	// 行き先の的（光らせるのは着いてから。走っている途中は どれも光らせない）
+	int selected = menuTarget_;
 	if ( selected < 0 ) { selected = TitleMenu::Item_Start; }
+	// A/D は いつでも（奥を回っている途中でも）効く。押した向き＝画面の左/右へ走り、その向きで次に来る的で止まる。
+	//   端から先は奥の道でつながっている（つづきで A → 奥を回って せってい / せっていで D → つづき）
 	if ( !IsTypingInEditor() ) {
 		Input* input = Input::GetInstance();
-		if ( input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT) )  { selected = ( std::max )( selected - 1, 0 ); }
-		if ( input->Triggerkey(DIK_D) || input->Triggerkey(DIK_RIGHT) ) { selected = ( std::min )( selected + 1, ( int ) TitleMenu::Item_Count - 1 ); }
+		if ( input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT) )  { selected = PickMenuTarget(selected, -1.0f); }
+		if ( input->Triggerkey(DIK_D) || input->Triggerkey(DIK_RIGHT) ) { selected = PickMenuTarget(selected, +1.0f); }
 	}
-	menu_.SetSelected(selected);
+	menuTarget_ = selected;
 
-	// 選んだ的の正面まで、手前のレールの上を歩く（本編と同じ移動処理に、キーの代わりの入力を渡す）
-	const float toTargetX = menu_.RefPosition(selected).x - player_.GetPosition().x;
-	const bool arrived = std::abs(toTargetX) <= kStopDistance;
 	PlayerInput::AutoPilot pilot;
-	if ( !arrived ) { pilot.moveX = Sign(toTargetX); }
+	bool arrived = false;
+	if ( !menuRoute_.empty() ) {
+		// 角をたどって的の正面まで（登場と同じ自動操縦）
+		pilot = SteerAutoPilot(menuRoute_.data(), ( int ) menuRoute_.size());
+		if ( waypointIndex_ >= ( int ) menuRoute_.size() ) {
+			menuRoute_.clear();
+			menuDirection_ = 0.0f;
+			*player_.MoveSpeedPtr() = kMenuMoveSpeed;
+		}
+	} else {
+		// 的の正面にぴったり止める：最後の1フレームは残りの分だけ進む（押しっぱなしだと的の手前/奥に
+		//   最大 1フレーム分ずれて止まり、来た向きで止まる位置が変わる＝連打するとずれて見えた）
+		const float toTargetX = menu_.RefPosition(selected).x - player_.GetPosition().x;
+		const float step = ( std::max )( *player_.MoveSpeedPtr() * kDeltaTime, 0.001f );
+		arrived = std::abs(toTargetX) <= kStopDistance;
+		if ( !arrived ) { pilot.moveX = std::clamp(toTargetX / step, -1.0f, 1.0f); }
+	}
 	player_.SetAutoPilot(true, pilot);
+	menu_.SetSelected(arrived ? selected : -1); // 走っている途中に、通りがかりの的や行き先の的が光らないように
 
-	if ( DecidePressed() ) { pendingDecide_ = true; }
-	if ( pendingDecide_ && arrived && player_.IsGrounded() ) {
-		pendingDecide_ = false;
+	// 決定は、的の正面に止まっている時だけ（走っている途中に押しても何もしない）
+	if ( DecidePressed() && arrived && player_.IsGrounded() ) {
 		const int focus = selected;
 		const Vector3 target = menu_.GetTargetCenter(focus);
 		const float toX = target.x - player_.GetPosition().x;
@@ -493,6 +539,59 @@ void TitleScene::UpdateMenu(){
 		player_.SetFaceOverride(true, aimYaw_);
 		phase_ = Phase::Aim;
 	}
+}
+
+// A/D を押した時の行き先を決めて、道順を作る。screenSide：-1=左(A) / +1=右(D)。
+//   ・押した向きは「画面の左右」。手前の道では左＝周の +1 向き、奥と左右の道では左＝周の -1 向き
+//     （奥を右へ走っている途中で左を押すと、引き返して つづき に戻る）
+//   ・今の進む向きと同じ向きに押し直したら、今の行き先の次の的へ（連打で先へ進める）
+//   ・止まっている時／逆向きに押した時は、今いる所からその向きで次に来る的へ
+int TitleScene::PickMenuTarget(int selected, float screenSide){
+	const Vector3& position = player_.GetPosition();
+	bool onFront = true;
+	const float from = LoopPosition(position.x, position.z, &onFront);
+	const float direction = onFront ? -screenSide : screenSide;
+
+	const bool moving = !menuRoute_.empty();
+	const float origin = ( moving && direction == menuDirection_ )
+		? LoopPosition(menu_.RefPosition(selected).x, kRailFront) // 今の行き先より先の的
+		: from;
+	int best = selected;
+	float bestAhead = kLoopLength + 1.0f;
+	for ( int item = 0; item < ( int ) TitleMenu::Item_Count; ++item ) {
+		const float ahead = LoopAhead(origin, LoopPosition(menu_.RefPosition(item).x, kRailFront), direction);
+		if ( ahead > 0.05f && ahead < bestAhead ) { bestAhead = ahead; best = item; }
+	}
+	BuildMenuRoute(best, direction);
+	return best;
+}
+
+// 恐竜の今いる所から、的の正面までの道順（direction の向きに進んで通る角の並び＋的の正面）を作る
+void TitleScene::BuildMenuRoute(int item, float direction){
+	const Vector3& position = player_.GetPosition();
+	const float targetX = menu_.RefPosition(item).x;
+	const float from = LoopPosition(position.x, position.z);
+	float travel = LoopAhead(from, LoopPosition(targetX, kRailFront), direction);
+	if ( travel > kLoopLength - 0.5f ) { travel = 0.0f; } // ほんの少し行き過ぎているだけ：一周せずに戻る
+
+	// 通る角を、近い順に
+	std::vector<std::pair<float, int>> passed;
+	for ( int corner = 0; corner < 4; ++corner ) {
+		const float distance = LoopAhead(from, kLoopCornerAt[corner], direction);
+		if ( distance > 0.05f && distance < travel ) { passed.push_back({ distance, corner }); }
+	}
+	std::sort(passed.begin(), passed.end());
+	menuRoute_.clear();
+	for ( const auto& entry : passed ) { menuRoute_.push_back(kLoopCorners[entry.second]); }
+	menuRoute_.push_back({ targetX, 0.0f, kRailFront });
+	menuDirection_ = direction;
+
+	waypointIndex_ = 0;
+	pilotRail_ = player_.GetCurrentRail();
+	pilotReleaseFrames_ = 0;
+	pilotSwitchWait_ = 0;
+	// 角を回る（奥の道を通る）時は一周が長いので速めに走る
+	*player_.MoveSpeedPtr() = passed.empty() ? kMenuMoveSpeed : kMenuWrapSpeed;
 }
 
 // 的のほうへ向き直ったら、ベロを伸ばす
