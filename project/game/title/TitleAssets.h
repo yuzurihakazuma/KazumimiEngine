@@ -22,6 +22,7 @@ namespace TitleAssets {
     // 効果音
     inline constexpr const char* kThrowSe = "resources/se/eggThrow.wav";
     inline constexpr const char* kHitSe   = "resources/se/eggHit.wav";
+    inline constexpr const char* kFallSe  = "resources/kamishibai/se_patan.wav"; // 段ボールが倒れた「パタン」
 
     void Load();
 }

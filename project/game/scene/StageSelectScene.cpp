@@ -9,6 +9,7 @@
 #include "engine/scene/SceneManager.h"
 #include "engine/sdf/SDFManager.h"
 #include "engine/sdf/SDFText.h"
+#include "game/transition/KamishibaiTransition.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -92,11 +93,11 @@ void StageSelectScene::OnUpdate(){
 	if ( input->Triggerkey(DIK_SPACE) ) {
 		// ゲームプレイへ
 		sceneChanging_ = true;
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<GamePlayScene>());
+		KamishibaiTransition::ChangeSceneWithCurtain("GAMEPLAY");
 	} else if ( input->Triggerkey(DIK_T) ) {
 		// タイトルへ戻る
 		sceneChanging_ = true;
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
+		KamishibaiTransition::ChangeSceneWithCurtain("TITLE");
 	}
 }
 

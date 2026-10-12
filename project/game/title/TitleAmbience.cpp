@@ -1,5 +1,7 @@
 #include "game/title/TitleAmbience.h"
 #include "game/title/TitleLayout.h"
+#include "game/title/TitleAssets.h"
+#include "game/title/TitleTopple.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -34,6 +36,8 @@ namespace {
     constexpr float kWaveLength   = 2.6f;   // 波1つの幅(m)
     constexpr float kWaveCrest    = 0.34f;  // 波の山の高さ(m)
     constexpr const char* kWaveTexture = "resources/craft/textures/paper_blue.png";
+
+    constexpr float kCloudGravity = 30.0f; // 倒す時、糸が切れた雲が落ちる重さ(m/s^2)
 
     bool StartsWith(const std::string& text, const char* prefix){
         return text.rfind(prefix, 0) == 0;
@@ -210,6 +214,10 @@ void TitleAmbience::UpdateMapObjects(float deltaTime, const Vector3& dinoPositio
 void TitleAmbience::Update(float deltaTime, const Vector3& dinoPosition){
     time_ += deltaTime;
 
+    if ( toppling_ ) {
+        UpdateTopple(deltaTime); // 倒している間は風を止める（倒れる動きだけ）
+        return;
+    }
     // エディタを出している間は止める（物をつかんで動かす作業の邪魔をしない）
     const bool editing = EditorManager::GetInstance()->IsActive() && !moveWhileEditing_;
     UpdateMapObjects(deltaTime, dinoPosition, windEnabled_ && !editing);
@@ -224,6 +232,91 @@ void TitleAmbience::Update(float deltaTime, const Vector3& dinoPosition){
         position.y += 0.06f * std::sin(time_ * row.speed * 2.0f + row.phase);
         row.object->SetTranslation(position);
         row.object->Update();
+    }
+}
+
+// 倒す物を決める：地面（草原のタイル・段・机）と空は倒さない。それ以外の段ボールは全部倒す
+void TitleAmbience::BeginTopple(const Vector3& origin){
+    fallers_.clear();
+    waveDelays_.clear();
+    toppleTime_ = 0.0f;
+    toppleDuration_ = 0.0f;
+    landings_ = 0;
+    LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
+    if ( levelEditor ) {
+        const auto& objects = levelEditor->GetObjects();
+        for ( int i = 0; i < ( int ) objects.size(); ++i ) {
+            const std::string& type = objects[i].type;
+            if ( StartsWith(type, "ground_") || StartsWith(type, "sky_") || type == TitleAssets::kDeskModel ) { continue; }
+            const float dx = objects[i].translation.x - origin.x;
+            const float dz = objects[i].translation.z - origin.z;
+            Faller faller;
+            faller.index = i;
+            faller.delay = std::sqrt(dx * dx + dz * dz) * TitleTopple::kDelayPerMeter;
+            faller.hanging = StartsWith(type, "cloud_");
+            toppleDuration_ = ( std::max )( toppleDuration_, faller.delay );
+            if ( faller.hanging ) { // 雲は地面に着くまで（倒れる時間は最後に足すので引いておく）
+                const float fallTime = std::sqrt(2.0f * ( std::max )( objects[i].translation.y, 0.0f ) / kCloudGravity);
+                toppleDuration_ = ( std::max )( toppleDuration_, faller.delay + fallTime - TitleTopple::kFallTime );
+            }
+            fallers_.push_back(faller);
+        }
+    }
+    for ( const WaveRow& row : waves_ ) {
+        const float delay = std::abs(row.basePosition.z - origin.z) * TitleTopple::kDelayPerMeter;
+        toppleDuration_ = ( std::max )( toppleDuration_, delay );
+        waveDelays_.push_back(delay);
+    }
+    toppleDuration_ += TitleTopple::kFallTime;
+    toppling_ = true;
+}
+
+int TitleAmbience::ConsumeLandings(){
+    const int count = landings_;
+    landings_ = 0;
+    return count;
+}
+
+// 置いた位置・向き（マップの値）を基準に、根元を軸にして奥へ倒す（表示だけ。保存される値は変えない）
+void TitleAmbience::UpdateTopple(float deltaTime){
+    const float previous = toppleTime_;
+    toppleTime_ += deltaTime;
+    LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
+    if ( levelEditor ) {
+        const auto& objects = levelEditor->GetObjects();
+        for ( const Faller& faller : fallers_ ) {
+            if ( faller.index >= ( int ) objects.size() ) { continue; }
+            Obj3d* object = levelEditor->GetObject3d(faller.index);
+            if ( !object ) { continue; }
+            const LevelObjectData& placed = objects[faller.index];
+            const float elapsed = toppleTime_ - faller.delay;
+            Vector3 position = placed.translation;
+            Vector3 rotation = placed.rotation;
+            if ( faller.hanging ) {
+                // 雲：糸が切れて、くるっと傾きながら地面まで落ちる（宙で寝かせると線に見えてしまう）
+                const float fall = ( elapsed > 0.0f ) ? 0.5f * kCloudGravity * elapsed * elapsed : 0.0f;
+                const float drop = ( std::min )( fall, ( std::max )( placed.translation.y, 0.0f ) );
+                position.y -= drop;
+                rotation.z += 0.5f * ( drop / ( std::max )( placed.translation.y, 0.01f ) );
+                const float previousElapsed = previous - faller.delay;
+                const float previousFall = ( previousElapsed > 0.0f ) ? 0.5f * kCloudGravity * previousElapsed * previousElapsed : 0.0f;
+                if ( previousFall < placed.translation.y && fall >= placed.translation.y ) { ++landings_; }
+            } else {
+                rotation.x += TitleTopple::RotationX(TitleTopple::Angle(elapsed), placed.rotation.y);
+                if ( TitleTopple::JustLanded(previous - faller.delay, elapsed) ) { ++landings_; }
+            }
+            object->SetTranslation(position);
+            object->SetRotation(rotation);
+        }
+    }
+    for ( size_t i = 0; i < waves_.size() && i < waveDelays_.size(); ++i ) {
+        WaveRow& row = waves_[i];
+        if ( !row.object ) { continue; }
+        const float angle = TitleTopple::Angle(toppleTime_ - waveDelays_[i]);
+        row.object->SetTranslation(row.basePosition);
+        row.object->SetRotation({ TitleTopple::RotationX(angle, 0.0f), 0.0f, 0.0f });
+        row.object->Update();
+        if ( TitleTopple::JustLanded(previous - waveDelays_[i], toppleTime_ - waveDelays_[i]) ) { ++landings_; }
     }
 }
 

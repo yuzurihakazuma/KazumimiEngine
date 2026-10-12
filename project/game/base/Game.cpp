@@ -6,6 +6,8 @@
 
 // ---  エンジン側のファイル ---
 #include "engine/scene/SceneManager.h"
+#include "engine/base/DirectXCommon.h"
+#include "game/transition/KamishibaiTransition.h"
 #include "engine/utils/EditorManager.h"
 
 #include <Windows.h>
@@ -19,6 +21,12 @@ void Game::Initialize(){
 
 	// 2. マネージャーにファクトリーを教える
 	SceneManager::GetInstance()->SetSceneFactory(sceneFactory_.get());
+
+	// 2.5 紙芝居の遷移（シーンが変わっても残る舞台）。画像・音は起動時に読む
+	DirectXCommon::GetInstance()->BeginCommandRecording();
+	KamishibaiTransition::GetInstance()->Load();
+	DirectXCommon::GetInstance()->EndCommandRecording();
+	SceneManager::GetInstance()->SetTransition(KamishibaiTransition::GetInstance());
 
 	// 3. 最初のシーンをリクエストする
 	//    確認用：環境変数 CG2_START_SCENE にシーン名（TITLE / GAMEPLAY）を入れて起動すると、そのシーンから始まる

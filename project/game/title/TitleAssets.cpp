@@ -107,4 +107,5 @@ void TitleAssets::Load(){
     AudioManager* audio = AudioManager::GetInstance();
     audio->LoadWave(kThrowSe);
     audio->LoadWave(kHitSe);
+    audio->LoadWave(kFallSe);
 }

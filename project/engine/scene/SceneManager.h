@@ -7,6 +7,7 @@
 class IScene;
 class AbstractSceneFactory;
 class Sprite;
+class ISceneTransition;
 
 // シーンマネージャークラス
 class SceneManager{
@@ -32,6 +33,11 @@ public:
 
 	void Finalize();
 
+	// シーン遷移の演出（紙芝居など）。持ち主は呼び出し側（Game）。nullptr で外す
+	void SetTransition(ISceneTransition* transition){ transition_ = transition; }
+	ISceneTransition* GetTransition() const{ return transition_; }
+	IScene* GetCurrentScene() const{ return currentScene_.get(); }
+
 	// 現在のシーン固有のデバッグUIを描画
 	void DrawCurrentSceneDebugUI();
 
@@ -51,6 +57,7 @@ private:
 	std::unique_ptr<IScene> nextScene_ = nullptr;
 
 	AbstractSceneFactory* sceneFactory_ = nullptr;
+	ISceneTransition* transition_ = nullptr; // シーンが変わっても残る遷移の演出
 
 	float cpuUpdateTimeMs_ = 0.0f;
 	float cpuDrawTimeMs_ = 0.0f;

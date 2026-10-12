@@ -37,6 +37,7 @@ public:
 
     void Hit(int item);      // ベロが当たった
     void Refuse(int item);   // まだ使えない項目を選んだ
+    void SetFallAngle(int item, float angle){ targets_[item].fallAngle = angle; } // 奥へ倒れている角度（紙芝居遷移の退場）
 
     Vector3& RefPosition(int item){ return targets_[item].position; } // 立てる位置（調整ウィンドウ用）
 
@@ -49,6 +50,7 @@ private:
         float hitTime     = -1.0f;  // ベロが当たってからの秒数（負＝揺れていない）
         float refuseTime  = -1.0f;  // 断ってからの秒数（負＝震えていない）
         float focus       = 0.0f;   // 選ばれ具合（0〜1。なめらかに変わる）
+        float fallAngle   = 0.0f;   // 奥へ倒れている角度
     };
 
     Target targets_[Item_Count];

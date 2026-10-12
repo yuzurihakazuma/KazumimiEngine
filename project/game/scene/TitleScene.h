@@ -40,6 +40,10 @@ public:
 
 	void Reload() override {}
 
+	// 紙芝居遷移の退場：恐竜の足元から近い順に、背景の段ボール・ロゴの看板・メニューの的が奥へバタバタ倒れる
+	void BeginExitEffect() override;
+	bool IsExitEffectDone() const override;
+
 private:
 	// --- BaseScene の差し込み口 ---
 	void OnLoadResources() override;
@@ -114,6 +118,21 @@ private:
 	int   menuTarget_ = -1;          // メニューで向かっている的（着いたら光らせる）
 	float menuDirection_ = 0.0f;     // 今の道順で進む周の向き（+1/-1。止まっていれば0）
 	std::vector<Vector3> menuRoute_; // メニューで的へ向かう道順（角の並び＋的の正面。空なら着いている）
+
+	// 退場（段ボールが倒れる）
+	void UpdateTopple(float deltaTime);
+	bool  toppling_ = false;
+	float toppleTime_ = 0.0f;
+	float toppleDuration_ = 0.0f;   // 全部が寝るまでの秒数
+	float logoFallDelay_ = 0.0f;
+	float menuFallDelays_[3] {};
+	float landSoundWait_ = 0.0f;     // パタンの音を続けて鳴らしすぎない
+	float bowTime_ = -1.0f;          // お辞儀を始めてからの秒数（負＝まだ）
+
+	// 卵が画面に当たった時の揺れ
+	void UpdateShake(float deltaTime);
+	float   shakeTime_ = 0.0f;       // 残りの秒数
+	Vector3 shakeBase_ {};           // 揺らす前のカメラの位置（揺れ終わったら戻す）
 
 	// 決定の動き
 	float aimYaw_ = 0.0f;          // 向き直る先

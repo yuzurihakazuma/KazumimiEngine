@@ -38,6 +38,11 @@ public:
 	// 文字入力中（エディタの入力欄に文字を打っている間）はキーボードを「押されていない」扱いにする。
 	//   これが無いと、名前を入力中に T を打っただけでタイトルへ戻る・R でシーンが読み直される等、
 	//   ゲーム側のホットキーが誤って発動する。EditorManager が毎フレーム渡す
+	// 遷移の演出中など、ゲーム側のキー操作を止める（true の間 Pushkey / Triggerkey は常に false）
+	void SetLocked(bool locked){ locked_ = locked; }
+	bool IsLocked() const{ return locked_; }
+	// 止めている間も読める押した瞬間（演出の早送りなど、止めている側だけが使う）
+	bool TriggerkeyRaw(BYTE keyNumber) const{ return !( preKeys[keyNumber] & 0x80 ) && ( keys[keyNumber] & 0x80 ); }
 	void SetTextInputActive(bool active){ textInputActive_ = active; }
 	bool IsTextInputActive() const{ return textInputActive_; }
 
@@ -92,6 +97,7 @@ private:
 	ComPtr<IDirectInputDevice8> keyboard;
 	BYTE keys[256] = {};
 	BYTE preKeys[256] = {};
+	bool locked_ = false;          // 遷移の演出中（true の間 Pushkey / Triggerkey は常に false）
 	bool textInputActive_ = false; // 文字入力中（true の間 Pushkey / Triggerkey は常に false）
 
 	// マウス用

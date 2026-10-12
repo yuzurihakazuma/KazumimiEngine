@@ -1,0 +1,83 @@
+{
+  "to": "STAGESELECT",
+  "parts": [
+    {
+      "name": "段ボールが倒れる",
+      "type": "sceneExit",
+      "event": "start",
+      "delay": 0.05,
+      "duration": 3.0,
+      "params": {
+        "emit": "exited"
+      }
+    },
+    {
+      "name": "幕を閉じる",
+      "type": "curtain",
+      "event": "start",
+      "delay": 1.0,
+      "duration": 0.9,
+      "params": {
+        "open": false,
+        "emit": "curtainClosed"
+      }
+    },
+    {
+      "name": "幕の音（閉じる）",
+      "type": "sound",
+      "event": "start",
+      "delay": 1.0,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_whoosh.wav",
+        "volume": 0.8
+      }
+    },
+    {
+      "name": "次のシーンを読む",
+      "type": "loadScene",
+      "event": "curtainClosed",
+      "delay": 0.15,
+      "duration": 0.0
+    },
+    {
+      "name": "拍子木",
+      "type": "sound",
+      "event": "loaded",
+      "delay": 0.15,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_hyoshigi.wav",
+        "volume": 1.0
+      }
+    },
+    {
+      "name": "幕を開ける",
+      "type": "curtain",
+      "event": "loaded",
+      "delay": 0.5,
+      "duration": 1.0,
+      "params": {
+        "open": true
+      }
+    },
+    {
+      "name": "幕の音（開く）",
+      "type": "sound",
+      "event": "loaded",
+      "delay": 0.5,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_whoosh.wav",
+        "volume": 0.8
+      }
+    },
+    {
+      "name": "おわり",
+      "type": "end",
+      "event": "loaded",
+      "delay": 1.55,
+      "duration": 0.0
+    }
+  ]
+}

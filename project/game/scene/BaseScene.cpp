@@ -16,6 +16,8 @@
 #include "engine/particle/GPUParticleManager.h"
 #include "engine/particle/ParticleManager.h"
 #include "engine/postEffect/PostEffect.h"
+#include "engine/scene/ISceneTransition.h"
+#include "engine/scene/SceneManager.h"
 #include "engine/sdf/SDFManager.h"
 #include "engine/utils/EditorManager.h"
 #include "engine/utils/Level/BlenderImporter.h"
@@ -239,6 +241,9 @@ void BaseScene::ComposeFrame(ID3D12GraphicsCommandList* commandList){
     RenderTexture* finalTarget = bloom->IsEnabled() ? bloom->GetCombineTexture() : postEffect->GetFinalTexture();
     SDFManager::GetInstance()->DrawIntoTexture(commandList, finalTarget);
     if ( features_.overlay2D ) { DrawOverlayInto(commandList, finalTarget); }
+    // 遷移の演出（紙芝居の枠・扉・吹き飛ぶ絵）を一番上に重ねる。シーンが変わっても同じ舞台が続く
+    ISceneTransition* transition = SceneManager::GetInstance()->GetTransition();
+    if ( transition && transition->IsActive() ) { transition->DrawInto(commandList, finalTarget); }
 
     // エディタに最終的なゲーム画面のSRVを渡す（Game View 表示用）
     EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
@@ -295,6 +300,7 @@ void BaseScene::DrawInspector(){
 #ifdef USE_IMGUI
     // エンジン側の各部品のUI（同じ「詳細設定」ウィンドウへ合流する）
     Obj3dCommon::GetInstance()->DrawDebugUI();
+    if ( ISceneTransition* transition = SceneManager::GetInstance()->GetTransition() ) { transition->DrawDebugUI(); } // 紙芝居遷移
     camera_->DrawDebugUI();
     debugCamera_->DrawDebugUI();
     ParticleManager::GetInstance()->DrawDebugUI();

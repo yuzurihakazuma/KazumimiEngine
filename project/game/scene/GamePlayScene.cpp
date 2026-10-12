@@ -9,6 +9,7 @@
 #include "game/scene/GamePlayAssets.h"
 #include "game/demo/DemoShowcase.h"
 #include "game/editor/PlaySceneInspector.h"
+#include "game/transition/KamishibaiTransition.h"
 
 // --- エンジン側のファイル ---
 #include "Engine/Particle/ParticleManager.h"
@@ -295,9 +296,9 @@ void GamePlayScene::OnUpdate(){
 	// 初めて敵を倒した瞬間のフリーズを無くすため、起動直後に演出を一度通しておく
 	screenFx_.UpdateWarmup(combat_, currentMode == EngineMode::Play);
 
-	// タイトルへ戻る
+	// タイトルへ戻る（赤い幕で切り替える）
 	if ( Input::GetInstance()->Triggerkey(DIK_T) ) {
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
+		KamishibaiTransition::ChangeSceneWithCurtain("TITLE");
 	}
 }
 

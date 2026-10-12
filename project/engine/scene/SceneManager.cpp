@@ -3,6 +3,7 @@
 #include <cassert>
 // --- エンジン側のファイル ---
 #include "engine/scene/IScene.h"
+#include "engine/scene/ISceneTransition.h"
 #include "engine/scene/AbstractSceneFactory.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/Input.h"
@@ -41,6 +42,9 @@ void SceneManager::Update(){
 		}
 	}
 #endif
+
+	// --- 遷移の演出（紙芝居など）。シーンより先に進める（演出が切り替えを頼むと、このフレームで切り替わる）---
+	if ( transition_ ) { transition_->Update(Time::GetInstance()->GetUnscaledDeltaTime()); }
 
 	// --- フェード遷移の進行（実時間で。ポーズ中でも進む）---
 	if ( fadeState_ != FadeState::None ) {
@@ -173,6 +177,7 @@ void SceneManager::Finalize() {
 		currentScene_->Finalize();
 		currentScene_.reset();    
 	}
+	if ( transition_ ) { transition_->Finalize(); transition_ = nullptr; }
 	fadeSprite_.reset();
 }
 

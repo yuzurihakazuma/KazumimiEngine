@@ -1,4 +1,5 @@
 #include "game/title/TitleMenu.h"
+#include "game/title/TitleTopple.h"
 #include "game/title/TitleAssets.h"
 #include "game/title/TitleLayout.h"
 
@@ -137,6 +138,7 @@ void TitleMenu::Update(float deltaTime){
             if ( target.refuseTime > 1.0f ) { target.refuseTime = -1.0f; }
         }
 
+        rotation.x += TitleTopple::RotationX(target.fallAngle, rotation.y); // 棒の根元を軸に奥へ倒れる
         target.object->SetTranslation(target.position);
         target.object->SetRotation(rotation);
         target.object->SetScale({ size, size, size });

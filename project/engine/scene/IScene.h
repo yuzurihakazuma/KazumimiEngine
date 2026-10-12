@@ -21,4 +21,9 @@ public:
 	// デバッグ用UIの描画
 	virtual void DrawDebugUI() {}
 
+	// 遷移の退場演出（紙芝居の「起き倒し」など）。遷移の演出が始めて、終わるのを待つ。
+	//   退場の動きが無いシーンは何もしない（すぐ終わった扱い）
+	virtual void BeginExitEffect() {}
+	virtual bool IsExitEffectDone() const { return true; }
+
 };

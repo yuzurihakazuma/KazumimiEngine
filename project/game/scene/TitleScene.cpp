@@ -1,4 +1,6 @@
 #include "TitleScene.h"
+#include "game/transition/KamishibaiTransition.h"
+#include "game/title/TitleTopple.h"
 // --- ゲーム固有のファイル ---
 #include "GamePlayScene.h"
 #include "StageSelectScene.h"
@@ -51,6 +53,15 @@ namespace {
 	constexpr float kIrisCloseTime  = 0.35f;   // 画面を閉じる時間(秒)
 	constexpr float kIrisHoldTime   = 0.15f;   // 閉じ切ってからシーンを切り替えるまで(秒)
 	constexpr float kNoticeTime     = 1.4f;    // 「じゅんびちゅう」を出す時間(秒)
+
+	// --- 終わりの演出（卵が当たった後）---
+	constexpr float kShakeTime   = 0.35f;  // 画面が揺れる時間(秒)
+	constexpr float kShakeAmount = 0.12f;  // 揺れの大きさ(m)
+	constexpr float kBowDelay    = 0.35f;  // まわりが倒れ始めてから、お辞儀を始めるまで(秒)
+	constexpr float kBowAngle    = 0.55f;  // お辞儀の深さ(rad)
+	constexpr float kBowDownTime = 0.3f;
+	constexpr float kBowHoldTime = 0.45f;
+	constexpr float kBowUpTime   = 0.35f;
 
 	const char* kGuideMessage  = "A/D : えらぶ   SPACE : けってい";
 	const char* kNoticeMessage = "じゅんびちゅう";
@@ -392,12 +403,14 @@ void TitleScene::OnUpdate(){
 	roadMesh_.Update(rails);
 	railField_.UpdateMarkers();
 
+	UpdateTopple(kDeltaTime);   // 倒れる角度（と恐竜のお辞儀）を、看板・的・恐竜の Update より先に決める
 	dino_.Update(player_, kDeltaTime);
 	logo_.Update(kDeltaTime);
 	menu_.Update(kDeltaTime);
 	paperBits_.Update(kDeltaTime);
 	ambience_.Update(kDeltaTime, player_.GetPosition()); // 草花は恐竜が通ると押される
 	UpdateEgg(kDeltaTime);       // 恐竜の手の位置を使うので、恐竜の後
+	UpdateShake(kDeltaTime);
 	UpdateIrisOut(kDeltaTime);
 	UpdateTexts(kDeltaTime);
 }
@@ -634,6 +647,76 @@ void TitleScene::UpdateTongue(){
 	}
 }
 
+// 卵が画面に当たった衝撃：カメラを小刻みに揺らして、だんだん収める（まわりが倒れるきっかけに見せる）
+void TitleScene::UpdateShake(float deltaTime){
+	if ( shakeTime_ <= 0.0f ) { return; }
+	shakeTime_ -= deltaTime;
+	Camera* camera = GetCamera();
+	if ( shakeTime_ <= 0.0f ) {
+		camera->SetTranslation(shakeBase_);
+		return;
+	}
+	const float strength = kShakeAmount * ( shakeTime_ / kShakeTime );
+	const float t = kShakeTime - shakeTime_;
+	camera->SetTranslation({ shakeBase_.x + strength * std::sin(t * 61.0f),
+	                         shakeBase_.y + strength * 0.7f * std::cos(t * 47.0f), shakeBase_.z });
+}
+
+// 紙芝居遷移の退場：恐竜の足元から近い順に、奥へ倒し始める（倒れる動きは TitleTopple）
+void TitleScene::BeginExitEffect(){
+	const Vector3 origin = player_.GetPosition();
+	ambience_.BeginTopple(origin);
+	auto delayFrom = [&](const Vector3& position){
+		const float dx = position.x - origin.x;
+		const float dz = position.z - origin.z;
+		return std::sqrt(dx * dx + dz * dz) * TitleTopple::kDelayPerMeter;
+	};
+	logoFallDelay_ = delayFrom(logo_.RefLandPosition());
+	toppleDuration_ = ( std::max )( ambience_.GetToppleDuration(), logoFallDelay_ + TitleTopple::kFallTime );
+	for ( int i = 0; i < TitleMenu::Item_Count; ++i ) {
+		menuFallDelays_[i] = delayFrom(menu_.RefPosition(i));
+		toppleDuration_ = ( std::max )( toppleDuration_, menuFallDelays_[i] + TitleTopple::kFallTime );
+	}
+	toppleTime_ = 0.0f;
+	landSoundWait_ = 0.0f;
+	bowTime_ = -kBowDelay; // まわりが倒れ始めてから、恐竜はカメラへお辞儀する（舞台の終わり）
+	toppling_ = true;
+}
+
+bool TitleScene::IsExitEffectDone() const{
+	return !toppling_ || toppleTime_ >= toppleDuration_;
+}
+
+void TitleScene::UpdateTopple(float deltaTime){
+	if ( !toppling_ ) { return; }
+	const float previous = toppleTime_;
+	toppleTime_ += deltaTime;
+	int landings = ambience_.ConsumeLandings();
+	logo_.SetFallAngle(TitleTopple::Angle(toppleTime_ - logoFallDelay_));
+	if ( TitleTopple::JustLanded(previous - logoFallDelay_, toppleTime_ - logoFallDelay_) ) {
+		++landings;
+		paperBits_.Burst({ kLogoLand.x, kLogoLand.y + 0.2f, kLogoLand.z + 1.0f }, 10, 2.6f, 3.0f); // 看板が倒れた所から紙くず
+	}
+	for ( int i = 0; i < TitleMenu::Item_Count; ++i ) {
+		menu_.SetFallAngle(i, TitleTopple::Angle(toppleTime_ - menuFallDelays_[i]));
+		if ( TitleTopple::JustLanded(previous - menuFallDelays_[i], toppleTime_ - menuFallDelays_[i]) ) { ++landings; }
+	}
+	// お辞儀：前へ傾いて、少し止まって、戻る
+	bowTime_ += deltaTime;
+	if ( bowTime_ > 0.0f ) {
+		const float down = Easing::EaseOutCubic(bowTime_ / kBowDownTime);
+		const float up = Easing::EaseInOutCubic(( bowTime_ - kBowDownTime - kBowHoldTime ) / kBowUpTime);
+		dino_.SetBow(kBowAngle * down * ( 1.0f - up ));
+	}
+
+	// 倒れた音：一度にたくさん倒れても、少し間をあけて鳴らす（バタ、バタ、バタ）
+	landSoundWait_ -= deltaTime;
+	if ( landings > 0 && landSoundWait_ <= 0.0f ) {
+		AudioManager::GetInstance()->PlayWave(TitleAssets::kFallSe, false, 0.8f);
+		landSoundWait_ = 0.07f;
+	}
+}
+
 // 卵：構えている間は手に持ち、手を離れたら山なりに画面（カメラの目の前）へ飛んでくる
 void TitleScene::UpdateEgg(float deltaTime){
 	if ( !egg_ || !eggVisible_ ) { return; }
@@ -658,8 +741,17 @@ void TitleScene::UpdateEgg(float deltaTime){
 		position.y += 1.0f * 4.0f * t * ( 1.0f - t );
 		size = Easing::Lerp(size, 0.55f, t);
 		if ( phase_ == Phase::EggFlight && t >= 1.0f ) {
-			// 画面に当たった：閉じ始める
+			// 画面（タイトルの絵）に当たった：絵ごと横へ吹き飛ばして、紙芝居を始める（resources/transition/title_open.json）。
+			//   卵は絵に当たって消える（このフレームの画面が「吹き飛ぶ絵」になるので、写る前に隠す）
 			AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
+			eggVisible_ = false;
+			shakeBase_ = GetCamera()->GetWorldPosition();
+			shakeTime_ = kShakeTime;
+			if ( KamishibaiTransition::GetInstance()->Play("title_open") ) {
+				phase_ = Phase::Done;
+				return;
+			}
+			// 紙芝居の定義が無い時は、今までどおり丸く閉じる
 			irisTime_ = 0.0f;
 			PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
 			phase_ = Phase::IrisOut;

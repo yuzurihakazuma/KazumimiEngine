@@ -36,6 +36,13 @@ public:
     bool& RefMoveWhileEditing(){ return moveWhileEditing_; }
     float& RefWindStrength(){ return windStrength_; }
 
+    // --- 倒す（紙芝居遷移の退場）---
+    // マップに置いた段ボール（地面と空以外）と紙の波を、origin から近い順に奥へ倒し始める
+    void BeginTopple(const Vector3& origin);
+    bool IsToppling() const{ return toppling_; }
+    float GetToppleDuration() const{ return toppleDuration_; } // 全部が寝るまでの秒数
+    int  ConsumeLandings();  // 前回から地面に着いた物の数（パタンの音用）
+
 private:
     // 動かす物の種類（マップの type 名から決める）
     enum class Kind { Grass, Flower, Tree, Cloud };
@@ -58,6 +65,20 @@ private:
     void BindMapObjects();                 // マップの配置物から、動かす物を探し直す
     void UpdateMapObjects(float deltaTime, const Vector3& dinoPosition, bool moving);
     void CreateWaves(Camera* camera);
+    void UpdateTopple(float deltaTime);
+
+    // 倒す物（マップの配置物の番号と、倒れ始めるまでの遅れ）
+    struct Faller {
+        int   index = 0;
+        float delay = 0.0f;
+        bool  hanging = false; // 糸で吊った雲：倒れずに、糸が切れて下へ落ちる
+    };
+    std::vector<Faller> fallers_;
+    std::vector<float>  waveDelays_;   // 紙の波の列ごとの遅れ
+    bool  toppling_ = false;
+    float toppleTime_ = 0.0f;
+    float toppleDuration_ = 0.0f;
+    int   landings_ = 0;
 
     std::vector<Mover> movers_;
     int  boundObjectCount_ = -1;   // 探した時の配置物の数（変わったら探し直す）

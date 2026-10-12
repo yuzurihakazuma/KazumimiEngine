@@ -234,6 +234,12 @@
     <ClCompile Include="game\editor\RailStripPanel.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\transition\TransitionTimeline.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="game\transition\KamishibaiTransition.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\title\TitleAmbience.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -768,7 +774,19 @@
     <ClInclude Include="game\title\TitleLayout.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\scene\ISceneTransition.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\title\TitleTopple.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\editor\RailStripPanel.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\transition\TransitionTimeline.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\transition\KamishibaiTransition.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\title\TitleAmbience.h">

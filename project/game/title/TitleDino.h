@@ -31,6 +31,7 @@ public:
     void ShootTongue(float distance);  // 向いている方向へ、distance(m) 先までベロを伸ばす
     void StartThrow();                 // 卵を投げる動き
     void CancelAction();               // ベロ・投げを途中でやめる
+    void SetBow(float angle){ bow_ = angle; } // 前へ傾ける角度(rad)。足元を軸にお辞儀する（タイトルの終わり）
     bool IsBusy() const{ return action_ != Action::None; }
     bool ConsumeTongueHit();           // ベロが届いた瞬間に1回だけ true
     bool ConsumeThrowRelease();        // 卵が手を離れる瞬間に1回だけ true
@@ -53,6 +54,7 @@ private:
 
     bool    visible_ = false;
     float   appearTime_ = 0.0f;   // 現れ始めてからの秒数
+    float   bow_ = 0.0f;
     Vector3 position_ {};
     Vector3 prevPosition_ {};     // 前フレームの位置（歩く速さを見た目から測る）
     bool    prevPositionValid_ = false;

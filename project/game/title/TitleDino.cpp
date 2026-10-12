@@ -168,7 +168,7 @@ void TitleDino::Update(const Player& player, float deltaTime){
     const float size = Easing::EaseOutBack(appearTime_ / kAppearTime);
     model_->SetScale({ size, size, size });
     model_->SetTranslation(position_);
-    model_->SetRotation({ 0.0f, player.GetRotation().y, 0.0f });
+    model_->SetRotation({ bow_, player.GetRotation().y, 0.0f });
     model_->Update();
 }
 
