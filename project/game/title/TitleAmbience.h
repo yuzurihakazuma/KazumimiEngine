@@ -11,6 +11,7 @@
 //  エディタを出している間は止める（物をつかんで動かす時に揺れていると作業しづらいため）
 // =====================================================================
 #include "engine/math/struct.h"
+#include "game/title/TitleTopple.h"
 
 #include <memory>
 #include <vector>
@@ -71,10 +72,12 @@ private:
     struct Faller {
         int   index = 0;
         float delay = 0.0f;
+        float direction = 0.0f;  // 倒れる向き（真後ろ=0、右奥が正）
+        TitleTopple::Weight weight = TitleTopple::kMedium;
         bool  hanging = false; // 糸で吊った雲：倒れずに、糸が切れて下へ落ちる
     };
     std::vector<Faller> fallers_;
-    std::vector<float>  waveDelays_;   // 紙の波の列ごとの遅れ
+    std::vector<float>  waveDelays_;   // 紙の波の列ごとの遅れ（真後ろへ倒れる）
     bool  toppling_ = false;
     float toppleTime_ = 0.0f;
     float toppleDuration_ = 0.0f;

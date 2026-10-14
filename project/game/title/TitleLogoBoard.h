@@ -26,7 +26,8 @@ public:
     void PlaceLanded();               // 演出を飛ばして、刺さった状態にする
     bool HasLanded() const{ return state_ == State::Landed; }
     bool ConsumeLanded();             // 刺さった瞬間に1回だけ true
-    void SetFallAngle(float angle){ fallAngle_ = angle; } // 奥へ倒れている角度（紙芝居遷移の退場）
+    // 倒れている角度と向き（紙芝居遷移の退場。向きは真後ろ=0、右奥が正）
+    void SetFall(float angle, float direction){ fallAngle_ = angle; fallDirection_ = direction; }
 
     Vector3& RefLandPosition(){ return landPosition_; } // 刺さる位置（調整ウィンドウ用）
 
@@ -40,4 +41,5 @@ private:
     float   time_ = 0.0f;          // 飛び始めてから／刺さってからの秒数
     bool    landedPending_ = false;
     float   fallAngle_ = 0.0f;
+    float   fallDirection_ = 0.0f;
 };

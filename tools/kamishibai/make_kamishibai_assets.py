@@ -10,15 +10,24 @@
     door_right.png 観音開きの扉（右）
     egg.png        扉に投げる卵（2D）
     hajimari.png   「はじまり、はじまり」の紙の帯
-    curtain.png    赤い幕（左の幕。右は左右反転して使う。内側＝右の辺に金の縁）
-    valance.png    幕の上の飾り幕（波形の赤い布に金の房）
+    curtain.png    赤い色画用紙の蛇腹の幕（左の幕。右は左右反転して使う）
+    valance.png    幕の上の段ボールの幕板と三角旗
+    card_bg_<シーン>_top/_bottom.png 読み込み中に出す段ボールのカードの地（行き先の名前の帯・ロードちゅう。左右は段ボールの切れ目）。
+                   下の折り目の線（CARD_CUT_Y）で上と下に分けてある。シーンが始まる時、はさみでここを切って分かれる
+    card_cut.png   切れ目が開いた線（はさみが進んだところまで見せる）
+    card_scissors.png 切るはさみ
+                   シーン＝stageselect / gameplay / title / default（名前の帯なし）。名前は CARD_TITLES で変える
+    card_piece_*.png カードの上で動く部品（恐竜・卵・星・雲・花・小さな卵・点）
+    card_layout.json 部品の置き場所と動き方（ゲームはこれを読む）
   効果音
     se_hyoshigi.wav 拍子木（カン、カン）
     se_door.wav     扉がバンッと開く
     se_whoosh.wav   絵が横へ抜ける「シュッ」
     se_patan.wav    段ボールが倒れた「パタン」
+    se_snip.wav     はさみで段ボールを切る「ザクザク」
 
   窓の位置（FRAME_WINDOW）はコードの kWindow と同じにしておくこと（KamishibaiTransition.cpp）
+  カードの恐竜は tools/kamishibai/dino_cutout.png（ゲーム画面から切り抜いた仮の絵。小さいので少しぼやける。差し替え可）
 """
 import math
 import os
@@ -273,72 +282,463 @@ def make_sounds():
         out.append(thump * 0.9 + lp * math.exp(-t / 0.018) * 1.4)
     write_wav("se_patan.wav", out)
 
+    # ザクザク：はさみで段ボールを切る（短い雑音の刻みを並べる）
+    out = [0.0] * int(RATE * 0.48)
+    lp = 0.0
+    for k in range(7):
+        start = int(RATE * (0.02 + k * 0.064))
+        for i in range(int(RATE * 0.05)):
+            t = i / RATE
+            lp += (rng.uniform(-1, 1) - lp) * 0.55
+            click = math.sin(2 * math.pi * 2600 * t) * math.exp(-t / 0.002)
+            if start + i < len(out):
+                out[start + i] += (lp * math.exp(-t / 0.014) + click * 0.5) * (0.8 + 0.2 * (k % 2))
+    write_wav("se_snip.wav", out)
+
+
+TEX = os.path.join(PROJECT, "resources", "craft", "textures")
+
+
+def tiled_texture(name, size, tint=(1.0, 1.0, 1.0)):
+    """キットのテクスチャを敷き詰めて色味を変える（RGB）"""
+    import numpy as np
+    src = Image.open(os.path.join(TEX, name)).convert("RGB")
+    out = Image.new("RGB", size)
+    for y in range(0, size[1], src.height):
+        for x in range(0, size[0], src.width):
+            out.paste(src, (x, y))
+    a = np.asarray(out).astype(np.float32) * np.array(tint, np.float32)
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+
+CURTAIN_PLEAT = 72  # 蛇腹のひと山の幅（山の面と谷の面で半分ずつ）
+
 
 def make_curtain():
-    """赤いビロードの幕：縦のひだ（明暗の波）＋布目のざらつき＋裾の金の房＋内側の金の縁"""
+    """赤い色画用紙の蛇腹の幕（左の幕。右は左右反転して使う）。
+    山の面と谷の面を明暗で交互に塗り、折り目に線を引く。裾は折り目に合わせたギザギザ。
+    幕は幅を伸び縮みさせて開け閉めするので、蛇腹が伸びる・縮むように見える"""
     import numpy as np
     w, h = 1024, 1080
-    x = np.arange(w)[None, :].astype(np.float32)
-    y = np.arange(h)[:, None].astype(np.float32)
-    nrng = np.random.default_rng(5)
-    # ひだ：周期の違う波を重ねる（同じ幅の繰り返しに見えないように）
-    folds = (0.55 * np.sin(x / w * 2 * np.pi * 9.0 + 0.3)
-             + 0.30 * np.sin(x / w * 2 * np.pi * 15.3 + 1.7)
-             + 0.15 * np.sin(x / w * 2 * np.pi * 27.1 + 0.4))
-    folds = (folds - folds.min()) / (folds.max() - folds.min())
-    light = 0.38 + 0.62 * folds ** 1.4
-    light = light * (0.82 + 0.18 * (y / h))          # 上が少し暗い（上の飾り幕の影）
-    light = light * (1.0 + 0.06 * nrng.standard_normal((h, w)).astype(np.float32))
-    r = np.clip(178 * light + 12, 0, 255)
-    g = np.clip(18 * light + 4, 0, 255)
-    b = np.clip(30 * light + 8, 0, 255)
-    img = np.stack([r * np.ones((h, w)), g * np.ones((h, w)), b * np.ones((h, w)), np.full((h, w), 255.0)], axis=-1)
-    # 裾：少し波打たせて、下を透明に
-    hem = h - 46 + (6 * np.sin(x / w * 2 * np.pi * 9.0 + 0.3)).astype(np.float32)
-    img[..., 3] = np.where(y > hem, 0, 255)
-    out = Image.fromarray(img.astype(np.uint8), "RGBA")
-    d = ImageDraw.Draw(out)
-    # 内側（右の辺）の金の縁
-    d.rectangle([w - 26, 0, w - 1, h - 40], fill=(222, 170, 60, 255))
-    d.rectangle([w - 26, 0, w - 22, h - 40], fill=(150, 100, 30, 255))
-    # 裾の金の房
-    for fx in range(0, w, 9):
-        top = int(h - 52 + 6 * math.sin(fx / w * 2 * math.pi * 9.0 + 0.3))
-        d.line([(fx, top), (fx + 2, top + 40)], fill=(230, 180, 70, 255), width=4)
-    d.line([(0, h - 52), (w, h - 52)], fill=(200, 150, 50, 255), width=8)
-    out.save(os.path.join(OUT, "curtain.png"))
+    half = CURTAIN_PLEAT // 2
+    paper = tiled_texture("paper_red.png", (w, h), (0.92, 0.55, 0.55))
+    x = np.arange(w)
+    face = (x // half) % 2
+    # 山の面は明るく、谷の面は暗く。面の中でも少しだけ明暗をつけて、折った紙の丸みを出す
+    within = (x % half) / half
+    light = np.where(face == 0, 1.0 - 0.08 * within, 0.70 + 0.06 * within).astype(np.float32)
+    y = np.arange(h).astype(np.float32)[:, None]
+    light = light[None, :] * (0.86 + 0.14 * np.clip(y / 260.0, 0.0, 1.0))  # 上の幕板の影
+    a = np.asarray(paper).astype(np.float32) * light[..., None]
+    img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))  # RGB のまま線を描く（半透明の線が混ざるように）
+    d = ImageDraw.Draw(img, "RGBA")
+    for k in range(1, w // half + 1):
+        d.line([(k * half, 0), (k * half, h - 40)], fill=(120, 28, 30, 150), width=2)  # 折り目
+    d.line([(w - 3, 0), (w - 3, h - 30)], fill=(80, 40, 20, 255), width=6)  # 内側の辺の輪郭（切り抜きの線）
+    # 透明にするのは最後（RGBA の画像へ半透明で描くと、その線が透けて後ろの画面が見えてしまう）
+    img = img.convert("RGBA")
+    # 裾：折り目ごとに上下するギザギザ
+    mask = Image.new("L", (w, h), 0)
+    pts = [(0, 0), (w, 0), (w, h - 40)]  # 右の辺（真ん中で合わさる辺）は裾まで真っすぐ（すき間を作らない）
+    for k in range(w // half, -1, -1):
+        pts.append((k * half, h - 30 if k % 2 == 0 else h - 48))
+    ImageDraw.Draw(mask).polygon(pts, fill=255)
+    img.putalpha(mask)
+    img.save(os.path.join(OUT, "curtain.png"))
 
 
 def make_valance():
-    """上の飾り幕：横に並んだ半円のたるみ（スワッグ）＋金の房と、たるみの間の房飾り"""
-    w, h = 1920, 230
-    swag = 320
+    """上の幕板：段ボールの板（下のふちに段ボールの断面）と、色画用紙の三角旗"""
+    w, h = 1920, 200
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    img.paste(tiled_texture("kraft.png", (w, 110), (0.95, 0.85, 0.72)).convert("RGBA"), (0, 0))
+    edge = Image.open(os.path.join(TEX, "kraft_edge.png")).convert("RGBA").resize((256, 40))
+    for x in range(0, w, 256):
+        img.paste(edge, (x, 104))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, w - 1, 143], outline=(80, 45, 18, 255), width=5)
+    flag_textures = ["paper_yellow.png", "paper_white.png", "paper_blue.png"]
+    for i, x in enumerate(range(20, w, 120)):
+        tex = tiled_texture(flag_textures[i % 3], (100, 60)).convert("RGBA")
+        m = Image.new("L", (100, 60), 0)
+        ImageDraw.Draw(m).polygon([(0, 0), (100, 0), (50, 56)], fill=255)
+        img.paste(tex, (x, 144), m)
+        d.polygon([(x, 144), (x + 100, 144), (x + 50, 200)], outline=(80, 45, 18, 255))
+    img.save(os.path.join(OUT, "valance.png"))
+
+
+# ---------------- 読み込み中のカード ----------------
+CARD_TITLES = {             # 行き先のシーン → カードの帯に出す名前（None＝帯なし）
+    "stageselect": "ステージせんたく",
+    "gameplay": "ステージ 1",
+    "title": "タイトル",
+    "default": None,
+}
+
+
+def logo_egg():
+    """タイトルロゴの左の卵（フェルト）を切り抜く"""
+    logo = Image.open(os.path.join(PROJECT, "resources", "title", "logo.png")).convert("RGB")
+    egg = logo.crop((40, 460, 320, 760)).convert("RGBA")
+    mask = Image.new("L", egg.size, 0)
+    rot = math.radians(-14)
+    pts = []
+    for i in range(160):
+        t = 2 * math.pi * i / 160
+        x, y = 100 * math.cos(t), 127 * math.sin(t)
+        pts.append((143 + x * math.cos(rot) - y * math.sin(rot), 158 + x * math.sin(rot) + y * math.cos(rot)))
+    ImageDraw.Draw(mask).polygon(pts, fill=255)
+    egg.putalpha(mask.filter(ImageFilter.GaussianBlur(0.8)))
+    return egg.crop(egg.getbbox())
+
+
+def card_background(width=W):
+    """明るいクラフト色の段ボール：細かいざらつき・点々・うっすら縦の段、下に横向きの折り返し"""
+    import numpy as np
+    W = width  # この関数の中だけ、カードの幅
+    nrng = np.random.default_rng(2)
+    base = np.array([212, 168, 116], np.float32)
+    fine = nrng.normal(0, 1, (H, W)).astype(np.float32)
+    blot_small = (nrng.random((H // 40, W // 40)) * 255).astype(np.uint8)
+    blot = np.asarray(Image.fromarray(blot_small).resize((W, H), Image.BICUBIC)).astype(np.float32) / 255.0
+    x = np.arange(W)[None, :].astype(np.float32)
+    flute = 0.975 + 0.025 * np.sin(x / 44.0 * 2 * np.pi)
+    light = (0.94 + 0.08 * blot) * flute + 0.025 * fine
+    a = base[None, None, :] * light[..., None]
+    a[nrng.random((H, W)) < 0.0018] *= 0.6  # 紙の繊維の点々
+    img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+    y = np.arange(170)[:, None].astype(np.float32)
+    ridge = 0.93 + 0.05 * np.sin(y / 30.0 * 2 * np.pi)
+    flap = np.asarray(img.crop((0, H - 170, W, H))).astype(np.float32) * ridge[..., None] * 0.97
+    img.paste(Image.fromarray(np.clip(flap, 0, 255).astype(np.uint8)), (0, H - 170))
+    d = ImageDraw.Draw(img, "RGBA")
+    d.line([(0, H - 172), (W, H - 172)], fill=(110, 75, 40, 150), width=4)
+    d.line([(0, H - 166), (W, H - 166)], fill=(255, 240, 210, 110), width=3)
+    return img.convert("RGBA")
+
+
+def paste_torn(base, texture, polygon, rotate=0.0, white_edge=7):
+    """polygon の形に texture を切り抜いて貼る（やぶいた紙の白い芯と影つき）"""
+    from PIL import ImageChops
+    mask = Image.new("L", base.size, 0)
+    ImageDraw.Draw(mask).polygon(polygon, fill=255)
+    if rotate:
+        cx = sum(p[0] for p in polygon) / len(polygon)
+        cy = sum(p[1] for p in polygon) / len(polygon)
+        mask = mask.rotate(rotate, center=(cx, cy), resample=Image.BICUBIC)
+    edge = mask.filter(ImageFilter.MaxFilter(white_edge * 2 + 1)) if white_edge else mask
+    shadow = Image.new("RGBA", base.size, (40, 25, 10, 0))
+    shadow.putalpha(ImageChops.offset(edge, 8, 10).filter(ImageFilter.GaussianBlur(7)).point(lambda v: v * 0.45))
+    base.alpha_composite(shadow)
+    if white_edge:
+        white = Image.new("RGBA", base.size, (250, 247, 238, 255))
+        white.putalpha(edge)
+        base.alpha_composite(white)
+    layer = texture.convert("RGBA")
+    layer.putalpha(mask)
+    base.alpha_composite(layer)
+
+
+def torn_rect(cx, cy, w, h, prng, step=9, jitter=6):
+    """やぶいた紙の四角（辺をギザギザに）"""
+    import numpy as np
+    x0, y0, x1, y1 = cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2
+    pts = [(x, y0 + prng.uniform(-jitter, jitter)) for x in np.arange(x0, x1, step)]
+    pts += [(x1 + prng.uniform(-jitter, jitter), y) for y in np.arange(y0, y1, step)]
+    pts += [(x, y1 + prng.uniform(-jitter, jitter)) for x in np.arange(x1, x0, -step)]
+    pts += [(x0 + prng.uniform(-jitter, jitter), y) for y in np.arange(y1, y0, -step)]
+    return pts
+
+
+def torn_star(cx, cy, r, prng, rot=0.0):
+    """ちぎった紙の星"""
+    pts = []
+    for i in range(10):
+        rr = r if i % 2 == 0 else r * 0.48
+        ang = rot + math.pi * i / 5 - math.pi / 2
+        pts.append((cx + rr * math.cos(ang) + prng.uniform(-r * 0.04, r * 0.04),
+                    cy + rr * math.sin(ang) + prng.uniform(-r * 0.04, r * 0.04)))
+    rough = []
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+        for k in range(6):
+            t = k / 6
+            rough.append((x0 + (x1 - x0) * t + prng.uniform(-3, 3), y0 + (y1 - y0) * t + prng.uniform(-3, 3)))
+    return rough
+
+
+def sticker(img, border, scale):
+    """切り抜いた絵をシールにする（白いふち）"""
+    img = img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))), Image.LANCZOS)
+    pad = border * 2 + 12
+    canvas = Image.new("RGBA", (img.width + pad * 2, img.height + pad * 2), (0, 0, 0, 0))
+    alpha = Image.new("L", canvas.size, 0)
+    alpha.paste(img.getchannel("A"), (pad, pad))
+    white = Image.new("RGBA", canvas.size, (250, 248, 240, 255))
+    white.putalpha(alpha.filter(ImageFilter.MaxFilter(border * 2 + 1)).filter(ImageFilter.GaussianBlur(1.2)))
+    canvas.alpha_composite(white)
+    canvas.alpha_composite(img, (pad, pad))
+    return canvas
+
+
+def paste_sticker(base, img, pos, angle):
+    rot = img.rotate(angle, expand=True, resample=Image.BICUBIC)
+    shadow = Image.new("RGBA", rot.size, (40, 25, 10, 0))
+    shadow.putalpha(rot.getchannel("A").filter(ImageFilter.GaussianBlur(8)).point(lambda v: v * 0.45))
+    base.alpha_composite(shadow, (pos[0] + 10, pos[1] + 12))
+    base.alpha_composite(rot, pos)
+
+
+CARD_MARGIN = 150   # カードの左右の、段ボールの切れ目（ギザギザ）を描く幅。画面に止まった時は画面の外になる
+CARD_TOOTH = 120    # ギザギザの山の間隔(px)
+CARD_DEPTH = 90     # ギザギザの深さ(px)
+
+
+CARD_CUT_Y = H - 169  # 切れ目（下の折り目の線）。シーンが始まる時、ここをはさみで切って上と下に分かれる
+CARD_CUT_OVERLAP = 3  # 上の部分を切れ目より少し下まで伸ばす（分かれる前に、上下の境目のすき間が見えないように）
+CARD_BANNER_Y = 300               # 行き先の名前の帯の中心の高さ
+CARD_CLEAR_Y = 805                # 部品の下の端はここより上（切れ目のまわりは、はさみが通るので何も置かない）
+CARD_TOP_HEIGHT = CARD_CUT_Y + 12   # 上の部分の画像の高さ（切れ目の波の分だけ余裕を持たせる）
+CARD_BOTTOM_TOP = CARD_CUT_Y - 12   # 下の部分の画像の上端
+
+
+def card_cut_line(width):
+    """切れ目の線（手で切ったように、ほんの少し波打つ）"""
+    prng = random.Random(11)
+    return [(x, CARD_CUT_Y + 2.5 * math.sin(x / 70.0) + prng.uniform(-1.2, 1.2)) for x in range(-20, width + 40, 16)]
+
+
+def make_card_slit(width):
+    """切れ目が開いた線（はさみが進んだところまで、ゲームが左から少しずつ見せる）"""
+    top = CARD_CUT_Y - 20
+    img = Image.new("RGBA", (width, 40), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    line = [(x, y - top) for x, y in card_cut_line(width)]
+    d.line(line, fill=(55, 32, 12, 255), width=7)                                 # 切れ目の奥（暗い）
+    d.line([(x, y + 4) for x, y in line], fill=(240, 214, 168, 255), width=2)      # 切り口に見える段ボールの芯
+    img.save(os.path.join(OUT, "card_cut.png"))
+    return {"slitTop": top, "slitHeight": img.height}
+
+
+def make_scissors():
+    """紙工作のはさみ（刃先は右。赤いフェルトの持ち手、白いふち）。刃先の位置を返す"""
+    k = 4
+    w, h = 270 * k, 150 * k
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, w, 70], fill=(120, 8, 18, 255))
-    for i in range(w // swag + 1):
-        x0 = i * swag
-        # たるみ（下へふくらんだ布）。上から下へ明るくして、布の丸みを出す
-        for k in range(14):
-            t = k / 13
-            col = (int(110 + 80 * t), int(8 + 12 * t), int(18 + 14 * t), 255)
-            d.chord([x0 - 10 + k * 2, -120 + k * 3, x0 + swag + 10 - k * 2, 170 - k * 2], 0, 180, fill=col)
-        d.arc([x0 - 10, -120, x0 + swag + 10, 170], 0, 180, fill=(220, 170, 60, 255), width=9)
-        # 金の房（たるみの下のふち）
-        for a in range(8, 173, 6):
-            rad = math.radians(a)
-            cx, cy = x0 + swag / 2, 25
-            rx, ry = swag / 2 + 10, 145
-            px, py = cx + rx * math.cos(rad), cy + ry * math.sin(rad)
-            d.line([(px, py), (px, py + 22)], fill=(235, 185, 75, 255), width=3)
-        # たるみの間の房飾り
-        tx = x0
-        d.ellipse([tx - 16, 40, tx + 16, 72], fill=(230, 180, 70, 255), outline=(150, 100, 30, 255), width=3)
-        d.polygon([(tx - 14, 70), (tx + 14, 70), (tx + 20, 150), (tx - 20, 150)], fill=(222, 170, 60, 255))
-        for fx in range(-18, 20, 5):
-            d.line([(tx + fx, 120), (tx + fx * 1.1, 152)], fill=(160, 110, 35, 255), width=2)
-    d.rectangle([0, 0, w, 16], fill=(222, 170, 60, 255))
-    img.save(os.path.join(OUT, "valance.png"))
+    pivot = (135 * k, 75 * k)
+    tips = [(262 * k, 58 * k), (262 * k, 92 * k)]
+    # 刃（明るい灰色、ふちは濃い灰色）
+    for tip, side in zip(tips, (-1, 1)):
+        blade = [(pivot[0] - 30 * k, pivot[1] + side * 4 * k), tip, (pivot[0] + 10 * k, pivot[1] - side * 12 * k)]
+        d.polygon(blade, fill=(214, 220, 228), outline=(90, 96, 108))
+        d.line([blade[0], tip], fill=(90, 96, 108), width=3 * k)
+        d.line([tip, blade[2]], fill=(90, 96, 108), width=3 * k)
+    # 持ち手（赤いフェルトの輪）
+    handle = tiled_texture("paper_red.png", (w, h), (1.05, 0.95, 0.95)).convert("RGBA")
+    mask = Image.new("L", (w, h), 0)
+    md = ImageDraw.Draw(mask)
+    for cy in (42 * k, 108 * k):
+        md.ellipse([22 * k, cy - 34 * k, 96 * k, cy + 34 * k], fill=255)
+        md.ellipse([40 * k, cy - 17 * k, 78 * k, cy + 17 * k], fill=0)
+        md.polygon([(84 * k, cy - 12 * k), (pivot[0], pivot[1] - 8 * k), (pivot[0], pivot[1] + 8 * k), (84 * k, cy + 12 * k)], fill=255)
+    handle.putalpha(mask)
+    img.alpha_composite(handle)
+    edge = Image.new("RGBA", (w, h), (120, 30, 30, 255))
+    edge.putalpha(mask.filter(ImageFilter.FIND_EDGES).filter(ImageFilter.MaxFilter(5)))
+    img.alpha_composite(edge)
+    d = ImageDraw.Draw(img)
+    d.ellipse([pivot[0] - 9 * k, pivot[1] - 9 * k, pivot[0] + 9 * k, pivot[1] + 9 * k], fill=(160, 120, 40), outline=(90, 70, 20), width=2 * k)
+    img = img.resize((w // k, h // k), Image.LANCZOS)
+    border = 6
+    out = sticker(img, border, 1.0)
+    pad = border * 2 + 12
+    out.save(os.path.join(OUT, "card_scissors.png"))
+    return {"file": "card_scissors.png", "tipX": 262 + pad, "tipY": 75 + pad, "width": out.width, "height": out.height}
+
+
+def card_shape(width):
+    """左右の辺がギザギザに切れたカードの輪郭（幅 width = 画面 + 左右の切れ目）"""
+    left, right = [], []
+    for i, y in enumerate(range(0, H + CARD_TOOTH, CARD_TOOTH)):
+        y = min(y, H)
+        out = (i % 2 == 1)
+        left.append((CARD_MARGIN - (CARD_DEPTH if out else 4), y))
+        right.append((width - CARD_MARGIN + (CARD_DEPTH if out else 4), y))
+    return left, right
+
+
+def piece_with_shadow(img, shadow=(10, 12)):
+    """部品に影を焼き込む（影の分だけ画像を広げる。中心は部品の中心のまま）"""
+    pad = 24
+    canvas = Image.new("RGBA", (img.width + pad * 2, img.height + pad * 2), (0, 0, 0, 0))
+    sh = Image.new("RGBA", img.size, (40, 25, 10, 0))
+    sh.putalpha(img.getchannel("A").filter(ImageFilter.GaussianBlur(7)).point(lambda v: v * 0.45))
+    canvas.alpha_composite(sh, (pad + shadow[0], pad + shadow[1]))
+    canvas.alpha_composite(img, (pad, pad))
+    return canvas
+
+
+def cut_paper(texture, polygon, size, white_edge=7):
+    """polygon の形のちぎり紙（白い芯のふちつき）を、その大きさの画像で返す"""
+    mask = Image.new("L", size, 0)
+    ImageDraw.Draw(mask).polygon(polygon, fill=255)
+    out = Image.new("RGBA", size, (0, 0, 0, 0))
+    if white_edge:
+        white = Image.new("RGBA", size, (250, 247, 238, 255))
+        white.putalpha(mask.filter(ImageFilter.MaxFilter(white_edge * 2 + 1)))
+        out.alpha_composite(white)
+    layer = texture.crop((0, 0) + size).convert("RGBA")
+    layer.putalpha(mask)
+    out.alpha_composite(layer)
+    return out
+
+
+def make_cards():
+    """読み込み中のカード。
+    ・背景（card_bg_<シーン>.png）：段ボールの地＋行き先の名前の帯＋「ロードちゅう」。左右の辺は段ボールの切れ目
+    ・動く部品（card_piece_*.png）：恐竜・卵・ちぎり紙の星・段ボールの雲・紙の花・小さな卵・「…」の点
+    ・部品の置き場所と動き方は card_layout.json（ゲームはこれを読んで動かす）"""
+    import json
+    egg = logo_egg()
+    dino = Image.open(os.path.join(HERE, "dino_cutout.png")).convert("RGBA")
+    width = W + CARD_MARGIN * 2
+    pieces = []
+
+    def add_piece(name, img, x, y, motion, angle=0.0, phase=0.0, index=0):
+        img.save(os.path.join(OUT, "card_piece_%s.png" % name))
+        pieces.append({"file": "card_piece_%s.png" % name, "x": round(x, 1), "y": round(y, 1),
+                       "angle": angle, "motion": motion, "phase": phase, "index": index,
+                       "part": "bottom" if y > CARD_CUT_Y else "top"})
+
+    # --- 背景（行き先ごと） ---
+    left, right = card_shape(width)
+    outline = left + list(reversed(right))
+    for name, title in CARD_TITLES.items():
+        prng = random.Random(3)
+        body = card_background(width)
+        mask = Image.new("L", (width, H), 0)
+        ImageDraw.Draw(mask).polygon(outline, fill=255)
+        card = Image.new("RGBA", (width, H), (0, 0, 0, 0))
+        # 切れ目のまわりの影（カードが浮いて見えるように）
+        shadow = Image.new("RGBA", (width, H), (40, 25, 10, 0))
+        from PIL import ImageChops
+        shadow.putalpha(ImageChops.offset(mask, 14, 10).filter(ImageFilter.GaussianBlur(10)).point(lambda v: v * 0.4))
+        card.alpha_composite(shadow)
+        body.putalpha(mask)
+        card.alpha_composite(body)
+        # 切れ目のふち：段ボールの中の明るい紙の色と、その外の濃い線
+        d = ImageDraw.Draw(card)
+        for edge in (left, right):
+            d.line(edge, fill=(236, 206, 160, 255), width=10)
+            d.line(edge, fill=(110, 75, 40, 255), width=3)
+        card = card.convert("RGB")  # 文字の影を混ぜるため、いったん RGB で描く
+        d = ImageDraw.Draw(card, "RGBA")
+        if title:
+            band = Image.new("RGBA", (width, H), (0, 0, 0, 0))
+            paste_torn(band, tiled_texture("paper_grass.png", (width, H), (0.95, 1.1, 0.55)),
+                       torn_rect(CARD_MARGIN + 960, CARD_BANNER_Y, 1180, 230, prng), rotate=-1.5, white_edge=0)
+            card = card.convert("RGBA")
+            card.alpha_composite(band)
+            card = card.convert("RGB")
+            d = ImageDraw.Draw(card, "RGBA")
+            font = ImageFont.truetype(FONT, 104)
+            tx, ty = CARD_MARGIN + 960 - d.textlength(title, font=font) / 2, CARD_BANNER_Y - 62
+            d.text((tx + 4, ty + 5), title, font=font, fill=(60, 90, 20, 160))
+            d.text((tx, ty), title, font=font, fill=(255, 255, 250), stroke_width=2, stroke_fill=(255, 255, 250))
+        loading_font = ImageFont.truetype(FONT, 58)
+        d.text((CARD_MARGIN + 1380, 960), "ロードちゅう", font=loading_font,
+               fill=(255, 255, 250), stroke_width=7, stroke_fill=(70, 45, 20))
+        # 透明にするのは切れ目の外だけ
+        card = card.convert("RGBA")
+        full = Image.new("RGBA", (width, H), (0, 0, 0, 0))
+        full.alpha_composite(shadow)
+        card.putalpha(Image.composite(Image.new("L", (width, H), 255), shadow.getchannel("A"), mask))
+        # 切れ目で上と下に分ける（上は切れ目より少し下まで。分かれる前は上が下に重なって、境目が見えない）
+        from PIL import ImageChops
+        cut = card_cut_line(width)
+        top_mask = Image.new("L", (width, H), 0)
+        ImageDraw.Draw(top_mask).polygon([(-20, -20)] + [(x, y + CARD_CUT_OVERLAP) for x, y in cut] + [(width + 40, -20)], fill=255)
+        bottom_mask = Image.new("L", (width, H), 0)
+        ImageDraw.Draw(bottom_mask).polygon([(-20, H + 20)] + cut + [(width + 40, H + 20)], fill=255)
+        alpha = card.getchannel("A")
+        top = card.copy()
+        top.putalpha(ImageChops.multiply(alpha, top_mask))
+        bottom = card.copy()
+        bottom.putalpha(ImageChops.multiply(alpha, bottom_mask))
+        top.crop((0, 0, width, CARD_TOP_HEIGHT)).save(os.path.join(OUT, "card_bg_%s_top.png" % name))
+        bottom.crop((0, CARD_BOTTOM_TOP, width, H)).save(os.path.join(OUT, "card_bg_%s_bottom.png" % name))
+
+    # --- 動く部品（どの行き先でも同じ） ---
+    prng = random.Random(3)
+    dino_piece = piece_with_shadow(sticker(dino, 12, 2.0))
+    add_piece("dino", dino_piece, 290, 575, "walk", angle=8.0)
+    egg_piece = piece_with_shadow(sticker(egg, 10, 0.85))
+    add_piece("egg", egg_piece, 590, 640, "rock", angle=-12.0)
+    stars = [("paper_blue.png", (1.0, 1.0, 1.0), 210, 190, 120, -0.2),
+             ("paper_grass.png", (0.75, 1.05, 0.95), 440, 105, 55, 0.3),
+             ("paper_white.png", (1.0, 0.72, 0.82), 1450, 580, 65, 0.1),
+             ("paper_yellow.png", (1.0, 1.0, 1.0), 1700, 450, 130, 0.25),
+             ("paper_grass.png", (1.1, 1.15, 0.6), 1110, 650, 125, -0.15)]
+    for i, (texture, tint, cx, cy, r, rot) in enumerate(stars):
+        size = int(r * 2 + 40)
+        star = cut_paper(tiled_texture(texture, (size, size), tint), torn_star(size / 2, size / 2, r, prng, rot), (size, size))
+        add_piece("star%d" % i, piece_with_shadow(star), cx, cy, "twinkle", phase=i * 1.3)
+    # 段ボールの雲（丸を重ねた形を、クラフト紙で切り抜く）
+    cloud_size = (300, 160)
+    cloud_mask = Image.new("L", cloud_size, 0)
+    cd = ImageDraw.Draw(cloud_mask)
+    for bx, by, br in [(70, 100, 50), (130, 70, 62), (200, 82, 55), (245, 108, 40), (150, 112, 48)]:
+        cd.ellipse([bx - br, by - br, bx + br, by + br], fill=255)
+    cloud_tex = tiled_texture("paper_white.png", cloud_size, (1.0, 0.98, 0.94)).convert("RGBA")
+    cloud = Image.new("RGBA", cloud_size, (0, 0, 0, 0))
+    edge = Image.new("RGBA", cloud_size, (150, 120, 85, 255))
+    edge.putalpha(cloud_mask.filter(ImageFilter.MaxFilter(7)))
+    cloud.alpha_composite(edge)
+    cloud_tex.putalpha(cloud_mask)
+    cloud.alpha_composite(cloud_tex)
+    add_piece("cloud", piece_with_shadow(cloud), 1680, 150, "drift")
+    # 紙の花（5枚の花びら＋黄色の真ん中）
+    flower_size = (170, 170)
+    petals = Image.new("L", flower_size, 0)
+    pd = ImageDraw.Draw(petals)
+    for k in range(5):
+        a = math.pi * 2 * k / 5 - math.pi / 2
+        px, py = 85 + 44 * math.cos(a), 85 + 44 * math.sin(a)
+        pd.ellipse([px - 36, py - 36, px + 36, py + 36], fill=255)
+    flower = Image.new("RGBA", flower_size, (0, 0, 0, 0))
+    white = Image.new("RGBA", flower_size, (250, 247, 238, 255))
+    white.putalpha(petals.filter(ImageFilter.MaxFilter(11)))
+    flower.alpha_composite(white)
+    petal_tex = tiled_texture("paper_orange.png", flower_size).convert("RGBA")
+    petal_tex.putalpha(petals)
+    flower.alpha_composite(petal_tex)
+    center = Image.new("L", flower_size, 0)
+    ImageDraw.Draw(center).ellipse([60, 60, 110, 110], fill=255)
+    center_tex = tiled_texture("paper_yellow.png", flower_size).convert("RGBA")
+    center_tex.putalpha(center)
+    flower.alpha_composite(center_tex)
+    add_piece("flower", piece_with_shadow(flower), 820, 690, "sway", phase=0.7)
+    # 「ロードちゅう」の後ろの小さな卵と「…」の点
+    loading_font = ImageFont.truetype(FONT, 58)
+    text_end = 1380 + ImageDraw.Draw(Image.new("RGB", (1, 1))).textlength("ロードちゅう", font=loading_font)
+    dot = Image.new("RGBA", (28, 28), (0, 0, 0, 0))
+    ImageDraw.Draw(dot).ellipse([3, 3, 25, 25], fill=(255, 255, 250, 255), outline=(70, 45, 20, 255), width=5)
+    for k in range(3):
+        add_piece("dot%d" % k, dot, text_end + 22 + k * 26, 1010, "dot", index=k)
+    add_piece("small_egg", sticker(egg, 4, 0.3), 1868, 995, "hop")
+
+    for piece in pieces:
+        if piece["part"] != "top":
+            continue
+        img = Image.open(os.path.join(OUT, piece["file"]))
+        bottom = piece["y"] - img.height / 2 + img.getchannel("A").getbbox()[3]
+        if bottom > CARD_CLEAR_Y:
+            print("warning: %s が切れ目のまわりにかかっています（下の端 %.0f > %d）" % (piece["file"], bottom, CARD_CLEAR_Y))
+    cut = {"y": CARD_CUT_Y, "topHeight": CARD_TOP_HEIGHT, "bottomTop": CARD_BOTTOM_TOP, "bottomHeight": H - CARD_BOTTOM_TOP}
+    cut.update(make_card_slit(width))
+    layout = {"margin": CARD_MARGIN, "width": W, "height": H, "cut": cut, "scissors": make_scissors(), "pieces": pieces}
+    with open(os.path.join(OUT, "card_layout.json"), "w", encoding="utf-8") as f:
+        f.write(json.dumps(layout, ensure_ascii=False, indent=2) + "\n")
 
 
 make_frame()
@@ -348,4 +748,5 @@ make_doors()
 make_egg()
 make_banner()
 make_sounds()
+make_cards()
 print("wrote", OUT)

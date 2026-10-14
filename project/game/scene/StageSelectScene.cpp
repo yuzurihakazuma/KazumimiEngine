@@ -93,11 +93,11 @@ void StageSelectScene::OnUpdate(){
 	if ( input->Triggerkey(DIK_SPACE) ) {
 		// ゲームプレイへ
 		sceneChanging_ = true;
-		KamishibaiTransition::ChangeSceneWithCurtain("GAMEPLAY");
+		KamishibaiTransition::ChangeSceneWithCard("GAMEPLAY");
 	} else if ( input->Triggerkey(DIK_T) ) {
 		// タイトルへ戻る
 		sceneChanging_ = true;
-		KamishibaiTransition::ChangeSceneWithCurtain("TITLE");
+		KamishibaiTransition::ChangeSceneWithCard("TITLE");
 	}
 }
 

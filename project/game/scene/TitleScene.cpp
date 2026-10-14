@@ -62,6 +62,8 @@ namespace {
 	constexpr float kBowDownTime = 0.3f;
 	constexpr float kBowHoldTime = 0.45f;
 	constexpr float kBowUpTime   = 0.35f;
+	const TitleTopple::Weight kLogoWeight = TitleTopple::kHeavy;  // ロゴの看板は重い（ゆっくり傾いてドン）
+	const TitleTopple::Weight kMenuWeight = TitleTopple::kMedium; // メニューの的
 
 	const char* kGuideMessage  = "A/D : えらぶ   SPACE : けってい";
 	const char* kNoticeMessage = "じゅんびちゅう";
@@ -662,7 +664,7 @@ void TitleScene::UpdateShake(float deltaTime){
 	                         shakeBase_.y + strength * 0.7f * std::cos(t * 47.0f), shakeBase_.z });
 }
 
-// 紙芝居遷移の退場：恐竜の足元から近い順に、奥へ倒し始める（倒れる動きは TitleTopple）
+// 紙芝居遷移の退場：恐竜の足元（卵の衝撃の中心）から近い順に、外へ吹き飛ばされるように倒す（動きは TitleTopple）
 void TitleScene::BeginExitEffect(){
 	const Vector3 origin = player_.GetPosition();
 	ambience_.BeginTopple(origin);
@@ -672,10 +674,12 @@ void TitleScene::BeginExitEffect(){
 		return std::sqrt(dx * dx + dz * dz) * TitleTopple::kDelayPerMeter;
 	};
 	logoFallDelay_ = delayFrom(logo_.RefLandPosition());
-	toppleDuration_ = ( std::max )( ambience_.GetToppleDuration(), logoFallDelay_ + TitleTopple::kFallTime );
+	logoFallDirection_ = TitleTopple::Direction(logo_.RefLandPosition().x - origin.x);
+	toppleDuration_ = ( std::max )( ambience_.GetToppleDuration(), logoFallDelay_ + TitleTopple::EndTime(kLogoWeight) );
 	for ( int i = 0; i < TitleMenu::Item_Count; ++i ) {
 		menuFallDelays_[i] = delayFrom(menu_.RefPosition(i));
-		toppleDuration_ = ( std::max )( toppleDuration_, menuFallDelays_[i] + TitleTopple::kFallTime );
+		menuFallDirections_[i] = TitleTopple::Direction(menu_.RefPosition(i).x - origin.x);
+		toppleDuration_ = ( std::max )( toppleDuration_, menuFallDelays_[i] + TitleTopple::EndTime(kMenuWeight) );
 	}
 	toppleTime_ = 0.0f;
 	landSoundWait_ = 0.0f;
@@ -692,14 +696,16 @@ void TitleScene::UpdateTopple(float deltaTime){
 	const float previous = toppleTime_;
 	toppleTime_ += deltaTime;
 	int landings = ambience_.ConsumeLandings();
-	logo_.SetFallAngle(TitleTopple::Angle(toppleTime_ - logoFallDelay_));
-	if ( TitleTopple::JustLanded(previous - logoFallDelay_, toppleTime_ - logoFallDelay_) ) {
+	logo_.SetFall(TitleTopple::Angle(toppleTime_ - logoFallDelay_, kLogoWeight), logoFallDirection_);
+	if ( TitleTopple::JustLanded(previous - logoFallDelay_, toppleTime_ - logoFallDelay_, kLogoWeight) ) {
 		++landings;
-		paperBits_.Burst({ kLogoLand.x, kLogoLand.y + 0.2f, kLogoLand.z + 1.0f }, 10, 2.6f, 3.0f); // 看板が倒れた所から紙くず
+		// 看板が倒れた所（倒れた向きの先）から紙くず
+		const Vector3 landed { kLogoLand.x + std::sin(logoFallDirection_), kLogoLand.y + 0.2f, kLogoLand.z + std::cos(logoFallDirection_) };
+		paperBits_.Burst(landed, 10, 2.6f, 3.0f);
 	}
 	for ( int i = 0; i < TitleMenu::Item_Count; ++i ) {
-		menu_.SetFallAngle(i, TitleTopple::Angle(toppleTime_ - menuFallDelays_[i]));
-		if ( TitleTopple::JustLanded(previous - menuFallDelays_[i], toppleTime_ - menuFallDelays_[i]) ) { ++landings; }
+		menu_.SetFall(i, TitleTopple::Angle(toppleTime_ - menuFallDelays_[i], kMenuWeight), menuFallDirections_[i]);
+		if ( TitleTopple::JustLanded(previous - menuFallDelays_[i], toppleTime_ - menuFallDelays_[i], kMenuWeight) ) { ++landings; }
 	}
 	// お辞儀：前へ傾いて、少し止まって、戻る
 	bowTime_ += deltaTime;

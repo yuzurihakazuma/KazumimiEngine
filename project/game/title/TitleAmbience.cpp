@@ -253,21 +253,22 @@ void TitleAmbience::BeginTopple(const Vector3& origin){
             Faller faller;
             faller.index = i;
             faller.delay = std::sqrt(dx * dx + dz * dz) * TitleTopple::kDelayPerMeter;
+            faller.direction = TitleTopple::Direction(dx); // 中心から外へ吹き飛ばされる向き
+            faller.weight = TitleTopple::WeightFor(type);
             faller.hanging = StartsWith(type, "cloud_");
-            toppleDuration_ = ( std::max )( toppleDuration_, faller.delay );
-            if ( faller.hanging ) { // 雲は地面に着くまで（倒れる時間は最後に足すので引いておく）
-                const float fallTime = std::sqrt(2.0f * ( std::max )( objects[i].translation.y, 0.0f ) / kCloudGravity);
-                toppleDuration_ = ( std::max )( toppleDuration_, faller.delay + fallTime - TitleTopple::kFallTime );
+            float endTime = faller.delay + TitleTopple::EndTime(faller.weight);
+            if ( faller.hanging ) { // 雲は地面に着くまで
+                endTime = faller.delay + std::sqrt(2.0f * ( std::max )( objects[i].translation.y, 0.0f ) / kCloudGravity);
             }
+            toppleDuration_ = ( std::max )( toppleDuration_, endTime );
             fallers_.push_back(faller);
         }
     }
     for ( const WaveRow& row : waves_ ) {
         const float delay = std::abs(row.basePosition.z - origin.z) * TitleTopple::kDelayPerMeter;
-        toppleDuration_ = ( std::max )( toppleDuration_, delay );
+        toppleDuration_ = ( std::max )( toppleDuration_, delay + TitleTopple::EndTime(TitleTopple::kMedium) );
         waveDelays_.push_back(delay);
     }
-    toppleDuration_ += TitleTopple::kFallTime;
     toppling_ = true;
 }
 
@@ -302,8 +303,8 @@ void TitleAmbience::UpdateTopple(float deltaTime){
                 const float previousFall = ( previousElapsed > 0.0f ) ? 0.5f * kCloudGravity * previousElapsed * previousElapsed : 0.0f;
                 if ( previousFall < placed.translation.y && fall >= placed.translation.y ) { ++landings_; }
             } else {
-                rotation.x += TitleTopple::RotationX(TitleTopple::Angle(elapsed), placed.rotation.y);
-                if ( TitleTopple::JustLanded(previous - faller.delay, elapsed) ) { ++landings_; }
+                rotation = TitleTopple::Tilt(placed.rotation, faller.direction, TitleTopple::Angle(elapsed, faller.weight));
+                if ( TitleTopple::JustLanded(previous - faller.delay, elapsed, faller.weight) ) { ++landings_; }
             }
             object->SetTranslation(position);
             object->SetRotation(rotation);
@@ -312,11 +313,12 @@ void TitleAmbience::UpdateTopple(float deltaTime){
     for ( size_t i = 0; i < waves_.size() && i < waveDelays_.size(); ++i ) {
         WaveRow& row = waves_[i];
         if ( !row.object ) { continue; }
-        const float angle = TitleTopple::Angle(toppleTime_ - waveDelays_[i]);
+        // 紙の波は横一列に長いので、真後ろへ倒す
+        const float angle = TitleTopple::Angle(toppleTime_ - waveDelays_[i], TitleTopple::kMedium);
         row.object->SetTranslation(row.basePosition);
-        row.object->SetRotation({ TitleTopple::RotationX(angle, 0.0f), 0.0f, 0.0f });
+        row.object->SetRotation(TitleTopple::Tilt({ 0.0f, 0.0f, 0.0f }, 0.0f, angle));
         row.object->Update();
-        if ( TitleTopple::JustLanded(previous - waveDelays_[i], toppleTime_ - waveDelays_[i]) ) { ++landings_; }
+        if ( TitleTopple::JustLanded(previous - waveDelays_[i], toppleTime_ - waveDelays_[i], TitleTopple::kMedium) ) { ++landings_; }
     }
 }
 

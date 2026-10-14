@@ -19,6 +19,8 @@ public:
 	// シーンの最終画像（target）の上に重ねて描く。シーンの合成の最後に呼ばれるので、エディタの Game View にも映る。
 	//   target は「読み取り用」の状態で渡され、同じ状態に戻して返すこと
 	virtual void DrawInto(ID3D12GraphicsCommandList* commandList, RenderTexture* target) = 0;
+	// 画面（今の描き先）へ直接、シーンの UI の上に重ねる。エディタを出していない時に、シーンの UI の後で呼ばれる
+	virtual void DrawOverlay(ID3D12GraphicsCommandList* /*commandList*/) {}
 	// 調整用の ImGui（インスペクターの中に出る）
 	virtual void DrawDebugUI() {}
 	// 終了処理（GPU のリソースを、デバイスより先に放す）

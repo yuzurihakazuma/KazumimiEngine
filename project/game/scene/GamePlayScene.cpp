@@ -296,9 +296,9 @@ void GamePlayScene::OnUpdate(){
 	// 初めて敵を倒した瞬間のフリーズを無くすため、起動直後に演出を一度通しておく
 	screenFx_.UpdateWarmup(combat_, currentMode == EngineMode::Play);
 
-	// タイトルへ戻る（赤い幕で切り替える）
+	// タイトルへ戻る（読み込み中のカードで切り替える）
 	if ( Input::GetInstance()->Triggerkey(DIK_T) ) {
-		KamishibaiTransition::ChangeSceneWithCurtain("TITLE");
+		KamishibaiTransition::ChangeSceneWithCard("TITLE");
 	}
 }
 

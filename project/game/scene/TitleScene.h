@@ -125,7 +125,9 @@ private:
 	float toppleTime_ = 0.0f;
 	float toppleDuration_ = 0.0f;   // 全部が寝るまでの秒数
 	float logoFallDelay_ = 0.0f;
+	float logoFallDirection_ = 0.0f;
 	float menuFallDelays_[3] {};
+	float menuFallDirections_[3] {};
 	float landSoundWait_ = 0.0f;     // パタンの音を続けて鳴らしすぎない
 	float bowTime_ = -1.0f;          // お辞儀を始めてからの秒数（負＝まだ）
 

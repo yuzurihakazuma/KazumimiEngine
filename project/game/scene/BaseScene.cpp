@@ -188,6 +188,12 @@ void BaseScene::Draw(){
     SpriteCommon::GetInstance()->PreDraw(commandList);
     OnDrawUI(commandList);
     TextManager::GetInstance()->Draw();
+
+    // 遷移の演出は UI（HUD など）よりも上。エディタを出している時は Game View（最終画像）に描いてあるので不要
+    ISceneTransition* transition = SceneManager::GetInstance()->GetTransition();
+    if ( transition && transition->IsActive() && !EditorManager::GetInstance()->IsActive() ) {
+        transition->DrawOverlay(commandList);
+    }
 }
 
 // 3D一式を MRT（色＋マスク）へ描く。不透明 → インスタンシング → 透明・加算 → SDF → デバッグ線 の順

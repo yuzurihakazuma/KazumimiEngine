@@ -15,6 +15,7 @@
 #include "externals/imgui/imgui.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -45,13 +46,19 @@ namespace {
 	constexpr const char* kCurtainPath = "resources/kamishibai/curtain.png";
 	constexpr const char* kValancePath = "resources/kamishibai/valance.png";
 	constexpr float kCurtainHalf = 0.53f;    // 閉じた時の幕1枚の幅（画面幅=1。真ん中で少し重ねる）
-	constexpr float kCurtainHemRatio = 1080.0f / 1028.0f; // 裾の房（画像の下 52px）を画面の下の外へ出す
-	constexpr float kValanceHeight = 230.0f; // valance.png の高さ（1920 幅のとき）
+	constexpr float kCurtainHemRatio = 1080.0f / 1032.0f; // 裾のギザギザ（画像の下 48px）を画面の下の外へ出す（閉じた時にすき間を作らない）
+	constexpr float kValanceHeight = 200.0f; // valance.png の高さ（1920 幅のとき）
 	constexpr const char* kWhitePath = "resources/block/white1x1.png";
+	// 読み込み中のカード（tools/kamishibai/make_kamishibai_assets.py の make_cards で作る）
+	constexpr const char* kCardDir = "resources/kamishibai/";
+	constexpr const char* kCardLayoutPath = "resources/kamishibai/card_layout.json";
+	const char* kCardScenes[] = { "STAGESELECT", "GAMEPLAY", "TITLE" }; // 絵を用意している行き先
+	constexpr float kCardTilt = 0.12f;       // 入る・引き抜く時のカードの傾き(rad)
 	const char* kSounds[] = {
 		"resources/kamishibai/se_hyoshigi.wav",
 		"resources/kamishibai/se_door.wav",
 		"resources/kamishibai/se_whoosh.wav",
+		"resources/kamishibai/se_snip.wav",
 	};
 	// 遷移先に選べるシーン（SceneFactory の名前）
 	const char* kSceneNames[] = { "STAGESELECT", "GAMEPLAY", "TITLE" };
@@ -98,6 +105,22 @@ void KamishibaiTransition::Load(){
 	curtainRight_ = Sprite::Create(curtainTexture, {}, Colors::WHITE, { 1.0f, 0.0f }); // 右の辺から伸びる
 	curtainRight_->SetIsFlipX(true);
 	valance_      = Sprite::Create(textures->Load(kValancePath).srvIndex, {}, Colors::WHITE, { 0.0f, 0.0f });
+	// 読み込み中のカード：行き先ごとの地と、上で動く部品を先に全部読む（実行中の読み込みはデバッグレイヤーが嫌う）
+	auto loadCard = [&](const std::string& name){
+		const std::string base = kCardDir + std::string("card_bg_") + name;
+		return CardTextures { textures->Load(base + "_top.png").srvIndex, textures->Load(base + "_bottom.png").srvIndex };
+	};
+	defaultCardTextures_ = loadCard("default");
+	for ( const char* scene : kCardScenes ) {
+		std::string lower = scene;
+		for ( char& c : lower ) { c = ( char ) std::tolower(( unsigned char ) c); }
+		cardTextures_[scene] = loadCard(lower);
+	}
+	cardTop_ = Sprite::Create(defaultCardTextures_.top, {}, Colors::WHITE, { 0.5f, 0.5f });
+	cardBottom_ = Sprite::Create(defaultCardTextures_.bottom, {}, Colors::WHITE, { 0.5f, 0.5f });
+	cardSlit_ = Sprite::Create(textures->Load(std::string(kCardDir) + "card_cut.png").srvIndex, {}, Colors::WHITE, { 0.0f, 0.5f }); // 左の端から伸ばす
+	slitWidth_ = cardSlit_->GetSize().x;
+	LoadCardLayout();
 
 	snapshotWidth_ = ( std::max )( 1u, ( uint32_t ) WindowProc::GetInstance()->GetClientWidth() );
 	snapshotHeight_ = ( std::max )( 1u, ( uint32_t ) WindowProc::GetInstance()->GetClientHeight() );
@@ -121,6 +144,12 @@ void KamishibaiTransition::Finalize(){
 	curtainLeft_.reset();
 	curtainRight_.reset();
 	valance_.reset();
+	cardTop_.reset();
+	cardBottom_.reset();
+	cardSlit_.reset();
+	scissors_.reset();
+	cardPieces_.clear();
+	cardTextures_.clear();
 	snapshot_.reset();
 	loaded_ = false;
 }
@@ -176,18 +205,31 @@ bool KamishibaiTransition::Play(const std::string& definitionName, const std::st
 	eggFallTime_ = -1.0f;
 	curtainClose_ = 0.0f;
 	valanceDrop_ = 0.0f;
+	cardVisible_ = false;
+	cardOffset_ = cardAngle_ = 0.0f;
+	cutProgress_ = snipTime_ = 0.0f;
+	scissorsX_ = -1.0f;
+	topLift_ = topTurn_ = bottomDrop_ = bottomTurn_ = 0.0f;
+	// カードの絵は行き先で選ぶ（用意していない行き先は、名前の帯が無いカード）
+	const auto cardTexture = cardTextures_.find(playTo_);
+	const CardTextures& textures = ( cardTexture != cardTextures_.end() ) ? cardTexture->second : defaultCardTextures_;
+	cardTop_->SetTexture(textures.top);
+	cardBottom_->SetTexture(textures.bottom);
 	Input::GetInstance()->SetLocked(true); // 遷移中はゲーム側のキー操作を止める
 	timeline_.Start();
 	return true;
 }
 
-void KamishibaiTransition::ChangeSceneWithCurtain(const std::string& sceneName){
+void KamishibaiTransition::ChangeSceneWith(const std::string& definitionName, const std::string& sceneName){
 	KamishibaiTransition* transition = GetInstance();
 	if ( transition->IsActive() ) { return; } // 遷移の最中：新しい切り替えは受け付けない
-	if ( !transition->Play("curtain", sceneName) ) {
-		SceneManager::GetInstance()->ChangeScene(sceneName); // 幕が使えない：そのまま切り替える
+	if ( !transition->Play(definitionName, sceneName) ) {
+		SceneManager::GetInstance()->ChangeScene(sceneName); // 演出が使えない：そのまま切り替える
 	}
 }
+
+void KamishibaiTransition::ChangeSceneWithCurtain(const std::string& sceneName){ ChangeSceneWith("curtain", sceneName); }
+void KamishibaiTransition::ChangeSceneWithCard(const std::string& sceneName){ ChangeSceneWith("card", sceneName); }
 
 void KamishibaiTransition::Update(float deltaTime){
 	if ( !active_ ) { return; }
@@ -281,7 +323,7 @@ void KamishibaiTransition::ApplyParts(float step){
 			doorOpen_ = open ? Easing::EaseOutBack(p) : 1.0f - Easing::EaseInCubic(p);
 		} else if ( part.type == "curtain" ) {
 			// 赤い幕：閉じる時は左右からすべって来て、真ん中で少し揺れて合わさる。
-			//   開く時は左右へ引かれ、最後に上の飾り幕も上がっていく
+			//   開く時は左右へ引かれ、最後に上の幕板も上がっていく
 			const bool open = params.value("open", false);
 			if ( open ) {
 				curtainClose_ = 1.0f - Easing::EaseInOutCubic(p);
@@ -292,6 +334,38 @@ void KamishibaiTransition::ApplyParts(float step){
 			}
 			// 閉じ切った（開き切った）ことを知らせる。幕で隠れてからシーンを切り替えるのに使う
 			if ( part.justFinished && params.contains("emit") ) { timeline_.Fire(params.value("emit", std::string())); }
+		} else if ( part.type == "card" ) {
+			// 読み込み中のカード：紙芝居の絵を差し込むように右から入って少し行き過ぎて止まり、
+			//   読み終えたら左へ引き抜かれる（一瞬こらえてから一気に抜ける）
+			const bool in = params.value("in", true);
+			cardVisible_ = true;
+			if ( in ) {
+				cardOffset_ = 1.15f * ( 1.0f - Easing::EaseOutBack(p) );
+				cardAngle_ = ( 1.0f - Easing::EaseOutCubic(p) ) * kCardTilt;
+			} else {
+				cardOffset_ = -1.25f * Easing::EaseInBack(p);
+				cardAngle_ = -Easing::EaseInQuad(p) * kCardTilt;
+				if ( part.finished ) { cardVisible_ = false; }
+			}
+			// 入り切った（画面を覆った）ことを知らせる。隠れてからシーンを切り替えるのに使う
+			if ( part.justFinished && params.contains("emit") ) { timeline_.Fire(params.value("emit", std::string())); }
+		} else if ( part.type == "cardCut" ) {
+			// 段ボールの切れ目：はさみが下の折り目の線を左から右へ切り進み、切り終えたら
+			//   上の部分は上へ、下の細い部分は下へ分かれて飛んでいく（その間から次のシーンが始まる）
+			const float cutTime = ( std::max )( params.value("cutTime", 0.4f), 0.01f );
+			const float flyTime = ( std::max )( part.duration - cutTime, 0.01f );
+			const float elapsed = part.elapsed;
+			cardVisible_ = !part.finished;
+			snipTime_ = elapsed;
+			cutProgress_ = Easing::Clamp01(elapsed / cutTime);
+			// はさみは切り終えても止まらず、そのまま右へ抜けていく
+			const float travel = elapsed / cutTime;
+			scissorsX_ = ( travel < 1.8f ) ? travel : -1.0f;
+			const float fly = Easing::Clamp01(( elapsed - cutTime ) / flyTime);
+			topLift_ = params.value("lift", 1.25f) * Easing::EaseInCubic(fly);
+			topTurn_ = -0.10f * Easing::EaseInQuad(fly);
+			bottomDrop_ = params.value("drop", 0.5f) * Easing::EaseInQuad(fly);
+			bottomTurn_ = 0.12f * Easing::EaseInQuad(fly);
 		} else if ( part.type == "frameZoom" ) {
 			// 枠をくぐる：枠が大きくなって画面の外へ出ていく
 			frameZoom_ = 1.0f + ( params.value("scale", 2.6f) - 1.0f ) * Easing::EaseInCubic(p);
@@ -367,6 +441,13 @@ void KamishibaiTransition::DrawInto(ID3D12GraphicsCommandList* commandList, Rend
 	const D3D12_RECT scissor = { 0, 0, ( LONG ) width, ( LONG ) height };
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissor);
+	DrawLayers(commandList, width, height);
+
+	Transition(commandList, resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
+// 遷移の絵を、今の描き先へ描く（カード・幕・枠と扉・帯・卵・写し取った画面）
+void KamishibaiTransition::DrawLayers(ID3D12GraphicsCommandList* commandList, float width, float height){
 	SpriteCommon::GetInstance()->PreDraw(commandList);
 
 	// 枠の画像の座標 → 画面の座標（枠をくぐる時は画面の中心から大きくする）
@@ -389,7 +470,7 @@ void KamishibaiTransition::DrawInto(ID3D12GraphicsCommandList* commandList, Rend
 		DrawSprite(doorRight_.get(), onFrame(kWindowRight, middleY), { doorWidth, doorHeight }, doorColor);
 		DrawSprite(frame_.get(), center, { width * frameZoom_, height * frameZoom_ }, { 1.0f, 1.0f, 1.0f, frameAlpha_ });
 	}
-	// 赤い幕：幕の幅を伸び縮みさせる（ひだが寄ったり広がったりして、布を引いているように見える）
+	// 赤い幕（色画用紙の蛇腹）：幅を伸び縮みさせる（蛇腹が伸びて閉じ、縮んで開くように見える）
 	if ( curtainClose_ > 0.001f ) {
 		const float curtainWidth = width * kCurtainHalf * curtainClose_;
 		const float curtainHeight = height * kCurtainHemRatio;
@@ -400,6 +481,7 @@ void KamishibaiTransition::DrawInto(ID3D12GraphicsCommandList* commandList, Rend
 		const float valanceHeight = kValanceHeight * scaleX;
 		DrawSprite(valance_.get(), { 0.0f, -valanceHeight * ( 1.0f - valanceDrop_ ) }, { width, valanceHeight }, Colors::WHITE);
 	}
+	if ( cardVisible_ ) { DrawCard(width, height, scaleX, scaleY); }
 	if ( bannerAlpha_ > 0.001f ) {
 		DrawSprite(banner_.get(), { center.x, height * 0.47f },
 		           { kBannerWidth * scaleX * bannerScale_, kBannerHeight * scaleX * bannerScale_ }, { 1.0f, 1.0f, 1.0f, bannerAlpha_ });
@@ -414,8 +496,122 @@ void KamishibaiTransition::DrawInto(ID3D12GraphicsCommandList* commandList, Rend
 		DrawSprite(picture_.get(), { center.x + pictureOffset_ * width, center.y + pictureLift_ * height },
 		           { width, height }, Colors::WHITE, pictureAngle_);
 	}
+}
 
-	Transition(commandList, resource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+// 画面へ直接、シーンの UI（HUD など）の上に重ねる。最終画像へ重ねただけだと、
+//   その後に描かれる UI が遷移の上に出てしまう（カードの上にコインの数が見えるなど）
+void KamishibaiTransition::DrawOverlay(ID3D12GraphicsCommandList* commandList){
+	if ( !active_ || !loaded_ ) { return; }
+	DrawLayers(commandList, ( float ) WindowProc::GetInstance()->GetClientWidth(), ( float ) WindowProc::GetInstance()->GetClientHeight());
+}
+
+// カードの上の部品の置き場所と動き方を読む（tools/kamishibai/make_kamishibai_assets.py が書き出す）
+void KamishibaiTransition::LoadCardLayout(){
+	cardPieces_.clear();
+	std::ifstream file(kCardLayoutPath);
+	if ( !file.is_open() ) { return; }
+	json layout;
+	try { file >> layout; } catch ( ... ) { return; }
+	cardMargin_ = layout.value("margin", 0.0f);
+	const json cut = layout.value("cut", json::object());
+	cutY_ = cut.value("y", kImageHeight);
+	cardTopHeight_ = cut.value("topHeight", kImageHeight);
+	cardBottomTop_ = cut.value("bottomTop", kImageHeight);
+	cardBottomHeight_ = cut.value("bottomHeight", 0.0f);
+	slitTop_ = cut.value("slitTop", cutY_);
+	slitHeight_ = cut.value("slitHeight", 0.0f);
+	const json scissors = layout.value("scissors", json::object());
+	if ( scissors.contains("file") ) {
+		scissorsWidth_ = scissors.value("width", 1.0f);
+		scissorsHeight_ = scissors.value("height", 1.0f);
+		const Vector2 tip { scissors.value("tipX", 0.0f) / scissorsWidth_, scissors.value("tipY", 0.0f) / scissorsHeight_ };
+		scissors_ = Sprite::Create(TextureManager::GetInstance()->Load(kCardDir + scissors.value("file", std::string())).srvIndex, {}, Colors::WHITE, tip);
+	}
+	const std::pair<const char*, CardMotion> motionNames[] = {
+		{ "walk", CardMotion::Walk }, { "rock", CardMotion::Rock }, { "twinkle", CardMotion::Twinkle },
+		{ "drift", CardMotion::Drift }, { "sway", CardMotion::Sway }, { "hop", CardMotion::Hop }, { "dot", CardMotion::Dot },
+	};
+	TextureManager* textures = TextureManager::GetInstance();
+	for ( const json& entry : layout.value("pieces", json::array()) ) {
+		CardPiece piece;
+		piece.sprite = Sprite::Create(textures->Load(kCardDir + entry.value("file", std::string())).srvIndex, {}, Colors::WHITE, { 0.5f, 0.5f });
+		piece.width = piece.sprite->GetSize().x;
+		piece.height = piece.sprite->GetSize().y;
+		piece.x = entry.value("x", 0.0f);
+		piece.y = entry.value("y", 0.0f);
+		piece.angle = -entry.value("angle", 0.0f) * kPi / 180.0f; // 画像を作る側は左回りが正、画面のスプライトは右回りが正
+		piece.phase = entry.value("phase", 0.0f);
+		piece.index = entry.value("index", 0);
+		piece.bottom = ( entry.value("part", std::string()) == "bottom" );
+		const std::string motion = entry.value("motion", std::string());
+		for ( const auto& name : motionNames ) { if ( motion == name.first ) { piece.motion = name.second; } }
+		cardPieces_.push_back(std::move(piece));
+	}
+}
+
+// 読み込み中のカード：地（左右は段ボールの切れ目）と、その上で動く部品。部品はカードと一緒にすべって傾く。
+//   下の折り目の線で上と下に分かれている（切る前はぴったり重なって1枚に見える）
+void KamishibaiTransition::DrawCard(float width, float height, float scaleX, float scaleY){
+	const Vector2 cardCenter { width * ( 0.5f + cardOffset_ ), height * 0.5f };
+	const float c = std::cos(cardAngle_), s = std::sin(cardAngle_);
+	// 上・下の部分の中心（カードの中心からの、画像の px）
+	const float cardWidth = kImageWidth + cardMargin_ * 2.0f;
+	const float topCenterY = cardTopHeight_ * 0.5f - kImageHeight * 0.5f;
+	const float bottomCenterY = cardBottomTop_ + cardBottomHeight_ * 0.5f - kImageHeight * 0.5f;
+	// カードの中の点（中心からの画像の px）→ 画面の位置。分かれた後は、その部分の中心のまわりに回って上・下へずれる
+	auto place = [&](float x, float y, bool bottom){
+		const float pivotY = bottom ? bottomCenterY : topCenterY;
+		const float turn = bottom ? bottomTurn_ : topTurn_;
+		const float ry = y - pivotY;
+		const float px = x * std::cos(turn) - ry * std::sin(turn);
+		const float py = x * std::sin(turn) + ry * std::cos(turn) + pivotY;
+		const float lx = px * scaleX, ly = py * scaleY;
+		const float shift = ( bottom ? bottomDrop_ : -topLift_ ) * height;
+		return Vector2 { cardCenter.x + lx * c - ly * s, cardCenter.y + lx * s + ly * c + shift };
+	};
+	DrawSprite(cardBottom_.get(), place(0.0f, bottomCenterY, true), { cardWidth * scaleX, cardBottomHeight_ * scaleY },
+	           Colors::WHITE, cardAngle_ + bottomTurn_);
+	DrawSprite(cardTop_.get(), place(0.0f, topCenterY, false), { cardWidth * scaleX, cardTopHeight_ * scaleY },
+	           Colors::WHITE, cardAngle_ + topTurn_);
+
+	// 切れ目：はさみが進んだところまで開いた線を見せる（分かれ始めたら、その間は次のシーン）。
+	//   部品より先に描く（切れ目にかかったシールは、上の部分に貼ってあって切れ目をまたいで見える）
+	const bool splitting = ( topLift_ > 0.0f || bottomDrop_ > 0.0f );
+	if ( cutProgress_ > 0.0f && !splitting && cardSlit_ ) {
+		const float slitWidth = ( std::min )( cardMargin_ + cutProgress_ * kImageWidth, slitWidth_ );
+		cardSlit_->SetTextureRect(0.0f, 0.0f, slitWidth, slitHeight_);
+		DrawSprite(cardSlit_.get(), place(-cardWidth * 0.5f, slitTop_ + slitHeight_ * 0.5f - kImageHeight * 0.5f, false),
+		           { slitWidth * scaleX, slitHeight_ * scaleY }, Colors::WHITE, cardAngle_);
+	}
+
+	const float time = timeline_.GetTime();
+	for ( const CardPiece& piece : cardPieces_ ) {
+		// 部品ごとの動き（画像の px で、ずれ・回り・大きさ）
+		float moveX = 0.0f, moveY = 0.0f, turn = 0.0f, size = 1.0f;
+		const float t = time + piece.phase;
+		switch ( piece.motion ) {
+		case CardMotion::Walk:    moveY = -std::abs(std::sin(t * 7.0f)) * 16.0f; turn = std::sin(t * 7.0f) * 0.05f; break; // とことこ歩く
+		case CardMotion::Rock:    turn = std::sin(t * 2.6f) * 0.2f; break;                                               // ゆらゆら
+		case CardMotion::Twinkle: turn = std::sin(t * 1.8f) * 0.18f; size = 1.0f + 0.07f * std::sin(t * 3.2f); break;   // きらきら
+		case CardMotion::Drift:   moveX = std::sin(t * 0.9f) * 26.0f; moveY = std::sin(t * 1.3f) * 6.0f; break;          // ふわふわ流れる
+		case CardMotion::Sway:    turn = std::sin(t * 2.2f) * 0.22f; break;                                              // 風にゆれる
+		case CardMotion::Hop:     moveY = -std::abs(std::sin(t * 5.0f)) * 10.0f; turn = std::sin(t * 5.0f) * 0.2f; break; // ぴょこぴょこ
+		case CardMotion::Dot:     if ( ( int ) ( time * 3.0f ) % 4 <= piece.index ) { continue; } break;                 // 「…」が1つずつ増える
+		default: break;
+		}
+		DrawSprite(piece.sprite.get(), place(piece.x + moveX - kImageWidth * 0.5f, piece.y + moveY - kImageHeight * 0.5f, piece.bottom),
+		           { piece.width * scaleX * size, piece.height * scaleX * size }, Colors::WHITE,
+		           cardAngle_ + piece.angle + turn + ( piece.bottom ? bottomTurn_ : topTurn_ ));
+	}
+
+	// はさみ：刃先が切れ目の先。チョキチョキ（刃の開け閉め）に合わせて小さく揺れる。
+	//   カードの部品は切れ目のまわりを空けて置いてあるので、はさみがシールの上を通らない（make_kamishibai_assets.py の CARD_CLEAR_Y）
+	if ( scissorsX_ >= 0.0f && scissors_ ) {
+		const float snip = std::sin(snipTime_ * 40.0f);
+		const Vector2 tip = place(scissorsX_ * kImageWidth - kImageWidth * 0.5f, cutY_ - kImageHeight * 0.5f + snip * 3.0f, false);
+		DrawSprite(scissors_.get(), tip, { scissorsWidth_ * scaleX, scissorsHeight_ * scaleX }, Colors::WHITE,
+		           cardAngle_ + snip * 0.12f);
+	}
 }
 
 // インスペクターの「紙芝居遷移」：部品の きっかけ・遅れ・長さ・設定 をその場で直して保存する

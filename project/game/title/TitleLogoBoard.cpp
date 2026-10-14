@@ -81,7 +81,7 @@ void TitleLogoBoard::Update(float deltaTime){
         scale.y = kBoardScale * ( 1.0f - 0.14f * std::exp(-8.0f * time_) * std::cos(time_ * 20.0f) );
     }
 
-    rotation.x += TitleTopple::RotationX(fallAngle_, rotation.y); // 根元（杭の先）を軸に奥へ倒れる
+    rotation = TitleTopple::Tilt(rotation, fallDirection_, fallAngle_); // 根元（杭の先）を軸に倒れる
     board_->SetTranslation(position);
     board_->SetRotation(rotation);
     board_->SetScale(scale);
