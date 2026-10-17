@@ -34,7 +34,6 @@ namespace {
 	constexpr float kEggWidth = 150.0f, kEggHeight = 185.0f;        // egg.png を少し小さく
 	constexpr float kDoorMaxAngle = 1.40f;  // 開き切った扉の角度(rad)。行き過ぎても 90° 手前で止める
 	constexpr float kMaxStep = 1.0f / 30.0f; // シーンの切り替えで重いフレームがあっても、演出は飛ばさない
-	constexpr float kFastForward = 6.0f;     // 早送りの速さ
 	constexpr float kSafetyTime = 20.0f;     // 何かで「おわり」に届かなくても、ここで終える(秒)
 
 	constexpr const char* kDefinitionDir = "resources/transition/";
@@ -188,7 +187,6 @@ bool KamishibaiTransition::Play(const std::string& definitionName, const std::st
 	}
 	playTo_ = toScene.empty() ? toScene_ : toScene;
 	active_ = true;
-	speed_ = 1.0f;
 	sceneRequested_ = false;
 	loadedFired_ = false;
 	captureRequested_ = false; // 絵の引き抜きが始まる時に、その時の画面を写し取る
@@ -234,19 +232,13 @@ void KamishibaiTransition::ChangeSceneWithCard(const std::string& sceneName){ Ch
 void KamishibaiTransition::Update(float deltaTime){
 	if ( !active_ ) { return; }
 
-	// 早送り（押した瞬間から、残りを速く再生する。始まった直後の押しっぱなしは拾わない）
-	Input* input = Input::GetInstance();
-	if ( timeline_.GetTime() > 0.3f &&
-	     ( input->TriggerkeyRaw(DIK_SPACE) || input->TriggerkeyRaw(DIK_RETURN) || input->TriggerkeyRaw(DIK_ESCAPE) ) ) {
-		speed_ = kFastForward;
-	}
 	// 前のフレームで頼んだシーンの切り替えは、シーンマネージャが済ませている
 	if ( sceneRequested_ && !loadedFired_ ) {
 		loadedFired_ = true;
 		timeline_.Fire("loaded");
 	}
 
-	const float step = ( std::min )( deltaTime, kMaxStep ) * speed_;
+	const float step = ( std::min )( deltaTime, kMaxStep );
 	timeline_.Update(step);
 	ApplyParts(step);
 	if ( active_ && timeline_.GetTime() > kSafetyTime ) { Finish(); }
@@ -388,12 +380,11 @@ void KamishibaiTransition::ApplyParts(float step){
 }
 
 void KamishibaiTransition::Finish(){
-	if ( !sceneRequested_ ) { // 早送りなどで読み込みより先に終わった
+	if ( !sceneRequested_ ) { // 定義に読み込みの部品が無い・読み込みより先に「おわり」が来た
 		SceneManager::GetInstance()->ChangeScene(playTo_);
 		sceneRequested_ = true;
 	}
 	active_ = false;
-	speed_ = 1.0f;
 	pictureVisible_ = false;
 	eggVisible_ = false;
 	Input::GetInstance()->SetLocked(false);
@@ -641,7 +632,7 @@ void KamishibaiTransition::DrawDebugUI(){
 	if ( ImGui::Button("今の画面から試す") ) { Play(definitionName_); }
 	ImGui::EndDisabled();
 	ImGui::SameLine();
-	if ( active_ ) { ImGui::Text("再生中 %.2f 秒%s", timeline_.GetTime(), speed_ > 1.0f ? "（早送り）" : ""); }
+	if ( active_ ) { ImGui::Text("再生中 %.2f 秒", timeline_.GetTime()); }
 	else           { ImGui::TextDisabled("止まっている"); }
 
 	ImGui::Separator();

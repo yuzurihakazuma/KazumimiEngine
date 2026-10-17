@@ -9,7 +9,7 @@
 //         「はじまり、はじまり」の帯／扉に投げる卵／枠をくぐる／効果音／次のシーンの読み込み／おわり
 //   部品の並びと長さは resources/transition/<名前>.json（インスペクターの「紙芝居遷移」で調整・保存できる）
 //
-//   遷移中はゲーム側のキー操作を止める（Input::SetLocked）。SPACE / Enter / Esc で早送り
+//   遷移中はゲーム側のキー操作を止める（Input::SetLocked）。早送り・飛ばしは無い
 // =====================================================================
 #include "engine/scene/ISceneTransition.h"
 #include "game/transition/TransitionTimeline.h"
@@ -74,7 +74,6 @@ private:
 
 	// --- 再生の状態 ---
 	bool  active_ = false;
-	float speed_ = 1.0f;          // 早送り中は大きくする
 	bool  sceneRequested_ = false;
 	bool  loadedFired_ = false;
 	bool  captureRequested_ = false;

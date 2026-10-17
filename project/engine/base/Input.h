@@ -41,8 +41,6 @@ public:
 	// 遷移の演出中など、ゲーム側のキー操作を止める（true の間 Pushkey / Triggerkey は常に false）
 	void SetLocked(bool locked){ locked_ = locked; }
 	bool IsLocked() const{ return locked_; }
-	// 止めている間も読める押した瞬間（演出の早送りなど、止めている側だけが使う）
-	bool TriggerkeyRaw(BYTE keyNumber) const{ return !( preKeys[keyNumber] & 0x80 ) && ( keys[keyNumber] & 0x80 ); }
 	void SetTextInputActive(bool active){ textInputActive_ = active; }
 	bool IsTextInputActive() const{ return textInputActive_; }
 
