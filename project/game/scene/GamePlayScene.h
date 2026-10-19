@@ -26,6 +26,8 @@
 #include "game/stage/CoinSystem.h"
 #include "game/stage/BlockSystem.h"
 #include "game/stage/StageObstacles.h"
+#include "game/stage/StageIntroSequence.h"
+#include "game/stage/StageBackdrop.h"
 #include "game/enemy/EnemyManager.h"
 #include "game/egg/EggSystem.h"
 #include "game/effect/PlayScreenEffects.h"
@@ -43,6 +45,14 @@ class GamePlayScene : public BaseScene {
 public:
 	GamePlayScene();
 	~GamePlayScene() override;
+
+	// 遷移の演出からの合図（ステージ開始の演技・カメラの戻り）
+	void OnTransitionCue(const std::string& cue) override;
+
+private:
+	StageIntroSequence::Context IntroContext(); // 演技に使う部品をまとめる
+	void BuildBackdrop();                       // スタートのまわりのクラフトの背景を置く
+public:
 
 private:
 	// --- BaseScene の差し込み口 ---
@@ -105,6 +115,8 @@ private:
 	RoadMesh       roadMesh_;     // レール下の道メッシュ
 	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
 	StageFlow      stageFlow_;    // ゴール判定
+	StageIntroSequence intro_;    // ステージ開始の演技（遷移の合図で動く）
+	StageBackdrop  backdrop_;     // スタートのまわりのクラフトの背景（空・丘・雲・柵・草花・地面）
 	CoinSystem     coinSystem_;   // 収集物（コイン）
 	BlockSystem    blockSystem_;  // 乗れる/ぶつかるブロック
 	StageObstacles obstacles_;    // 卵・吐き出し弾の壁・地面判定（ブロック＋道）

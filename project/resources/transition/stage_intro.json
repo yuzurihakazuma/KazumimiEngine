@@ -1,0 +1,598 @@
+{
+  "to": "GAMEPLAY",
+  "stageIntro": {
+    "elements": [
+      {
+        "id": "backing",
+        "layers": [
+          {
+            "file": "intro_backing.png"
+          }
+        ],
+        "x": 960,
+        "y": 540,
+        "scale": 1.0,
+        "angle": 0.0,
+        "sway": 0.0,
+        "swaySpeed": 1.6,
+        "swayPhase": 0.0
+      },
+      {
+        "id": "star0",
+        "layers": [
+          {
+            "file": "intro_star_edge.png"
+          },
+          {
+            "file": "intro_star.png",
+            "tinted": true
+          }
+        ],
+        "x": 290,
+        "y": 230,
+        "scale": 1.0,
+        "angle": -12,
+        "sway": 2.0,
+        "swaySpeed": 1.3,
+        "swayPhase": 0.0
+      },
+      {
+        "id": "star1",
+        "layers": [
+          {
+            "file": "intro_star_edge.png"
+          },
+          {
+            "file": "intro_star.png",
+            "tinted": true
+          }
+        ],
+        "x": 545,
+        "y": 115,
+        "scale": 0.42,
+        "angle": 10,
+        "sway": 2.0,
+        "swaySpeed": 1.47,
+        "swayPhase": 1.1
+      },
+      {
+        "id": "star2",
+        "layers": [
+          {
+            "file": "intro_star_edge.png"
+          },
+          {
+            "file": "intro_star.png",
+            "tinted": true
+          }
+        ],
+        "x": 1490,
+        "y": 575,
+        "scale": 0.42,
+        "angle": -8,
+        "sway": 2.0,
+        "swaySpeed": 1.6400000000000001,
+        "swayPhase": 2.2
+      },
+      {
+        "id": "star3",
+        "layers": [
+          {
+            "file": "intro_star_edge.png"
+          },
+          {
+            "file": "intro_star.png",
+            "tinted": true
+          }
+        ],
+        "x": 1725,
+        "y": 650,
+        "scale": 0.92,
+        "angle": 14,
+        "sway": 2.0,
+        "swaySpeed": 1.81,
+        "swayPhase": 3.3000000000000003
+      },
+      {
+        "id": "star4",
+        "layers": [
+          {
+            "file": "intro_star_edge.png"
+          },
+          {
+            "file": "intro_star.png",
+            "tinted": true
+          }
+        ],
+        "x": 1250,
+        "y": 810,
+        "scale": 0.98,
+        "angle": -6,
+        "sway": 2.0,
+        "swaySpeed": 1.98,
+        "swayPhase": 4.4
+      },
+      {
+        "id": "star5",
+        "layers": [
+          {
+            "file": "intro_star_edge.png"
+          },
+          {
+            "file": "intro_star.png",
+            "tinted": true
+          }
+        ],
+        "x": 790,
+        "y": 850,
+        "scale": 0.6,
+        "angle": 18,
+        "sway": 2.0,
+        "swaySpeed": 2.1500000000000004,
+        "swayPhase": 5.5
+      },
+      {
+        "id": "banner",
+        "layers": [
+          {
+            "file": "intro_banner_shadow.png"
+          },
+          {
+            "file": "intro_banner.png",
+            "tinted": true
+          },
+          {
+            "file": "intro_banner_stitch.png"
+          }
+        ],
+        "x": 960,
+        "y": 400,
+        "scale": 1.0,
+        "angle": 0.0,
+        "sway": 0.5,
+        "swaySpeed": 1.1,
+        "swayPhase": 0.0
+      },
+      {
+        "id": "name",
+        "layers": [
+          {
+            "file": "intro_name_stage1.png"
+          }
+        ],
+        "x": 960,
+        "y": 392,
+        "scale": 1.0,
+        "angle": -2.0,
+        "sway": 1.0,
+        "swaySpeed": 1.4,
+        "swayPhase": 0.5
+      },
+      {
+        "id": "egg",
+        "layers": [
+          {
+            "file": "intro_char_egg.png"
+          }
+        ],
+        "x": 570,
+        "y": 830,
+        "scale": 1.0,
+        "angle": 6.0,
+        "sway": 4.0,
+        "swaySpeed": 2.4,
+        "swayPhase": 0.3
+      },
+      {
+        "id": "dino",
+        "layers": [
+          {
+            "file": "intro_char_dino.png"
+          }
+        ],
+        "x": 300,
+        "y": 680,
+        "scale": 1.0,
+        "angle": -4.0,
+        "sway": 1.5,
+        "swaySpeed": 1.9,
+        "swayPhase": 1.7
+      },
+      {
+        "id": "enemy",
+        "layers": [
+          {
+            "file": "@enemy"
+          }
+        ],
+        "x": 1735,
+        "y": 255,
+        "scale": 1.0,
+        "angle": 4.0,
+        "sway": 1.0,
+        "swaySpeed": 2.0,
+        "swayPhase": 2.4,
+        "stamp": true
+      }
+    ]
+  },
+  "parts": [
+    {
+      "name": "台紙が出る",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.0,
+      "duration": 0.35,
+      "params": {
+        "id": "backing",
+        "motion": "slideIn"
+      }
+    },
+    {
+      "name": "台紙の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 0.0,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_whoosh.wav",
+        "volume": 0.7
+      }
+    },
+    {
+      "name": "星1がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.2,
+      "duration": 0.28,
+      "params": {
+        "id": "star0",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "星2がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.27,
+      "duration": 0.28,
+      "params": {
+        "id": "star1",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "星3がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.34,
+      "duration": 0.28,
+      "params": {
+        "id": "star2",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "星4がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.41,
+      "duration": 0.28,
+      "params": {
+        "id": "star3",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "星5がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.48,
+      "duration": 0.28,
+      "params": {
+        "id": "star4",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "星6がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.55,
+      "duration": 0.28,
+      "params": {
+        "id": "star5",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "星の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 0.2,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_pon.wav",
+        "volume": 0.6
+      }
+    },
+    {
+      "name": "星の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 0.34,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_pon.wav",
+        "volume": 0.6
+      }
+    },
+    {
+      "name": "星の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 0.48,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_pon.wav",
+        "volume": 0.6
+      }
+    },
+    {
+      "name": "布が転がって広がる",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.4,
+      "duration": 0.8,
+      "params": {
+        "id": "banner",
+        "motion": "unroll"
+      }
+    },
+    {
+      "name": "布の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 0.4,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_roll.wav",
+        "volume": 0.8
+      }
+    },
+    {
+      "name": "恐竜がジャンプで登場",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.8,
+      "duration": 0.55,
+      "params": {
+        "id": "dino",
+        "motion": "jumpIn"
+      }
+    },
+    {
+      "name": "恐竜の着地の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 1.23,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_pon.wav",
+        "volume": 0.7
+      }
+    },
+    {
+      "name": "敵が走り込む",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.85,
+      "duration": 0.55,
+      "params": {
+        "id": "enemy",
+        "motion": "runIn"
+      }
+    },
+    {
+      "name": "卵が転がってくる",
+      "type": "introElement",
+      "event": "start",
+      "delay": 0.9,
+      "duration": 0.5,
+      "params": {
+        "id": "egg",
+        "motion": "rollIn"
+      }
+    },
+    {
+      "name": "ステージ名がポン",
+      "type": "introElement",
+      "event": "start",
+      "delay": 1.2,
+      "duration": 0.3,
+      "params": {
+        "id": "name",
+        "motion": "pop"
+      }
+    },
+    {
+      "name": "ステージ名の音",
+      "type": "sound",
+      "event": "start",
+      "delay": 1.2,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_pon.wav",
+        "volume": 0.9
+      }
+    },
+    {
+      "name": "ステージを読む",
+      "type": "loadScene",
+      "event": "start",
+      "delay": 1.55,
+      "duration": 0.0
+    },
+    {
+      "name": "読み込みと最短時間を待つ",
+      "type": "waitAll",
+      "event": "start",
+      "delay": 0.0,
+      "duration": 0.0,
+      "params": {
+        "events": [
+          "loaded"
+        ],
+        "minTime": 2.6,
+        "emit": "ready"
+      }
+    },
+    {
+      "name": "ステージへ：演出の準備",
+      "type": "sceneCue",
+      "event": "loaded",
+      "delay": 0.0,
+      "duration": 0.0,
+      "params": {
+        "cue": "introStart"
+      }
+    },
+    {
+      "name": "カードが上へ抜ける",
+      "type": "introLift",
+      "event": "ready",
+      "delay": 0.0,
+      "duration": 0.4
+    },
+    {
+      "name": "抜ける音",
+      "type": "sound",
+      "event": "ready",
+      "delay": 0.0,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_whoosh.wav",
+        "volume": 0.8
+      }
+    },
+    {
+      "name": "上下の帯が出る",
+      "type": "letterbox",
+      "event": "ready",
+      "delay": 0.0,
+      "duration": 0.3,
+      "params": {
+        "in": true
+      }
+    },
+    {
+      "name": "こっちを見て手を振る",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 0.3,
+      "duration": 0.0,
+      "params": {
+        "cue": "introTurn"
+      }
+    },
+    {
+      "name": "ロールを押す",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 1.5,
+      "duration": 0.0,
+      "params": {
+        "cue": "introPush"
+      }
+    },
+    {
+      "name": "ロールが転がり出す",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 2.4,
+      "duration": 0.0,
+      "params": {
+        "cue": "introRollGo"
+      }
+    },
+    {
+      "name": "ロールの音",
+      "type": "sound",
+      "event": "ready",
+      "delay": 2.4,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_roll.wav",
+        "volume": 0.8
+      }
+    },
+    {
+      "name": "ジャンプでこっちを向く",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 2.5,
+      "duration": 0.0,
+      "params": {
+        "cue": "introAction"
+      }
+    },
+    {
+      "name": "キラキラ",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 3.0,
+      "duration": 0.0,
+      "params": {
+        "cue": "introSparkle"
+      }
+    },
+    {
+      "name": "キラキラの音",
+      "type": "sound",
+      "event": "ready",
+      "delay": 3.0,
+      "duration": 0.0,
+      "params": {
+        "sound": "resources/kamishibai/se_pon.wav",
+        "volume": 0.6
+      }
+    },
+    {
+      "name": "カメラが後ろへ戻る",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 3.0,
+      "duration": 0.0,
+      "params": {
+        "cue": "introReturn"
+      }
+    },
+    {
+      "name": "上下の帯が引っ込む",
+      "type": "letterbox",
+      "event": "ready",
+      "delay": 3.0,
+      "duration": 0.3,
+      "params": {
+        "in": false
+      }
+    },
+    {
+      "name": "操作開始",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 3.6,
+      "duration": 0.0,
+      "params": {
+        "cue": "introEnd"
+      }
+    },
+    {
+      "name": "おわり",
+      "type": "end",
+      "event": "ready",
+      "delay": 3.6,
+      "duration": 0.0
+    }
+  ]
+}

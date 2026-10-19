@@ -11,6 +11,10 @@
 #include "game/editor/PlaySceneInspector.h"
 #include "game/transition/KamishibaiTransition.h"
 
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
+
 // --- エンジン側のファイル ---
 #include "Engine/Particle/ParticleManager.h"
 #include "Engine/Graphics/PipelineManager.h"
@@ -34,7 +38,10 @@
 #include "engine/utils/Level/RailEditor.h"
 #include "Bloom.h"
 
+#include "externals/nlohmann/json.hpp"
+
 #include <cmath>
+#include <fstream>
 
 GamePlayScene::GamePlayScene(){
 	features_.railEditing  = true; // レール・道・敵の配置を編集する
@@ -45,6 +52,11 @@ GamePlayScene::~GamePlayScene() = default;
 //  初期化：読み込み（BaseScene がカメラを作る前）→ 見た目 → ゲーム部品
 // =====================================================================
 // BGM・SE・モデル・テクスチャの読み込みと、SDF演出のパイプライン構築
+namespace {
+	// 今のステージの名前（resources/stage_intro/<名前>.json：ステージ開始カードの中身とイントロカメラ）
+	constexpr const char* kStageName = "stage1";
+}
+
 void GamePlayScene::OnLoadResources(){
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
@@ -72,6 +84,45 @@ void GamePlayScene::OnInitialize(){
 	aimThrow_.Initialize(textures_["circle2"].srvIndex); // 狙い用カーソル（構え中だけ表示）
 	hud_.Initialize(textures_["circle2"].srvIndex);
 	SetupGameplay();
+	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
+	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
+	BuildBackdrop();
+}
+
+// スタートのまわりにクラフトの背景を置く（resources/stage_intro/<stage>.json の backdrop。スタート位置からの相対）
+void GamePlayScene::BuildBackdrop(){
+	std::ifstream file(std::string("resources/stage_intro/") + kStageName + ".json");
+	nlohmann::json content;
+	if ( file.is_open() ) {
+		try { file >> content; } catch ( ... ) { content = nlohmann::json::object(); }
+	}
+	Vector3 start {};
+	const auto& rails = railField_.GetRails();
+	const int rail = railField_.GetStartRail();
+	if ( rail >= 0 && rail < ( int ) rails.size() ) { start = rails[rail].GetPositionByDistance(railField_.GetStartDistance()); }
+	backdrop_.Build(content.value("backdrop", nlohmann::json::array()), start);
+}
+
+StageIntroSequence::Context GamePlayScene::IntroContext(){
+	StageIntroSequence::Context context;
+	context.player    = player_.get();
+	context.avatar    = &avatar_;
+	context.railField = &railField_;
+	context.camCtrl   = &camCtrl_;
+	context.eggSystem = &eggSystem_;
+	return context;
+}
+
+// ステージ開始の演出の合図（KamishibaiTransition::ChangeSceneWithStageIntro の定義 stage_intro.json から）
+void GamePlayScene::OnTransitionCue(const std::string& cue){
+	if ( !player_ ) { return; }
+	// エディタ付きのビルドは編集モードで始まる。ステージ開始の演出から入った時は、プレイから始める
+	//   （Play ボタンを押したのと同じ。止めたい時はエディタの Stop で編集モードへ）
+	if ( cue == "introStart" && EditorManager::GetInstance()->GetMode() != EngineMode::Play ) {
+		EditorManager::GetInstance()->RequestPlay();
+		HandleModeTransition(EngineMode::Play);
+	}
+	intro_.OnCue(cue, IntroContext());
 }
 
 // プレイヤー・敵エディタ・レール・各種シーン部品の用意
@@ -350,6 +401,8 @@ void GamePlayScene::OnPlayStart(){
 
 // プレイ → エディット：動くレールを基準位置に戻す（編集と表示を一致させる）
 void GamePlayScene::OnEditStart(){
+	// ステージ開始の演出の途中でエディタに切り替えた：演出をやめて、プレイヤーを元に戻す
+	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
 	screenFx_.DisablePlayLook();
 	railField_.ResetMotion();
 	testPlayRail_ = -1;      // テストプレイの開始位置上書きは1回で解除（次は通常スタート）
@@ -364,6 +417,21 @@ void GamePlayScene::OnEditStart(){
 // プレイ中（時間が動いている時）のゲーム進行
 void GamePlayScene::UpdatePlayMode(){
 	const float deltaTime = Time::GetInstance()->GetDeltaTime();
+
+	// ステージ開始の演技のロール（操作開始の後も、画面の外へ出るまで転がり続ける）
+	intro_.UpdateRoll(deltaTime);
+
+	// ステージ開始の演技中：ゲームの時間（動くレール・敵・当たり判定など）は止め、プレイヤーとカメラだけ動かす
+	if ( intro_.IsActive() ) {
+		const StageIntroSequence::Context context = IntroContext();
+		intro_.UpdateInput(context, deltaTime);    // キーの代わり（何も押さない）と、演技の途中の向き・土ぼこり
+		player_->Update(railField_.GetRails());
+		const float yaw = player_->GetRotation().y;
+		eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・土ぼこり
+		intro_.UpdateCamera(GetCamera(), context, deltaTime);
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
 
 	// 動くレール → プレイヤー → 敵 の順で更新（位置の整合のため）。
 	//   「乗ったら動き出す」レールの発動判定用に、接地中のプレイヤーのレール番号を渡す
@@ -476,6 +544,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatar_.Update(avatarContext);
 
 	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
+	backdrop_.Update();
 }
 
 // =====================================================================
@@ -489,6 +558,8 @@ void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 	eggSystem_.Draw();
 	coinSystem_.Draw();
 	swallow_.Draw();                           // 舌（伸ばす/引き込む動作中だけ）
+	intro_.Draw();                             // ステージ開始の演技のロール
+	backdrop_.Draw();                          // スタートのまわりのクラフトの背景
 	roadMesh_.Draw();                          // 道メッシュ（Edit/Play どちらでも見える本番の見た目）
 	// レール経路の緑線マーカーは「エディット中だけ」（Play中・リリース版では道メッシュだけが残る）
 	if ( !playing ) { railField_.DrawMarkers(); }
@@ -513,7 +584,8 @@ void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
 void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
 	aimThrow_.DrawSprite(); // 構え中だけ狙いカーソル
 	// 卵・コインのHUD（プレイ中のみ。エディット中は編集の邪魔になるので出さない）
-	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play ) { hud_.Draw(commandList); }
+	//   ステージ開始の演出の間は隠す（カメラが後ろへ戻り始めたら出す）
+	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play && !intro_.IsHudHidden() ) { hud_.Draw(commandList); }
 }
 
 // =====================================================================
@@ -570,6 +642,17 @@ void GamePlayScene::OnDrawInspector(){
 	targets.combat           = &combat_;
 	targets.avatar           = &avatar_;
 	PlaySceneInspector::Draw(targets);
+#ifdef USE_IMGUI
+	// ステージ開始の演技のクリップを、その場で流して確かめる（「止める」で元の動きへ）
+	if ( ImGui::CollapsingHeader("ステージ開始の演技") ) {
+		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump" } ) {
+			if ( ImGui::Button(clip) ) { avatar_.PlayIntroClip(clip); }
+			ImGui::SameLine();
+		}
+		if ( ImGui::Button("止める") ) { avatar_.ClearIntroClip(); }
+		ImGui::TextDisabled("流しているクリップ：%s", avatar_.GetIntroClip().empty() ? "なし" : avatar_.GetIntroClip().c_str());
+	}
+#endif
 }
 
 // インスペクターの「デバッグ描画」へ足す項目

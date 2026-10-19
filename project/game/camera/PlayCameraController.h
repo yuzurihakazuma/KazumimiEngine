@@ -35,6 +35,9 @@ public:
 
     int ZoneCount() const { return ( int ) zones_.size(); }
 
+    // 今の追従の向き・距離・高さでの、カメラの目標位置（補間しない）。演出のカメラから戻る先に使う
+    Vector3 FollowTargetPosition(const Vector3& playerPos) const;
+
 private:
     // 追従のON/OFFと基準（yaw0/距離/高さの初期値になる）
     bool    followCam_ = true;

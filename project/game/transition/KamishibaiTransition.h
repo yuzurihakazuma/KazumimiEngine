@@ -12,6 +12,7 @@
 //   遷移中はゲーム側のキー操作を止める（Input::SetLocked）。早送り・飛ばしは無い
 // =====================================================================
 #include "engine/scene/ISceneTransition.h"
+#include "game/transition/StageIntroCard.h"
 #include "game/transition/TransitionTimeline.h"
 
 #include <memory>
@@ -40,11 +41,17 @@ public:
 	//   遷移の最中に呼んだら何もしない（二重に切り替えない）。幕の定義が読めない時は、そのまま切り替える
 	static void ChangeSceneWithCurtain(const std::string& sceneName);
 
-	// 読み込み中のカードで次のシーンへ切り替える（カードが右から入る → 隠れている間に切り替え → 左へ引き抜く）。
+	// 読み込み中のカードで次のシーンへ切り替える（カードが右から入る → 隠れている間に切り替え → はさみで切って分かれる）。
 	//   定義は resources/transition/card.json。カードの地は行き先で変わる（resources/kamishibai/card_bg_<シーン名>.png）。
 	//   左右の辺は段ボールの切れ目（ギザギザ）で、カードの上では恐竜・卵・星などが動く（card_layout.json）。
 	//   使い方は ChangeSceneWithCurtain と同じ
 	static void ChangeSceneWithCard(const std::string& sceneName);
+
+	// ステージ開始カードで次のシーン（ステージ）へ切り替える（ステージ開始演出 企画書）。
+	//   台紙が出る → 星・名前の帯・キャラが貼られる → 裏で読み込み → 台紙が後ろへ倒れる →
+	//   プレイヤーが振り向いてアクション → カメラが後ろへ戻って操作開始（シーンへは OnTransitionCue で合図を送る）。
+	//   定義は resources/transition/stage_intro.json、ステージごとの中身は resources/stage_intro/<stage>.json
+	static void ChangeSceneWithStageIntro(const std::string& sceneName, const std::string& stage);
 
 	// --- ISceneTransition ---
 	void Update(float deltaTime) override;
@@ -120,6 +127,8 @@ private:
 	std::unique_ptr<Sprite> valance_;          // 幕の上の段ボールの幕板と三角旗
 	// 読み込み中のカードの地。下の折り目の線（切れ目）で上と下に分けてある（行き先で絵を差し替える）
 	struct CardTextures { uint32_t top = 0, bottom = 0; };
+	StageIntroCard stageIntro_;               // ステージ開始カード（部品 introElement / introFall / letterbox）
+	std::string    stageIntroContent_;        // 次に再生するステージ開始カードの中身（ステージ名）
 	std::unique_ptr<Sprite> cardTop_;
 	std::unique_ptr<Sprite> cardBottom_;
 	std::unique_ptr<Sprite> cardSlit_;         // 切れ目が開いた線（はさみが進んだところまで見せる）
@@ -133,8 +142,8 @@ private:
 	float slitTop_ = 0.0f, slitHeight_ = 0.0f, slitWidth_ = 0.0f;
 	float scissorsWidth_ = 0.0f, scissorsHeight_ = 0.0f;
 
-	// カードの上で動く部品（恐竜・卵・星・雲・花・「…」の点など）
-	enum class CardMotion { None, Walk, Rock, Twinkle, Drift, Sway, Hop, Dot };
+	// カードの上で動く部品（恐竜・敵・卵・星・「…」の点など。ステージ開始カードと同じ絵）
+	enum class CardMotion { None, Walk, Rock, Twinkle, Drift, Sway, Hop, Dot, Stamp };
 	struct CardPiece {
 		std::unique_ptr<Sprite> sprite;
 		float x = 0.0f, y = 0.0f;           // 置き場所（カードの絵の座標。1920x1080 の中）

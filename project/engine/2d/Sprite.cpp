@@ -285,6 +285,18 @@ void Sprite::UpdateVertexData(){
 	float texBottom = (textureLeftTop_.y + textureSize_.y) / texHeight;
 
 
+	// 四すみを直接指定している時は、その位置をそのまま使う（台形など）
+	if ( useCorners_ ) {
+		const Vector2 order[4] = { corners_[0], corners_[2], corners_[1], corners_[3] }; // 左上・左下・右上・右下（頂点の並び）
+		const Vector2 uvs[4] = { { texLeft, texTop }, { texLeft, texBottom }, { texRight, texTop }, { texRight, texBottom } };
+		for ( int i = 0; i < 4; ++i ) {
+			vertexData_[i].position = { order[i].x, order[i].y, 0.0f, 1.0f };
+			vertexData_[i].texcoord = uvs[i];
+			vertexData_[i].normal = { 0.0f, 0.0f, -1.0f };
+		}
+		return;
+	}
+
 	// 0: 左上 (Top-Left)
 	vertexData_[0].position = { left, top, 0.0f, 1.0f }; // Yは上(top)
 	vertexData_[0].texcoord = { texLeft, texTop };            // UVは(0,0)
@@ -307,6 +319,21 @@ void Sprite::UpdateVertexData(){
 
 }
 
+
+// 四すみを直接指定する（台形など）
+void Sprite::SetCorners(const Vector2& topLeft, const Vector2& topRight, const Vector2& bottomLeft, const Vector2& bottomRight){
+	corners_[0] = topLeft;
+	corners_[1] = topRight;
+	corners_[2] = bottomLeft;
+	corners_[3] = bottomRight;
+	useCorners_ = true;
+	UpdateVertexData();
+}
+
+void Sprite::ClearCorners(){
+	useCorners_ = false;
+	UpdateVertexData();
+}
 
 // 切り抜きを指定する関数
 void Sprite::SetTextureRect(float startX, float startY, float width, float height) {

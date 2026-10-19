@@ -56,6 +56,7 @@ public:
     void SetTurnLocked(bool locked){ facing_.SetTurnLocked(locked); }
     // 向きの強制指定（卵の構え中、狙い方向を向かせる）。active=false で通常の移動向きに戻る
     void SetFaceOverride(bool active, float yaw){ facing_.SetOverride(active, yaw); }
+    void SetTurnRate(float rate){ facing_.SetTurnRate(rate); } // 向きを変える速さ（PlayerFacing::kDefaultTurnRate が既定）
 
     // --- ノードエディタの「→ ゲーム値」用：調整したい変数のポインタを公開 ---
     float* MoveSpeedPtr(){ return &moveSpeed_; }

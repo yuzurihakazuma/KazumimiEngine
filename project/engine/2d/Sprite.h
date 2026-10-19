@@ -97,6 +97,11 @@ public:
 
 	// テクスチャの切り抜き範囲を設定する関数 (ピクセル単位で指定)
 	void SetTextureRect(float startX, float startY, float width, float height);
+
+	// 四すみの位置を直接指定して描く（台形など、長方形でない形。位置は SetPosition からのずれ）。
+	//   指定している間は大きさ・アンカー・反転は使わない。ClearCorners で元の長方形に戻る
+	void SetCorners(const Vector2& topLeft, const Vector2& topRight, const Vector2& bottomLeft, const Vector2& bottomRight);
+	void ClearCorners();
 private:
 
 
@@ -176,6 +181,8 @@ private:
 	bool isFlipY_ = false;
 
 	Vector2 textureLeftTop_ = { 0.0f, 0.0f }; // 切り抜き開始位置（ピクセル）
+	bool    useCorners_ = false;                // SetCorners で四すみを直接指定しているか
+	Vector2 corners_[4] {};                     // 左上・右上・左下・右下
 	Vector2 textureSize_ = { 100.0f, 100.0f }; // 切り抜きサイズ（ピクセル）
 
 	bool isDirty_ = true; // 頂点データ更新フラグ

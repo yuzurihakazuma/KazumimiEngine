@@ -23,7 +23,7 @@ void PlayerFacing::UpdateOnRail(const Vector3& tangent, float moveSign, float dt
     float yawDiff = targetYaw_ - yaw;
     while ( yawDiff >  kPi ) yawDiff -= 2.0f * kPi; // 最短弧（+350°回らず -10° で済ませる）
     while ( yawDiff < -kPi ) yawDiff += 2.0f * kPi;
-    yaw += yawDiff * ( std::min )( 18.0f * dt, 1.0f ); // 反転(180°)も素早く向き切る
+    yaw += yawDiff * ( std::min )( turnRate_ * dt, 1.0f ); // 反転(180°)も素早く向き切る（演出中は SetTurnRate でゆっくり）
     while ( yaw >  kPi ) yaw -= 2.0f * kPi; // 値が無限に育たないよう正規化
     while ( yaw < -kPi ) yaw += 2.0f * kPi;
 }

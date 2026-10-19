@@ -70,6 +70,20 @@ void PlayerAvatar::Update(const Context& context){
 	model_->Update();
 }
 
+void PlayerAvatar::PlayIntroClip(const std::string& clip){
+	introClip_ = clip;
+	introRestart_ = true;
+}
+
+void PlayerAvatar::ClearIntroClip(){
+	introClip_.clear();
+	introRestart_ = false;
+}
+
+bool PlayerAvatar::GetJointWorldPosition(const std::string& joint, Vector3& out) const{
+	return model_ && model_->GetJointWorldPosition(joint, out);
+}
+
 void PlayerAvatar::ResetTongueAndHeldEgg(){
 	model_->ClearBoneScaleOverride();
 	tongueSeeked_ = false;
@@ -80,6 +94,18 @@ void PlayerAvatar::ResetTongueAndHeldEgg(){
 void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 	const bool playing = context.playing;
 	const bool aiming  = context.aimThrow && context.aimThrow->IsAiming();
+
+	// ステージ開始演出のクリップが指定されていたら、いちばん先にそれを流す（状態から選び直すと Idle に戻されるため）
+	if ( !introClip_.empty() ) {
+		ResetTongueAndHeldEgg();
+		model_->SetClip(introClip_, false);   // ループなし：最後の形で止まる
+		model_->SetPlaybackSpeed(1.0f);
+		if ( introRestart_ ) {                // SetClip は同じ名前だと時間を戻さないので、指定した瞬間に頭へ
+			model_->SetAnimationTime(0.0f);
+			introRestart_ = false;
+		}
+		return;
+	}
 
 	if ( playing && context.swallow && context.swallow->IsTongueActive() ) {
 		bool wasRetracting = ( model_->GetCurrentClip() == "TongueOut" );

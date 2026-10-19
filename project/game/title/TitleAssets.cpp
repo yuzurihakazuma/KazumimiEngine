@@ -1,4 +1,5 @@
 #include "game/title/TitleAssets.h"
+#include "game/stage/StageBackdrop.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -6,9 +7,6 @@
 #include "engine/graphics/TextureManager.h"
 #include "engine/math/Matrix4x4.h"
 
-#include <algorithm>
-#include <cctype>
-#include <filesystem>
 #include <string>
 
 namespace {
@@ -20,21 +18,6 @@ namespace {
     }
 
     // クラフトキットのモデルを、フォルダにある分だけ全部読む（キットを作り直して物が増えても、ここは直さなくてよい）
-    void LoadKitModels(ModelManager* modelManager){
-        namespace fs = std::filesystem;
-        std::error_code errorCode;
-        for ( const auto& entry : fs::directory_iterator(kKitModelDir, errorCode) ) {
-            if ( !entry.is_regular_file() ) { continue; }
-            std::string extension = entry.path().extension().string();
-            std::transform(extension.begin(), extension.end(), extension.begin(),
-                [](unsigned char character){ return ( char ) std::tolower(character); });
-            if ( extension != ".gltf" ) { continue; }
-            const std::string modelName = entry.path().stem().string();
-            modelManager->LoadModel(modelName, kKitModelDir, entry.path().filename().string(), true);
-            MakeMatte(modelManager->FindModel(modelName));
-        }
-    }
-
     // 同じモデルを別名で読み、指定した面（マテリアル）の画像だけ差し替える
     void LoadWithFace(ModelManager* modelManager, const char* modelName, const char* file,
                       const char* faceMaterial, const char* faceTexture){
@@ -90,7 +73,7 @@ namespace {
 
 void TitleAssets::Load(){
     ModelManager* modelManager = ModelManager::GetInstance();
-    LoadKitModels(modelManager);
+    StageBackdrop::LoadKitModels(); // キットのモデルを全部（本編の背景と共通）
     CreatePaperBits(modelManager);
     LoadRailAndRoad(modelManager);
 

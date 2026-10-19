@@ -3,6 +3,10 @@
 #include "engine/3d/model/ModelManager.h"
 #include "engine/3d/model/Model.h"
 #include "engine/particle/ParticleManager.h"
+#include "game/stage/StageBackdrop.h"
+#include "externals/nlohmann/json.hpp"
+
+#include <fstream>
 
 namespace {
     void LoadSounds(const std::string& bgmFile){
@@ -27,6 +31,54 @@ namespace {
         modelManager->LoadModel("enemyAir",    "resources/enemy", "enemy_air.glb");    // 空中「フワリン」(Fly)
         modelManager->LoadModel("enemyPlant",  "resources/enemy", "enemy_plant.glb");  // 植物「カミバナ」(Idle/Bite)
         modelManager->LoadModel("roadJoint", "resources/road", "road_joint.obj"); // 接続ノードの凸ジョイント（プラレール風）
+    }
+
+    // ステージ開始の演技：巻いた布のロールと、頭の上のキラキラ（パーティクル）。背景はクラフトのキット
+    void LoadStageIntroAssets(ModelManager* modelManager){
+        modelManager->LoadModel("introRoll", "resources/stage_intro/roll", "Roll_Felt.obj", true);
+        if ( Model* roll = modelManager->FindModel("introRoll") ) {
+            if ( roll->GetMaterial() ) { roll->GetMaterial()->matte = 1.0f; } // フェルトなので照り返しなし
+        }
+        StageBackdrop::LoadKitModels();
+        ParticleManager* particles = ParticleManager::GetInstance();
+        particles->CreateParticleGroup("IntroSparkleY", "resources/stage_intro/fx/fx_sparkle_yellow.png");
+        particles->CreateParticleGroup("IntroSparkleP", "resources/stage_intro/fx/fx_sparkle_pink.png");
+        // 設定は resources/ParticleSettings.json から（このグループの分だけ読む。速さは1フレームあたり）
+        ParticleSetting sparkle;
+        sparkle.minVelocity = { -0.01f, 0.01f, -0.01f };
+        sparkle.maxVelocity = { 0.01f, 0.025f, 0.01f };
+        sparkle.gravity = -0.0004f;
+        sparkle.minLifeTime = 0.5f;
+        sparkle.maxLifeTime = 0.8f;
+        sparkle.startScale = 0.25f;
+        sparkle.endScale = 0.0f;
+        sparkle.isBillboard = true;
+        nlohmann::json settings;
+        std::ifstream file("resources/ParticleSettings.json");
+        if ( file.is_open() ) {
+            try { file >> settings; } catch ( ... ) { settings = nlohmann::json::object(); }
+        }
+        for ( const char* name : { "IntroSparkleY", "IntroSparkleP" } ) {
+            ParticleSetting setting = sparkle;
+            if ( settings.contains(name) ) {
+                const nlohmann::json& entry = settings[name];
+                auto vector3 = [&](const char* key, Vector3& out){
+                    if ( entry.contains(key) ) { out = { entry[key][0], entry[key][1], entry[key][2] }; }
+                };
+                vector3("minVelocity", setting.minVelocity);
+                vector3("maxVelocity", setting.maxVelocity);
+                if ( entry.contains("startColor") ) {
+                    setting.startColor = { entry["startColor"][0], entry["startColor"][1], entry["startColor"][2], entry["startColor"][3] };
+                }
+                setting.gravity = entry.value("gravity", setting.gravity);
+                setting.minLifeTime = entry.value("minLifeTime", setting.minLifeTime);
+                setting.maxLifeTime = entry.value("maxLifeTime", setting.maxLifeTime);
+                setting.startScale = entry.value("startScale", setting.startScale);
+                setting.endScale = entry.value("endScale", setting.endScale);
+                setting.isBillboard = entry.value("isBillboard", setting.isBillboard);
+            }
+            particles->SetParticleSetting(name, setting);
+        }
     }
 
     void LoadEffectModels(ModelManager* modelManager){
@@ -97,6 +149,7 @@ void GamePlayAssets::Load(const std::string& bgmFile, std::unordered_map<std::st
     ModelManager* modelManager = ModelManager::GetInstance();
     LoadCharacterModels(modelManager);
     LoadEffectModels(modelManager);
+    LoadStageIntroAssets(modelManager);
     LoadBlockModels(modelManager);
     // パーティクルグループ
     //   ※ 卵の煙／殻の飛び散りは加算パーティクルだと明るい背景で見えないため、

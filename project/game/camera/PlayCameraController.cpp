@@ -181,6 +181,12 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, cons
     camera->SetFovY(camFovCur_);
 }
 
+Vector3 PlayCameraController::FollowTargetPosition(const Vector3& playerPos) const{
+    return { playerPos.x + std::sin(camYawCur_) * camDistCur_,
+             playerPos.y + camHgtCur_,
+             playerPos.z - std::cos(camYawCur_) * camDistCur_ };
+}
+
 // カメラ演出ゾーンの可視化（球=発動範囲 / 白い箱=カメラ位置の目安 / 線=対応）
 void PlayCameraController::DrawZoneMarkers(const std::vector<SplineRail>& rails) const{
     for ( const auto& z : zones_ ) {

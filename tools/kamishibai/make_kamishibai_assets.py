@@ -17,7 +17,7 @@
     card_cut.png   切れ目が開いた線（はさみが進んだところまで見せる）
     card_scissors.png 切るはさみ
                    シーン＝stageselect / gameplay / title / default（名前の帯なし）。名前は CARD_TITLES で変える
-    card_piece_*.png カードの上で動く部品（恐竜・卵・星・雲・花・小さな卵・点）
+    card_piece_*.png カードの上で動く部品（恐竜・敵・卵・星・小さな卵・点。ステージ開始カードと同じ絵）
     card_layout.json 部品の置き場所と動き方（ゲームはこれを読む）
   効果音
     se_hyoshigi.wav 拍子木（カン、カン）
@@ -25,9 +25,13 @@
     se_whoosh.wav   絵が横へ抜ける「シュッ」
     se_patan.wav    段ボールが倒れた「パタン」
     se_snip.wav     はさみで段ボールを切る「ザクザク」
+    se_pon.wav      ステージ開始カードに紙を貼る「ポン」
+    se_roll.wav     ステージ開始カードの巻いた布が転がる「コロコロ」
+    intro_*.png    ステージ開始カード（台紙・星・名前の帯と巻いた布・キャラの切り絵・ステージ名・上下の帯）。
+                   ステージ名は resources/stage_intro/<ステージ>.json から作る。キャラは render_cutouts.py（Blender）の切り絵
 
   窓の位置（FRAME_WINDOW）はコードの kWindow と同じにしておくこと（KamishibaiTransition.cpp）
-  カードの恐竜は tools/kamishibai/dino_cutout.png（ゲーム画面から切り抜いた仮の絵。小さいので少しぼやける。差し替え可）
+  キャラの切り絵（読み込みカード・ステージ開始カード共通）は tools/kamishibai/cutouts/（render_cutouts.py を Blender で実行）
 """
 import math
 import os
@@ -295,6 +299,28 @@ def make_sounds():
                 out[start + i] += (lp * math.exp(-t / 0.014) + click * 0.5) * (0.8 + 0.2 * (k % 2))
     write_wav("se_snip.wav", out)
 
+    # ポン：紙を貼る（高い音から下がる短い音）
+    out = []
+    phase = 0.0
+    for i in range(int(RATE * 0.16)):
+        t = i / RATE
+        freq = 380 + 620 * math.exp(-t / 0.03)
+        phase += 2 * math.pi * freq / RATE
+        out.append(math.sin(phase) * math.exp(-t / 0.05) + rng.uniform(-1, 1) * math.exp(-t / 0.004) * 0.3)
+    write_wav("se_pon.wav", out)
+
+    # コロコロ：巻いた布が転がる（やわらかい雑音に、転がる刻みを付ける）
+    out = []
+    lp = 0.0
+    n = int(RATE * 0.8)
+    for i in range(n):
+        t = i / RATE
+        lp += (rng.uniform(-1, 1) - lp) * 0.08
+        bump = 0.6 + 0.4 * abs(math.sin(2 * math.pi * 7.5 * t * (1.0 - 0.35 * t)))
+        env = min(1.0, t / 0.05) * (1.0 - (i / n) ** 2)
+        out.append(lp * bump * env)
+    write_wav("se_roll.wav", out)
+
 
 TEX = os.path.join(PROJECT, "resources", "craft", "textures")
 
@@ -376,22 +402,6 @@ CARD_TITLES = {             # 行き先のシーン → カードの帯に出す
 }
 
 
-def logo_egg():
-    """タイトルロゴの左の卵（フェルト）を切り抜く"""
-    logo = Image.open(os.path.join(PROJECT, "resources", "title", "logo.png")).convert("RGB")
-    egg = logo.crop((40, 460, 320, 760)).convert("RGBA")
-    mask = Image.new("L", egg.size, 0)
-    rot = math.radians(-14)
-    pts = []
-    for i in range(160):
-        t = 2 * math.pi * i / 160
-        x, y = 100 * math.cos(t), 127 * math.sin(t)
-        pts.append((143 + x * math.cos(rot) - y * math.sin(rot), 158 + x * math.sin(rot) + y * math.cos(rot)))
-    ImageDraw.Draw(mask).polygon(pts, fill=255)
-    egg.putalpha(mask.filter(ImageFilter.GaussianBlur(0.8)))
-    return egg.crop(egg.getbbox())
-
-
 def card_background(width=W):
     """明るいクラフト色の段ボール：細かいざらつき・点々・うっすら縦の段、下に横向きの折り返し"""
     import numpy as np
@@ -415,55 +425,6 @@ def card_background(width=W):
     d.line([(0, H - 172), (W, H - 172)], fill=(110, 75, 40, 150), width=4)
     d.line([(0, H - 166), (W, H - 166)], fill=(255, 240, 210, 110), width=3)
     return img.convert("RGBA")
-
-
-def paste_torn(base, texture, polygon, rotate=0.0, white_edge=7):
-    """polygon の形に texture を切り抜いて貼る（やぶいた紙の白い芯と影つき）"""
-    from PIL import ImageChops
-    mask = Image.new("L", base.size, 0)
-    ImageDraw.Draw(mask).polygon(polygon, fill=255)
-    if rotate:
-        cx = sum(p[0] for p in polygon) / len(polygon)
-        cy = sum(p[1] for p in polygon) / len(polygon)
-        mask = mask.rotate(rotate, center=(cx, cy), resample=Image.BICUBIC)
-    edge = mask.filter(ImageFilter.MaxFilter(white_edge * 2 + 1)) if white_edge else mask
-    shadow = Image.new("RGBA", base.size, (40, 25, 10, 0))
-    shadow.putalpha(ImageChops.offset(edge, 8, 10).filter(ImageFilter.GaussianBlur(7)).point(lambda v: v * 0.45))
-    base.alpha_composite(shadow)
-    if white_edge:
-        white = Image.new("RGBA", base.size, (250, 247, 238, 255))
-        white.putalpha(edge)
-        base.alpha_composite(white)
-    layer = texture.convert("RGBA")
-    layer.putalpha(mask)
-    base.alpha_composite(layer)
-
-
-def torn_rect(cx, cy, w, h, prng, step=9, jitter=6):
-    """やぶいた紙の四角（辺をギザギザに）"""
-    import numpy as np
-    x0, y0, x1, y1 = cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2
-    pts = [(x, y0 + prng.uniform(-jitter, jitter)) for x in np.arange(x0, x1, step)]
-    pts += [(x1 + prng.uniform(-jitter, jitter), y) for y in np.arange(y0, y1, step)]
-    pts += [(x, y1 + prng.uniform(-jitter, jitter)) for x in np.arange(x1, x0, -step)]
-    pts += [(x0 + prng.uniform(-jitter, jitter), y) for y in np.arange(y1, y0, -step)]
-    return pts
-
-
-def torn_star(cx, cy, r, prng, rot=0.0):
-    """ちぎった紙の星"""
-    pts = []
-    for i in range(10):
-        rr = r if i % 2 == 0 else r * 0.48
-        ang = rot + math.pi * i / 5 - math.pi / 2
-        pts.append((cx + rr * math.cos(ang) + prng.uniform(-r * 0.04, r * 0.04),
-                    cy + rr * math.sin(ang) + prng.uniform(-r * 0.04, r * 0.04)))
-    rough = []
-    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
-        for k in range(6):
-            t = k / 6
-            rough.append((x0 + (x1 - x0) * t + prng.uniform(-3, 3), y0 + (y1 - y0) * t + prng.uniform(-3, 3)))
-    return rough
 
 
 def sticker(img, border, scale):
@@ -495,7 +456,7 @@ CARD_DEPTH = 90     # ギザギザの深さ(px)
 
 CARD_CUT_Y = H - 169  # 切れ目（下の折り目の線）。シーンが始まる時、ここをはさみで切って上と下に分かれる
 CARD_CUT_OVERLAP = 3  # 上の部分を切れ目より少し下まで伸ばす（分かれる前に、上下の境目のすき間が見えないように）
-CARD_BANNER_Y = 300               # 行き先の名前の帯の中心の高さ
+CARD_BANNER_Y = 380               # 行き先の名前の帯の中心の高さ（ステージ開始カードとほぼ同じ）
 CARD_CLEAR_Y = 805                # 部品の下の端はここより上（切れ目のまわりは、はさみが通るので何も置かない）
 CARD_TOP_HEIGHT = CARD_CUT_Y + 12   # 上の部分の画像の高さ（切れ目の波の分だけ余裕を持たせる）
 CARD_BOTTOM_TOP = CARD_CUT_Y - 12   # 下の部分の画像の上端
@@ -578,29 +539,57 @@ def piece_with_shadow(img, shadow=(10, 12)):
     return canvas
 
 
-def cut_paper(texture, polygon, size, white_edge=7):
-    """polygon の形のちぎり紙（白い芯のふちつき）を、その大きさの画像で返す"""
-    mask = Image.new("L", size, 0)
-    ImageDraw.Draw(mask).polygon(polygon, fill=255)
-    out = Image.new("RGBA", size, (0, 0, 0, 0))
-    if white_edge:
-        white = Image.new("RGBA", size, (250, 247, 238, 255))
-        white.putalpha(mask.filter(ImageFilter.MaxFilter(white_edge * 2 + 1)))
-        out.alpha_composite(white)
-    layer = texture.crop((0, 0) + size).convert("RGBA")
-    layer.putalpha(mask)
-    out.alpha_composite(layer)
-    return out
+def tint_rgba(img, color):
+    """色（0〜1）を掛ける（sRGB のまま掛ける。ゲームで linear にして掛けた時と同じ見え方になる）"""
+    import numpy as np
+    a = np.asarray(img.convert("RGBA")).astype(np.float32)
+    a[..., :3] *= np.array(color[:3], np.float32)[None, None, :]
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
+
+
+def intro_star_piece(color, scale):
+    """ステージ開始カードと同じ星（白いふち・影の層＋色を掛けた紙の層）を1枚にする"""
+    edge = Image.open(os.path.join(OUT, "intro_star_edge.png")).convert("RGBA")
+    body = tint_rgba(Image.open(os.path.join(OUT, "intro_star.png")), color)
+    edge.alpha_composite(body)
+    return edge.resize((int(edge.width * scale), int(edge.height * scale)), Image.LANCZOS)
+
+
+def paste_center(base, img, cx, cy, angle=0.0):
+    if angle:
+        img = img.rotate(angle, expand=True, resample=Image.BICUBIC)
+    base.alpha_composite(img, (int(cx - img.width / 2), int(cy - img.height / 2)))
+
+
+def intro_banner_image(color):
+    """ステージ開始カードと同じフェルトの帯（影・色を掛けた布・縫い目・右の端の巻き）を1枚にする"""
+    banner = Image.open(os.path.join(OUT, "intro_banner_shadow.png")).convert("RGBA")
+    banner.alpha_composite(tint_rgba(Image.open(os.path.join(OUT, "intro_banner.png")), color))
+    banner.alpha_composite(Image.open(os.path.join(OUT, "intro_banner_stitch.png")).convert("RGBA"))
+    # 右の端：巻いた布（転がり終わった後の太さ）
+    roll_w, roll_h = 74, INTRO_ROLL_HEIGHT
+    roll = Image.open(os.path.join(OUT, "intro_roll.png")).convert("RGBA").crop((0, 0, INTRO_ROLL_PERIOD, roll_h))
+    roll = tint_rgba(roll.resize((roll_w, roll_h), Image.LANCZOS), color)
+    roll.alpha_composite(Image.open(os.path.join(OUT, "intro_roll_shade.png")).convert("RGBA").resize((roll_w, roll_h), Image.LANCZOS))
+    out = Image.new("RGBA", (banner.width + roll_w, max(banner.height, roll_h)), (0, 0, 0, 0))
+    oy = (out.height - banner.height) // 2
+    out.alpha_composite(banner, (0, oy))
+    out.alpha_composite(roll, (banner.width - 30 - roll_w // 2, (out.height - roll_h) // 2))
+    return out, oy
 
 
 def make_cards():
-    """読み込み中のカード。
-    ・背景（card_bg_<シーン>.png）：段ボールの地＋行き先の名前の帯＋「ロードちゅう」。左右の辺は段ボールの切れ目
-    ・動く部品（card_piece_*.png）：恐竜・卵・ちぎり紙の星・段ボールの雲・紙の花・小さな卵・「…」の点
-    ・部品の置き場所と動き方は card_layout.json（ゲームはこれを読んで動かす）"""
+    """読み込み中のカード。ステージ開始カードと同じ部品・同じ色で作る（make_stage_intro の後に呼ぶ）。
+    ・背景（card_bg_<シーン>_top/_bottom.png）：段ボールの地＋フェルトの帯に行き先の名前＋「ロードちゅう」
+    ・動く部品（card_piece_*.png）：恐竜・敵・卵の切り絵、色紙の星、小さな卵、「…」の点
+    ・部品の置き場所と動き方は card_layout.json（ゲームはこれを読んで動かす）
+    ・下の切れ目のまわり（CARD_CLEAR_Y より下）は、はさみが通るので何も置かない"""
     import json
-    egg = logo_egg()
-    dino = Image.open(os.path.join(HERE, "dino_cutout.png")).convert("RGBA")
+    content_path = os.path.join(INTRO_DIR, "stage1.json")  # 色と敵は、ステージ開始カードの中身に合わせる
+    content = json.load(open(content_path, encoding="utf-8")) if os.path.exists(content_path) else {}
+    banner_color = content.get("bannerColor", [0.62, 0.84, 0.24])
+    star_colors = content.get("starColors", [[1.0, 1.0, 1.0]] * 6)
+    enemy = content.get("enemy", "enemy_ground")
     width = W + CARD_MARGIN * 2
     pieces = []
 
@@ -611,10 +600,10 @@ def make_cards():
                        "part": "bottom" if y > CARD_CUT_Y else "top"})
 
     # --- 背景（行き先ごと） ---
+    banner, banner_oy = intro_banner_image(banner_color)
     left, right = card_shape(width)
     outline = left + list(reversed(right))
     for name, title in CARD_TITLES.items():
-        prng = random.Random(3)
         body = card_background(width)
         mask = Image.new("L", (width, H), 0)
         ImageDraw.Draw(mask).polygon(outline, fill=255)
@@ -631,30 +620,20 @@ def make_cards():
         for edge in (left, right):
             d.line(edge, fill=(236, 206, 160, 255), width=10)
             d.line(edge, fill=(110, 75, 40, 255), width=3)
-        card = card.convert("RGB")  # 文字の影を混ぜるため、いったん RGB で描く
-        d = ImageDraw.Draw(card, "RGBA")
         if title:
-            band = Image.new("RGBA", (width, H), (0, 0, 0, 0))
-            paste_torn(band, tiled_texture("paper_grass.png", (width, H), (0.95, 1.1, 0.55)),
-                       torn_rect(CARD_MARGIN + 960, CARD_BANNER_Y, 1180, 230, prng), rotate=-1.5, white_edge=0)
-            card = card.convert("RGBA")
-            card.alpha_composite(band)
-            card = card.convert("RGB")
-            d = ImageDraw.Draw(card, "RGBA")
-            font = ImageFont.truetype(FONT, 104)
-            tx, ty = CARD_MARGIN + 960 - d.textlength(title, font=font) / 2, CARD_BANNER_Y - 62
-            d.text((tx + 4, ty + 5), title, font=font, fill=(60, 90, 20, 160))
-            d.text((tx, ty), title, font=font, fill=(255, 255, 250), stroke_width=2, stroke_fill=(255, 255, 250))
+            # 行き先の名前：ステージ開始カードと同じフェルトの帯と文字
+            bx = CARD_MARGIN + 960 + 37  # 右の端の巻きの分だけ右へ（布の真ん中を画面の真ん中に）
+            card.alpha_composite(banner, (int(bx - banner.width / 2), int(CARD_BANNER_Y - banner_oy - (banner.height - 2 * banner_oy) / 2)))
+            paste_center(card, render_intro_name(title, []), CARD_MARGIN + 960, CARD_BANNER_Y - 8, angle=2.0)
+        card = card.convert("RGB")  # 文字のふちを混ぜるため、いったん RGB で描く
+        d = ImageDraw.Draw(card, "RGBA")
         loading_font = ImageFont.truetype(FONT, 58)
         d.text((CARD_MARGIN + 1380, 960), "ロードちゅう", font=loading_font,
                fill=(255, 255, 250), stroke_width=7, stroke_fill=(70, 45, 20))
         # 透明にするのは切れ目の外だけ
         card = card.convert("RGBA")
-        full = Image.new("RGBA", (width, H), (0, 0, 0, 0))
-        full.alpha_composite(shadow)
         card.putalpha(Image.composite(Image.new("L", (width, H), 255), shadow.getchannel("A"), mask))
         # 切れ目で上と下に分ける（上は切れ目より少し下まで。分かれる前は上が下に重なって、境目が見えない）
-        from PIL import ImageChops
         cut = card_cut_line(width)
         top_mask = Image.new("L", (width, H), 0)
         ImageDraw.Draw(top_mask).polygon([(-20, -20)] + [(x, y + CARD_CUT_OVERLAP) for x, y in cut] + [(width + 40, -20)], fill=255)
@@ -668,56 +647,15 @@ def make_cards():
         top.crop((0, 0, width, CARD_TOP_HEIGHT)).save(os.path.join(OUT, "card_bg_%s_top.png" % name))
         bottom.crop((0, CARD_BOTTOM_TOP, width, H)).save(os.path.join(OUT, "card_bg_%s_bottom.png" % name))
 
-    # --- 動く部品（どの行き先でも同じ） ---
-    prng = random.Random(3)
-    dino_piece = piece_with_shadow(sticker(dino, 12, 2.0))
-    add_piece("dino", dino_piece, 290, 575, "walk", angle=8.0)
-    egg_piece = piece_with_shadow(sticker(egg, 10, 0.85))
-    add_piece("egg", egg_piece, 590, 640, "rock", angle=-12.0)
-    stars = [("paper_blue.png", (1.0, 1.0, 1.0), 210, 190, 120, -0.2),
-             ("paper_grass.png", (0.75, 1.05, 0.95), 440, 105, 55, 0.3),
-             ("paper_white.png", (1.0, 0.72, 0.82), 1450, 580, 65, 0.1),
-             ("paper_yellow.png", (1.0, 1.0, 1.0), 1700, 450, 130, 0.25),
-             ("paper_grass.png", (1.1, 1.15, 0.6), 1110, 650, 125, -0.15)]
-    for i, (texture, tint, cx, cy, r, rot) in enumerate(stars):
-        size = int(r * 2 + 40)
-        star = cut_paper(tiled_texture(texture, (size, size), tint), torn_star(size / 2, size / 2, r, prng, rot), (size, size))
-        add_piece("star%d" % i, piece_with_shadow(star), cx, cy, "twinkle", phase=i * 1.3)
-    # 段ボールの雲（丸を重ねた形を、クラフト紙で切り抜く）
-    cloud_size = (300, 160)
-    cloud_mask = Image.new("L", cloud_size, 0)
-    cd = ImageDraw.Draw(cloud_mask)
-    for bx, by, br in [(70, 100, 50), (130, 70, 62), (200, 82, 55), (245, 108, 40), (150, 112, 48)]:
-        cd.ellipse([bx - br, by - br, bx + br, by + br], fill=255)
-    cloud_tex = tiled_texture("paper_white.png", cloud_size, (1.0, 0.98, 0.94)).convert("RGBA")
-    cloud = Image.new("RGBA", cloud_size, (0, 0, 0, 0))
-    edge = Image.new("RGBA", cloud_size, (150, 120, 85, 255))
-    edge.putalpha(cloud_mask.filter(ImageFilter.MaxFilter(7)))
-    cloud.alpha_composite(edge)
-    cloud_tex.putalpha(cloud_mask)
-    cloud.alpha_composite(cloud_tex)
-    add_piece("cloud", piece_with_shadow(cloud), 1680, 150, "drift")
-    # 紙の花（5枚の花びら＋黄色の真ん中）
-    flower_size = (170, 170)
-    petals = Image.new("L", flower_size, 0)
-    pd = ImageDraw.Draw(petals)
-    for k in range(5):
-        a = math.pi * 2 * k / 5 - math.pi / 2
-        px, py = 85 + 44 * math.cos(a), 85 + 44 * math.sin(a)
-        pd.ellipse([px - 36, py - 36, px + 36, py + 36], fill=255)
-    flower = Image.new("RGBA", flower_size, (0, 0, 0, 0))
-    white = Image.new("RGBA", flower_size, (250, 247, 238, 255))
-    white.putalpha(petals.filter(ImageFilter.MaxFilter(11)))
-    flower.alpha_composite(white)
-    petal_tex = tiled_texture("paper_orange.png", flower_size).convert("RGBA")
-    petal_tex.putalpha(petals)
-    flower.alpha_composite(petal_tex)
-    center = Image.new("L", flower_size, 0)
-    ImageDraw.Draw(center).ellipse([60, 60, 110, 110], fill=255)
-    center_tex = tiled_texture("paper_yellow.png", flower_size).convert("RGBA")
-    center_tex.putalpha(center)
-    flower.alpha_composite(center_tex)
-    add_piece("flower", piece_with_shadow(flower), 820, 690, "sway", phase=0.7)
+    # --- 動く部品（どの行き先でも同じ。ステージ開始カードと同じ並び。下の方の物は切れ目にかからない高さへ上げる） ---
+    #   角度は左回りが正（ステージ開始カードの JSON の角度とは向きが逆）
+    stars = [(290, 230, 1.0, 12), (545, 115, 0.42, -10), (1490, 575, 0.42, 8),
+             (1730, 600, 0.82, -14), (1240, 640, 0.82, 6), (800, 680, 0.52, -18)]
+    for i, (x, y, scale, angle) in enumerate(stars):
+        add_piece("star%d" % i, intro_star_piece(star_colors[i % len(star_colors)], scale), x, y, "twinkle", angle=angle, phase=i * 1.3)
+    add_piece("dino", Image.open(os.path.join(OUT, "intro_char_dino.png")), 300, 580, "walk", angle=4.0)
+    add_piece("egg", Image.open(os.path.join(OUT, "intro_char_egg.png")), 560, 665, "rock", angle=-6.0)
+    add_piece("enemy", Image.open(os.path.join(OUT, "intro_char_%s.png" % enemy)), 1735, 255, "stamp", angle=-4.0)
     # 「ロードちゅう」の後ろの小さな卵と「…」の点
     loading_font = ImageFont.truetype(FONT, 58)
     text_end = 1380 + ImageDraw.Draw(Image.new("RGB", (1, 1))).textlength("ロードちゅう", font=loading_font)
@@ -725,7 +663,7 @@ def make_cards():
     ImageDraw.Draw(dot).ellipse([3, 3, 25, 25], fill=(255, 255, 250, 255), outline=(70, 45, 20, 255), width=5)
     for k in range(3):
         add_piece("dot%d" % k, dot, text_end + 22 + k * 26, 1010, "dot", index=k)
-    add_piece("small_egg", sticker(egg, 4, 0.3), 1868, 995, "hop")
+    add_piece("small_egg", intro_cutout("egg", 62, border=4), 1868, 995, "hop")
 
     for piece in pieces:
         if piece["part"] != "top":
@@ -741,6 +679,239 @@ def make_cards():
         f.write(json.dumps(layout, ensure_ascii=False, indent=2) + "\n")
 
 
+# ---------------- ステージ開始カード ----------------
+INTRO_DIR = os.path.join(PROJECT, "resources", "stage_intro")  # ステージごとの中身（名前・色・敵・カメラ）
+CUTOUT_DIR = os.path.join(HERE, "cutouts")                       # render_cutouts.py が Blender で描き出した切り絵
+INTRO_BANNER_SIZE = (1240, 250)  # 名前の帯（布）の大きさ
+INTRO_ROLL_HEIGHT = 278          # 巻いた布の高さ（帯より少し高い）
+INTRO_ROLL_PERIOD = 120          # 巻いた布の模様の1周期(px)。ゲームはこの幅ずつ模様をずらして転がって見せる
+
+
+def intro_star_mask(size, r, prng):
+    """星の形（角を少し丸めた、ちぎった紙の星）。size×size の L 画像"""
+    k = 4
+    big = Image.new("L", (size * k, size * k), 0)
+    pts = []
+    for i in range(10):
+        rr = (r if i % 2 == 0 else r * 0.5) * k
+        ang = math.pi * i / 5 - math.pi / 2
+        pts.append((size * k / 2 + rr * math.cos(ang) + prng.uniform(-3, 3) * k,
+                    size * k / 2 + rr * math.sin(ang) + prng.uniform(-3, 3) * k))
+    ImageDraw.Draw(big).polygon(pts, fill=255)
+    big = big.filter(ImageFilter.GaussianBlur(9 * k)).point(lambda v: 255 if v > 118 else 0)  # 角を丸める
+    return big.resize((size, size), Image.LANCZOS)
+
+
+def crumple(size, seed, base=(246, 244, 238)):
+    """紙のしわ（白っぽい紙に、ゆるい明暗と折れ線）。色はゲームが掛けるので白で作る"""
+    import numpy as np
+    nrng = np.random.default_rng(seed)
+    w, h = size
+    low = nrng.random((max(2, h // 36), max(2, w // 36)))
+    low = np.asarray(Image.fromarray((low * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC)).astype(np.float32) / 255.0
+    light = 0.88 + 0.12 * low + 0.02 * nrng.normal(0, 1, (h, w))
+    img = Image.fromarray(np.clip(np.array(base, np.float32)[None, None, :] * light[..., None], 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img, "RGBA")
+    prng = random.Random(seed)
+    for _ in range(7):  # 折れ線（明るい線と暗い線を並べる）
+        x0, y0 = prng.uniform(0, w), prng.uniform(0, h)
+        ang = prng.uniform(0, math.pi)
+        length = prng.uniform(w * 0.3, w * 0.8)
+        x1, y1 = x0 + math.cos(ang) * length, y0 + math.sin(ang) * length
+        d.line([(x0, y0), (x1, y1)], fill=(255, 255, 255, 90), width=2)
+        d.line([(x0 + 2, y0 + 2), (x1 + 2, y1 + 2)], fill=(120, 110, 100, 45), width=2)
+    return img
+
+
+def shadow_and_edge(mask, edge=8, shadow=(10, 12)):
+    """白いふち（切り抜いた余白）と、台紙に落ちる影（色は付けない層）"""
+    from PIL import ImageChops
+    w, h = mask.size
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    grown = mask.filter(ImageFilter.MaxFilter(edge * 2 + 1)) if edge else mask
+    sh = Image.new("RGBA", (w, h), (40, 25, 10, 0))
+    sh.putalpha(ImageChops.offset(grown, *shadow).filter(ImageFilter.GaussianBlur(7)).point(lambda v: v * 0.45))
+    out.alpha_composite(sh)
+    if edge:
+        white = Image.new("RGBA", (w, h), (250, 248, 240, 255))
+        white.putalpha(grown)
+        out.alpha_composite(white)
+    return out
+
+
+def intro_cutout(name, height, border=12):
+    """Blender で描き出した切り絵を、白いふち＋影つきのシールにする（高さ height px）"""
+    from PIL import ImageEnhance
+    img = Image.open(os.path.join(CUTOUT_DIR, name + ".png")).convert("RGBA")
+    img = img.crop(img.getchannel("A").getbbox())
+    alpha = img.getchannel("A")
+    rgb = ImageEnhance.Contrast(ImageEnhance.Color(img.convert("RGB")).enhance(1.3)).enhance(1.08)  # 描き出しは淡いので少し濃く
+    img = rgb.convert("RGBA")
+    img.putalpha(alpha)
+    scale = height / img.height
+    return piece_with_shadow(sticker(img, border, scale))
+
+
+def make_intro_name(stem, data):
+    """ステージ名＋ふりがなの画像（白い丸い太字、ふちは濃い緑）"""
+    render_intro_name(data["name"], data.get("ruby", [])).save(os.path.join(OUT, "intro_name_%s.png" % stem))
+
+
+def render_intro_name(title, ruby):
+    """名前＋ふりがなの画像（白い丸い太字、ふちは濃い緑）。ruby＝[(ふりがな, 何文字目から, 何文字)]"""
+    font = ImageFont.truetype(FONT, 112)
+    ruby_font = ImageFont.truetype(FONT, 38)
+    probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    width = int(probe.textlength(title, font=font)) + 80
+    img = Image.new("RGBA", (width, 230), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    tx, ty = 40, 78
+    d.text((tx + 5, ty + 7), title, font=font, fill=(40, 70, 10, 255), stroke_width=12, stroke_fill=(40, 70, 10, 255))  # 影
+    d.text((tx, ty), title, font=font, fill=(255, 255, 250, 255), stroke_width=12, stroke_fill=(70, 110, 20, 255))
+    d.text((tx, ty), title, font=font, fill=(255, 255, 250, 255))
+    for text, start, count in ruby:
+        left = tx + probe.textlength(title[:start], font=font)
+        span = probe.textlength(title[start:start + count], font=font)
+        rx = left + span / 2 - probe.textlength(text, font=ruby_font) / 2
+        d.text((rx, ty - 58), text, font=ruby_font, fill=(255, 255, 250, 255), stroke_width=6, stroke_fill=(70, 110, 20, 255))
+    return img
+
+
+def make_intro_banner():
+    """名前の帯：フェルトの布（色はゲームが掛けるので白っぽく作る）＋縫い目＋影。左の端は少し巻いてある"""
+    import numpy as np
+    w, h = INTRO_BANNER_SIZE
+    pad = 30
+    cw, ch = w + pad * 2, h + pad * 2
+    prng = random.Random(21)
+    # 布の形（上下のふちを手で切ったように少し波打たせる）
+    top = [(pad + x, pad + 4 * math.sin(x / 47.0) + prng.uniform(-2, 2)) for x in range(0, w + 1, 10)]
+    bottom = [(pad + x, pad + h + 4 * math.sin(x / 53.0 + 1.0) + prng.uniform(-2, 2)) for x in range(w, -1, -10)]
+    mask = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(mask).polygon(top + bottom, fill=255)
+    # フェルトの地（毛羽立ち）。灰色がかった白
+    felt = tiled_texture("felt_grass.png", (cw, ch))
+    gray = np.asarray(felt.convert("L")).astype(np.float32)
+    gray = 0.88 + 0.12 * (gray - gray.mean()) / (gray.std() + 1e-5) * 0.4  # 毛羽立ちは控えめに（文字を読みやすく）
+    body = Image.fromarray(np.clip(np.stack([gray * 245, gray * 245, gray * 240], -1), 0, 255).astype(np.uint8)).convert("RGBA")
+    body.putalpha(mask)
+    body.save(os.path.join(OUT, "intro_banner.png"))
+    shadow_and_edge(mask, edge=0, shadow=(12, 14)).save(os.path.join(OUT, "intro_banner_shadow.png"))
+    # 縫い目（白い点線）と、左の端の巻き（色は付けない層）
+    stitch = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    d = ImageDraw.Draw(stitch)
+    for y in (pad + 24, pad + h - 24):
+        dashed_line(d, [(pad + 60, y), (pad + w - 30, y)], (255, 255, 248, 235), width=5, dash=20, gap=12)
+    curl = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(curl).rounded_rectangle([pad - 8, pad - 6, pad + 34, pad + h + 6], radius=20, fill=255)
+    shade = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shade)
+    for i in range(42):  # 巻いた筒の明暗（左が暗く、真ん中が明るい）
+        a = int(110 * (1.0 - math.sin(math.pi * i / 41)))
+        sd.line([(pad - 8 + i, pad - 6), (pad - 8 + i, pad + h + 6)], fill=(40, 30, 10, a))
+    stitch.alpha_composite(Image.composite(shade, Image.new("RGBA", (cw, ch), (0, 0, 0, 0)), curl))
+    d.rounded_rectangle([pad - 8, pad - 6, pad + 34, pad + h + 6], radius=20, outline=(60, 50, 30, 120), width=3)
+    stitch.save(os.path.join(OUT, "intro_banner_stitch.png"))
+
+
+def dashed_line(draw, pts, color, width=4, dash=14, gap=10):
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        length = math.hypot(x1 - x0, y1 - y0)
+        t = 0.0
+        while t < length:
+            t1 = min(length, t + dash)
+            draw.line([(x0 + (x1 - x0) * t / length, y0 + (y1 - y0) * t / length),
+                       (x0 + (x1 - x0) * t1 / length, y0 + (y1 - y0) * t1 / length)], fill=color, width=width)
+            t = t1 + gap
+
+
+def make_intro_roll():
+    """転がる巻いた布：模様（横に2周期ぶん。ゲームが少しずつずらして転がして見せる）と、筒の明暗の層"""
+    import numpy as np
+    p, h = INTRO_ROLL_PERIOD, INTRO_ROLL_HEIGHT
+    felt = tiled_texture("felt_grass.png", (p * 2, h))
+    gray = np.asarray(felt.convert("L")).astype(np.float32)
+    gray = 0.82 + 0.18 * (gray - gray.mean()) / (gray.std() + 1e-5) * 0.5
+    img = Image.fromarray(np.clip(np.stack([gray * 242, gray * 242, gray * 236], -1), 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img, "RGBA")
+    for k in range(4):  # 巻いた布の重なりの線（斜め。1周期に2本）
+        x = k * p / 2
+        d.line([(x, 0), (x + 26, h)], fill=(90, 80, 60, 110), width=4)
+        d.line([(x + 6, 0), (x + 32, h)], fill=(255, 255, 250, 90), width=2)
+    img.save(os.path.join(OUT, "intro_roll.png"))
+    # 筒の明暗（左右が暗く、少し左寄りが明るい）＋上の切り口（巻いた渦）
+    shade = Image.new("RGBA", (p, h), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shade)
+    for i in range(p):
+        t = i / (p - 1)
+        dark = int(150 * (abs(t - 0.4) / 0.6) ** 1.6)
+        sd.line([(i, 0), (i, h)], fill=(30, 22, 8, dark))
+    sd.ellipse([2, -16, p - 2, 30], fill=(235, 232, 220, 255), outline=(90, 80, 60, 255), width=3)
+    for r in (18, 11, 5):
+        sd.arc([p / 2 - r * 2.2, 7 - r * 0.45, p / 2 + r * 2.2, 7 + r * 0.45], 0, 360, fill=(120, 100, 70, 255), width=2)
+    sd.rectangle([0, 0, p - 1, h - 1], outline=(70, 60, 40, 140), width=2)
+    shade.save(os.path.join(OUT, "intro_roll_shade.png"))
+
+
+def make_intro_bar():
+    """画面の上下の帯：濃い茶色の段ボール。内側（画面の中側）のふちに段ボールの芯の明るい線"""
+    img = tiled_texture("kraft.png", (W, 120), (0.46, 0.34, 0.24))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 104, W, 113], fill=(214, 182, 132))
+    d.line([(0, 103), (W, 103)], fill=(50, 32, 16), width=3)
+    d.line([(0, 114), (W, 114)], fill=(50, 32, 16), width=4)
+    img.save(os.path.join(OUT, "intro_bar.png"))
+
+
+def make_intro_backing():
+    """台紙：段ボールの地（左右は段ボールの切れ目、下に紙を重ねた段差）。文字は無い"""
+    from PIL import ImageChops
+    width = W + CARD_MARGIN * 2
+    left, right = card_shape(width)
+    outline = left + list(reversed(right))
+    body = card_background(width)
+    mask = Image.new("L", (width, H), 0)
+    ImageDraw.Draw(mask).polygon(outline, fill=255)
+    card = Image.new("RGBA", (width, H), (0, 0, 0, 0))
+    sh = Image.new("RGBA", (width, H), (40, 25, 10, 0))
+    sh.putalpha(ImageChops.offset(mask, 14, 10).filter(ImageFilter.GaussianBlur(10)).point(lambda v: v * 0.4))
+    card.alpha_composite(sh)
+    body.putalpha(mask)
+    card.alpha_composite(body)
+    d = ImageDraw.Draw(card)
+    for edge in (left, right):
+        d.line(edge, fill=(236, 206, 160, 255), width=10)
+        d.line(edge, fill=(110, 75, 40, 255), width=3)
+    card.save(os.path.join(OUT, "intro_backing.png"))
+
+
+def make_stage_intro():
+    import json
+    import glob
+    make_intro_backing()
+    make_intro_banner()
+    make_intro_roll()
+    make_intro_bar()
+    # 星：形は1つを使い回す。色はゲームが掛けるので白い紙で作り、ふちと影は別の層（色を掛けない）
+    size = 380
+    mask = intro_star_mask(size, 150, random.Random(9))
+    body = crumple((size, size), 4).convert("RGBA")
+    body.putalpha(mask)
+    body.save(os.path.join(OUT, "intro_star.png"))
+    shadow_and_edge(mask).save(os.path.join(OUT, "intro_star_edge.png"))
+    # キャラの切り絵（Blender で描き出した物があれば）
+    for name, height in (("dino", 360), ("egg", 200), ("enemy_ground", 250), ("enemy_air", 230), ("enemy_plant", 280)):
+        if os.path.exists(os.path.join(CUTOUT_DIR, name + ".png")):
+            intro_cutout(name, height).save(os.path.join(OUT, "intro_char_%s.png" % name))
+        else:
+            print("warning: 切り絵がありません（render_cutouts.py を Blender で実行）:", name)
+    # ステージ名（ステージごと）
+    for path in glob.glob(os.path.join(INTRO_DIR, "*.json")):
+        stem = os.path.splitext(os.path.basename(path))[0]
+        with open(path, encoding="utf-8") as f:
+            make_intro_name(stem, json.load(f))
+
+
 make_frame()
 make_curtain()
 make_valance()
@@ -748,5 +919,6 @@ make_doors()
 make_egg()
 make_banner()
 make_sounds()
-make_cards()
+make_stage_intro()
+make_cards()  # ステージ開始カードの星・帯・切り絵を使うので後
 print("wrote", OUT)

@@ -11,10 +11,13 @@
 
 class PlayerFacing {
 public:
+    static constexpr float kDefaultTurnRate = 18.0f; // 目標の向きへ回る速さの既定（約0.17秒で向き切る）
     void Reset();
 
     void SetTurnLocked(bool locked){ turnLocked_ = locked; }
     void SetOverride(bool active, float yaw){ overrideActive_ = active; overrideYaw_ = yaw; }
+    // 目標の向きへ回る速さ（毎秒この倍率で近づく。既定 18＝約0.17秒で向き切る）。演出中はゆっくりにする
+    void SetTurnRate(float rate){ turnRate_ = rate; }
 
     // レール上：tangent=足元の接線 / moveSign=進行符号(0=停止)。yaw を目標へ近づける
     void UpdateOnRail(const Vector3& tangent, float moveSign, float dt, float& yaw);
@@ -33,6 +36,7 @@ private:
     float   targetYaw_ = 0.0f;       // 向きの目標角
     bool    turnLocked_ = false;     // true=目標を更新しない（ベロを出している間）
     bool    overrideActive_ = false; // true=向きを外部指定に合わせる（卵の構え中の狙い方向）
+    float   turnRate_ = kDefaultTurnRate; // 目標の向きへ回る速さ
     float   overrideYaw_ = 0.0f;
     Vector3 groundTangent_ { 0.0f, 0.0f, 1.0f }; // 最後にレールの上にいた時の足元の接線（坂の向き）
 };

@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 class SkinnedObj3d;
 class Obj3d;
@@ -45,6 +46,14 @@ public:
     // 足元と道の上面を合わせる補正（デバッグUIのスライダー用）
     float* ModelYOffsetPtr() { return &modelYOffset_; }
 
+    // ステージ開始演出のクリップ（IntroWave / IntroPush / IntroJump）。指定している間は、状態（空中・歩き・待機）から
+    //   選ぶより先にこれを1回だけ再生し、最後の形で止まる。同じクリップでも頭から流し直す
+    void PlayIntroClip(const std::string& clip);
+    void ClearIntroClip();
+    const std::string& GetIntroClip() const{ return introClip_; }
+    // ボーンの世界での位置（キラキラを頭の上に出すなど）
+    bool GetJointWorldPosition(const std::string& joint, Vector3& out) const;
+
 private:
     // クリップ選択。speedRatio は実際に動いた速さ÷通常の歩く速さ
     void SelectClip(const Context& context, float speedRatio);
@@ -60,4 +69,6 @@ private:
     bool    tongueSeeked_ = false;      // 捕獲時の収納パートへのシークを1回だけ行うためのフラグ
     float   throwTimer_ = 0.0f;         // 投げリリース後の復帰モーション再生の残り時間
     int     blinkFrame_ = 0;            // 無敵中の点滅用
+    std::string introClip_;             // ステージ開始演出のクリップ（空＝指定なし）
+    bool    introRestart_ = false;      // 次の更新で、演出のクリップを頭から流す
 };

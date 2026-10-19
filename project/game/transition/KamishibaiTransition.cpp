@@ -127,6 +127,8 @@ void KamishibaiTransition::Load(){
 	snapshot_->Initialize(DirectXCommon::GetInstance(), SrvManager::GetInstance(), snapshotWidth_, snapshotHeight_);
 
 	for ( const char* sound : kSounds ) { AudioManager::GetInstance()->LoadWave(sound); }
+	stageIntro_.Load();
+	LoadDefinition("stage_intro"); // ステージ開始カードの部品を先に作っておく（効果音も先に読む）
 	LoadDefinition(editDefinitionName_);
 	loaded_ = true;
 }
@@ -150,6 +152,7 @@ void KamishibaiTransition::Finalize(){
 	cardPieces_.clear();
 	cardTextures_.clear();
 	snapshot_.reset();
+	stageIntro_.Finalize();
 	loaded_ = false;
 }
 
@@ -160,6 +163,7 @@ bool KamishibaiTransition::LoadDefinition(const std::string& definitionName){
 	try { file >> definition; } catch ( ... ) { return false; }
 	timeline_.Load(definition.value("parts", json::array()));
 	toScene_ = definition.value("to", std::string("STAGESELECT"));
+	if ( definition.contains("stageIntro") ) { stageIntro_.Configure(definition["stageIntro"]); } // ステージ開始カードの置き場所
 	definitionName_ = definitionName;
 	// 定義に書いた音は先に読んでおく
 	for ( const TransitionTimeline::Part& part : timeline_.Parts() ) {
@@ -170,7 +174,15 @@ bool KamishibaiTransition::LoadDefinition(const std::string& definitionName){
 
 bool KamishibaiTransition::SaveDefinition() const{
 	if ( definitionName_.empty() ) { return false; }
+	// 部品の並び以外（ステージ開始カードの置き場所など）は、今のファイルの中身をそのまま残す
 	json definition = json::object();
+	{
+		std::ifstream current(kDefinitionDir + definitionName_ + ".json");
+		if ( current.is_open() ) {
+			try { current >> definition; } catch ( ... ) { definition = json::object(); }
+		}
+		if ( !definition.is_object() ) { definition = json::object(); }
+	}
 	definition["to"] = toScene_;
 	definition["parts"] = timeline_.Save();
 	std::ofstream file(kDefinitionDir + definitionName_ + ".json");
@@ -213,6 +225,8 @@ bool KamishibaiTransition::Play(const std::string& definitionName, const std::st
 	const CardTextures& textures = ( cardTexture != cardTextures_.end() ) ? cardTexture->second : defaultCardTextures_;
 	cardTop_->SetTexture(textures.top);
 	cardBottom_->SetTexture(textures.bottom);
+	stageIntro_.Reset();
+	if ( !stageIntroContent_.empty() ) { stageIntro_.SetContent(stageIntroContent_); }
 	Input::GetInstance()->SetLocked(true); // 遷移中はゲーム側のキー操作を止める
 	timeline_.Start();
 	return true;
@@ -229,6 +243,12 @@ void KamishibaiTransition::ChangeSceneWith(const std::string& definitionName, co
 void KamishibaiTransition::ChangeSceneWithCurtain(const std::string& sceneName){ ChangeSceneWith("curtain", sceneName); }
 void KamishibaiTransition::ChangeSceneWithCard(const std::string& sceneName){ ChangeSceneWith("card", sceneName); }
 
+void KamishibaiTransition::ChangeSceneWithStageIntro(const std::string& sceneName, const std::string& stage){
+	if ( GetInstance()->IsActive() ) { return; }
+	GetInstance()->stageIntroContent_ = stage;
+	ChangeSceneWith("stage_intro", sceneName);
+}
+
 void KamishibaiTransition::Update(float deltaTime){
 	if ( !active_ ) { return; }
 
@@ -240,6 +260,7 @@ void KamishibaiTransition::Update(float deltaTime){
 
 	const float step = ( std::min )( deltaTime, kMaxStep );
 	timeline_.Update(step);
+	stageIntro_.Update(timeline_.GetTime());
 	ApplyParts(step);
 	if ( active_ && timeline_.GetTime() > kSafetyTime ) { Finish(); }
 }
@@ -362,6 +383,27 @@ void KamishibaiTransition::ApplyParts(float step){
 			// 枠をくぐる：枠が大きくなって画面の外へ出ていく
 			frameZoom_ = 1.0f + ( params.value("scale", 2.6f) - 1.0f ) * Easing::EaseInCubic(p);
 			frameAlpha_ = 1.0f - Easing::Clamp01(( p - 0.65f ) / 0.35f);
+		} else if ( part.type == "introElement" ) {
+			// ステージ開始カードの部品の動き（台紙・星・名前の帯・ステージ名・キャラ）
+			stageIntro_.Animate(params.value("id", std::string()), params.value("motion", std::string()), p, part.elapsed);
+		} else if ( part.type == "introFall" ) {
+			stageIntro_.SetFall(p); // 台紙ごと後ろへ倒れる（その奥に次のシーン）
+		} else if ( part.type == "introLift" ) {
+			stageIntro_.SetLift(p); // 台紙ごと画面の上へ引き抜く（その下に次のシーン）
+		} else if ( part.type == "letterbox" ) {
+			stageIntro_.SetBars(params.value("in", true) ? p : 1.0f - p);
+		} else if ( part.type == "sceneCue" ) {
+			// シーンへ合図を送る（プレイヤーの振り向き・アクション・カメラの戻りなど）
+			if ( part.justStarted ) {
+				if ( IScene* scene = SceneManager::GetInstance()->GetCurrentScene() ) { scene->OnTransitionCue(params.value("cue", std::string())); }
+			}
+		} else if ( part.type == "waitAll" ) {
+			// 「読み込み完了」と「最短表示時間の経過」がそろったら、次へ進む合図を出す
+			bool ready = timeline_.GetTime() >= params.value("minTime", 0.0f);
+			for ( const json& event : params.value("events", json::array()) ) {
+				if ( event.is_string() && !timeline_.HasFired(event.get<std::string>()) ) { ready = false; }
+			}
+			if ( ready ) { timeline_.Fire(params.value("emit", std::string("ready"))); }
 		} else if ( part.type == "end" ) {
 			if ( part.justStarted ) { Finish(); return; }
 		}
@@ -473,6 +515,7 @@ void KamishibaiTransition::DrawLayers(ID3D12GraphicsCommandList* commandList, fl
 		DrawSprite(valance_.get(), { 0.0f, -valanceHeight * ( 1.0f - valanceDrop_ ) }, { width, valanceHeight }, Colors::WHITE);
 	}
 	if ( cardVisible_ ) { DrawCard(width, height, scaleX, scaleY); }
+	stageIntro_.Draw(width, height); // ステージ開始カードと上下の帯（使っていなければ何も描かない）
 	if ( bannerAlpha_ > 0.001f ) {
 		DrawSprite(banner_.get(), { center.x, height * 0.47f },
 		           { kBannerWidth * scaleX * bannerScale_, kBannerHeight * scaleX * bannerScale_ }, { 1.0f, 1.0f, 1.0f, bannerAlpha_ });
@@ -521,6 +564,7 @@ void KamishibaiTransition::LoadCardLayout(){
 	const std::pair<const char*, CardMotion> motionNames[] = {
 		{ "walk", CardMotion::Walk }, { "rock", CardMotion::Rock }, { "twinkle", CardMotion::Twinkle },
 		{ "drift", CardMotion::Drift }, { "sway", CardMotion::Sway }, { "hop", CardMotion::Hop }, { "dot", CardMotion::Dot },
+		{ "stamp", CardMotion::Stamp },
 	};
 	TextureManager* textures = TextureManager::GetInstance();
 	for ( const json& entry : layout.value("pieces", json::array()) ) {
@@ -587,6 +631,7 @@ void KamishibaiTransition::DrawCard(float width, float height, float scaleX, flo
 		case CardMotion::Drift:   moveX = std::sin(t * 0.9f) * 26.0f; moveY = std::sin(t * 1.3f) * 6.0f; break;          // ふわふわ流れる
 		case CardMotion::Sway:    turn = std::sin(t * 2.2f) * 0.22f; break;                                              // 風にゆれる
 		case CardMotion::Hop:     moveY = -std::abs(std::sin(t * 5.0f)) * 10.0f; turn = std::sin(t * 5.0f) * 0.2f; break; // ぴょこぴょこ
+		case CardMotion::Stamp:   moveY = -std::abs(std::sin(t * 9.0f)) * 7.0f; turn = std::sin(t * 4.5f) * 0.04f; break;  // 足踏み
 		case CardMotion::Dot:     if ( ( int ) ( time * 3.0f ) % 4 <= piece.index ) { continue; } break;                 // 「…」が1つずつ増える
 		default: break;
 		}
