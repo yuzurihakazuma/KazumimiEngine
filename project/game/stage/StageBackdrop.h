@@ -1,20 +1,25 @@
 #pragma once
 // =====================================================================
-//  StageBackdrop：本編のスタートのまわりに置くクラフトの背景（空・丘・雲・柵・看板・草花・地面）。
-//   ステージ開始の演技を撮るイントロカメラと、最初の通常カメラに映る範囲だけを埋める
-//   （カードが抜けた先が水色のクリアカラーにならないように）。
-//   置き場所はステージごと（resources/stage_intro/<stage>.json の "backdrop"）に、スタート位置からの相対位置で書く：
-//     { "model": "hill_backdrop_00", "offset": [x, y, z], "rotY": 180, "scale": 2.6 }
-//     "grid": { "x": [から, まで, 間隔], "z": [から, まで, 間隔] } を付けると、その範囲に並べる（地面のタイルなど）
+//  StageBackdrop：本編のステージに置くクラフトの背景（地面・空・丘・雲・木・柵・看板・草花）。
+//   ステージ全体の置き場所は tools/stage_intro/make_stage_backdrop.py がマップ（道）から作る：
+//     resources/map/<ステージ>_backdrop.json の "objects"
+//       { "model": "ground_block_step", "pos": [x, y, z], "rotY": 180, "scale": [sx, sy, sz] }
+//     （"offset" と書いた物は、Build に渡した origin からの相対位置。"rot": [x, y, z]（度）と書けば X・Z 回りも回せる）
+//   同じモデルはまとめて1回で描く（InstancedGroup）。Obj3d は作らず、行列を直接計算して渡す
+//   （地面のタイルや草花は数百個あるので、1個ずつ描くと重い）。
 //   モデルは resources/craft/models（タイトルと同じキット）。LoadKitModels で読む
 // =====================================================================
+#include "engine/3d/obj/Obj3d.h"
 #include "engine/math/struct.h"
 #include "externals/nlohmann/json.hpp"
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
-class Obj3d;
+class Camera;
+class InstancedGroup;
 
 class StageBackdrop {
 public:
@@ -24,14 +29,18 @@ public:
     // クラフトのキットのモデルを全部読む（底面原点のまま・つやなし）。タイトルと本編で共通
     static void LoadKitModels();
 
-    // 置き場所の一覧から物を作る（origin＝スタート位置）
-    void Build(const nlohmann::json& list, const Vector3& origin);
+    // 置き場所の一覧から作る。noiseSrv＝ディゾルブのノイズ画像（一括描画が必ず束縛するので、読み込み済みの物を渡す）
+    void Build(const nlohmann::json& list, const Vector3& origin, uint32_t noiseSrv);
     void Clear();
-    void Update();  // カメラの行列を反映（毎フレーム）
-    void Draw();
+    void Update(const Camera* camera); // カメラの行列を反映（毎フレーム）
+    void Draw(const Camera* camera);   // 一括描画（BaseScene::OnDrawInstanced から）
+    size_t GetObjectCount() const;
 
 private:
-    void Add(const std::string& model, const Vector3& position, float rotationY, const Vector3& scale);
-
-    std::vector<std::unique_ptr<Obj3d>> objects_;
+    struct Group {
+        std::string model;
+        std::vector<Obj3d::TransformationMatrix> matrices; // World と WorldInverseTranspose は作る時に計算済み
+        std::unique_ptr<InstancedGroup> batch;
+    };
+    std::vector<Group> groups_;
 };

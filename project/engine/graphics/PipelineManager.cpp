@@ -21,6 +21,8 @@ void PipelineManager::Finalize(){
 	object3DPipelineStateNone_.Reset();
 	object3DWrapRootSignature_.Reset();
 	object3DWrapPipelineState_.Reset();
+	instancedObject3DWrapRootSignature_.Reset();
+	instancedObject3DWrapPipelineState_.Reset();
 
 	// インスタンシング専用のリソースも忘れずに解放
 	instancedObject3DRootSignature_.Reset();
@@ -136,6 +138,10 @@ void PipelineManager::SetPipeline(
 	case PipelineType::InstancedObject3D: // インスタンシング専用
 		commandList->SetGraphicsRootSignature(instancedObject3DRootSignature_.Get());
 		commandList->SetPipelineState(instancedObject3DPipelineState_.Get());
+		break;
+	case PipelineType::InstancedObject3D_WrapUV: // インスタンシング（タイル貼りのモデル用。バインドの並びは同じ）
+		commandList->SetGraphicsRootSignature(instancedObject3DWrapRootSignature_.Get());
+		commandList->SetPipelineState(instancedObject3DWrapPipelineState_.Get());
 		break;
 	case PipelineType::Particle: // パーティクル用
 		commandList->SetGraphicsRootSignature(particleRootSignature_.Get());
@@ -295,8 +301,8 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 }
 // ルートシグネチャの生成 インスタンシング専用
 void PipelineManager::CreateInstancedObject3DRootSignature(){
-
-
+	// 通常版と「縦もリピートする版」を作る。違いはサンプラーだけで、バインドの並びは同じ
+	for ( bool wrapV : { false, true } ) {
 	RootSignatureBuilder builder;
 
 	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
@@ -315,10 +321,9 @@ void PipelineManager::CreateInstancedObject3DRootSignature(){
 
 	builder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [9]: 環境マップ (t3)
 
-	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
-	builder.Build(dxCommon_->GetDevice(), instancedObject3DRootSignature_);
-
-
+	builder.AddDefaultSampler(0, wrapV);                             // サンプラー (s0)
+	builder.Build(dxCommon_->GetDevice(), wrapV ? instancedObject3DWrapRootSignature_ : instancedObject3DRootSignature_);
+	}
 }
 
 // グラフィックスパイプラインの生成 インスタンシング専用
@@ -333,16 +338,18 @@ void PipelineManager::CreateInstancedObject3DGraphicsPipeline(){
 		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	GraphicsPipelineBuilder builder;
-	builder.SetRootSignature(instancedObject3DRootSignature_.Get())
-		.SetShaders(vsBlob.Get(), psBlob.Get())
-		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
-		.SetBlendMode(BlendMode::kNormal)
-		.SetCullMode(D3D12_CULL_MODE_BACK)
-		.SetDepthStencil(true, true) // 深度書き込みON
-		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // RTVフォーマットを指定
-
-	builder.Build(dxCommon_->GetDevice(), instancedObject3DPipelineState_);
+	// 通常版と、タイル貼りのモデル用（テクスチャを縦横ともリピート）
+	for ( bool wrapV : { false, true } ) {
+		GraphicsPipelineBuilder builder;
+		builder.SetRootSignature(wrapV ? instancedObject3DWrapRootSignature_.Get() : instancedObject3DRootSignature_.Get())
+			.SetShaders(vsBlob.Get(), psBlob.Get())
+			.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
+			.SetBlendMode(BlendMode::kNormal)
+			.SetCullMode(D3D12_CULL_MODE_BACK)
+			.SetDepthStencil(true, true) // 深度書き込みON
+			.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // RTVフォーマットを指定
+		builder.Build(dxCommon_->GetDevice(), wrapV ? instancedObject3DWrapPipelineState_ : instancedObject3DPipelineState_);
+	}
 
 
 }

@@ -55,6 +55,8 @@ GamePlayScene::~GamePlayScene() = default;
 namespace {
 	// 今のステージの名前（resources/stage_intro/<名前>.json：ステージ開始カードの中身とイントロカメラ）
 	constexpr const char* kStageName = "stage1";
+	// 遠くの見える限界（m）。カメラの既定 100 だと、ステージの奥の空（80m ほど先）が斜めから見た時に切れる
+	constexpr float kFarClip = 200.0f;
 }
 
 void GamePlayScene::OnLoadResources(){
@@ -87,20 +89,19 @@ void GamePlayScene::OnInitialize(){
 	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
 	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
 	BuildBackdrop();
+	// 遠くの見える限界を広げる（ステージの奥の丘・空は 80m ほど先。斜めに見るイントロのカメラでも切れないように）
+	GetCamera()->SetFarClip(kFarClip);
 }
 
-// スタートのまわりにクラフトの背景を置く（resources/stage_intro/<stage>.json の backdrop。スタート位置からの相対）
+// ステージ全体にクラフトの背景を置く（resources/map/<stage>_backdrop.json。tools/stage_intro/make_stage_backdrop.py がマップから作る）
 void GamePlayScene::BuildBackdrop(){
-	std::ifstream file(std::string("resources/stage_intro/") + kStageName + ".json");
-	nlohmann::json content;
+	std::ifstream file(std::string("resources/map/") + kStageName + "_backdrop.json");
+	nlohmann::json content = nlohmann::json::object(); // 無い・読めない時は背景なし
 	if ( file.is_open() ) {
 		try { file >> content; } catch ( ... ) { content = nlohmann::json::object(); }
 	}
-	Vector3 start {};
-	const auto& rails = railField_.GetRails();
-	const int rail = railField_.GetStartRail();
-	if ( rail >= 0 && rail < ( int ) rails.size() ) { start = rails[rail].GetPositionByDistance(railField_.GetStartDistance()); }
-	backdrop_.Build(content.value("backdrop", nlohmann::json::array()), start);
+	if ( !content.is_object() ) { content = nlohmann::json::object(); }
+	backdrop_.Build(content.value("objects", nlohmann::json::array()), { 0.0f, 0.0f, 0.0f }, textures_["uvChecker"].srvIndex);
 }
 
 StageIntroSequence::Context GamePlayScene::IntroContext(){
@@ -544,7 +545,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatar_.Update(avatarContext);
 
 	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
-	backdrop_.Update();
+	backdrop_.Update(GetCamera());
 }
 
 // =====================================================================
@@ -559,7 +560,6 @@ void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 	coinSystem_.Draw();
 	swallow_.Draw();                           // 舌（伸ばす/引き込む動作中だけ）
 	intro_.Draw();                             // ステージ開始の演技のロール
-	backdrop_.Draw();                          // スタートのまわりのクラフトの背景
 	roadMesh_.Draw();                          // 道メッシュ（Edit/Play どちらでも見える本番の見た目）
 	// レール経路の緑線マーカーは「エディット中だけ」（Play中・リリース版では道メッシュだけが残る）
 	if ( !playing ) { railField_.DrawMarkers(); }
@@ -567,6 +567,7 @@ void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 
 void GamePlayScene::OnDrawInstanced(){
 	blockSystem_.Draw(GetCamera()); // 配置ブロック（見た目グループごとに1ドローコール）
+	backdrop_.Draw(GetCamera());    // ステージのクラフトの背景（モデルごとに1ドローコール）
 }
 
 void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/){

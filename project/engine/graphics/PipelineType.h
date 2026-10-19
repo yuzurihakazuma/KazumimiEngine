@@ -10,4 +10,5 @@ enum class PipelineType{
 	Skybox, // スカイボックス用
 	Object3D_Additive, // 3Dオブジェクト用（加算合成）
 	Object3D_WrapUV, // 3Dオブジェクト用（テクスチャを縦横ともリピート。タイル貼りのモデル用）
+	InstancedObject3D_WrapUV, // インスタンシング（テクスチャを縦横ともリピート。タイル貼りのモデル用）
 };

@@ -7,7 +7,9 @@
 #include "Engine/3D/Obj/Obj3dCommon.h"
 #include "Engine/Camera/Camera.h"
 #include "Engine/Graphics/SrvManager.h"
+#include <algorithm>
 #include <cassert>
+#include <cstring>
 
 void InstancedGroup::Initialize(const std::string& modelName, uint32_t maxInstanceCount) {
 	maxInstanceCount_ = maxInstanceCount;
@@ -40,6 +42,13 @@ void InstancedGroup::Update(const std::vector<std::unique_ptr<Obj3d>>& objects) 
 	}
 }
 
+void InstancedGroup::Update(const std::vector<Obj3d::TransformationMatrix>& matrices) {
+	currentInstanceCount_ = ( std::min )( ( uint32_t ) matrices.size(), maxInstanceCount_ );
+	if ( currentInstanceCount_ > 0 ) {
+		std::memcpy(instancingData_, matrices.data(), sizeof(Obj3d::TransformationMatrix) * currentInstanceCount_);
+	}
+}
+
 void InstancedGroup::Update(const std::vector<Obj3d*>& objects) {
 	currentInstanceCount_ = 0;
 	for (Obj3d* obj : objects) {
@@ -56,7 +65,9 @@ void InstancedGroup::Draw(const Camera* camera) {
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
 	// 1. パイプラインを「一括描画専用(InstancedObject3D)」に切り替え！
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::InstancedObject3D);
+	// タイル貼りのモデル（UV が 0〜1 を超えて繰り返す）は、テクスチャを縦もリピートする版で描く（Obj3d と同じ判断）
+	PipelineManager::GetInstance()->SetPipeline(commandList,
+		model_->UsesTiledUV() ? PipelineType::InstancedObject3D_WrapUV : PipelineType::InstancedObject3D);
 
 	// 2. 1万個分の配列を直接GPUにドーンと渡す！ (t0)
 	commandList->SetGraphicsRootShaderResourceView(1, instancingResource_->GetGPUVirtualAddress());

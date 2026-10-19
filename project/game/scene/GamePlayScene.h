@@ -51,7 +51,7 @@ public:
 
 private:
 	StageIntroSequence::Context IntroContext(); // 演技に使う部品をまとめる
-	void BuildBackdrop();                       // スタートのまわりのクラフトの背景を置く
+	void BuildBackdrop();                       // ステージ全体のクラフトの背景を置く
 public:
 
 private:
@@ -116,7 +116,7 @@ private:
 	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
 	StageFlow      stageFlow_;    // ゴール判定
 	StageIntroSequence intro_;    // ステージ開始の演技（遷移の合図で動く）
-	StageBackdrop  backdrop_;     // スタートのまわりのクラフトの背景（空・丘・雲・柵・草花・地面）
+	StageBackdrop  backdrop_;     // ステージ全体のクラフトの背景（地面・空・丘・雲・木・柵・草花）
 	CoinSystem     coinSystem_;   // 収集物（コイン）
 	BlockSystem    blockSystem_;  // 乗れる/ぶつかるブロック
 	StageObstacles obstacles_;    // 卵・吐き出し弾の壁・地面判定（ブロック＋道）

@@ -21,6 +21,8 @@ public:
 	void Update(const std::vector<std::unique_ptr<Obj3d>>& objects);
 	// 更新（非所有ポインタ版。プールした Obj3d をグループへ振り分けて使う側向け）
 	void Update(const std::vector<Obj3d*>& objects);
+	// 更新（行列を直接渡す版。Obj3d を作らずに大量に並べる側向け。WVP は呼ぶ側で計算しておく）
+	void Update(const std::vector<Obj3d::TransformationMatrix>& matrices);
 
 	// 一括描画！
 	void Draw(const Camera* camera);

@@ -2,11 +2,14 @@
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
-#include "engine/3d/obj/Obj3d.h"
+#include "engine/camera/Camera.h"
+#include "engine/graphics/InstancedGroup.h"
+#include "engine/math/Matrix4x4.h"
 
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <map>
 #include <string>
 
 using json = nlohmann::json;
@@ -44,42 +47,60 @@ void StageBackdrop::LoadKitModels(){
     }
 }
 
-void StageBackdrop::Add(const std::string& model, const Vector3& position, float rotationY, const Vector3& scale){
-    if ( !ModelManager::GetInstance()->FindModel(model) ) { return; } // 読んでいないモデルは置かない
-    std::unique_ptr<Obj3d> object = Obj3d::Create(model, position, { 0.0f, rotationY, 0.0f }, scale);
-    if ( object ) { objects_.push_back(std::move(object)); }
-}
-
-void StageBackdrop::Build(const json& list, const Vector3& origin){
+void StageBackdrop::Build(const json& list, const Vector3& origin, uint32_t noiseSrv){
     Clear();
     if ( !list.is_array() ) { return; }
+    // モデルごとに、置く物の行列を集める（World と WorldInverseTranspose は動かないので、ここで計算しておく）
+    std::map<std::string, std::vector<Obj3d::TransformationMatrix>> byModel;
     for ( const json& entry : list ) {
         const std::string model = entry.value("model", std::string());
-        const Vector3 offset = ReadVector(entry.value("offset", json()), { 0.0f, 0.0f, 0.0f });
-        const Vector3 scale = ReadVector(entry.value("scale", json(1.0f)), { 1.0f, 1.0f, 1.0f });
-        const float rotationY = entry.value("rotY", 180.0f) * kPi / 180.0f;
-        if ( entry.contains("grid") ) {
-            // 並べる（地面のタイルなど）：x と z の範囲を間隔ごとに
-            const json& grid = entry["grid"];
-            const Vector3 rangeX = ReadVector(grid.value("x", json()), { 0.0f, 0.0f, 1.0f });
-            const Vector3 rangeZ = ReadVector(grid.value("z", json()), { 0.0f, 0.0f, 1.0f });
-            for ( float x = rangeX.x; x <= rangeX.y + 1e-3f; x += ( std::max )( rangeX.z, 0.1f ) ) {
-                for ( float z = rangeZ.x; z <= rangeZ.y + 1e-3f; z += ( std::max )( rangeZ.z, 0.1f ) ) {
-                    Add(model, { origin.x + offset.x + x, origin.y + offset.y, origin.z + offset.z + z }, rotationY, scale);
-                }
-            }
-            continue;
+        if ( !ModelManager::GetInstance()->FindModel(model) ) { continue; } // 読んでいないモデルは置かない
+        Vector3 position = ReadVector(entry.value("pos", json()), { 0.0f, 0.0f, 0.0f });
+        if ( entry.contains("offset") ) {
+            const Vector3 offset = ReadVector(entry["offset"], { 0.0f, 0.0f, 0.0f });
+            position = { origin.x + offset.x, origin.y + offset.y, origin.z + offset.z };
         }
-        Add(model, { origin.x + offset.x, origin.y + offset.y, origin.z + offset.z }, rotationY, scale);
+        const Vector3 scale = ReadVector(entry.value("scale", json(1.0f)), { 1.0f, 1.0f, 1.0f });
+        // 向き（度）："rot" [x, y, z]（裏返して置く物など）か、"rotY"（Y 回りだけ）
+        Vector3 rotation = { 0.0f, entry.value("rotY", 180.0f), 0.0f };
+        if ( entry.contains("rot") ) { rotation = ReadVector(entry["rot"], rotation); }
+        rotation = { rotation.x * kPi / 180.0f, rotation.y * kPi / 180.0f, rotation.z * kPi / 180.0f };
+        Obj3d::TransformationMatrix matrix {};
+        matrix.World = MatrixMath::MakeAffine(scale, rotation, position); // Obj3d::Update と同じ作り方
+        matrix.WorldInverseTranspose = MatrixMath::Transpose(MatrixMath::Inverse(matrix.World));
+        matrix.WVP = matrix.World;
+        byModel[model].push_back(matrix);
+    }
+    for ( auto& [model, matrices] : byModel ) {
+        Group group;
+        group.model = model;
+        group.matrices = std::move(matrices);
+        group.batch = std::make_unique<InstancedGroup>();
+        group.batch->Initialize(model, ( uint32_t ) group.matrices.size());
+        group.batch->SetNoiseTexture(noiseSrv);
+        groups_.push_back(std::move(group));
     }
 }
 
-void StageBackdrop::Clear(){ objects_.clear(); }
+void StageBackdrop::Clear(){ groups_.clear(); }
 
-void StageBackdrop::Update(){
-    for ( auto& object : objects_ ) { object->Update(); }
+void StageBackdrop::Update(const Camera* camera){
+    if ( !camera ) { return; }
+    const Matrix4x4& viewProjection = camera->GetViewProjectionMatrix();
+    for ( Group& group : groups_ ) {
+        for ( Obj3d::TransformationMatrix& matrix : group.matrices ) {
+            matrix.WVP = MatrixMath::Multiply(matrix.World, viewProjection);
+        }
+        group.batch->Update(group.matrices);
+    }
 }
 
-void StageBackdrop::Draw(){
-    for ( auto& object : objects_ ) { object->Draw(); }
+void StageBackdrop::Draw(const Camera* camera){
+    for ( Group& group : groups_ ) { group.batch->Draw(camera); }
+}
+
+size_t StageBackdrop::GetObjectCount() const{
+    size_t count = 0;
+    for ( const Group& group : groups_ ) { count += group.matrices.size(); }
+    return count;
 }

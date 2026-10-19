@@ -123,6 +123,9 @@ private:
 	// インスタンシング専用の変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancedObject3DRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancedObject3DPipelineState_;
+	// テクスチャを縦横ともリピートする版（サンプラーだけが違う。InstancedObject3D_WrapUV）
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancedObject3DWrapRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancedObject3DWrapPipelineState_;
 
 	// パーティクル用変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;
