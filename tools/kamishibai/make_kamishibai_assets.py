@@ -12,13 +12,12 @@
     hajimari.png   「はじまり、はじまり」の紙の帯
     curtain.png    赤い色画用紙の蛇腹の幕（左の幕。右は左右反転して使う）
     valance.png    幕の上の段ボールの幕板と三角旗
-    card_bg_<シーン>_top/_bottom.png 読み込み中に出す段ボールのカードの地（行き先の名前の帯・ロードちゅう。左右は段ボールの切れ目）。
+    intro_backing_top/_bottom.png カードの台紙（読み込み中・ステージ開始で共通。左右は段ボールの切れ目、下の段に「ロードちゅう」）。
                    下の折り目の線（CARD_CUT_Y）で上と下に分けてある。シーンが始まる時、はさみでここを切って分かれる
-    card_cut.png   切れ目が開いた線（はさみが進んだところまで見せる）
-    card_scissors.png 切るはさみ
-                   シーン＝stageselect / gameplay / title / default（名前の帯なし）。名前は CARD_TITLES で変える
-    card_piece_*.png カードの上で動く部品（恐竜・敵・卵・星・小さな卵・点。ステージ開始カードと同じ絵）
-    card_layout.json 部品の置き場所と動き方（ゲームはこれを読む）
+    intro_cut.png  切れ目が開いた線（はさみが進んだところまで見せる）
+    intro_scissors.png 切るはさみ
+    intro_layout.json カードの部品の置き場所と、切れ目・はさみの寸法（ゲームはこれを読む）
+                   帯に出す名前は resources/stage_intro/<中身>.json（ステージ＝stage1、読み込み中＝card_<行き先のシーン>）
   効果音
     se_hyoshigi.wav 拍子木（カン、カン）
     se_door.wav     扉がバンッと開く
@@ -27,8 +26,8 @@
     se_snip.wav     はさみで段ボールを切る「ザクザク」
     se_pon.wav      ステージ開始カードに紙を貼る「ポン」
     se_roll.wav     ステージ開始カードの巻いた布が転がる「コロコロ」
-    intro_*.png    ステージ開始カード（台紙・星・名前の帯と巻いた布・キャラの切り絵・ステージ名・上下の帯）。
-                   ステージ名は resources/stage_intro/<ステージ>.json から作る。キャラは render_cutouts.py（Blender）の切り絵
+    intro_*.png    カードの部品（星・名前の帯と巻いた布・キャラの切り絵・名前・上下の帯）。
+                   名前は resources/stage_intro/<中身>.json から作る。キャラは render_cutouts.py（Blender）の切り絵
 
   窓の位置（FRAME_WINDOW）はコードの kWindow と同じにしておくこと（KamishibaiTransition.cpp）
   キャラの切り絵（読み込みカード・ステージ開始カード共通）は tools/kamishibai/cutouts/（render_cutouts.py を Blender で実行）
@@ -393,15 +392,7 @@ def make_valance():
     img.save(os.path.join(OUT, "valance.png"))
 
 
-# ---------------- 読み込み中のカード ----------------
-CARD_TITLES = {             # 行き先のシーン → カードの帯に出す名前（None＝帯なし）
-    "stageselect": "ステージせんたく",
-    "gameplay": "ステージ 1",
-    "title": "タイトル",
-    "default": None,
-}
-
-
+# ---------------- カード（読み込み中・ステージ開始で共通） ----------------
 def card_background(width=W):
     """明るいクラフト色の段ボール：細かいざらつき・点々・うっすら縦の段、下に横向きの折り返し"""
     import numpy as np
@@ -441,14 +432,6 @@ def sticker(img, border, scale):
     return canvas
 
 
-def paste_sticker(base, img, pos, angle):
-    rot = img.rotate(angle, expand=True, resample=Image.BICUBIC)
-    shadow = Image.new("RGBA", rot.size, (40, 25, 10, 0))
-    shadow.putalpha(rot.getchannel("A").filter(ImageFilter.GaussianBlur(8)).point(lambda v: v * 0.45))
-    base.alpha_composite(shadow, (pos[0] + 10, pos[1] + 12))
-    base.alpha_composite(rot, pos)
-
-
 CARD_MARGIN = 150   # カードの左右の、段ボールの切れ目（ギザギザ）を描く幅。画面に止まった時は画面の外になる
 CARD_TOOTH = 120    # ギザギザの山の間隔(px)
 CARD_DEPTH = 90     # ギザギザの深さ(px)
@@ -476,7 +459,7 @@ def make_card_slit(width):
     line = [(x, y - top) for x, y in card_cut_line(width)]
     d.line(line, fill=(55, 32, 12, 255), width=7)                                 # 切れ目の奥（暗い）
     d.line([(x, y + 4) for x, y in line], fill=(240, 214, 168, 255), width=2)      # 切り口に見える段ボールの芯
-    img.save(os.path.join(OUT, "card_cut.png"))
+    img.save(os.path.join(OUT, "intro_cut.png"))
     return {"slitTop": top, "slitHeight": img.height}
 
 
@@ -513,8 +496,8 @@ def make_scissors():
     border = 6
     out = sticker(img, border, 1.0)
     pad = border * 2 + 12
-    out.save(os.path.join(OUT, "card_scissors.png"))
-    return {"file": "card_scissors.png", "tipX": 262 + pad, "tipY": 75 + pad, "width": out.width, "height": out.height}
+    out.save(os.path.join(OUT, "intro_scissors.png"))
+    return {"file": "intro_scissors.png", "tipX": 262 + pad, "tipY": 75 + pad, "width": out.width, "height": out.height}
 
 
 def card_shape(width):
@@ -539,152 +522,13 @@ def piece_with_shadow(img, shadow=(10, 12)):
     return canvas
 
 
-def tint_rgba(img, color):
-    """色（0〜1）を掛ける（sRGB のまま掛ける。ゲームで linear にして掛けた時と同じ見え方になる）"""
-    import numpy as np
-    a = np.asarray(img.convert("RGBA")).astype(np.float32)
-    a[..., :3] *= np.array(color[:3], np.float32)[None, None, :]
-    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
-
-
-def intro_star_piece(color, scale):
-    """ステージ開始カードと同じ星（白いふち・影の層＋色を掛けた紙の層）を1枚にする"""
-    edge = Image.open(os.path.join(OUT, "intro_star_edge.png")).convert("RGBA")
-    body = tint_rgba(Image.open(os.path.join(OUT, "intro_star.png")), color)
-    edge.alpha_composite(body)
-    return edge.resize((int(edge.width * scale), int(edge.height * scale)), Image.LANCZOS)
-
-
-def paste_center(base, img, cx, cy, angle=0.0):
-    if angle:
-        img = img.rotate(angle, expand=True, resample=Image.BICUBIC)
-    base.alpha_composite(img, (int(cx - img.width / 2), int(cy - img.height / 2)))
-
-
-def intro_banner_image(color):
-    """ステージ開始カードと同じフェルトの帯（影・色を掛けた布・縫い目・右の端の巻き）を1枚にする"""
-    banner = Image.open(os.path.join(OUT, "intro_banner_shadow.png")).convert("RGBA")
-    banner.alpha_composite(tint_rgba(Image.open(os.path.join(OUT, "intro_banner.png")), color))
-    banner.alpha_composite(Image.open(os.path.join(OUT, "intro_banner_stitch.png")).convert("RGBA"))
-    # 右の端：巻いた布（転がり終わった後の太さ）
-    roll_w, roll_h = 74, INTRO_ROLL_HEIGHT
-    roll = Image.open(os.path.join(OUT, "intro_roll.png")).convert("RGBA").crop((0, 0, INTRO_ROLL_PERIOD, roll_h))
-    roll = tint_rgba(roll.resize((roll_w, roll_h), Image.LANCZOS), color)
-    roll.alpha_composite(Image.open(os.path.join(OUT, "intro_roll_shade.png")).convert("RGBA").resize((roll_w, roll_h), Image.LANCZOS))
-    out = Image.new("RGBA", (banner.width + roll_w, max(banner.height, roll_h)), (0, 0, 0, 0))
-    oy = (out.height - banner.height) // 2
-    out.alpha_composite(banner, (0, oy))
-    out.alpha_composite(roll, (banner.width - 30 - roll_w // 2, (out.height - roll_h) // 2))
-    return out, oy
-
-
-def make_cards():
-    """読み込み中のカード。ステージ開始カードと同じ部品・同じ色で作る（make_stage_intro の後に呼ぶ）。
-    ・背景（card_bg_<シーン>_top/_bottom.png）：段ボールの地＋フェルトの帯に行き先の名前＋「ロードちゅう」
-    ・動く部品（card_piece_*.png）：恐竜・敵・卵の切り絵、色紙の星、小さな卵、「…」の点
-    ・部品の置き場所と動き方は card_layout.json（ゲームはこれを読んで動かす）
-    ・下の切れ目のまわり（CARD_CLEAR_Y より下）は、はさみが通るので何も置かない"""
-    import json
-    content_path = os.path.join(INTRO_DIR, "stage1.json")  # 色と敵は、ステージ開始カードの中身に合わせる
-    content = json.load(open(content_path, encoding="utf-8")) if os.path.exists(content_path) else {}
-    banner_color = content.get("bannerColor", [0.62, 0.84, 0.24])
-    star_colors = content.get("starColors", [[1.0, 1.0, 1.0]] * 6)
-    enemy = content.get("enemy", "enemy_ground")
-    width = W + CARD_MARGIN * 2
-    pieces = []
-
-    def add_piece(name, img, x, y, motion, angle=0.0, phase=0.0, index=0):
-        img.save(os.path.join(OUT, "card_piece_%s.png" % name))
-        pieces.append({"file": "card_piece_%s.png" % name, "x": round(x, 1), "y": round(y, 1),
-                       "angle": angle, "motion": motion, "phase": phase, "index": index,
-                       "part": "bottom" if y > CARD_CUT_Y else "top"})
-
-    # --- 背景（行き先ごと） ---
-    banner, banner_oy = intro_banner_image(banner_color)
-    left, right = card_shape(width)
-    outline = left + list(reversed(right))
-    for name, title in CARD_TITLES.items():
-        body = card_background(width)
-        mask = Image.new("L", (width, H), 0)
-        ImageDraw.Draw(mask).polygon(outline, fill=255)
-        card = Image.new("RGBA", (width, H), (0, 0, 0, 0))
-        # 切れ目のまわりの影（カードが浮いて見えるように）
-        shadow = Image.new("RGBA", (width, H), (40, 25, 10, 0))
-        from PIL import ImageChops
-        shadow.putalpha(ImageChops.offset(mask, 14, 10).filter(ImageFilter.GaussianBlur(10)).point(lambda v: v * 0.4))
-        card.alpha_composite(shadow)
-        body.putalpha(mask)
-        card.alpha_composite(body)
-        # 切れ目のふち：段ボールの中の明るい紙の色と、その外の濃い線
-        d = ImageDraw.Draw(card)
-        for edge in (left, right):
-            d.line(edge, fill=(236, 206, 160, 255), width=10)
-            d.line(edge, fill=(110, 75, 40, 255), width=3)
-        if title:
-            # 行き先の名前：ステージ開始カードと同じフェルトの帯と文字
-            bx = CARD_MARGIN + 960 + 37  # 右の端の巻きの分だけ右へ（布の真ん中を画面の真ん中に）
-            card.alpha_composite(banner, (int(bx - banner.width / 2), int(CARD_BANNER_Y - banner_oy - (banner.height - 2 * banner_oy) / 2)))
-            paste_center(card, render_intro_name(title, []), CARD_MARGIN + 960, CARD_BANNER_Y - 8, angle=2.0)
-        card = card.convert("RGB")  # 文字のふちを混ぜるため、いったん RGB で描く
-        d = ImageDraw.Draw(card, "RGBA")
-        loading_font = ImageFont.truetype(FONT, 58)
-        d.text((CARD_MARGIN + 1380, 960), "ロードちゅう", font=loading_font,
-               fill=(255, 255, 250), stroke_width=7, stroke_fill=(70, 45, 20))
-        # 透明にするのは切れ目の外だけ
-        card = card.convert("RGBA")
-        card.putalpha(Image.composite(Image.new("L", (width, H), 255), shadow.getchannel("A"), mask))
-        # 切れ目で上と下に分ける（上は切れ目より少し下まで。分かれる前は上が下に重なって、境目が見えない）
-        cut = card_cut_line(width)
-        top_mask = Image.new("L", (width, H), 0)
-        ImageDraw.Draw(top_mask).polygon([(-20, -20)] + [(x, y + CARD_CUT_OVERLAP) for x, y in cut] + [(width + 40, -20)], fill=255)
-        bottom_mask = Image.new("L", (width, H), 0)
-        ImageDraw.Draw(bottom_mask).polygon([(-20, H + 20)] + cut + [(width + 40, H + 20)], fill=255)
-        alpha = card.getchannel("A")
-        top = card.copy()
-        top.putalpha(ImageChops.multiply(alpha, top_mask))
-        bottom = card.copy()
-        bottom.putalpha(ImageChops.multiply(alpha, bottom_mask))
-        top.crop((0, 0, width, CARD_TOP_HEIGHT)).save(os.path.join(OUT, "card_bg_%s_top.png" % name))
-        bottom.crop((0, CARD_BOTTOM_TOP, width, H)).save(os.path.join(OUT, "card_bg_%s_bottom.png" % name))
-
-    # --- 動く部品（どの行き先でも同じ。ステージ開始カードと同じ並び。下の方の物は切れ目にかからない高さへ上げる） ---
-    #   角度は左回りが正（ステージ開始カードの JSON の角度とは向きが逆）
-    stars = [(290, 230, 1.0, 12), (545, 115, 0.42, -10), (1490, 575, 0.42, 8),
-             (1730, 600, 0.82, -14), (1240, 640, 0.82, 6), (800, 680, 0.52, -18)]
-    for i, (x, y, scale, angle) in enumerate(stars):
-        add_piece("star%d" % i, intro_star_piece(star_colors[i % len(star_colors)], scale), x, y, "twinkle", angle=angle, phase=i * 1.3)
-    add_piece("dino", Image.open(os.path.join(OUT, "intro_char_dino.png")), 300, 580, "walk", angle=4.0)
-    add_piece("egg", Image.open(os.path.join(OUT, "intro_char_egg.png")), 560, 665, "rock", angle=-6.0)
-    add_piece("enemy", Image.open(os.path.join(OUT, "intro_char_%s.png" % enemy)), 1735, 255, "stamp", angle=-4.0)
-    # 「ロードちゅう」の後ろの小さな卵と「…」の点
-    loading_font = ImageFont.truetype(FONT, 58)
-    text_end = 1380 + ImageDraw.Draw(Image.new("RGB", (1, 1))).textlength("ロードちゅう", font=loading_font)
-    dot = Image.new("RGBA", (28, 28), (0, 0, 0, 0))
-    ImageDraw.Draw(dot).ellipse([3, 3, 25, 25], fill=(255, 255, 250, 255), outline=(70, 45, 20, 255), width=5)
-    for k in range(3):
-        add_piece("dot%d" % k, dot, text_end + 22 + k * 26, 1010, "dot", index=k)
-    add_piece("small_egg", intro_cutout("egg", 62, border=4), 1868, 995, "hop")
-
-    for piece in pieces:
-        if piece["part"] != "top":
-            continue
-        img = Image.open(os.path.join(OUT, piece["file"]))
-        bottom = piece["y"] - img.height / 2 + img.getchannel("A").getbbox()[3]
-        if bottom > CARD_CLEAR_Y:
-            print("warning: %s が切れ目のまわりにかかっています（下の端 %.0f > %d）" % (piece["file"], bottom, CARD_CLEAR_Y))
-    cut = {"y": CARD_CUT_Y, "topHeight": CARD_TOP_HEIGHT, "bottomTop": CARD_BOTTOM_TOP, "bottomHeight": H - CARD_BOTTOM_TOP}
-    cut.update(make_card_slit(width))
-    layout = {"margin": CARD_MARGIN, "width": W, "height": H, "cut": cut, "scissors": make_scissors(), "pieces": pieces}
-    with open(os.path.join(OUT, "card_layout.json"), "w", encoding="utf-8") as f:
-        f.write(json.dumps(layout, ensure_ascii=False, indent=2) + "\n")
-
-
 # ---------------- ステージ開始カード ----------------
 INTRO_DIR = os.path.join(PROJECT, "resources", "stage_intro")  # ステージごとの中身（名前・色・敵・カメラ）
 CUTOUT_DIR = os.path.join(HERE, "cutouts")                       # render_cutouts.py が Blender で描き出した切り絵
 INTRO_BANNER_SIZE = (1240, 250)  # 名前の帯（布）の大きさ
 INTRO_ROLL_HEIGHT = 278          # 巻いた布の高さ（帯より少し高い）
 INTRO_ROLL_PERIOD = 120          # 巻いた布の模様の1周期(px)。ゲームはこの幅ずつ模様をずらして転がって見せる
+INTRO_LOADING_X, INTRO_LOADING_Y = 1380, 960  # 「ロードちゅう」の左上（カードの座標）
 
 
 def intro_star_mask(size, r, prng):
@@ -864,7 +708,8 @@ def make_intro_bar():
 
 
 def make_intro_backing():
-    """台紙：段ボールの地（左右は段ボールの切れ目、下に紙を重ねた段差）。文字は無い"""
+    """台紙：段ボールの地（左右は段ボールの切れ目、下に紙を重ねた段差）。下の段に「ロードちゅう」。
+    シーンが始まる時にはさみで切るので、切れ目（下の折り目の線）で上と下に分けて書き出す"""
     from PIL import ImageChops
     width = W + CARD_MARGIN * 2
     left, right = card_shape(width)
@@ -882,7 +727,25 @@ def make_intro_backing():
     for edge in (left, right):
         d.line(edge, fill=(236, 206, 160, 255), width=10)
         d.line(edge, fill=(110, 75, 40, 255), width=3)
-    card.save(os.path.join(OUT, "intro_backing.png"))
+    # 文字は RGB のうちに描いてから、透明の形を戻す（RGBA へ描くとふちが透けることがある）
+    alpha = card.getchannel("A")
+    card = card.convert("RGB")
+    ImageDraw.Draw(card).text((CARD_MARGIN + INTRO_LOADING_X, INTRO_LOADING_Y), "ロードちゅう",
+                              font=ImageFont.truetype(FONT, 58), fill=(255, 255, 250), stroke_width=7, stroke_fill=(70, 45, 20))
+    card = card.convert("RGBA")
+    card.putalpha(alpha)
+    # 切れ目で上と下に分ける（上は切れ目より少し下まで。分かれる前は上が下に重なって、境目が見えない）
+    cut = card_cut_line(width)
+    top_mask = Image.new("L", (width, H), 0)
+    ImageDraw.Draw(top_mask).polygon([(-20, -20)] + [(x, y + CARD_CUT_OVERLAP) for x, y in cut] + [(width + 40, -20)], fill=255)
+    bottom_mask = Image.new("L", (width, H), 0)
+    ImageDraw.Draw(bottom_mask).polygon([(-20, H + 20)] + cut + [(width + 40, H + 20)], fill=255)
+    top = card.copy()
+    top.putalpha(ImageChops.multiply(alpha, top_mask))
+    bottom = card.copy()
+    bottom.putalpha(ImageChops.multiply(alpha, bottom_mask))
+    top.crop((0, 0, width, CARD_TOP_HEIGHT)).save(os.path.join(OUT, "intro_backing_top.png"))
+    bottom.crop((0, CARD_BOTTOM_TOP, width, H)).save(os.path.join(OUT, "intro_backing_bottom.png"))
 
 
 def make_stage_intro():
@@ -912,6 +775,71 @@ def make_stage_intro():
             make_intro_name(stem, json.load(f))
 
 
+def make_intro_layout():
+    """カードの部品の置き場所と、切れ目・はさみの寸法を intro_layout.json に書く（ゲームはこれを読む）。
+    並べた順に描く（後ろの物から）。角度は度で、正が右回り（画面の見た目）。
+    上の部分の部品は、下の端が CARD_CLEAR_Y より上（切れ目のまわりは、はさみが通るので何も置かない）"""
+    import json
+    width = W + CARD_MARGIN * 2
+    stage1 = os.path.join(INTRO_DIR, "stage1.json")  # 色の既定はステージ1と同じ（ステージごとの中身で上書きできる）
+    content = json.load(open(stage1, encoding="utf-8")) if os.path.exists(stage1) else {}
+    star_colors = content.get("starColors", [[1.0, 1.0, 1.0]] * 6)
+    banner_color = content.get("bannerColor", [0.62, 0.84, 0.24])
+    elements = []
+
+    def element(id_, layers, x, y, scale=1.0, angle=0.0, sway=2.0, speed=1.6, phase=0.0, **extra):
+        data = {"id": id_, "layers": layers, "x": round(x, 1), "y": round(y, 1), "scale": scale, "angle": angle,
+                "sway": sway, "swaySpeed": round(speed, 2), "swayPhase": round(phase, 2), "part": "bottom" if y > CARD_CUT_Y else "top"}
+        data.update(extra)
+        elements.append(data)
+
+    bottom_h = H - CARD_BOTTOM_TOP
+    element("backing", [{"file": "intro_backing_top.png"}], 960, CARD_TOP_HEIGHT / 2, sway=0.0, part="top")
+    element("backing", [{"file": "intro_backing_bottom.png"}], 960, CARD_BOTTOM_TOP + bottom_h / 2, sway=0.0, part="bottom")
+    star_layers = [{"file": "intro_star_edge.png"}, {"file": "intro_star.png", "tinted": True}]
+    stars = [(290, 230, 1.0, -12), (545, 115, 0.42, 10), (1490, 575, 0.42, -8),
+             (1730, 600, 0.82, 14), (1240, 640, 0.82, -6), (800, 680, 0.52, 18)]
+    for i, (x, y, scale, angle) in enumerate(stars):
+        element("star%d" % i, star_layers, x, y, scale, angle, sway=2.0, speed=1.3 + 0.17 * i, phase=i * 1.1,
+                color=star_colors[i % len(star_colors)])
+    element("banner", [{"file": "intro_banner_shadow.png"}, {"file": "intro_banner.png", "tinted": True},
+                       {"file": "intro_banner_stitch.png"}], 960, CARD_BANNER_Y, sway=0.5, speed=1.1, color=banner_color)
+    element("name", [{"file": "intro_name_stage1.png"}], 960, CARD_BANNER_Y - 8, angle=-2.0, sway=1.0, speed=1.4, phase=0.5)
+    element("egg", [{"file": "intro_char_egg.png"}], 560, 665, angle=6.0, sway=4.0, speed=2.4, phase=0.3)
+    element("dino", [{"file": "intro_char_dino.png"}], 300, 580, angle=-4.0, sway=1.5, speed=1.9, phase=1.7)
+    element("enemy", [{"file": "@enemy"}], 1735, 255, angle=4.0, sway=1.0, speed=2.0, phase=2.4, stamp=True)
+    # 「ロードちゅう」の後ろの「…」（1つずつ増える）と、ぴょこぴょこ跳ねる小さな卵（下の段）
+    dot = Image.new("RGBA", (28, 28), (0, 0, 0, 0))
+    ImageDraw.Draw(dot).ellipse([3, 3, 25, 25], fill=(255, 255, 250, 255), outline=(70, 45, 20, 255), width=5)
+    dot.save(os.path.join(OUT, "intro_dot.png"))
+    text_end = INTRO_LOADING_X + ImageDraw.Draw(Image.new("RGB", (1, 1))).textlength("ロードちゅう", font=ImageFont.truetype(FONT, 58))
+    for k in range(3):
+        element("dots", [{"file": "intro_dot.png"}], text_end + 22 + k * 26, INTRO_LOADING_Y + 50, sway=0.0, blink=k)
+    element("smallEgg", [{"file": "intro_char_egg.png"}], 1868, 995, scale=0.31, sway=11.0, speed=5.0, bob=10.0)
+
+    # 切れ目のまわりにかかっていないか確かめる
+    for e in elements:
+        if e["part"] != "top" or e["id"] == "backing":
+            continue
+        for layer in e["layers"]:
+            if layer["file"].startswith("@") or layer["file"].startswith("intro_name"):
+                continue
+            img = Image.open(os.path.join(OUT, layer["file"]))
+            bottom = e["y"] + (img.getchannel("A").getbbox()[3] - img.height / 2) * e["scale"]
+            if bottom > CARD_CLEAR_Y:
+                print("warning: %s（%s）が切れ目のまわりにかかっています（下の端 %.0f > %d）" % (e["id"], layer["file"], bottom, CARD_CLEAR_Y))
+    cut = {"y": CARD_CUT_Y, "topHeight": CARD_TOP_HEIGHT, "bottomTop": CARD_BOTTOM_TOP, "bottomHeight": bottom_h}
+    cut.update(make_card_slit(width))
+    layout = {"margin": CARD_MARGIN, "width": W, "height": H, "cut": cut, "scissors": make_scissors(), "elements": elements}
+    with open(os.path.join(OUT, "intro_layout.json"), "w", encoding="utf-8") as f:
+        f.write(json.dumps(layout, ensure_ascii=False, indent=2) + "\n")
+    # 前の読み込みカードの画像は使わないので消す
+    import glob
+    for old in glob.glob(os.path.join(OUT, "card_*")) + [os.path.join(OUT, "intro_backing.png")]:
+        if os.path.exists(old):
+            os.remove(old)
+
+
 make_frame()
 make_curtain()
 make_valance()
@@ -920,5 +848,5 @@ make_egg()
 make_banner()
 make_sounds()
 make_stage_intro()
-make_cards()  # ステージ開始カードの星・帯・切り絵を使うので後
+make_intro_layout()  # 部品の画像を使うので後
 print("wrote", OUT)

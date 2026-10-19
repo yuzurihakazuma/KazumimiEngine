@@ -1,0 +1,365 @@
+{
+  "margin": 150,
+  "width": 1920,
+  "height": 1080,
+  "cut": {
+    "y": 911,
+    "topHeight": 923,
+    "bottomTop": 899,
+    "bottomHeight": 181,
+    "slitTop": 891,
+    "slitHeight": 40
+  },
+  "scissors": {
+    "file": "intro_scissors.png",
+    "tipX": 286,
+    "tipY": 99,
+    "width": 318,
+    "height": 198
+  },
+  "elements": [
+    {
+      "id": "backing",
+      "layers": [
+        {
+          "file": "intro_backing_top.png"
+        }
+      ],
+      "x": 960,
+      "y": 461.5,
+      "scale": 1.0,
+      "angle": 0.0,
+      "sway": 0.0,
+      "swaySpeed": 1.6,
+      "swayPhase": 0.0,
+      "part": "top"
+    },
+    {
+      "id": "backing",
+      "layers": [
+        {
+          "file": "intro_backing_bottom.png"
+        }
+      ],
+      "x": 960,
+      "y": 989.5,
+      "scale": 1.0,
+      "angle": 0.0,
+      "sway": 0.0,
+      "swaySpeed": 1.6,
+      "swayPhase": 0.0,
+      "part": "bottom"
+    },
+    {
+      "id": "star0",
+      "layers": [
+        {
+          "file": "intro_star_edge.png"
+        },
+        {
+          "file": "intro_star.png",
+          "tinted": true
+        }
+      ],
+      "x": 290,
+      "y": 230,
+      "scale": 1.0,
+      "angle": -12,
+      "sway": 2.0,
+      "swaySpeed": 1.3,
+      "swayPhase": 0.0,
+      "part": "top",
+      "color": [
+        0.45,
+        0.8,
+        0.96
+      ]
+    },
+    {
+      "id": "star1",
+      "layers": [
+        {
+          "file": "intro_star_edge.png"
+        },
+        {
+          "file": "intro_star.png",
+          "tinted": true
+        }
+      ],
+      "x": 545,
+      "y": 115,
+      "scale": 0.42,
+      "angle": 10,
+      "sway": 2.0,
+      "swaySpeed": 1.47,
+      "swayPhase": 1.1,
+      "part": "top",
+      "color": [
+        0.47,
+        0.88,
+        0.72
+      ]
+    },
+    {
+      "id": "star2",
+      "layers": [
+        {
+          "file": "intro_star_edge.png"
+        },
+        {
+          "file": "intro_star.png",
+          "tinted": true
+        }
+      ],
+      "x": 1490,
+      "y": 575,
+      "scale": 0.42,
+      "angle": -8,
+      "sway": 2.0,
+      "swaySpeed": 1.64,
+      "swayPhase": 2.2,
+      "part": "top",
+      "color": [
+        1.0,
+        0.64,
+        0.76
+      ]
+    },
+    {
+      "id": "star3",
+      "layers": [
+        {
+          "file": "intro_star_edge.png"
+        },
+        {
+          "file": "intro_star.png",
+          "tinted": true
+        }
+      ],
+      "x": 1730,
+      "y": 600,
+      "scale": 0.82,
+      "angle": 14,
+      "sway": 2.0,
+      "swaySpeed": 1.81,
+      "swayPhase": 3.3,
+      "part": "top",
+      "color": [
+        1.0,
+        0.86,
+        0.3
+      ]
+    },
+    {
+      "id": "star4",
+      "layers": [
+        {
+          "file": "intro_star_edge.png"
+        },
+        {
+          "file": "intro_star.png",
+          "tinted": true
+        }
+      ],
+      "x": 1240,
+      "y": 640,
+      "scale": 0.82,
+      "angle": -6,
+      "sway": 2.0,
+      "swaySpeed": 1.98,
+      "swayPhase": 4.4,
+      "part": "top",
+      "color": [
+        0.74,
+        0.88,
+        0.3
+      ]
+    },
+    {
+      "id": "star5",
+      "layers": [
+        {
+          "file": "intro_star_edge.png"
+        },
+        {
+          "file": "intro_star.png",
+          "tinted": true
+        }
+      ],
+      "x": 800,
+      "y": 680,
+      "scale": 0.52,
+      "angle": 18,
+      "sway": 2.0,
+      "swaySpeed": 2.15,
+      "swayPhase": 5.5,
+      "part": "top",
+      "color": [
+        0.74,
+        0.62,
+        0.96
+      ]
+    },
+    {
+      "id": "banner",
+      "layers": [
+        {
+          "file": "intro_banner_shadow.png"
+        },
+        {
+          "file": "intro_banner.png",
+          "tinted": true
+        },
+        {
+          "file": "intro_banner_stitch.png"
+        }
+      ],
+      "x": 960,
+      "y": 380,
+      "scale": 1.0,
+      "angle": 0.0,
+      "sway": 0.5,
+      "swaySpeed": 1.1,
+      "swayPhase": 0.0,
+      "part": "top",
+      "color": [
+        0.62,
+        0.84,
+        0.24
+      ]
+    },
+    {
+      "id": "name",
+      "layers": [
+        {
+          "file": "intro_name_stage1.png"
+        }
+      ],
+      "x": 960,
+      "y": 372,
+      "scale": 1.0,
+      "angle": -2.0,
+      "sway": 1.0,
+      "swaySpeed": 1.4,
+      "swayPhase": 0.5,
+      "part": "top"
+    },
+    {
+      "id": "egg",
+      "layers": [
+        {
+          "file": "intro_char_egg.png"
+        }
+      ],
+      "x": 560,
+      "y": 665,
+      "scale": 1.0,
+      "angle": 6.0,
+      "sway": 4.0,
+      "swaySpeed": 2.4,
+      "swayPhase": 0.3,
+      "part": "top"
+    },
+    {
+      "id": "dino",
+      "layers": [
+        {
+          "file": "intro_char_dino.png"
+        }
+      ],
+      "x": 300,
+      "y": 580,
+      "scale": 1.0,
+      "angle": -4.0,
+      "sway": 1.5,
+      "swaySpeed": 1.9,
+      "swayPhase": 1.7,
+      "part": "top"
+    },
+    {
+      "id": "enemy",
+      "layers": [
+        {
+          "file": "@enemy"
+        }
+      ],
+      "x": 1735,
+      "y": 255,
+      "scale": 1.0,
+      "angle": 4.0,
+      "sway": 1.0,
+      "swaySpeed": 2.0,
+      "swayPhase": 2.4,
+      "part": "top",
+      "stamp": true
+    },
+    {
+      "id": "dots",
+      "layers": [
+        {
+          "file": "intro_dot.png"
+        }
+      ],
+      "x": 1750.0,
+      "y": 1010,
+      "scale": 1.0,
+      "angle": 0.0,
+      "sway": 0.0,
+      "swaySpeed": 1.6,
+      "swayPhase": 0.0,
+      "part": "bottom",
+      "blink": 0
+    },
+    {
+      "id": "dots",
+      "layers": [
+        {
+          "file": "intro_dot.png"
+        }
+      ],
+      "x": 1776.0,
+      "y": 1010,
+      "scale": 1.0,
+      "angle": 0.0,
+      "sway": 0.0,
+      "swaySpeed": 1.6,
+      "swayPhase": 0.0,
+      "part": "bottom",
+      "blink": 1
+    },
+    {
+      "id": "dots",
+      "layers": [
+        {
+          "file": "intro_dot.png"
+        }
+      ],
+      "x": 1802.0,
+      "y": 1010,
+      "scale": 1.0,
+      "angle": 0.0,
+      "sway": 0.0,
+      "swaySpeed": 1.6,
+      "swayPhase": 0.0,
+      "part": "bottom",
+      "blink": 2
+    },
+    {
+      "id": "smallEgg",
+      "layers": [
+        {
+          "file": "intro_char_egg.png"
+        }
+      ],
+      "x": 1868,
+      "y": 995,
+      "scale": 0.31,
+      "angle": 0.0,
+      "sway": 11.0,
+      "swaySpeed": 5.0,
+      "swayPhase": 0.0,
+      "part": "bottom",
+      "bob": 10.0
+    }
+  ]
+}
