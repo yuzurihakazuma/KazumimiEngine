@@ -95,13 +95,9 @@ void GamePlayScene::OnInitialize(){
 
 // ステージ全体にクラフトの背景を置く（resources/map/<stage>_backdrop.json。tools/stage_intro/make_stage_backdrop.py がマップから作る）
 void GamePlayScene::BuildBackdrop(){
-	std::ifstream file(std::string("resources/map/") + kStageName + "_backdrop.json");
-	nlohmann::json content = nlohmann::json::object(); // 無い・読めない時は背景なし
-	if ( file.is_open() ) {
-		try { file >> content; } catch ( ... ) { content = nlohmann::json::object(); }
-	}
-	if ( !content.is_object() ) { content = nlohmann::json::object(); }
-	backdrop_.Build(content.value("objects", nlohmann::json::array()), { 0.0f, 0.0f, 0.0f }, textures_["uvChecker"].srvIndex);
+	//   手直し（背景エディタで直した所）は <stage>_backdrop_edit.json から重ねる。どちらも無ければ背景なし
+	backdrop_.LoadStage(kStageName, textures_["uvChecker"].srvIndex);
+	editorTools_.LoadBackdropThumbnails();
 }
 
 StageIntroSequence::Context GamePlayScene::IntroContext(){
@@ -472,7 +468,7 @@ void GamePlayScene::UpdatePlayMode(){
 	stageFlow_.Update(player_->GetPosition(), railField_, hitFeel_);
 
 	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
-	camCtrl_.Update(GetCamera(), player_->GetPosition(), railField_.GetRails(),
+	camCtrl_.Update(GetCamera(), player_->GetPosition(), player_->IsGrounded(), railField_.GetRails(),
 		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
 	hitFeel_.NotifyCameraOverridden(); // カメラ位置を上書きしたのでシェイクの自己相殺をリセット
 
@@ -618,6 +614,8 @@ SceneEditContext GamePlayScene::MakeEditContext(){
 	context.camera      = GetCamera();
 	context.player      = player_.get();
 	context.editing     = ( editorManager->GetMode() == EngineMode::Edit );
+	context.backdrop    = &backdrop_;
+	context.stageName   = kStageName;
 	return context;
 }
 

@@ -17,7 +17,7 @@
 
 namespace {
     constexpr float kReturnTime = 0.6f;       // カメラが後ろへ戻る時間(秒)
-    constexpr float kFollowLookHeight = 1.0f; // 通常カメラが見る高さ（PlayCameraController と同じ）
+    constexpr float kFollowLookHeight = PlayCameraController::kLookHeight; // 通常カメラが見る高さ
     constexpr float kIntroTurnRate = 8.0f;    // 演技の間の向きを変える速さ（約0.35秒。通常は 18 で一瞬に見える）
     // IntroJump クリップの中の時刻（tools/stage_intro/make_intro_clips.py と同じ）
     constexpr float kTakeOffTime = 0.26f;     // 跳び上がる

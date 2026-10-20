@@ -4,6 +4,7 @@
 //   ・パネル：敵エディタの窓 / 配置ビュー（レール展開図）/ ミニマップ
 //   ・Game View の上の操作：敵・コイン・ブロックのつかみ移動、右クリックメニュー、
 //     動くレールの見える化、ガイドハンドル、ブロック配置モード
+//   ・背景エディタ（クラフトの背景）。背景を編集している間は、Game View のクリックを背景だけに使う
 //  各ツールの呼ぶ順番と「どれが優先か」（敵 > コイン > ブロック、ドラッグ中はメニューを開かない 等）
 //  をここでまとめて決める。シーンは SceneEditContext を作って渡すだけ
 // =====================================================================
@@ -16,6 +17,7 @@
 #include "game/editor/GuideHandleTool.h"
 #include "game/editor/MinimapPanel.h"
 #include "game/editor/BlockPaintTool.h"
+#include "game/editor/BackdropEditTool.h"
 
 class PlaySceneEditor {
 public:
@@ -28,6 +30,8 @@ public:
     bool ConsumeStripFocusRequest(int& outRail, float& outDist, float& outHeight) {
         return stripPanel_.ConsumeFocusRequest(outRail, outDist, outHeight);
     }
+    // 背景エディタのパレットの絵を読む（シーンの読み込み時に）
+    void LoadBackdropThumbnails() { backdropTool_.LoadThumbnails(); }
     // 右クリックメニューの「ここからテストプレイ」の要求（あれば true）
     bool ConsumeTestPlayRequest(int& outRail, float& outDist) {
         return contextMenu_.ConsumeTestPlayRequest(outRail, outDist);
@@ -45,4 +49,5 @@ private:
     GuideHandleTool   guideTool_;
     MinimapPanel      minimap_;
     BlockPaintTool    paintTool_;
+    BackdropEditTool  backdropTool_;
 };

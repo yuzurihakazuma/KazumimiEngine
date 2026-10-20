@@ -91,6 +91,7 @@ public:
         Panel_File,        // ファイルエディタ
         Panel_Minimap,     // ミニマップ（俯瞰ビュー）※保存の並び維持のため必ず末尾に追加する
         Panel_Layout,      // 配置ビュー（レール展開図。ブロック・敵・コインをパネルの中で配置する）
+        Panel_Backdrop,    // 背景エディタ（クラフトの背景を置く・選ぶ・消す）
         Panel_Count
     };
     // 横に広く使うパネルか。アイコンモードでは右の縦積みドロワーに入れず、画面の下に横長で出す
@@ -118,6 +119,9 @@ public:
 	// ギズモ／インスペクタで操作する対象オブジェクトを登録する（シーンから渡す）
 	void SetGizmoTarget(Obj3d* obj){ gizmoTarget_ = obj; }
 	Obj3d* GetGizmoTarget() const{ return gizmoTarget_; }
+	// ギズモの操作の種類（ImGuizmo::OPERATION の値。7=移動 / 120=回転 / 896=拡縮）
+	int  GetGizmoOperation() const{ return gizmoOperation_; }
+	void SetGizmoOperation(int operation){ gizmoOperation_ = operation; }
 
 	// --- レール編集データの公開（ゲーム側が同じレールを使うため）---
 	// 編集の世代番号。ノード移動/追加/削除/直線/カーブ/読込のたびに増える
@@ -183,6 +187,15 @@ public:
 		Matrix4x4 viewProj {};         // エディタ表示に使ったカメラの VP 行列
 	};
 	const GameViewMouse& GetGameViewMouse() const{ return gameViewMouse_; }
+	// Game View へモデルが落とされた（ファイルエディタ・背景パレットからのドラッグ＆ドロップ "DND_MODEL"）。
+	//   あれば true（モデル名と落とした時のマウスの位置）。取り出すと消える。誰も取らなければ次のフレームで消える
+	bool ConsumeGameViewDrop(std::string& outModel, Vector2& outMouse){
+		if ( !gameViewDrop_.valid ) return false;
+		outModel = gameViewDrop_.model;
+		outMouse = gameViewDrop_.mouse;
+		gameViewDrop_.valid = false;
+		return true;
+	}
 	// ゲーム側がドラッグ操作中（敵の直接ドラッグ等）にレール編集のマウス操作を止める
 	void SetExternalDragActive(bool active){ externalDragActive_ = active; }
 	// このシーンがレール編集を使うか（false の間は Game View にレールの線・ノードを出さず、操作もしない）。
@@ -296,6 +309,8 @@ private:
 
     // Game View マウス情報（毎フレーム更新。ゲーム側の配置エディタへの橋渡し）
     GameViewMouse gameViewMouse_ {};
+    struct GameViewDrop { bool valid = false; std::string model; Vector2 mouse {}; int frame = 0; };
+    GameViewDrop gameViewDrop_; // Game View へ落とされたモデル（ConsumeGameViewDrop）
     bool externalDragActive_ = false; // ゲーム側がドラッグ中（レール編集のマウス操作を止める）
     bool railEditingEnabled_ = true;  // 今のシーンがレール編集を使うか（SetRailEditingEnabled）
     bool gameViewGuideDragging_ = false; // ゲームビューのガイドハンドルをドラッグ中（同期間引き用）

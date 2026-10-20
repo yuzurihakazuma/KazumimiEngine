@@ -55,11 +55,34 @@ void PlayCameraController::Reset(){
     camHgtCur_  = camHgtTgt_;
     camFovCur_  = camFovTgt_;
     lastZone_ = -1;
+    heightReady_ = false; // 次の Update でプレイヤーの高さに合わせ直す
     // 回転フリーズ中にモードが切り替わっても時間が止まったままにならないよう必ず戻す
     if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(1.0f); freezingRotation_ = false; }
 }
 
-void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, const std::vector<SplineRail>& rails,
+// カメラが追う高さ：着地している所。ジャンプでは動かさない（画面ごと上下に揺れない）。
+//   ・上へ upMargin_ より高く跳んだ/飛ばされた → はみ出した分だけ上へ追う
+//   ・空中で着地した所より downMargin_ 下へ行った（段差を降りる） → 追う。ただし holeDepth_ より深い（穴に落ちた）なら追わない
+float PlayCameraController::UpdateFocusHeight(const Vector3& playerPos, bool grounded, float dt){
+    if ( !heightReady_ ) {
+        groundY_ = focusY_ = playerPos.y;
+        heightReady_ = true;
+        return focusY_;
+    }
+    float target = groundY_;
+    if ( grounded ) {
+        groundY_ = target = playerPos.y;
+    } else if ( playerPos.y > groundY_ + upMargin_ ) {
+        target = playerPos.y - upMargin_;
+    } else if ( playerPos.y < groundY_ - downMargin_ && playerPos.y > groundY_ - holeDepth_ ) {
+        target = playerPos.y + downMargin_;
+    }
+    // 上下は横より少しゆっくり（着地のたびにカクッと動かない）
+    focusY_ += ( target - focusY_ ) * ( std::min )( 3.0f * dt, 1.0f );
+    return focusY_;
+}
+
+void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool grounded, const std::vector<SplineRail>& rails,
                                   bool debugCamActive, float dt){
     if ( !followCam_ || !camera ) return;
     if ( debugCamActive ) return; // デバッグカメラ優先
@@ -131,6 +154,8 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, cons
     if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(0.0f); }
     float camDt = freezingRotation_ ? ( 1.0f / 60.0f ) : dt;
     float k = ( std::min )( 4.0f * camDt, 1.0f );
+    // 追う点：横と奥行きはプレイヤー、高さは着地している所
+    const Vector3 focus { playerPos.x, UpdateFocusHeight(playerPos, grounded, camDt), playerPos.z };
 
     // 目標のカメラ位置と視野角
     Vector3 targetPos;
@@ -155,9 +180,7 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, cons
         camDistCur_ += ( camDistTgt_ - camDistCur_ ) * k;
         camHgtCur_  += ( camHgtTgt_  - camHgtCur_ )  * k;
 
-        targetPos = { playerPos.x + std::sin(camYawCur_) * camDistCur_,
-                      playerPos.y + camHgtCur_,
-                      playerPos.z - std::cos(camYawCur_) * camDistCur_ };
+        targetPos = FollowTargetPosition(focus);
         targetFov = camFovTgt_;
     }
 
@@ -168,8 +191,14 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, cons
                    cur.z + ( targetPos.z - cur.z ) * k };
     camera->SetTranslation(np);
 
-    // プレイヤー（少し上）を見る向きへ
-    Vector3 look = { playerPos.x - np.x, ( playerPos.y + 1.0f ) - np.y, playerPos.z - np.z };
+    // 向き：固定カメラはプレイヤー（少し上）を見る。
+    //   追従は追従の向き・距離・高さだけで決まる角度（プレイヤーの方へ首を振らない。カメラが遅れて付いてくる間も画面が回らない）
+    Vector3 look;
+    if ( active && active->mode == 0 ) {
+        look = { playerPos.x - np.x, ( playerPos.y + kLookHeight ) - np.y, playerPos.z - np.z };
+    } else {
+        look = { -std::sin(camYawCur_) * camDistCur_, kLookHeight - camHgtCur_, std::cos(camYawCur_) * camDistCur_ };
+    }
     float horiz = std::sqrt(look.x * look.x + look.z * look.z);
     if ( horiz > 1e-4f || std::abs(look.y) > 1e-4f ) {
         float yaw   = std::atan2(look.x, look.z);
@@ -211,6 +240,9 @@ void PlayCameraController::DrawDebugUI(){
 #ifdef USE_IMGUI
     ImGui::Checkbox("プレイ中カメラ: プレイヤー追従", &followCam_);
     ImGui::DragFloat3("追従オフセット", &followOffset_.x, 0.1f);
+    ImGui::DragFloat("上へ追う高さ(ジャンプ)", &upMargin_, 0.05f, 0.5f, 10.0f);
+    ImGui::DragFloat("下へ追う高さ(段差)", &downMargin_, 0.05f, 0.2f, 10.0f);
+    ImGui::DragFloat("穴とみなす深さ", &holeDepth_, 0.05f, 0.5f, 20.0f);
     ImGui::TextDisabled("ゾーン数: %d（レールエディタの「カメラ演出」で追加）", ( int ) zones_.size());
 #endif
 }

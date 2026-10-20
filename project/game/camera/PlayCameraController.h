@@ -8,7 +8,9 @@ class SplineRail;
 
 // =====================================================================
 //  PlayCameraController：プレイ中のカメラ制御。
-//   ・基本：プレイヤーを「向き(yaw)・距離・高さ」で追従（滑らかに寄る）
+//   ・基本：プレイヤーを「向き(yaw)・距離・高さ」で追従（滑らかに寄る）。
+//     カメラの角度は追従の向き・距離・高さだけで決める（プレイヤーの方へ首を振らない＝歩くたびに画面が回らない）。
+//     高さは着地している所に合わせ、ジャンプでは上下しない（画面から上へ出そうな時と、下へ落ちた時だけ追う）
 //   ・向き切替トリガー(mode=1)：通過した瞬間に追従の向きが切り替わり、
 //     プレイヤーの周りを回り込んで新しい向きへ（180度なら正面へ回転）。次のトリガーまで維持
 //   ・固定カメラ(mode=0)：半径内にいる間だけ「アンカー+オフセット」に固定。離れると追従へ戻る
@@ -24,7 +26,8 @@ public:
 
     // 毎フレーム（Play中のみ）：追従＋ゾーン切替でカメラを動かす。
     //   debugCamActive=true（デバッグカメラ操作中）は何もしない。
-    void Update(Camera* camera, const Vector3& playerPos, const std::vector<SplineRail>& rails,
+    //   grounded=プレイヤーが着地しているか（カメラの高さは着地した所で決める）
+    void Update(Camera* camera, const Vector3& playerPos, bool grounded, const std::vector<SplineRail>& rails,
                 bool debugCamActive, float dt);
 
     // ゾーンの可視化（DebugDraw に積む。編集中も見えるよう毎フレーム呼んでよい）
@@ -37,6 +40,8 @@ public:
 
     // 今の追従の向き・距離・高さでの、カメラの目標位置（補間しない）。演出のカメラから戻る先に使う
     Vector3 FollowTargetPosition(const Vector3& playerPos) const;
+    // 追従カメラが見る点（プレイヤーの足元から少し上）。カメラの角度はこの点を見る向きで固定
+    static constexpr float kLookHeight = 1.0f;
 
 private:
     // 追従のON/OFFと基準（yaw0/距離/高さの初期値になる）
@@ -48,6 +53,16 @@ private:
     float camDistCur_ = 10.0f, camDistTgt_ = 10.0f; // プレイヤーからの距離
     float camHgtCur_ = 3.5f,   camHgtTgt_ = 3.5f;   // プレイヤーからの高さ
     float camFovCur_ = 0.78f,  camFovTgt_ = 0.78f;  // 視野角(rad)
+
+    // カメラが追う高さ（着地している所）。ジャンプ中はそのまま（上へ出そう・下へ落ちた時だけ追う）
+    bool  heightReady_ = false;
+    float groundY_ = 0.0f;    // 最後に着地した所の高さ
+    float focusY_  = 0.0f;    // カメラが今追っている高さ（groundY_ へ滑らかに寄る）
+    float upMargin_   = 3.0f; // ジャンプでこれより上へ行ったら、カメラも上へ追う(m)
+    float downMargin_ = 1.5f; // 空中でこれより下へ行ったら、カメラも下へ追う(m)（段差を降りた時。穴へ落ちた時は追わない）
+    float holeDepth_  = 4.0f; // 着地した所よりこれ以上下へ落ちたら、穴に落ちたとみなして追うのをやめる(m)
+    // 追う高さ（ジャンプは無視・着地・はみ出し）を更新する
+    float UpdateFocusHeight(const Vector3& playerPos, bool grounded, float dt);
 
     // 実行用カメラゾーン（Sync 時にノード番号→レール上の距離へ変換して保持）
     struct Zone {

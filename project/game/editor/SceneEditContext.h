@@ -21,6 +21,7 @@ class CoinSystem;
 class RailField;
 class Camera;
 class Player;
+class StageBackdrop;
 struct EnemySpawnData;
 
 struct SceneEditContext {
@@ -36,12 +37,18 @@ struct SceneEditContext {
     Camera*                             camera      = nullptr;
     const Player*                       player      = nullptr;
     bool                                editing     = false;   // Edit モード中か
+    StageBackdrop*                      backdrop    = nullptr; // クラフトの背景（背景エディタ用）
+    const char*                         stageName   = nullptr; // 今のステージの名前（背景の手直しファイル名に使う）
 
     const std::vector<SplineRail>& Rails() const { return *rails; }
     const EditorManager::GameViewMouse& View() const { return *gameView; }
 
     // ワールド → Game View の画面座標（カメラの後ろなら false）
     bool ProjectToScreen(const Vector3& world, Vector2& out) const;
+    // 画面の点（スクリーン座標）を通る光線（カメラの位置から奥へ。dir は長さ1）
+    bool ScreenRay(const Vector2& screen, Vector3& outOrigin, Vector3& outDir) const;
+    // マウスを通る光線
+    bool MouseRay(Vector3& outOrigin, Vector3& outDir) const { return ScreenRay(View().mousePos, outOrigin, outDir); }
     // ワールドの点とマウスの画面距離(px)。カメラの後ろなら非常に大きい値
     float ScreenDistanceToMouse(const Vector3& world) const;
 

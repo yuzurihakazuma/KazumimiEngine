@@ -92,6 +92,7 @@ namespace {
         { "\xEE\xA2\xA5\n書類", "ファイルエディタ（Project）", "ファイルエディタ (Project)" },                     // E8A5 ドキュメント
         { "\xEE\x9C\x87\nマップ", "ミニマップ（俯瞰ビュー。クリックでカメラ移動）", "ミニマップ (俯瞰)" },            // E707 地図
         { "\xEE\xA2\xA9\n展開図", "配置ビュー（レール展開図。ブロック・敵・コインをマス目で配置）", "配置ビュー (レール展開図)" }, // E8A9 マス目
+        { "\xEE\xA2\xB9\n背景", "背景エディタ（木・草・花・柵などを置く・選ぶ・消す）", "背景エディタ (Backdrop)" },   // E8B9 写真
     };
     // パネルを増やした時に行を足し忘れると、名前が空のまま参照されて実行時に落ちる。ビルド時に気づけるようにする
     static_assert(sizeof(kPanelIcons) / sizeof(kPanelIcons[0]) == EditorManager::Panel_Count,
@@ -283,6 +284,7 @@ void EditorManager::Update(){
         ImGui::DockBuilderDockWindow("ファイルエディタ (Project)",    dock_bottom);
         ImGui::DockBuilderDockWindow("敵配置エディタ (Enemy Editor)", dock_right);
         ImGui::DockBuilderDockWindow("配置ビュー (レール展開図)",     dock_bottom);
+        ImGui::DockBuilderDockWindow("背景エディタ (Backdrop)",      dock_right);
 
         ImGui::DockBuilderFinish(dockspace_id);
     }
@@ -491,6 +493,19 @@ void EditorManager::Update(){
     D3D12_GPU_DESCRIPTOR_HANDLE textureHandle =
         SrvManager::GetInstance()->GetGPUDescriptorHandle(srvIndex);
     ImGui::Image(( ImTextureID ) ( uintptr_t ) textureHandle.ptr, sceneSize);
+
+    // モデルを Game View へ落とせるようにする（ファイルエディタ・背景パレットから。受け取るのはゲーム側）
+    if ( gameViewDrop_.valid && ImGui::GetFrameCount() - gameViewDrop_.frame > 1 ) { gameViewDrop_.valid = false; } // 誰も取らなかった
+    if ( ImGui::BeginDragDropTarget() ) {
+        if ( const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_MODEL") ) {
+            const ImVec2 dropMouse = ImGui::GetMousePos();
+            gameViewDrop_.valid = true;
+            gameViewDrop_.model = static_cast< const char* >( payload->Data );
+            gameViewDrop_.mouse = { dropMouse.x, dropMouse.y };
+            gameViewDrop_.frame = ImGui::GetFrameCount();
+        }
+        ImGui::EndDragDropTarget();
+    }
 
     // 直前の Image の画面矩形とホバー状態（マウス↔ワールド変換に使う）
     const ImVec2 imgMin       = ImGui::GetItemRectMin();
@@ -1847,6 +1862,7 @@ void EditorManager::LoadUiConfig(){
             //   （アイコンモードでは既定が非表示なので、そのままだと追加されたことに気づけない）。
             //   すぐ保存し直すので、閉じた後にまた勝手に開くことはない
             if ( parsed <= Panel_Layout ) { panelVisible_[Panel_Layout] = true; needsSave = true; }
+            if ( parsed <= Panel_Backdrop ) { panelVisible_[Panel_Backdrop] = true; needsSave = true; } // 背景エディタも同じ
         }
         if ( ( found = strstr(buffer, "dockhide=") ) ) {
             found += 9;

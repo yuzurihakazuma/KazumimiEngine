@@ -19,6 +19,22 @@ bool SceneEditContext::ProjectToScreen(const Vector3& world, Vector2& out) const
 	return true;
 }
 
+bool SceneEditContext::ScreenRay(const Vector2& screen, Vector3& outOrigin, Vector3& outDir) const{
+	const auto& view = View();
+	if ( view.imgSize.x <= 1.0f || view.imgSize.y <= 1.0f ) return false;
+	const float ndcX = ( screen.x - view.imgMin.x ) / view.imgSize.x * 2.0f - 1.0f;
+	const float ndcY = 1.0f - ( screen.y - view.imgMin.y ) / view.imgSize.y * 2.0f;
+	const Matrix4x4 inverse = Inverse(view.viewProj);
+	const Vector3 nearPoint = NdcToWorld(ndcX, ndcY, 0.0f, inverse);
+	const Vector3 farPoint  = NdcToWorld(ndcX, ndcY, 1.0f, inverse);
+	Vector3 dir { farPoint.x - nearPoint.x, farPoint.y - nearPoint.y, farPoint.z - nearPoint.z };
+	const float length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+	if ( length < 1e-6f ) return false;
+	outOrigin = nearPoint;
+	outDir = { dir.x / length, dir.y / length, dir.z / length };
+	return true;
+}
+
 float SceneEditContext::ScreenDistanceToMouse(const Vector3& world) const{
 	Vector2 screen;
 	if ( !ProjectToScreen(world, screen) ) return 1e9f;

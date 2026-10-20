@@ -12,6 +12,7 @@ void PlaySceneEditor::DrawPanels(const SceneEditContext& context){
 	if ( context.enemyEditor && context.levelEditor && context.editor->IsPanelVisible(EditorManager::Panel_Layout) ) {
 		DrawStripPanel(context);
 	}
+	backdropTool_.DrawPanel(context);
 }
 
 // 敵配置用エディタのUIウィンドウ。
@@ -63,6 +64,20 @@ void PlaySceneEditor::UpdateGameView(const SceneEditContext& context){
 	EditorManager* editor = context.editor;
 	const bool editing = context.editing;
 	const bool paintMode = editor->IsEditorBlockPaintMode();
+
+	// --- 背景エディタ：編集している間は Game View のクリックを背景だけに使う（敵・コイン・ブロック・レールは止める）---
+	if ( backdropTool_.IsEditing(context) ) {
+		editor->SetExternalDragActive(false); // 背景の道具が、マウスが Game View にある間だけ true にする
+		enemyTool_.Cancel();
+		coinTool_.Cancel();
+		blockDragTool_.Cancel();
+		paintTool_.Cancel();
+		backdropTool_.UpdateGameView(context);
+		if ( editor->IsPanelVisible(EditorManager::Panel_Minimap) ) { minimap_.Draw(context); }
+		if ( context.enemyEditor ) { context.enemyEditor->TickHistory(); }
+		return;
+	}
+	backdropTool_.UpdateGameView(context); // 編集していない時：ドロップの受け取りとギズモの後始末だけ
 
 	// --- 敵のピン・名札・直接ドラッグ（エディット中は常に有効）---
 	//   レール編集のマウス操作を止めるかどうか（SetExternalDragActive）は、ここで毎フレーム決め直す

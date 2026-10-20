@@ -13,7 +13,10 @@
           落ちない道（安全）の行き止まりは、地面を続ける（スタートの後ろなど）
   ・動く道・見えない道（リフト）の下には地面を作らない（宙を動く足場のまま）。
           動く道が通る所で、地面より低くなる所は地面を空ける（足場が地面に埋まって見えないように）
-  ・いちばん奥の道の後ろに、柵（ところどころ看板）と木。地面の空いた所に草と花（道の上には置かない）
+  ・奥の地面は段々に上げる（いちばん奥の道の後ろ 6m・11m で1段ずつ。段の線はゆるく波打たせる）
+  ・飾りは、ばらまかずに「固まり」で置く（ジオラマの作り方）
+      道ばたの草むら（道のふちに 2〜4本ずつ。手前側は低く小さく）／柵（ところどころ抜き、看板）と柵ぎわの花だん／
+      木の林（大きい木＋小さい木＋根元の草むら・岩。2列目は上の段に）／空き地の花畑／手前のふちの小さな草
   ・ずっと奥に、近い丘・遠い丘・雲・空を、ステージの端から端まで並べる
   ・ずっと下（落ちてミスになる高さより下）に、裏返したブロックで段ボールの底を敷く
           （穴をのぞくと、深い穴の底が見える。何も無いと画面のクリア色が見えてしまう）
@@ -39,6 +42,8 @@ BLOCK_SY = 1.8            # ブロックの厚みの拡縮（1.1m。穴や段差
 HOLE_HALF = 2.4           # 道の端の先を空ける幅の半分(m)
 HOLE_MAX = 9.0            # 行き止まりの先を空ける長さ(m)（落ちている間に、奥の地面をすり抜けないくらい）
 ROAD_CLEAR = 1.6          # 草花を置かない、道からの距離(m)
+ROAD_HALF = 1.0           # 道の半幅(m)（game/rail/road/RoadProfile.h の kHalfWidth）
+TERRACE = [(6.0, 0.55), (11.0, 1.1)]  # 奥の段々：いちばん奥の道からの距離(m)と上げる高さ(m)
 LIFT_CLEAR = 0.45         # 動く道がこれより地面に近づく所は、地面を空ける(m)
 LIFT_HALF = 1.6           # 動く道のために空ける幅の半分(m)
 FLOOR_Y = -11.5           # 段ボールの底の高さ（ミスになる高さ -10 より下。落ちた恐竜が底に着く前に消える）
@@ -281,6 +286,36 @@ def lift_low(x, z):
 
 
 # --- 地面の升目 ---
+def rear_z(x, span=8.0):
+    """x のあたりで、いちばん奥の（地面を敷く）道"""
+    zs = [g[2] for g in ground if abs(g[0] - x) <= span]
+    return max(zs) if zs else None
+
+
+def wave(x, period, seed):
+    """なめらかな揺らぎ（-1〜1）。段の線や飾りの濃さを、場所ごとにゆっくり変える"""
+    k = math.floor(x / period)
+    t = x / period - k
+
+    def value(i):
+        return random.Random(seed * 100003 + i).uniform(-1.0, 1.0)
+    t = t * t * (3 - 2 * t)
+    return value(k) * (1 - t) + value(k + 1) * t
+
+
+def terrace(x, z):
+    """奥の段々で上げる高さ"""
+    rz = rear_z(x)
+    if rz is None:
+        return 0.0
+    lift = 0.0
+    block = (math.floor(x / 3.6) + 0.5) * 3.6  # 段の線は 3.6m ごとに揃える（升目ごとにガタガタしない）
+    for k, (dist, up) in enumerate(TERRACE):
+        if z - rz > dist + 1.2 * wave(block, 14.0, 11 + k):
+            lift = up
+    return lift
+
+
 min_x = min(g[0] for g in ground) - BACK
 max_x = max(g[0] for g in ground) + BACK
 min_z = min(g[2] for g in ground) - FRONT
@@ -298,7 +333,7 @@ for c in range(cols):
             continue
         if in_hole(x, z, SUB * 0.5):
             continue
-        top = round(g[3] - GROUND_DROP, 2)
+        top = round(g[3] - GROUND_DROP + terrace(x, z), 2)
         low = lift_low(x, z)
         if low is not None and low < top + LIFT_CLEAR:
             carved += 1
@@ -344,52 +379,161 @@ def near_road(x, z, clear):
     return nearest_ground(x, z)[1] < clear
 
 
-# --- いちばん奥の道の後ろ：柵（ところどころ看板）と木 ---
-def rear_z(x, span=8.0):
-    zs = [g[2] for g in ground if abs(g[0] - x) <= span]
-    return max(zs) if zs else None
+# --- 飾り：ばらまかずに「固まり」で置く ---
+TUFTS = ["grass_tuft_00", "grass_tuft_01", "grass_tuft_02"]
+FLOWERS = ["flower_orange", "flower_red", "flower_white"]
+ROCKS = ["paper_rock_00", "paper_rock_01"]
+BIG_TREES = ["tree_cutout_00", "tree_cutout_01", "tree_cutout_02"]
+SMALL_TREES = ["tree_round_small_00", "tree_round_small_01"]
+occupied = []  # 置いた物 (x, z, 半径)。重ねすぎないように
+stage_min_x = min(g[0] for g in ground)
+stage_max_x = max(g[0] for g in ground)
 
 
-fence_x = min(g[0] for g in ground) - 6
-sign_every, count = 18, 0
-while fence_x < max(g[0] for g in ground) + 6:
+def free(x, z, r):
+    return all((x - ox) ** 2 + (z - oz) ** 2 >= (r + orad) ** 2 for ox, oz, orad in occupied)
+
+
+def put(model, x, z, scale, r=0.3, turn=20.0, clear=ROAD_HALF + 0.15, check=True):
+    """地面の上に1つ置く（地面が無い・穴・道の上・ほかの物と重なる所には置かない）"""
+    top = ground_top(x, z)
+    if top is None or in_hole(x, z, 0.3) or near_road(x, z, clear):
+        return False
+    if check and not free(x, z, r):
+        return False
+    add(model, [x, top, z], scale, 180 + rng.uniform(-turn, turn))
+    occupied.append((x, z, r))
+    return True
+
+
+def bush(x, z, count, scale, spread=0.55, flower=0.0, clear=ROAD_HALF + 0.15):
+    """草むら：草を何本か重ねて1つの固まりに（真ん中ほど大きい）。flower=花をまぜる割合"""
+    placed = 0
+    for k in range(count):
+        a = rng.uniform(0, 2 * math.pi)
+        d = spread * math.sqrt(rng.random()) if k else 0.0
+        size = scale * (1.0 - 0.25 * d / max(spread, 1e-3)) * rng.uniform(0.9, 1.1)
+        model = rng.choice(FLOWERS) if rng.random() < flower else rng.choice(TUFTS)
+        placed += put(model, x + math.cos(a) * d, z + math.sin(a) * d * 0.7, size, 0.18, 25.0, clear, check=False)
+    if placed:
+        occupied.append((x, z, spread + 0.2))
+    return placed
+
+
+# 柵：いちばん奥の道の後ろ。ところどころ抜いて（同じ物がずっと続かない）、看板を少し
+fence_x = stage_min_x - 6
+count = 0
+fence_line = []  # 柵を置いた所（柵ぎわの花だんに使う）
+while fence_x < stage_max_x + 6:
     rz = rear_z(fence_x)
     if rz is not None:
         fz = rz + 1.8
+        gap = wave(fence_x, 14.0, 3) < -0.55  # 柵の切れ目
         top = ground_top(fence_x, fz)
-        if top is not None and not near_road(fence_x, fz, 1.4) and not in_hole(fence_x, fz, 0.5):
+        if not gap and top is not None and not near_road(fence_x, fz, 1.4) and not in_hole(fence_x, fz, 0.5):
             count += 1
-            if count % sign_every == 0:
-                add("sign_arrow", [fence_x, top, fz], 1.8)       # 進む方向（右）を指す
-            else:
-                add("fence_sticks", [fence_x, top, fz], 1.8)
+            add("sign_arrow" if count % 20 == 7 else "fence_sticks", [fence_x, top, fz], 1.8)
+            occupied.append((fence_x, fz, 1.1))
+            fence_line.append((fence_x, fz))
     fence_x += 2.4
 
-trees = ["tree_cutout_00", "tree_cutout_01", "tree_cutout_02", "tree_round_small_00", "tree_round_small_01"]
-tree_x = min(g[0] for g in ground) - 10
-while tree_x < max(g[0] for g in ground) + 10:
+# 道ばたの草むら：道のふちに沿って、2〜4本ずつ。手前（カメラ側）は低く小さく、奥は大きく・花も
+for i, line in enumerate(lines):
+    if not is_ground_rail(i):
+        continue
+    points, total = sample(i, 0.5)
+    next_d = rng.uniform(1.0, 4.0)
+    for k in range(1, len(points)):
+        p, d, _ = points[k]
+        if d < next_d:
+            continue
+        q = points[k - 1][0]
+        tx, tz = p[0] - q[0], p[2] - q[2]
+        length = math.hypot(tx, tz) or 1.0
+        nx, nz = -tz / length, tx / length  # 道の横向き
+        density = wave(p[0] + p[2], 11.0, 5 + i)  # 濃い所と薄い所
+        next_d = d + (rng.uniform(2.0, 3.5) if density > 0 else rng.uniform(4.5, 8.0))
+        for side in (1, -1):
+            sx, sz = nx * side, nz * side
+            back = sz > 0.3 or (abs(sz) <= 0.3 and rng.random() < 0.5)  # 奥側（縦の道は左右どちらも）
+            if not back and rng.random() < 0.55:
+                continue  # 手前側は控えめ（恐竜とカメラの間をふさがない）
+            off = ROAD_HALF + rng.uniform(0.25, 0.65)
+            x, z = p[0] + sx * off + rng.uniform(-0.4, 0.4) * tx / length, p[2] + sz * off
+            if back:
+                bush(x, z, rng.randint(2, 4), rng.uniform(1.6, 2.1), 0.5, 0.25 if density > 0.2 else 0.0)
+            else:
+                bush(x, z, rng.randint(1, 2), rng.uniform(1.1, 1.4), 0.35)
+
+# 柵ぎわの花だん：柵のすぐ後ろに、草と花の固まり（同じ色の花を2〜4本まとめる）
+for fx, fz in fence_line:
+    if wave(fx, 10.0, 7) < -0.1 or rng.random() < 0.35:
+        continue
+    color = rng.choice(FLOWERS)
+    x, z = fx + rng.uniform(-1.0, 1.0), fz + rng.uniform(0.6, 1.3)
+    for k in range(rng.randint(2, 4)):
+        put(color, x + rng.uniform(-0.6, 0.6), z + rng.uniform(-0.3, 0.3), rng.uniform(1.5, 1.9), 0.2, 20.0, check=False)
+    bush(x + rng.uniform(-0.8, 0.8), z + 0.3, rng.randint(2, 3), rng.uniform(1.7, 2.1), 0.4)
+
+
+# 木の林：大きい木1本＋小さい木1〜2本＋根元の草むら（ときどき岩）。1列目は柵の後ろ、2列目は上の段に小さめ
+def grove(x, z, scale):
+    if not put(rng.choice(BIG_TREES), x, z, scale, 1.3, 8.0, 3.0):
+        return False
+    for k in range(rng.randint(1, 2)):
+        side = rng.choice((-1, 1))
+        put(rng.choice(SMALL_TREES + BIG_TREES[:1]), x + side * rng.uniform(1.4, 2.4), z + rng.uniform(-1.2, 1.0),
+            scale * rng.uniform(0.7, 0.85), 0.9, 8.0, 3.0, check=False)  # 林の中どうしは重なってよい
+    bush(x + rng.uniform(-0.5, 0.5), z - rng.uniform(0.6, 1.0), rng.randint(3, 5), rng.uniform(2.2, 2.7), 0.7, 0.15, 2.5)
+    if rng.random() < 0.4:
+        put(rng.choice(ROCKS), x + rng.choice((-1, 1)) * rng.uniform(1.0, 1.8), z - rng.uniform(0.4, 1.2),
+            rng.uniform(1.0, 1.4), 0.6, 180.0, 2.5, check=False)
+    return True
+
+
+tree_x = stage_min_x - 8
+while tree_x < stage_max_x + 8:
     rz = rear_z(tree_x)
     if rz is not None:
-        tz = rz + rng.uniform(4.0, 11.0)
-        top = ground_top(tree_x, tz)
-        if top is not None and not near_road(tree_x, tz, 3.0) and not in_hole(tree_x, tz, 1.0):
-            add(rng.choice(trees), [tree_x, top, tz], rng.uniform(1.6, 2.1), 180 + rng.uniform(-10, 10))
-    tree_x += rng.uniform(8.0, 15.0)
+        grove(tree_x, rz + rng.uniform(3.6, 5.5), rng.uniform(2.0, 2.5))
+    tree_x += rng.uniform(9.0, 16.0)
+tree_x = stage_min_x - 4
+while tree_x < stage_max_x + 8:
+    rz = rear_z(tree_x)
+    if rz is not None and rng.random() < 0.75:
+        put(rng.choice(BIG_TREES + SMALL_TREES), tree_x, rz + rng.uniform(12.0, 15.0), rng.uniform(1.7, 2.1), 1.0, 8.0, 3.0)
+    tree_x += rng.uniform(5.0, 9.0)
 
-# --- 草と花：地面の空いた所に（道の上・すぐ脇には置かない） ---
-decor = [("grass_tuft_00", 3), ("grass_tuft_01", 3), ("grass_tuft_02", 3), ("flower_orange", 1), ("flower_red", 1), ("flower_white", 1)]
-pool = [name for name, weight in decor for _ in range(weight)]
-for (c, r), top in height.items():
-    if rng.random() > 0.11:
+# 手前のふち：カメラのすぐ前（いちばん手前の道より 4〜8m 手前）に、低い草むらと花を点々と（画面の下が平らすぎないように）
+def front_z(x, span=8.0):
+    zs = [g[2] for g in ground if abs(g[0] - x) <= span]
+    return min(zs) if zs else None
+
+
+edge_x = stage_min_x - 8
+while edge_x < stage_max_x + 8:
+    fz = front_z(edge_x)
+    if fz is not None:
+        z = fz - rng.uniform(4.0, 8.0)
+        if rng.random() < 0.3:
+            for k in range(rng.randint(2, 3)):
+                put(rng.choice(FLOWERS), edge_x + rng.uniform(-0.7, 0.7), z + rng.uniform(-0.4, 0.4), rng.uniform(1.3, 1.6), 0.2, 25.0, check=False)
+        bush(edge_x, z, rng.randint(2, 4), rng.uniform(1.3, 1.7), 0.6)
+    edge_x += rng.uniform(5.0, 9.0)
+
+# 空き地の花畑：道から離れた広い所に、草むらと花の固まりを点々と（固まりどうしは 5m 以上離す）
+for (c, r), top in sorted(height.items()):
+    if rng.random() > 0.05:
         continue
-    x = min_x + (c + rng.uniform(0.15, 0.85)) * SUB
-    z = min_z + (r + rng.uniform(0.15, 0.85)) * SUB
-    if near_road(x, z, ROAD_CLEAR):
-        continue
-    if rng.random() < 0.06:
-        add(rng.choice(["paper_rock_00", "paper_rock_01"]), [x, top, z], rng.uniform(1.4, 1.9), rng.uniform(0, 360))
+    x = min_x + (c + 0.5) * SUB
+    z = min_z + (r + 0.5) * SUB
+    rz = rear_z(x)
+    if near_road(x, z, 3.0) or (rz is not None and z > rz + 3.0) or not free(x, z, 2.5):
+        continue  # 柵より奥は林と花だんに任せる
+    if z < (rz if rz is not None else z) - 9.0 + 3.0:
+        bush(x, z, rng.randint(1, 2), rng.uniform(1.1, 1.4), 0.4)  # 手前のふち：低く小さく
     else:
-        add(rng.choice(pool), [x, top, z], rng.uniform(1.6, 2.0), 180 + rng.uniform(-25, 25))
+        bush(x, z, rng.randint(3, 6), rng.uniform(1.5, 1.9), 0.9, 0.45)
 
 # --- ずっと奥：近い丘・遠い丘・雲・空（ステージの端から端まで。リフトの道も含めて一番奥の道の後ろ） ---
 all_min_x = min(p[0] for p in every) - 40
@@ -461,5 +605,7 @@ counts = {}
 for o in objects:
     counts[o["model"]] = counts.get(o["model"], 0) + 1
 with open(OUT, "w", encoding="utf-8") as f:
-    json.dump({"stage": STAGE, "objects": objects}, f, ensure_ascii=False, separators=(",", ":"))
+    # grid＝地面の升目（背景エディタの「地面」ブラシが同じ升目で塗る）
+    json.dump({"stage": STAGE, "grid": {"origin": [round(min_x, 4), round(min_z, 4)], "cell": SUB}, "objects": objects},
+              f, ensure_ascii=False, separators=(",", ":"))
 print("wrote", OUT, len(objects), "objects", counts)
