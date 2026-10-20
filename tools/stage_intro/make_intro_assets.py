@@ -24,7 +24,7 @@ FX_DIR = os.path.join(PROJECT, "resources", "stage_intro", "fx")
 os.makedirs(ROLL_DIR, exist_ok=True)
 os.makedirs(FX_DIR, exist_ok=True)
 
-FELT = (0.62, 0.84, 0.24)  # ステージ開始カードの名前の帯と同じ黄緑（resources/stage_intro/stage1.json の bannerColor）
+FELT = (0.95, 0.55, 0.28)  # 布ロード（道に敷く布）と同じ色（engine/rail/RailSkin.h の color の既定値）。転がして道になる布
 
 
 def felt(size, color):
@@ -46,8 +46,8 @@ def make_roll_texture():
     d = ImageDraw.Draw(side)
     for k in range(-2, 7):  # 巻いた布の重なりの線（斜め）と縫い目
         x = k * 48
-        d.line([(x, 0), (x + 60, 256)], fill=(70, 95, 25), width=5)
-        d.line([(x + 8, 0), (x + 68, 256)], fill=(220, 240, 170), width=2)
+        d.line([(x, 0), (x + 60, 256)], fill=tuple(int(c * 255 * 0.45) for c in FELT), width=5)
+        d.line([(x + 8, 0), (x + 68, 256)], fill=tuple(int(min(255, c * 255 * 1.25 + 40)) for c in FELT), width=2)
     for y in (22, 234):
         for x in range(0, 256, 22):
             d.line([(x, y), (x + 12, y)], fill=(250, 250, 240), width=4)
@@ -61,9 +61,9 @@ def make_roll_texture():
         t = i / 900 * 5 * 2 * math.pi
         r = 8 + t / (2 * math.pi) * 22
         pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
-    cd.line(pts, fill=(60, 85, 20), width=6)
-    cd.line([(x + 2, y + 2) for x, y in pts], fill=(225, 240, 180), width=2)
-    cd.ellipse([2, 2, 254, 254], outline=(50, 70, 18), width=6)
+    cd.line(pts, fill=tuple(int(c * 255 * 0.4) for c in FELT), width=6)
+    cd.line([(x + 2, y + 2) for x, y in pts], fill=tuple(int(min(255, c * 255 * 1.25 + 40)) for c in FELT), width=2)
+    cd.ellipse([2, 2, 254, 254], outline=tuple(int(c * 255 * 0.35) for c in FELT), width=6)
     img.paste(cap, (256, 0))
     img.save(os.path.join(ROLL_DIR, "Roll_Felt.png"))
 

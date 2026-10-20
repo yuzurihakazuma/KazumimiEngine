@@ -72,6 +72,20 @@ float PlayerInput::ReadAirForward(const Vector3& forwardDir) const{
     return inputX * forwardDir.x + inputZ * forwardDir.z;
 }
 
+PlayerInput::AutoPilot PlayerInput::CaptureIntent() const{
+    if ( autoPilotActive_ ) { return autoPilot_; }
+    Input* input = Input::GetInstance();
+    const WorldKeys keys = GetWorldKeys();
+    AutoPilot intent;
+    intent.moveX = ( input->Pushkey(( BYTE ) keys.plusX) ? 1.0f : 0.0f ) - ( input->Pushkey(( BYTE ) keys.minusX) ? 1.0f : 0.0f );
+    intent.moveZ = ( input->Pushkey(( BYTE ) keys.plusZ) ? 1.0f : 0.0f ) - ( input->Pushkey(( BYTE ) keys.minusZ) ? 1.0f : 0.0f );
+    intent.switchX = ( input->Triggerkey(( BYTE ) keys.plusX) ? 1 : 0 ) - ( input->Triggerkey(( BYTE ) keys.minusX) ? 1 : 0 );
+    intent.switchZ = ( input->Triggerkey(( BYTE ) keys.plusZ) ? 1 : 0 ) - ( input->Triggerkey(( BYTE ) keys.minusZ) ? 1 : 0 );
+    intent.jumpPressed = input->Triggerkey(DIK_SPACE);
+    intent.jumpHeld = input->Pushkey(DIK_SPACE);
+    return intent;
+}
+
 bool PlayerInput::JumpPressed() const{
     return autoPilotActive_ ? autoPilot_.jumpPressed : Input::GetInstance()->Triggerkey(DIK_SPACE);
 }

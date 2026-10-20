@@ -74,6 +74,7 @@ void StageIntroSequence::Reset(const Context& context){
     if ( context.avatar ) { context.avatar->ClearIntroClip(); }
     state_ = State::None;
     rollState_ = Roll::Hidden;
+    unrolling_ = false;
 }
 
 float StageIntroSequence::YawToCamera(const Vector3& position) const{
@@ -100,6 +101,7 @@ void StageIntroSequence::OnCue(const std::string& cue, const Context& context){
         rollOrigin_ = start;
         rollDistance_ = rollSpeed_ = rollAngle_ = 0.0f;
         rollState_ = Roll::Placed;
+        unrolling_ = true; // ロールより先の道は、まだ布が敷かれていない
         // イントロカメラの位置は、プレイヤーがスタートに立った後（次の更新）で決める
         //   （プレイ開始の直後だと、プレイヤーの位置がまだスタートに置かれていないことがある）
         cameraPlaced_ = false;
@@ -240,7 +242,7 @@ void StageIntroSequence::UpdateRoll(float dt){
     const float step = rollSpeed_ * dt;
     rollDistance_ += step;
     rollAngle_ += step / ( std::max )( radius, 0.01f );
-    if ( rollDistance_ > kRollHideDistance ) { rollState_ = Roll::Hidden; return; }
+    if ( rollDistance_ > kRollHideDistance ) { rollState_ = Roll::Hidden; unrolling_ = false; return; } // 画面の外：残りは全部敷く
     const Vector3 forward { std::sin(forwardYaw_), 0.0f, std::cos(forwardYaw_) };
     const float ahead = rollAhead_ + rollDistance_;
     roll_->SetTranslation({ rollOrigin_.x + forward.x * ahead, rollOrigin_.y + radius, rollOrigin_.z + forward.z * ahead });

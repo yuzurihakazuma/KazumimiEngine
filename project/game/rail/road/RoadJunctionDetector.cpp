@@ -52,6 +52,7 @@ bool InBox(const RailBox& b, const Vector3& p){
 
 bool RoadJunctionDetector::IsRoadRail(const std::vector<SplineRail>& rails, int idx){
     return idx >= 0 && idx < ( int ) rails.size() && rails[idx].visible && rails[idx].roadMode == 0 &&
+           rails[idx].skin.HasBase() &&   // 布のみ・見せないレールには土台を敷かない（布ロード）
            rails[idx].nodes.size() >= 2 && rails[idx].GetLength() > 0.0f;
 }
 

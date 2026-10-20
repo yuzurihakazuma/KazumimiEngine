@@ -39,7 +39,14 @@ public:
     void Update(const std::vector<SplineRail>& rails);
 
     void Draw() const;
-    void Clear(){ slots_.Clear(); }
+    void Clear(){ slots_.Clear(); clothSlots_.Clear(); clothSlotOfRail_.clear(); }
+
+    // ===== 布ロード =====
+    // 布の展開（ステージ開始の演出）：origin（スタートのレール・距離）から道に沿って front(m) までだけ布を敷く。
+    //   front<0 は全部敷く（ふつう）。毎フレーム呼んでよい（変わったレールだけ作り直す）
+    void SetUnroll(int originRail, float originDist, float front);
+    // 布の見た目の再生成（展開率が変わったレールだけ）。Update の前に呼ぶ
+    void UpdateCloth(const std::vector<SplineRail>& rails);
 
     int  TileCount() const { return ( int ) slots_.TileCount(); }
 
@@ -74,6 +81,21 @@ private:
     void PlaceJointPiece(const std::vector<SplineRail>& rails, int railIdx, const Vector3& railPos, float yaw);
 
     RoadRenderSlots slots_; // 掃引メッシュ/パッチ/ジョイントの GPU スロット
+
+    // --- 布ロード ---
+    void BuildCloth(const std::vector<SplineRail>& rails, Camera* camera);
+    void ComputePathDistances(const std::vector<SplineRail>& rails);
+    // レールの敷く範囲（展開率から）。全部なら {0,len}
+    void ClothRanges(const std::vector<SplineRail>& rails, int railIndex, std::vector<float>& out) const;
+    RoadRenderSlots clothSlots_;
+    std::vector<int>   clothSlotOfRail_;   // レール → 布のスロット（-1=布なし）
+    std::vector<float> clothLift_;         // レールごとの重なりの高さ（つなぎ目で隣と同じ高さにならないように）
+    std::vector<std::vector<float>> clothShown_; // 今のスロットの中身の範囲（変わった時だけ作り直す）
+    std::vector<float> pathFront_, pathBack_;    // 展開の起点から、各レールの始点・終点までの道のりの距離
+    int   unrollRail_ = -1;
+    float unrollDist_ = 0.0f;
+    float unrollFront_ = -1.0f;
+    bool  unrollDirty_ = false;
 
     bool visible_ = true;
     int  jointVisible_ = 1; // 0=エディタのみ / 1=常に / 2=非表示

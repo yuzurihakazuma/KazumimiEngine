@@ -48,6 +48,40 @@ void RoadRenderSlots::EmitMesh(const Model::ModelData& data, int followRail, boo
     s.obj->Update();
 }
 
+size_t RoadRenderSlots::EmitMeshSlot(const Model::ModelData& data, int followRail, uint32_t textureSrv, const Vector4& color){
+    if ( slotsUsed_ == slots_.size() ) {
+        auto slot = std::make_unique<MeshSlot>();
+        slot->model = std::make_unique<Model>();
+        slot->model->InitializeDynamic(ModelManager::GetInstance()->GetModelCommon(),
+                                       4096, 24576, "resources/road/road_atlas.png");
+        slot->obj = std::make_unique<Obj3d>();
+        slot->obj->Initialize(slot->model.get());
+        slots_.push_back(std::move(slot));
+    }
+    const size_t index = slotsUsed_++;
+    MeshSlot& s = *slots_[index];
+    s.model->SetTexture(textureSrv);
+    if ( s.model->GetMaterial() ) {
+        s.model->GetMaterial()->color = color;
+        s.model->GetMaterial()->matte = 1.0f; // 布・紙はつやを出さない
+    }
+    s.model->UpdateMesh(data.vertices, data.indices);
+    s.rail = followRail;
+    s.isJoint = false;
+    lastVertexCount_   += data.vertices.size();
+    lastTriangleCount_ += data.indices.size() / 3;
+    s.obj->SetPipelineType(PipelineType::Object3D_CullNone);
+    s.obj->SetCamera(camera_);
+    s.obj->SetTranslation({ 0.0f, 0.0f, 0.0f });
+    s.obj->Update();
+    return index;
+}
+
+void RoadRenderSlots::ReplaceMesh(size_t slotIndex, const Model::ModelData& data){
+    if ( slotIndex >= slotsUsed_ ) return;
+    slots_[slotIndex]->model->UpdateMesh(data.vertices, data.indices);
+}
+
 // 動くレールのジョイントを1個置く（基準位置 = 置いた位置 - 現在の animOffset を覚えて毎フレーム追従）
 void RoadRenderSlots::PlaceMovingJoint(Model* model, const Vector3& pos, float yaw, int railIdx,
                                        const Vector3& animOffset){

@@ -93,6 +93,7 @@ namespace {
         { "\xEE\x9C\x87\nマップ", "ミニマップ（俯瞰ビュー。クリックでカメラ移動）", "ミニマップ (俯瞰)" },            // E707 地図
         { "\xEE\xA2\xA9\n展開図", "配置ビュー（レール展開図。ブロック・敵・コインをマス目で配置）", "配置ビュー (レール展開図)" }, // E8A9 マス目
         { "\xEE\xA2\xB9\n背景", "背景エディタ（木・草・花・柵などを置く・選ぶ・消す）", "背景エディタ (Backdrop)" },   // E8B9 写真
+        { "\xEE\xA2\xAB\n乗換", "乗り換えデバッガ（レールからレールへ移る時のずれを数値で見る）", "乗り換えデバッガ (Rail Transfer)" }, // E8AB 切替
     };
     // パネルを増やした時に行を足し忘れると、名前が空のまま参照されて実行時に落ちる。ビルド時に気づけるようにする
     static_assert(sizeof(kPanelIcons) / sizeof(kPanelIcons[0]) == EditorManager::Panel_Count,
@@ -285,6 +286,7 @@ void EditorManager::Update(){
         ImGui::DockBuilderDockWindow("敵配置エディタ (Enemy Editor)", dock_right);
         ImGui::DockBuilderDockWindow("配置ビュー (レール展開図)",     dock_bottom);
         ImGui::DockBuilderDockWindow("背景エディタ (Backdrop)",      dock_right);
+        ImGui::DockBuilderDockWindow("乗り換えデバッガ (Rail Transfer)", dock_right);
 
         ImGui::DockBuilderFinish(dockspace_id);
     }
@@ -2044,6 +2046,10 @@ const std::vector<int>& EditorManager::GetEditorRailOneWay() const{
 const std::vector<float>& EditorManager::GetEditorRailSpeedMuls() const{
     static const std::vector<float> kEmpty;
     return levelEditor_ ? levelEditor_->GetRailEditor()->GetRailSpeedMuls() : kEmpty;
+}
+const std::vector<RailSkin>& EditorManager::GetEditorRailSkins() const{
+    static const std::vector<RailSkin> kEmpty;
+    return levelEditor_ ? levelEditor_->GetRailEditor()->GetRailSkins() : kEmpty;
 }
 int EditorManager::GetEditorStartRail() const{
     return levelEditor_ ? levelEditor_->GetRailEditor()->GetStartRail() : 0;

@@ -261,6 +261,8 @@ exit 0</Command>
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\enemy\EnemyEditor.cpp" />
     <ClCompile Include="game\editor\RailStripPanel.cpp" />
+    <ClCompile Include="game\rail\road\RoadClothBuilder.cpp" />
+    <ClCompile Include="game\editor\RailTransferDebugger.cpp" />
     <ClCompile Include="game\editor\BackdropEditTool.cpp" />
     <ClCompile Include="game\stage\StageBackdrop.cpp" />
     <ClCompile Include="game\transition\StageIntroCard.cpp" />
@@ -476,6 +478,8 @@ exit 0</Command>
     <ClInclude Include="engine\scene\ISceneTransition.h" />
     <ClInclude Include="game\title\TitleTopple.h" />
     <ClInclude Include="game\editor\RailStripPanel.h" />
+    <ClInclude Include="game\rail\road\RoadClothBuilder.h" />
+    <ClInclude Include="game\editor\RailTransferDebugger.h" />
     <ClInclude Include="game\editor\BackdropEditTool.h" />
     <ClInclude Include="game\stage\StageBackdrop.h" />
     <ClInclude Include="game\transition\StageIntroCard.h" />

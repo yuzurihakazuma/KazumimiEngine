@@ -100,6 +100,39 @@ namespace {
         return moved;
     }
 
+    // フェーズ3.5：T字の端を本体へぴったり載せる（実行時のレールだけ。エディタのデータは変えない）。
+    //   端がほかのレールの途中に kConnThreshold 以内で接しているのに、数cm〜数十cm離れていると、
+    //   歩いて端から本体へ合流した瞬間にその分だけ横へ飛ぶ（乗り換えデバッガで 5〜35cm を測った）。
+    //   端点を本体の上の一番近い点へ動かして、合流の瞬間に位置が飛ばないようにする。ノードを動かしたら true
+    bool SnapEndsToBodies(std::vector<SplineRail>& rails){
+        bool moved = false;
+        for ( int j = 0; j < ( int ) rails.size(); ++j ) {
+            SplineRail& rj = rails[j];
+            if ( rj.nodes.size() < 2 || rj.isLoop || rj.HasMotion() ) continue;
+            for ( int end = 0; end < 2; ++end ) {
+                const bool isFront = ( end == 0 );
+                if ( ( isFront ? rj.frontConnIndex : rj.backConnIndex ) >= 0 ) continue; // 端どうしでつながっている
+                Vector3& node = isFront ? rj.nodes.front() : rj.nodes.back();
+                for ( int i = 0; i < ( int ) rails.size(); ++i ) {
+                    if ( i == j ) continue;
+                    const SplineRail& ri = rails[i];
+                    if ( ri.nodes.size() < 2 || ri.HasMotion() ) continue;
+                    const float len = ri.GetLength();
+                    if ( len < 1.5f ) continue;
+                    const float cd = ri.GetClosestDistance(node);
+                    if ( cd < 0.6f || cd > len - 0.6f ) continue; // 端付近は端点連結の領分（FindBranchPoints と同じ）
+                    const Vector3 cp = ri.GetPositionByDistance(cd);
+                    const float gap = EndDist(cp, node);
+                    if ( gap > kConnThreshold || gap < 1e-4f ) continue;
+                    node = cp;
+                    moved = true;
+                    break;
+                }
+            }
+        }
+        return moved;
+    }
+
     // フェーズ4：途中分岐（branchPoints）の構築。
     //   レール j の端点が、レール i の「途中（端から離れた本体）」に接している T字路 を検出し、
     //   レール i 側に分岐点として登録する。同タイプ同士のT字路でも乗り換えできるようになる。
@@ -158,6 +191,9 @@ void RailConnections::Build(std::vector<SplineRail>& rails){
     FindEndConnections(rails);
     // フェーズ3：ノードを動かしたので距離テーブルを作り直す
     if ( WeldEnds(rails) ) {
+        for ( auto& rail : rails ) { rail.BuildDistanceTable(); }
+    }
+    if ( SnapEndsToBodies(rails) ) {
         for ( auto& rail : rails ) { rail.BuildDistanceTable(); }
     }
     FindBranchPoints(rails);

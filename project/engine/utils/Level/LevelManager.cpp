@@ -171,6 +171,16 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
     rootJson["railOneWay"]         = oneWayArray;
     rootJson["railSpeedMuls"]      = speedMulArray;
 
+    // 道の見た目（布ロード）。railLines と数を合わせて保存
+    json skinArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        const RailSkin skin = ( i < levelData.railSkins.size() ) ? levelData.railSkins[i] : RailSkin {};
+        skinArray.push_back({ { "style", skin.style }, { "width", skin.width }, { "lift", skin.lift }, { "curl", skin.curl },
+                              { "color", { skin.color.x, skin.color.y, skin.color.z } }, { "stitch", skin.stitch },
+                              { "layer", skin.layer } });
+    }
+    rootJson["railSkins"] = skinArray;
+
     // 後から出現する道（railLines と数を合わせて保存）
     json appearTriggerArray = json::array();
     for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
@@ -433,6 +443,21 @@ LevelData LevelManager::Load(const std::string& fileName){
     if ( rootJson.contains("railSpeedMuls") && rootJson["railSpeedMuls"].is_array() ) {
         for ( const auto& speedMulJson : rootJson["railSpeedMuls"] ) { levelData.railSpeedMuls.push_back(speedMulJson.get<float>()); }
     }
+    if ( rootJson.contains("railSkins") && rootJson["railSkins"].is_array() ) {
+        for ( const auto& skinJson : rootJson["railSkins"] ) {
+            RailSkin skin;
+            skin.style  = skinJson.value("style", skin.style);
+            skin.width  = skinJson.value("width", skin.width);
+            skin.lift   = skinJson.value("lift", skin.lift);
+            skin.curl   = skinJson.value("curl", skin.curl);
+            skin.stitch = skinJson.value("stitch", skin.stitch);
+            skin.layer  = skinJson.value("layer", skin.layer);
+            if ( skinJson.contains("color") && skinJson["color"].is_array() && skinJson["color"].size() >= 3 ) {
+                skin.color = { skinJson["color"][0].get<float>(), skinJson["color"][1].get<float>(), skinJson["color"][2].get<float>() };
+            }
+            levelData.railSkins.push_back(skin);
+        }
+    }
 
     // スタート/ゴール地点（無ければデフォルト：スタート=レール0ノード0 / ゴール=未設定）
     levelData.startRailIndex = rootJson.value("startRailIndex", 0);
@@ -513,6 +538,7 @@ LevelData LevelManager::Load(const std::string& fileName){
     levelData.railAppearTriggers.resize(levelData.railLines.size(), -1);
     levelData.railOneWay.resize(levelData.railLines.size(), 0);
     levelData.railSpeedMuls.resize(levelData.railLines.size(), 1.0f);
+    levelData.railSkins.resize(levelData.railLines.size());
     levelData.railNodeHoles.resize(levelData.railLines.size());
     // 各レールの穴配列をノード数に合わせる（足りない分は0=穴なし）
     for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {

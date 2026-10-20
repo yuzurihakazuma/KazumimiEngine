@@ -58,6 +58,10 @@ public:
     void UpdateCamera(Camera* camera, const Context& context, float dt);
     // ロール（操作開始の後も、画面の外へ出るまで転がり続ける）
     void UpdateRoll(float dt);
+    // 布の展開（布ロード）：ロールが転がった所まで布の道が敷かれていく。
+    //   展開中は true と、スタートからの道のり(m)。ロールが画面の外へ出たら全部敷く（false）
+    bool  IsUnrolling() const{ return unrolling_; }
+    float UnrollFront() const{ return rollAhead_ + rollDistance_; }
     void Draw();
 
 private:
@@ -87,6 +91,7 @@ private:
     float   rollDistance_ = 0.0f;   // 転がった距離
     float   rollSpeed_ = 0.0f;
     float   rollAngle_ = 0.0f;      // 回った角度（転がった距離 ÷ 半径を足していく）
+    bool    unrolling_ = false;     // 布を展開している途中（ロールより先の布はまだ敷かれていない）
 
     // ステージごとの設定
     float distance_ = 3.8f, side_ = 1.3f, height_ = 0.75f, lookHeight_ = 1.0f; // イントロカメラ

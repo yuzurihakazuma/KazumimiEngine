@@ -63,6 +63,7 @@ public:
     const std::vector<float>& GetRailGuideDwells() const{ return data_->railGuideDwells; } // 停車時間(秒)
     const std::vector<int>&   GetRailOneWay() const{ return data_->railOneWay; }
     const std::vector<float>& GetRailSpeedMuls() const{ return data_->railSpeedMuls; }
+    const std::vector<RailSkin>& GetRailSkins() const{ return data_->railSkins; } // 道の見た目（布ロード）
     int GetStartRail() const{ return data_->startRailIndex; }
     int GetStartNode() const{ return data_->startNodeIndex; }
     int GetGoalRail() const{ return data_->goalRailIndex; }
@@ -506,6 +507,7 @@ private:
         std::vector<std::vector<int>> nodeHoles;
         std::vector<int>   motionTypes, motionTriggers, appearTriggers, oneWay;
         std::vector<float> motionPhases, speedMuls;
+        std::vector<RailSkin> skins;
     };
     RailSettings CaptureRailSettings() const;
     void ApplyRailSettings(const RailSettings& settings);

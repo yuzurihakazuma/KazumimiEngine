@@ -3,6 +3,7 @@
 #include "game/rail/road/RoadJunctionDetector.h"
 #include "game/rail/road/RoadJunctionPatchBuilder.h"
 #include "game/rail/road/RoadSweepBuilder.h"
+#include "game/rail/road/RoadClothBuilder.h"
 #include "game/rail/road/RoadProfile.h"
 #include "engine/rail/SplineRail.h"
 #include "engine/3d/model/Model.h"
@@ -11,7 +12,9 @@
 #include "engine/utils/EditorManager.h"
 #include "engine/math/VectorMath.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 using namespace VectorMath;
 using namespace RoadProfile;
@@ -124,6 +127,167 @@ void RoadMesh::Build(const std::vector<SplineRail>& rails, Camera* camera, bool 
     slots_.EmitMesh(bakeJoints_.Data(), -1, true);
 
     slots_.EndBuild();
+
+    // 布ロード（布のみ・布＋土台のレール）
+    BuildCloth(rails, camera);
+}
+
+// ===== 布ロード =====
+namespace {
+    float ToLinear(float c){ return std::pow(( std::max )( c, 0.0f ), 2.2f); }
+}
+
+// 展開の起点から各レールの端までの道のり（端どうしの連結とT字をたどる）
+void RoadMesh::ComputePathDistances(const std::vector<SplineRail>& rails){
+    const float inf = ( std::numeric_limits<float>::max )();
+    const size_t n = rails.size();
+    pathFront_.assign(n, inf);
+    pathBack_.assign(n, inf);
+    if ( unrollRail_ < 0 || unrollRail_ >= ( int ) n ) return;
+    const float originLength = rails[unrollRail_].GetLength();
+    pathFront_[unrollRail_] = std::clamp(unrollDist_, 0.0f, originLength);
+    pathBack_[unrollRail_] = originLength - pathFront_[unrollRail_];
+    auto pathAt = [&](int r, float s){
+        const float len = rails[r].GetLength();
+        const float a = pathFront_[r] == inf ? inf : pathFront_[r] + s;
+        const float b = pathBack_[r] == inf ? inf : pathBack_[r] + ( len - s );
+        return ( std::min )( a, b );
+    };
+    for ( int iteration = 0; iteration < 64; ++iteration ) {
+        bool changed = false;
+        auto relax = [&](float& target, float value){ if ( value < target - 1e-4f ) { target = value; changed = true; } };
+        for ( int r = 0; r < ( int ) n; ++r ) {
+            const SplineRail& rail = rails[r];
+            if ( rail.nodes.size() < 2 ) continue;
+            const float len = rail.GetLength();
+            // レールの中：始点と終点
+            if ( pathFront_[r] != inf ) relax(pathBack_[r], pathFront_[r] + len);
+            if ( pathBack_[r] != inf ) relax(pathFront_[r], pathBack_[r] + len);
+            // 端どうし
+            for ( int end = 0; end < 2; ++end ) {
+                const int other = end == 0 ? rail.frontConnIndex : rail.backConnIndex;
+                if ( other < 0 || other >= ( int ) n ) continue;
+                const bool toFront = end == 0 ? rail.frontConnToFront : rail.backConnToFront;
+                float& mine = end == 0 ? pathFront_[r] : pathBack_[r];
+                float& theirs = toFront ? pathFront_[other] : pathBack_[other];
+                if ( theirs != inf ) relax(mine, theirs);
+                if ( mine != inf ) relax(theirs, mine);
+            }
+            // T字（このレールの途中から別のレールの端が出ている）
+            for ( const auto& branch : rail.branchPoints ) {
+                const int other = branch.targetRail;
+                if ( other < 0 || other >= ( int ) n ) continue;
+                const bool otherFront = branch.targetDist < 0.5f * rails[other].GetLength();
+                float& theirs = otherFront ? pathFront_[other] : pathBack_[other];
+                const float here = pathAt(r, branch.distance);
+                if ( here != inf ) relax(theirs, here);
+                if ( theirs != inf ) {
+                    relax(pathFront_[r], theirs + branch.distance);
+                    relax(pathBack_[r], theirs + ( len - branch.distance ));
+                }
+            }
+        }
+        if ( !changed ) break;
+    }
+}
+
+void RoadMesh::ClothRanges(const std::vector<SplineRail>& rails, int railIndex, std::vector<float>& out) const{
+    out.clear();
+    const float len = rails[railIndex].GetLength();
+    if ( unrollFront_ < 0.0f ) { out = { 0.0f, len }; return; }
+    const float inf = ( std::numeric_limits<float>::max )();
+    if ( railIndex >= ( int ) pathFront_.size() ) return;
+    // 道のり min(前から, 後ろから) が front 以下の所だけ
+    const float fromFront = pathFront_[railIndex] == inf ? -1.0f : unrollFront_ - pathFront_[railIndex];
+    const float fromBack = pathBack_[railIndex] == inf ? -1.0f : unrollFront_ - pathBack_[railIndex];
+    float a = std::clamp(fromFront, -1.0f, len);
+    float b = std::clamp(len - fromBack, 0.0f, len + 1.0f);
+    // 0.05m 刻みにそろえる（毎フレームのわずかな違いで作り直さない）
+    a = a < 0.0f ? -1.0f : std::floor(a * 20.0f) / 20.0f;
+    b = b > len ? len + 1.0f : std::ceil(b * 20.0f) / 20.0f;
+    if ( a >= b ) { out = { 0.0f, len }; return; } // 両側から届いて全部つながった
+    if ( a > 0.0f ) { out.push_back(0.0f); out.push_back(a); }
+    if ( b < len ) { out.push_back(b); out.push_back(len); }
+}
+
+void RoadMesh::BuildCloth(const std::vector<SplineRail>& rails, Camera* camera){
+    const size_t n = rails.size();
+    clothSlotOfRail_.assign(n, -1);
+    clothShown_.assign(n, {});
+    clothLift_.assign(n, 0.0f);
+    // 重なりの高さ：つながっている隣とは違う段にする（色分け。重なり順 layer が大きい方を上に）
+    std::vector<int> color(n, -1);
+    for ( size_t r = 0; r < n; ++r ) {
+        if ( !rails[r].skin.HasCloth() ) continue;
+        bool used[4] = {};
+        auto mark = [&](int other){ if ( other >= 0 && other < ( int ) n && color[other] >= 0 ) used[color[other]] = true; };
+        mark(rails[r].frontConnIndex);
+        mark(rails[r].backConnIndex);
+        for ( const auto& branch : rails[r].branchPoints ) mark(branch.targetRail);
+        for ( size_t j = 0; j < n; ++j ) {
+            for ( const auto& branch : rails[j].branchPoints ) { if ( branch.targetRail == ( int ) r ) mark(( int ) j); }
+        }
+        int pick = 0;
+        while ( pick < 3 && used[pick] ) ++pick;
+        color[r] = pick;
+        clothLift_[r] = ( float ) rails[r].skin.layer * 0.006f + ( float ) pick * 0.0025f;
+    }
+    ComputePathDistances(rails);
+
+    const uint32_t stitched = TextureManager::GetInstance()->Load("resources/road/cloth/cloth_felt.png").srvIndex;
+    const uint32_t plain = TextureManager::GetInstance()->Load("resources/road/cloth/cloth_felt_plain.png").srvIndex;
+    clothSlots_.BeginBuild(camera, stitched);
+    const RoadClothBuilder builder;
+    for ( size_t r = 0; r < n; ++r ) {
+        const SplineRail& rail = rails[r];
+        if ( !rail.skin.HasCloth() || !rail.visible || rail.nodes.size() < 2 || rail.GetLength() <= 0.0f ) continue;
+        std::vector<float> shown;
+        ClothRanges(rails, ( int ) r, shown);
+        std::vector<RoadClothBuilder::Range> ranges;
+        for ( size_t k = 0; k + 1 < shown.size(); k += 2 ) ranges.push_back({ shown[k], shown[k + 1] });
+        RoadMeshBuilder mesh;
+        builder.Build(rails, ( int ) r, ranges, clothLift_[r], mesh);
+        // 画像は白っぽいフェルト（0.72）なので、色を少し明るく掛けてフェルトの所がちょうど指定の色になるように
+        const Vector3& c = rail.skin.color;
+        const float gain = 1.0f / 0.72f;
+        const Vector4 tint { ToLinear(c.x) * gain, ToLinear(c.y) * gain, ToLinear(c.z) * gain, 1.0f };
+        clothSlotOfRail_[r] = ( int ) clothSlots_.EmitMeshSlot(mesh.Data(), ( int ) r, rail.skin.stitch ? stitched : plain, tint);
+        clothShown_[r] = shown;
+    }
+    clothSlots_.EndBuild();
+    unrollDirty_ = false;
+}
+
+void RoadMesh::SetUnroll(int originRail, float originDist, float front){
+    if ( originRail != unrollRail_ || std::abs(originDist - unrollDist_) > 1e-3f ) {
+        unrollRail_ = originRail;
+        unrollDist_ = originDist;
+        pathFront_.clear(); // 次の UpdateCloth で測り直す
+    }
+    if ( std::abs(front - unrollFront_) > 1e-4f ) {
+        unrollFront_ = front;
+        unrollDirty_ = true;
+    }
+}
+
+void RoadMesh::UpdateCloth(const std::vector<SplineRail>& rails){
+    if ( !unrollDirty_ || clothSlotOfRail_.size() != rails.size() ) return;
+    unrollDirty_ = false;
+    if ( pathFront_.size() != rails.size() ) { ComputePathDistances(rails); }
+    const RoadClothBuilder builder;
+    for ( size_t r = 0; r < rails.size(); ++r ) {
+        const int slot = clothSlotOfRail_[r];
+        if ( slot < 0 ) continue;
+        std::vector<float> shown;
+        ClothRanges(rails, ( int ) r, shown);
+        if ( shown == clothShown_[r] ) continue; // 変わっていないレールは作り直さない
+        std::vector<RoadClothBuilder::Range> ranges;
+        for ( size_t k = 0; k + 1 < shown.size(); k += 2 ) ranges.push_back({ shown[k], shown[k + 1] });
+        RoadMeshBuilder mesh;
+        builder.Build(rails, ( int ) r, ranges, clothLift_[r], mesh);
+        clothSlots_.ReplaceMesh(( size_t ) slot, mesh.Data());
+        clothShown_[r] = shown;
+    }
 }
 
 // 毎フレーム：動くレールの animOffset に追従し、カメラ行列を焼き直す
@@ -131,6 +295,7 @@ void RoadMesh::Update(const std::vector<SplineRail>& rails){
     // 「後から出現する道」はプレイ中だけ隠す/せり上げる（エディタでは普通に見せて編集できるように）
     const bool playMode = ( EditorManager::GetInstance()->GetMode() == EngineMode::Play );
     slots_.Update(rails, playMode);
+    clothSlots_.Update(rails, playMode);
 }
 
 void RoadMesh::Draw() const{
@@ -140,4 +305,5 @@ void RoadMesh::Draw() const{
     bool showJoints = ( jointVisible_ == 1 ) ||
                       ( jointVisible_ == 0 && EditorManager::GetInstance()->GetMode() == EngineMode::Edit );
     slots_.Draw(showJoints);
+    clothSlots_.Draw(false); // 布ロード（土台の上・地面の上に敷く布）
 }

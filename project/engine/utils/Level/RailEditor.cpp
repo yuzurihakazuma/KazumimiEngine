@@ -99,6 +99,7 @@ void RailEditor::OnMapChanged(){
     data_->railMotionPhases.resize(data_->railLines.size(), 0.0f);
     data_->railOneWay.resize(data_->railLines.size(), 0);
     data_->railSpeedMuls.resize(data_->railLines.size(), 1.0f);
+    data_->railSkins.resize(data_->railLines.size());
     initialLines_   = data_->railLines;
     initialTypes_   = data_->railTypes;
     initialMotions_ = data_->railMotions;
@@ -716,6 +717,7 @@ void RailEditor::SyncRailArraySizes(){
 	data_->railAppearTriggers.resize(n, -1);
 	data_->railOneWay.resize(n, 0);
 	data_->railSpeedMuls.resize(n, 1.0f);
+	data_->railSkins.resize(n);
 
 	// レールが短くなって範囲外に取り残されたブロックを末尾セルへ寄せる。
 	//   放置すると「見た目は端に重なって出るのに、当たりは元の位置」「消しゴムが届かない」
@@ -781,6 +783,7 @@ int RailEditor::AppendRail(std::vector<Vector3> line, const std::string& group){
 	data_->railAppearTriggers.push_back(-1);
 	data_->railOneWay.push_back(0);
 	data_->railSpeedMuls.push_back(1.0f);
+	data_->railSkins.push_back(RailSkin {});
 	return ( int ) data_->railLines.size() - 1;
 }
 
@@ -811,6 +814,7 @@ void RailEditor::EraseRail(int idx){
 	data_->railAppearTriggers.erase(data_->railAppearTriggers.begin() + idx);
 	data_->railOneWay.erase(data_->railOneWay.begin() + idx);
 	data_->railSpeedMuls.erase(data_->railSpeedMuls.begin() + idx);
+	data_->railSkins.erase(data_->railSkins.begin() + idx);
 	// ガイド参照の付け替え：消した番号より後ろは1つ前へ、消した本人を指していたら解除
 	for ( auto& guideRef : data_->railGuideRails ) {
 		if ( guideRef == idx ) { guideRef = -1; }
@@ -1586,6 +1590,7 @@ void RailEditor::DuplicateRail(int railIdx){
 	data_->railAppearTriggers.push_back(( railIdx < ( int ) data_->railAppearTriggers.size() ) ? data_->railAppearTriggers[railIdx] : -1);
 	data_->railOneWay.push_back(( railIdx < ( int ) data_->railOneWay.size() ) ? data_->railOneWay[railIdx] : 0);
 	data_->railSpeedMuls.push_back(( railIdx < ( int ) data_->railSpeedMuls.size() ) ? data_->railSpeedMuls[railIdx] : 1.0f);
+	data_->railSkins.push_back(( railIdx < ( int ) data_->railSkins.size() ) ? data_->railSkins[railIdx] : RailSkin {});
 	SelectWholeRail(( int ) data_->railLines.size() - 1);
 	RebuildRailPoints();
 }
@@ -1944,6 +1949,7 @@ RailEditor::RailSettings RailEditor::CaptureRailSettings() const{
 	settings.oneWay         = data_->railOneWay;
 	settings.motionPhases   = data_->railMotionPhases;
 	settings.speedMuls      = data_->railSpeedMuls;
+	settings.skins          = data_->railSkins;
 	return settings;
 }
 
@@ -1967,6 +1973,7 @@ void RailEditor::ApplyRailSettings(const RailSettings& settings){
 	data_->railOneWay         = settings.oneWay;
 	data_->railMotionPhases   = settings.motionPhases;
 	data_->railSpeedMuls      = settings.speedMuls;
+	data_->railSkins          = settings.skins;
 	SyncRailArraySizes(); // 古い履歴（配列が足りない）でも数だけは必ずそろえる
 }
 
@@ -2028,6 +2035,9 @@ void RailEditor::RestoreSnapshot(const RailSnapshot& s){
 	data_->coins = s.coins; // コイン配置も復元（レール削除のUndoでrail番号がズレないように）
 	data_->blocks = s.blocks; // ブロック配置も復元
 	if ( structureChanges ) { ApplyRailSettings(s.settings); }
+	else if ( s.settings.skins.size() == data_->railLines.size() ) {
+		data_->railSkins = s.settings.skins; // 道の見た目（布ロード）は、変えた手そのものを戻せるように毎回戻す
+	}
 	if ( idsKnown ) { railIds_ = s.railIds; }
 	else            { railIds_.clear(); EnsureRailIds(); } // ID の無い古い履歴：振り直す
 	++blockVersion_;          // ゲーム側にブロック作り直しを通知
@@ -2062,7 +2072,8 @@ void RailEditor::CommitIfStable(){
 		&& committed_.types == data_->railTypes
 		&& MotionsEqual(committed_.motions, data_->railMotions)
 		&& committed_.coins == data_->coins
-		&& BlocksEqualForHistory(committed_.blocks, data_->blocks) ) {
+		&& BlocksEqualForHistory(committed_.blocks, data_->blocks)
+		&& committed_.settings.skins == data_->railSkins ) { // 道の見た目（布ロード）を変えた手も1手として記録する
 		committed_ = CaptureSnapshot();
 		return;
 	}
@@ -2795,6 +2806,7 @@ void RailEditor::DrawWindow(){
 					data_->railAppearTriggers.resize(railTotal, -1);
 					data_->railOneWay.resize(railTotal, 0);
 					data_->railSpeedMuls.resize(railTotal, 1.0f);
+					data_->railSkins.resize(railTotal);
 					data_->railGuideRails.resize(railTotal, -1);
 					data_->railGuideStarts.resize(railTotal, 0.0f);
 					data_->railGuideEnds.resize(railTotal, -1.0f);
@@ -2814,6 +2826,7 @@ void RailEditor::DrawWindow(){
 						data_->railAppearTriggers[g] = data_->railAppearTriggers[currentEditRailIndex_];
 						data_->railOneWay[g]      = data_->railOneWay[currentEditRailIndex_];
 						data_->railSpeedMuls[g]   = data_->railSpeedMuls[currentEditRailIndex_];
+						data_->railSkins[g]       = data_->railSkins[currentEditRailIndex_];
 						data_->railGuideRails[g]  = data_->railGuideRails[currentEditRailIndex_];
 						data_->railGuideStarts[g] = data_->railGuideStarts[currentEditRailIndex_];
 						data_->railGuideEnds[g]   = data_->railGuideEnds[currentEditRailIndex_];
@@ -2877,6 +2890,35 @@ void RailEditor::DrawWindow(){
 		float& sm = data_->railSpeedMuls[currentEditRailIndex_];
 		ImGui::SetNextItemWidth(140.0f);
 		if ( ImGui::SliderFloat("速度倍率", &sm, 0.25f, 3.0f, "%.2fx") ) { ++railVersion_; }
+		ImGui::Separator();
+
+		// --- 道の見た目（布ロード）：移動はレールのまま、見た目だけを選ぶ ---
+		data_->railSkins.resize(data_->railLines.size());
+		{
+			RailSkin& skin = data_->railSkins[currentEditRailIndex_];
+			const char* styleLabels[] = { "土台のみ（今までの道）", "布のみ（地面の上に敷く）", "布＋土台（宙の足場）", "見せない" };
+			ImGui::SetNextItemWidth(220.0f);
+			if ( ImGui::Combo("道の見た目", &skin.style, styleLabels, 4) ) { ++railVersion_; }
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("布が敷いてある所＝歩ける道。移動・当たり判定はレールのまま（布は見た目だけ）。\n"
+				                  "下に地面がある所は「布のみ」、宙や水の上は「布＋土台」");
+			}
+			if ( skin.HasCloth() ) {
+				ImGui::SetNextItemWidth(140.0f);
+				if ( ImGui::SliderFloat("布の幅", &skin.width, 0.6f, 4.0f, "%.2f m") ) { ++railVersion_; }
+				ImGui::SetNextItemWidth(140.0f);
+				if ( ImGui::SliderFloat("地面からの浮き", &skin.lift, 0.0f, 0.06f, "%.3f m") ) { ++railVersion_; }
+				ImGui::SetNextItemWidth(140.0f);
+				if ( ImGui::SliderFloat("端のめくれ", &skin.curl, 0.0f, 0.12f, "%.3f m") ) { ++railVersion_; }
+				if ( ImGui::ColorEdit3("布の色", &skin.color.x, ImGuiColorEditFlags_NoInputs) ) { ++railVersion_; }
+				ImGui::SameLine();
+				bool stitch = skin.stitch != 0;
+				if ( ImGui::Checkbox("ステッチ（縫い目）", &stitch) ) { skin.stitch = stitch ? 1 : 0; ++railVersion_; }
+				ImGui::SetNextItemWidth(140.0f);
+				if ( ImGui::SliderInt("重なり順", &skin.layer, 0, 5) ) { ++railVersion_; }
+				if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("つなぎ目で布が重なった時、大きい方が上に乗る（継ぎ目が重なりとして見える）"); }
+			}
+		}
 		ImGui::Separator();
 
 		// --- スタート／ゴール地点（選択中のノードをマップに記録）---

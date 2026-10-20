@@ -74,6 +74,37 @@ public:
     // 落下死でリスポーンした瞬間か（取得するとフラグは消える。アイリスワイプ演出用）
     bool ConsumeFellRespawn(){ bool fell = fellRespawned_; fellRespawned_ = false; return fell; }
 
+    // ===== レール乗り換えデバッガ用（RailTransferDebugger が毎フレーム読む）=====
+    //   乗り換えの種類：連結へ持ち越し / 端の先の本体へ合流 / 乗り換えキー / T字の分岐 / 空中から着地 / 空中へ
+    enum class TransferKind { None, Continue, Join, Switch, Branch, Land, ToAir };
+    struct DebugTransfer {
+        TransferKind kind = TransferKind::None;
+        int   fromRail = -1;  float fromDist = 0.0f;
+        int   toRail = -1;    float toDist = 0.0f;
+        float overshoot = 0.0f;   // 端からはみ出した距離（持ち越した分は carried に入る）
+        float carried = 0.0f;     // 次のレールへ持ち越した距離
+        Vector3 fromPos {};       // 乗り換える直前のレール上の点（はみ出しを含めない端の点）
+        Vector3 toPos {};         // 乗り換えた直後のレール上の点
+    };
+    struct DebugStep {
+        bool    inAir = false;
+        int     rail = -1;   float dist = 0.0f;
+        float   height = 0.0f;     // レール面からの足の高さ
+        Vector3 base {};           // 見た目の平滑化を入れる前の位置（レール上の点＋高さ）
+        Vector3 position {};       // 最終的な位置（GetPosition と同じ）
+        Vector3 smooth {};         // 見た目の平滑化（乗り換えのワープを隠すずらし）
+        float   dsSign = 0.0f;
+        bool    clampedAtEnd = false;  // 端で止められた（はみ出しを捨てた）
+        float   clampedLoss = 0.0f;    // 捨てた距離
+        int     transferCount = 0;
+        DebugTransfer transfer;        // このフレームの乗り換え（transferCount>0 の時）
+    };
+    const DebugStep& GetDebugStep() const{ return debugStep_; }
+    // 今のキー入力を「ワールド方向の意思」として読む（入力の記録用。自動操縦と同じ形）
+    PlayerInput::AutoPilot CaptureIntent() const{ return input_.CaptureIntent(); }
+    // デバッグ：指定のレール・距離に立たせる（入力の再生を同じ所から始める）
+    void DebugPlaceAt(int rail, float dist);
+
 private:
     // --- レールの上 ---
     // 今のレールを距離で進める（進行方向の記憶つき。ブロックの壁で止まる）
@@ -97,6 +128,9 @@ private:
     void FinalizePosition(const SplineRail& rail, const Vector3& worldBefore, bool transitioned, float dt);
     // 今のレール上の足元（高さを足す前のレール面の点）
     Vector3 FootOnRail(const std::vector<SplineRail>& rails) const;
+    // デバッガへ乗り換えを知らせる（このフレームの記録に入れる）
+    void NoteTransfer(TransferKind kind, int fromRail, float fromDist, const Vector3& fromPos, float overshoot, float carried,
+                      const std::vector<SplineRail>& rails);
 
     // --- 空中（レールの外） ---
     // レールを離れて空中(弾道)状態へ移行する。landCooldown=元のレールへすぐ再着地しない猶予
@@ -140,6 +174,10 @@ private:
     float prevMoveInput_ = 0.0f;  // 前フレームの移動入力（押した瞬間の検出用）
     bool  atJunction_ = false;    // 別レールへ合流した直後の停止中か（押し直すまで動かない）
     float switchCooldown_ = 0.0f; // 乗り換えの連打防止タイマー (秒)
+    // 端で止める時間（秒）。乗り換えキー・分岐・着地の直後だけ。端のすぐそばに乗った時に、
+    //   続けて隣のレールへ持ち越してワープするのを防ぐ。連結・合流の後は止めない
+    //   （以前は連結の後もクールダウン中に端で止めていて、短いレールで1フレーム止まることがあった）
+    float endHoldTimer_ = 0.0f;
 
     // ---- 空中状態（レール外）：穴の飛び越え・落下用 ----
     bool    inAir_ = false;                     // レールから離れて空中にいるか
@@ -152,4 +190,13 @@ private:
     //   別レールへドッキング/乗り換え/着地でレール座標が飛ぶと見た目が瞬間移動する。
     //   飛んだ差分をこのオフセットに入れ、毎フレーム0へ減衰させて滑らかに繋ぐ
     Vector3 posSmooth_ { 0.0f, 0.0f, 0.0f };
+    // このフレームの乗り換えで、レール上の点が実際に飛んだ量（前のレールで進んだ先 − 新しいレールの点）。
+    //   見た目の平滑化にはこれだけを入れる。以前は「フレーム開始時の位置との差」を入れていたため、
+    //   そのフレームに普通に進んだ分（約8cm）まで平滑化に回り、乗り換えのたびに一瞬遅れて
+    //   追いかける（約0.15秒、速度が 5→1.2m/s に落ちて見える）＝レールから離れたように見えていた
+    Vector3 transferWarp_ { 0.0f, 0.0f, 0.0f };
+    // 乗り換えで飛んだ量を足す（expected＝前のレールのまま進んでいたらいた所、レール面の点）
+    void AddTransferWarp(const Vector3& expected, float expectedHeight, const std::vector<SplineRail>& rails);
+
+    DebugStep debugStep_; // このフレームの記録（デバッガ用）
 };

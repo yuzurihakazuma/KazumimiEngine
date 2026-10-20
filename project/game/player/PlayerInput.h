@@ -35,6 +35,9 @@ public:
     // 空中の前後入力：押しているワールド方向を、空中に出た時の進行方向 forwardDir へ射影した値（+前/-後）
     float ReadAirForward(const Vector3& forwardDir) const;
 
+    // 今のキーを「ワールド方向の意思」（自動操縦と同じ形）として読む。入力の記録・再生に使う
+    AutoPilot CaptureIntent() const;
+
     bool JumpPressed() const; // SPACE を押した瞬間
     bool JumpHeld() const;    // SPACE を押している間
 

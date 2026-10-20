@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "engine/rail/RailSkin.h"
 #include <vector>
 
 // 使っているVector3の定義に合わせて include を調整してください
@@ -147,6 +148,9 @@ struct LevelData{
 
     // 各レールの移動速度倍率（1=通常。2で加速レール、0.5で減速レール）
     std::vector<float> railSpeedMuls;
+
+    // 各レールの道の見た目（布ロード：土台のみ/布のみ/布＋土台/見せない と布の幅・色など。railLines と同じ並び）
+    std::vector<RailSkin> railSkins;
 
     // スタート地点（レール番号＋ノード番号。プレイヤーの開始・リスポーン先）
     int startRailIndex = 0;

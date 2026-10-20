@@ -140,6 +140,9 @@ namespace {
         // 道アトラスの先読み：RoadMesh はレール編集のたび（=フレーム途中）に参照するので、
         // ここでキャッシュに載せておく
         textures["roadAtlas"]     = textureManager->Load("resources/road/road_atlas.png");
+        // 布ロードの布（同じく道の作り直しの時に参照する）
+        textures["clothFelt"]      = textureManager->Load("resources/road/cloth/cloth_felt.png");
+        textures["clothFeltPlain"] = textureManager->Load("resources/road/cloth/cloth_felt_plain.png");
         textures["skybox"]        = textureManager->LoadCube("resources/StandardCubeMap.dds");
     }
 }

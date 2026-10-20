@@ -92,6 +92,7 @@ public:
         Panel_Minimap,     // ミニマップ（俯瞰ビュー）※保存の並び維持のため必ず末尾に追加する
         Panel_Layout,      // 配置ビュー（レール展開図。ブロック・敵・コインをパネルの中で配置する）
         Panel_Backdrop,    // 背景エディタ（クラフトの背景を置く・選ぶ・消す）
+        Panel_RailDebug,   // 乗り換えデバッガ（レールからレールへ移る時のずれを数値で見る）
         Panel_Count
     };
     // 横に広く使うパネルか。アイコンモードでは右の縦積みドロワーに入れず、画面の下に横長で出す
@@ -216,6 +217,7 @@ public:
 	const std::vector<int>&   GetEditorRailAppearTriggers() const; // 出現する道（-1=通常/N=レールNに乗ると出現）
 	const std::vector<int>&   GetEditorRailOneWay() const;       // 片方向（0=両/1=正/2=逆）
 	const std::vector<float>& GetEditorRailSpeedMuls() const;    // 速度倍率
+	const std::vector<RailSkin>& GetEditorRailSkins() const;     // 道の見た目（布ロード）
 	int GetEditorStartRail() const;  // スタート地点（レール番号）
 	int GetEditorStartNode() const;  // スタート地点（ノード番号）
 	int GetEditorGoalRail() const;   // ゴール地点（レール番号。-1=未設定）

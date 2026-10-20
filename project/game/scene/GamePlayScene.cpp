@@ -255,6 +255,11 @@ void GamePlayScene::HandleCameraRequests(){
 		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, spawnData.railIndex, spawnData.distance,
 		                              Enemy::PickHeightOf(spawnData));
 	}
+	// 乗り換えデバッガの接続点インスペクタ：行をクリックした接続点へカメラを寄せる
+	int debugRail = -1; float debugDist = 0.0f;
+	if ( transferDebugger_.ConsumeFocusRequest(debugRail, debugDist) ) {
+		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, debugRail, debugDist, 0.0f);
+	}
 	// 配置ビュー（レール展開図）の「カメラをここへ」
 	int focusRail = -1; float focusDist = 0.0f, focusHeight = 0.0f;
 	if ( editorTools_.ConsumeStripFocusRequest(focusRail, focusDist, focusHeight) ) {
@@ -447,6 +452,7 @@ void GamePlayScene::UpdatePlayMode(){
 	eggSystem_.SetAimHolding(aimThrow_.IsAiming());
 	// 構え中はベロ(E)と産卵(左Ctrl)を発動禁止（両手が卵でふさがっている）
 	swallow_.SetActionBlocked(aimThrow_.IsAiming());
+	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
 	player_->Update(railField_.GetRails());
 
 	// 敵の移動＋吸い込みTick。吸い込み完了 → お腹に+1（口元で緑がふわっと）。
@@ -471,6 +477,7 @@ void GamePlayScene::UpdatePlayMode(){
 	camCtrl_.Update(GetCamera(), player_->GetPosition(), player_->IsGrounded(), railField_.GetRails(),
 		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
 	hitFeel_.NotifyCameraOverridden(); // カメラ位置を上書きしたのでシェイクの自己相殺をリセット
+	transferDebugger_.Record(*player_, railField_.GetRails(), GetCamera(), deltaTime); // 乗り換えデバッガの記録
 
 	// デモ入力（Space=BGM+HitEffect / P=パーティクル）。デモ表示OFF（表示メニュー）の間は入力ごと無効
 	if ( IsDemoVisible() ) {
@@ -486,6 +493,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	EditorManager* editorManager = EditorManager::GetInstance();
 	const bool playing = ( mode == EngineMode::Play );
 	const Vector3 playerPos = player_->GetPosition();
+	transferDebugger_.UpdateTimeControl(playing); // 乗り換えデバッガのスロー・一時停止・コマ送り（次のフレームに効く）
 
 	// Editモード中も敵の見た目（WVP行列）を毎フレーム更新する。
 	//   Obj3d::Update は「呼ばれた時のカメラ行列」を焼き込むため、これが無いと
@@ -501,6 +509,10 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	roadMesh_.SetJointVisible(editorManager->GetEditorJointVisible());
 	// 動くレールのエディタプレビュー：Playを押さなくても動きを再生して組み方を確認できる
 	if ( mode == EngineMode::Edit ) { railField_.UpdateEditorPreview(editorManager->GetEditorRailMotionPreview()); }
+	// 布ロードの展開：ステージ開始の演出の間だけ、ロールが転がった所まで布を敷く（それ以外は全部）
+	roadMesh_.SetUnroll(railField_.GetStartRail(), railField_.GetStartDistance(),
+	                    ( playing && intro_.IsUnrolling() ) ? intro_.UnrollFront() : -1.0f);
+	roadMesh_.UpdateCloth(railField_.GetRails());
 	roadMesh_.Update(railField_.GetRails());              // 道メッシュ（動くレール追従＋カメラ追従）
 	dissolveRoad_.Update(playerPos, 1.0f / 60.0f);        // SDF溶け道の現れ/溶け（エディタ中も動きが見える）
 
@@ -596,6 +608,12 @@ void GamePlayScene::OnDebugUI(){
 	SceneEditContext editContext = MakeEditContext();
 	editorTools_.DrawPanels(editContext);
 	editorTools_.UpdateGameView(editContext);
+	// 乗り換えデバッガ（パネルを開いている間だけ重ね描き）
+	if ( editContext.editor->IsPanelVisible(EditorManager::Panel_RailDebug) ) {
+		const bool playing = ( editContext.editor->GetMode() == EngineMode::Play );
+		transferDebugger_.DrawOverlay(railField_.GetRails(), player_.get(), playing);
+		transferDebugger_.DrawWindow(railField_.GetRails(), player_.get(), editContext.railEditor, editContext.editor);
+	}
 #endif
 }
 

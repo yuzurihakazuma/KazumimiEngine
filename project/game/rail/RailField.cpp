@@ -107,6 +107,7 @@ void RailField::ApplySurfaceSettings(const EditorManager& editor){
     const auto& endPlazas = editor.GetEditorRailEndPlazas();
     const auto& oneWays   = editor.GetEditorRailOneWay();
     const auto& speedMuls = editor.GetEditorRailSpeedMuls();
+    const auto& skins     = editor.GetEditorRailSkins();
     for ( size_t i = 0; i < rails_.size(); ++i ) {
         SplineRail& rail = rails_[i];
         rail.groundType = static_cast< SplineRail::GroundType >( ValueAt(grounds, i, 0) );
@@ -117,6 +118,7 @@ void RailField::ApplySurfaceSettings(const EditorManager& editor){
         rail.endPlaza = ValueAt(endPlazas, i, 0);
         rail.oneWay   = ValueAt(oneWays, i, 0);
         rail.speedMul = ( i < speedMuls.size() && speedMuls[i] > 0.05f ) ? speedMuls[i] : 1.0f;
+        rail.skin     = ( i < skins.size() ) ? skins[i] : RailSkin {};
     }
 }
 

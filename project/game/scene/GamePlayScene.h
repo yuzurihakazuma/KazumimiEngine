@@ -33,6 +33,7 @@
 #include "game/effect/PlayScreenEffects.h"
 #include "game/ui/GameHud.h"
 #include "game/editor/PlaySceneEditor.h"
+#include "game/editor/RailTransferDebugger.h"
 
 #include <memory>
 #include <string>
@@ -136,6 +137,7 @@ private:
 
 	// --- エディタ ---
 	PlaySceneEditor editorTools_;          // Game View の操作・配置ビュー・ミニマップ
+	RailTransferDebugger transferDebugger_; // 乗り換えデバッガ（レール間の乗り換えのずれを測る）
 	int   lastMapLoadVersion_ = -1;        // マップ読込を検知して敵配置を復元するため
 	bool  railErasedPending_ = false;      // レール番号が変わった直後（敵の距離の張り直しを1回見送る）
 	float railSyncTimer_ = 0.0f;           // ドラッグ中の道再生成を10Hzに間引くタイマー

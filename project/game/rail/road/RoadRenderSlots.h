@@ -27,6 +27,11 @@ public:
     // 生成済みメッシュを空きスロットへ書き込む（スロットが足りなければ1個だけ確保）。
     //   isJoint: ジョイントのベイクメッシュ（表示モードで描画を切替）
     void EmitMesh(const Model::ModelData& data, int followRail, bool isJoint = false);
+    // 布ロード用：空でも必ずスロットを1つ取り、画像と色をスロットごとに決める（あとで ReplaceMesh で中身だけ差し替える）。
+    //   color は掛ける色（リニア）。戻り値はスロット番号
+    size_t EmitMeshSlot(const Model::ModelData& data, int followRail, uint32_t textureSrv, const Vector4& color);
+    // スロットの中身だけ差し替える（布の展開で、伸びていくレールだけ毎フレーム作り直す）
+    void ReplaceMesh(size_t slotIndex, const Model::ModelData& data);
     // 動くレールのジョイント（road_joint）を Obj3d プールで1個置く（animOffset 追従が必要なため個別）
     void PlaceMovingJoint(Model* model, const Vector3& pos, float yaw, int railIdx, const Vector3& animOffset);
     // Build 終了：余ったスロットは空メッシュにして描かない（バッファは保持＝次の編集で使い回す）
