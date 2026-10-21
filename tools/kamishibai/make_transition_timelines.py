@@ -91,6 +91,8 @@ write("stage_intro", "GAMEPLAY", build_up("start") + [
     part("ステージへ：演出の準備", "sceneCue", "loaded", 0.0, cue="introStart"),
 ] + cut("ready") + [
     part("上下の帯が出る", "letterbox", "ready", 0.4, 0.3, **{"in": True}),
+    # ワールドマップから飛び込んで来た時だけ、上から落ちてきて着地する（それ以外はシーンが無視する）
+    part("上から落ちてくる", "sceneCue", "ready", 0.4, cue="introDrop"),
     part("こっちを見て手を振る", "sceneCue", "ready", 0.3 + D, cue="introTurn"),
     part("ロールを押す", "sceneCue", "ready", 1.5 + D, cue="introPush"),
     part("ロールが転がり出す", "sceneCue", "ready", 2.4 + D, cue="introRollGo"),

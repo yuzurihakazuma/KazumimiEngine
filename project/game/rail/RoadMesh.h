@@ -45,6 +45,11 @@ public:
     // 布の展開（ステージ開始の演出）：origin（スタートのレール・距離）から道に沿って front(m) までだけ布を敷く。
     //   front<0 は全部敷く（ふつう）。毎フレーム呼んでよい（変わったレールだけ作り直す）
     void SetUnroll(int originRail, float originDist, float front);
+    // 全体をまとめて縮めて置く（ステージ選択の箱庭）。active=false で元のまま
+    void SetRoot(bool active, float scale, float yaw, const Vector3& translate){
+        slots_.SetRoot(active, scale, yaw, translate);
+        clothSlots_.SetRoot(active, scale, yaw, translate);
+    }
     // 布の見た目の再生成（展開率が変わったレールだけ）。Update の前に呼ぶ
     void UpdateCloth(const std::vector<SplineRail>& rails);
 

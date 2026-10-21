@@ -1,0 +1,121 @@
+{
+  "road": [
+    [
+      -6.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      5.0,
+      0.0,
+      1.2999999999999998
+    ],
+    [
+      10.0,
+      0.0,
+      1.4
+    ],
+    [
+      15.0,
+      0.0,
+      1.1
+    ],
+    [
+      20.0,
+      0.0,
+      0.0
+    ],
+    [
+      26.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "roadSkin": {
+    "width": 1.6,
+    "color": [
+      0.95,
+      0.55,
+      0.28
+    ]
+  },
+  "pedestal": {
+    "back": 3.4,
+    "size": [
+      7.0,
+      0.7,
+      2.4
+    ]
+  },
+  "camera": {
+    "offset": [
+      0.0,
+      5.2,
+      -8.5
+    ],
+    "lookAhead": [
+      0.0,
+      0.8,
+      2.6
+    ],
+    "fovY": 0.62
+  },
+  "stages": [
+    {
+      "id": "stage1",
+      "stage": "stage1",
+      "label": "1",
+      "unlocked": true,
+      "node": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "dioramaMargin": 0.94,
+      "preview": {
+        "distance": 3.2,
+        "height": 2.4,
+        "orbitSeconds": 10.0
+      }
+    },
+    {
+      "id": "stage2",
+      "stage": "",
+      "label": "2",
+      "unlocked": false,
+      "node": [
+        10.0,
+        0.0,
+        1.4
+      ],
+      "dioramaMargin": 0.94,
+      "preview": {
+        "distance": 3.2,
+        "height": 2.4,
+        "orbitSeconds": 10.0
+      }
+    },
+    {
+      "id": "stage3",
+      "stage": "",
+      "label": "3",
+      "unlocked": false,
+      "node": [
+        20.0,
+        0.0,
+        0.0
+      ],
+      "dioramaMargin": 0.94,
+      "preview": {
+        "distance": 3.2,
+        "height": 2.4,
+        "orbitSeconds": 10.0
+      }
+    }
+  ]
+}

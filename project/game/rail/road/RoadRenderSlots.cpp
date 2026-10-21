@@ -141,6 +141,18 @@ void RoadRenderSlots::Update(const std::vector<SplineRail>& rails, bool playMode
         if ( rail.appearAnim <= 0.001f ) { outHidden = true; return 0.0f; }
         return -( 1.0f - rail.appearAnim ) * 2.5f; // 出現中：下からせり上がる
     };
+    if ( rootActive_ ) {
+        // 箱庭：焼いたメッシュ（ワールド座標）をまとめて縮めて置く。動くレールも止めたまま
+        for ( size_t k = 0; k < slotsUsed_; ++k ) {
+            MeshSlot& s = *slots_[k];
+            s.hiddenNow = false;
+            s.obj->SetScale({ rootScale_, rootScale_, rootScale_ });
+            s.obj->SetRotation({ 0.0f, rootYaw_, 0.0f });
+            s.obj->SetTranslation(rootTranslate_);
+            s.obj->Update();
+        }
+        return;
+    }
     for ( size_t k = 0; k < slotsUsed_; ++k ) {
         MeshSlot& s = *slots_[k];
         if ( s.rail >= 0 && s.rail < ( int ) rails.size() ) {

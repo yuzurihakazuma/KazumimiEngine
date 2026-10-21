@@ -1,0 +1,23 @@
+{
+  "crouch": 0.3,
+  "jump": 0.5,
+  "apex": 0.2,
+  "dive": 0.4,
+  "absorb": 0.3,
+  "apexHeight": 3.2,
+  "endScale": 0.06,
+  "irisTime": 0.35,
+  "irisHold": 0.2,
+  "camera": {
+    "apex": [
+      1.2,
+      4.6,
+      -7.0
+    ],
+    "dive": [
+      0.0,
+      2.4,
+      -3.0
+    ]
+  }
+}

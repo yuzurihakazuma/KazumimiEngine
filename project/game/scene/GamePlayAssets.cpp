@@ -147,6 +147,17 @@ namespace {
     }
 }
 
+void GamePlayAssets::LoadForDiorama(){
+    ModelManager* modelManager = ModelManager::GetInstance();
+    LoadCharacterModels(modelManager); // 敵・道のジョイント
+    LoadBlockModels(modelManager);
+    StageBackdrop::LoadKitModels();
+    TextureManager* textureManager = TextureManager::GetInstance();
+    textureManager->Load("resources/road/road_atlas.png");
+    textureManager->Load("resources/road/cloth/cloth_felt.png");
+    textureManager->Load("resources/road/cloth/cloth_felt_plain.png");
+}
+
 void GamePlayAssets::Load(const std::string& bgmFile, std::unordered_map<std::string, TextureData>& textures){
     LoadSounds(bgmFile);
     ModelManager* modelManager = ModelManager::GetInstance();
