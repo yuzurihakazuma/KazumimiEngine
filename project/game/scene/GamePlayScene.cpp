@@ -26,6 +26,11 @@
 #include "Engine/3D/Obj/Obj3dCommon.h"
 #include "Engine/Base/DirectXCommon.h"
 #include "Engine/Base/TimeManager.h"
+#include "engine/2d/Sprite.h"
+#include "engine/audio/AudioManager.h"
+#include "engine/base/WindowProc.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/utils/Easing.h"
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/DebugDraw.h"
@@ -55,6 +60,8 @@ GamePlayScene::~GamePlayScene() = default;
 namespace {
 	// 今のステージの名前（resources/stage_intro/<名前>.json：ステージ開始カードの中身とイントロカメラ）
 	constexpr const char* kStageName = "stage1";
+	constexpr const char* kStartCueSe = "resources/ui/se_start.wav"; // 操作開始の合図の音
+	constexpr float kStartCueDuration = 1.0f;                        // 「スタート！」を出している長さ（秒）
 	// 遠くの見える限界（m）。カメラの既定 100 だと、ステージの奥の空（80m ほど先）が斜めから見た時に切れる
 	constexpr float kFarClip = 200.0f;
 }
@@ -89,6 +96,11 @@ void GamePlayScene::OnInitialize(){
 	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
 	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
 	BuildBackdrop();
+	// 操作開始の「スタート！」
+	startPop_ = Sprite::Create(TextureManager::GetInstance()->Load("resources/ui/start_pop.png").srvIndex, { 0.0f, 0.0f },
+	                           { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.5f });
+	startPopSize_ = startPop_->GetSize();
+	AudioManager::GetInstance()->LoadWave(kStartCueSe);
 	// 遠くの見える限界を広げる（ステージの奥の丘・空は 80m ほど先。斜めに見るイントロのカメラでも切れないように）
 	GetCamera()->SetFarClip(kFarClip);
 }
@@ -120,6 +132,37 @@ void GamePlayScene::OnTransitionCue(const std::string& cue){
 		HandleModeTransition(EngineMode::Play);
 	}
 	intro_.OnCue(cue, IntroContext());
+	if ( cue == "introEnd" ) { startCuePending_ = true; } // 演技が終わった：キーが効くようになったら合図
+}
+
+// 操作開始の合図：遷移が終わってキーが効くようになった瞬間に「スタート！」と音（演出の後だけ）
+void GamePlayScene::UpdateStartCue(float deltaTime){
+	if ( startCuePending_ && !Input::GetInstance()->IsLocked() ) {
+		startCuePending_ = false;
+		startCueTime_ = 0.0f;
+		AudioManager::GetInstance()->PlayWave(kStartCueSe);
+	}
+	if ( startCueTime_ >= 0.0f ) {
+		startCueTime_ += deltaTime;
+		if ( startCueTime_ > kStartCueDuration ) { startCueTime_ = -1.0f; }
+	}
+}
+
+void GamePlayScene::DrawStartCue(){
+	if ( startCueTime_ < 0.0f || !startPop_ ) { return; }
+	const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
+	const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
+	const float t = startCueTime_;
+	// ポンと出て（少し行き過ぎて戻る）、少し止まってから、上へ浮きながら消える
+	const float pop = Easing::EaseOutBack(Easing::Clamp01(t / 0.25f));
+	const float fade = Easing::Clamp01(( t - ( kStartCueDuration - 0.3f ) ) / 0.3f);
+	const float scale = height / 1080.0f * 0.75f * pop;
+	const Vector2 size = startPopSize_;
+	startPop_->SetPosition({ width * 0.5f, height * 0.4f - fade * 40.0f * height / 1080.0f });
+	startPop_->SetSize({ size.x * scale, size.y * scale });
+	startPop_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f - fade });
+	startPop_->Update();
+	startPop_->Draw();
 }
 
 // プレイヤー・敵エディタ・レール・各種シーン部品の用意
@@ -494,6 +537,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	const bool playing = ( mode == EngineMode::Play );
 	const Vector3 playerPos = player_->GetPosition();
 	transferDebugger_.UpdateTimeControl(playing); // 乗り換えデバッガのスロー・一時停止・コマ送り（次のフレームに効く）
+	UpdateStartCue(Time::GetInstance()->GetUnscaledDeltaTime());
 
 	// Editモード中も敵の見た目（WVP行列）を毎フレーム更新する。
 	//   Obj3d::Update は「呼ばれた時のカメラ行列」を焼き込むため、これが無いと
@@ -595,6 +639,7 @@ void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
 	// 卵・コインのHUD（プレイ中のみ。エディット中は編集の邪魔になるので出さない）
 	//   ステージ開始の演出の間は隠す（カメラが後ろへ戻り始めたら出す）
 	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play && !intro_.IsHudHidden() ) { hud_.Draw(commandList); }
+	DrawStartCue(); // 操作開始の「スタート！」
 }
 
 // =====================================================================

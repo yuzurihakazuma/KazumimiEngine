@@ -34,6 +34,7 @@
 #include "game/ui/GameHud.h"
 #include "game/editor/PlaySceneEditor.h"
 #include "game/editor/RailTransferDebugger.h"
+#include "engine/2d/Sprite.h"
 
 #include <memory>
 #include <string>
@@ -138,6 +139,13 @@ private:
 	// --- エディタ ---
 	PlaySceneEditor editorTools_;          // Game View の操作・配置ビュー・ミニマップ
 	RailTransferDebugger transferDebugger_; // 乗り換えデバッガ（レール間の乗り換えのずれを測る）
+	// 操作開始の合図：ステージ開始の演出が終わって、キーが効くようになった瞬間に「スタート！」と音
+	std::unique_ptr<Sprite> startPop_;
+	bool  startCuePending_ = false;
+	float startCueTime_ = -1.0f;   // 合図を出してからの秒数（-1=出していない）
+	Vector2 startPopSize_ { 0.0f, 0.0f };
+	void UpdateStartCue(float deltaTime);
+	void DrawStartCue();
 	int   lastMapLoadVersion_ = -1;        // マップ読込を検知して敵配置を復元するため
 	bool  railErasedPending_ = false;      // レール番号が変わった直後（敵の距離の張り直しを1回見送る）
 	float railSyncTimer_ = 0.0f;           // ドラッグ中の道再生成を10Hzに間引くタイマー
