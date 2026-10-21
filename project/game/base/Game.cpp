@@ -29,12 +29,15 @@ void Game::Initialize(){
 	SceneManager::GetInstance()->SetTransition(KamishibaiTransition::GetInstance());
 
 	// 3. 最初のシーンをリクエストする
-	//    確認用：環境変数 CG2_START_SCENE にシーン名（TITLE / GAMEPLAY）を入れて起動すると、そのシーンから始まる
+	//    提出用にステージ選択から始める（タイトルから始める時は kDefaultStartScene を "TITLE" にする）
+	//    確認用：環境変数 CG2_START_SCENE にシーン名（TITLE / STAGESELECT / GAMEPLAY）を入れて起動すると、そのシーンから始まる
+	constexpr const char* kDefaultStartScene = "STAGESELECT";
 	char startSceneName[32] = {};
 	std::unique_ptr<IScene> startScene;
 	if ( GetEnvironmentVariableA("CG2_START_SCENE", startSceneName, sizeof(startSceneName)) > 0 ) {
 		startScene = sceneFactory_->CreateScene(startSceneName);
 	}
+	if ( !startScene ) { startScene = sceneFactory_->CreateScene(kDefaultStartScene); }
 	if ( !startScene ) { startScene = std::make_unique<TitleScene>(); }
 	SceneManager::GetInstance()->ChangeScene(std::move(startScene));
 }
