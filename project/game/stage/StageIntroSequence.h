@@ -5,6 +5,7 @@
 //   「こっちを見て手を振る → ロールを押す → ジャンプでこっちを向く → キラキラ → 着地」と演技してから操作開始にする。
 //   時刻は遷移の定義（resources/transition/stage_intro.json）の sceneCue が合図を送って決める（コードに秒数は持たない）：
 //     introStart  … カードの裏でステージを読み終えた：イントロカメラへ。ゲームの時間（敵など）を止め、ロールを前に置く
+//     introDrop   … ワールドマップから飛び込んで来た時だけ（RequestDropIn）：上から落ちてきて着地する
 //     introTurn   … カメラの方を向いて、手を振る（IntroWave）
 //     introPush   … 進む方向を向いて、ロールを押す（IntroPush）。ロールが少しずつ前へ
 //     introRollGo … ロールが転がり出す（加速して画面の外へ）。ロールの足元に土ぼこり
@@ -47,6 +48,9 @@ public:
 
     void OnCue(const std::string& cue, const Context& context);
 
+    // 次のステージ開始で「上から落ちてくる」（ワールドマップの飛び込みの続き）。introStart で受け取る
+    static void RequestDropIn(){ dropRequested_ = true; }
+
     // 演技の最中か（最中はゲームの時間を止め、プレイヤーの入力の代わりをする）
     bool IsActive() const{ return state_ != State::None; }
     // HUD を隠すか（カメラが戻り始めたら出す）
@@ -69,6 +73,7 @@ private:
     enum class Roll { Hidden, Placed, Pushed, Rolling };
 
     void PlaceCamera(const Vector3& playerPosition, PlayCameraController& camCtrl);
+    void UpdateDrop(const Context& context, float dt);
     void SpawnDust(EggSystem* eggSystem, const Vector3& at, float spread) const;
     float YawToCamera(const Vector3& position) const;
 
@@ -83,6 +88,12 @@ private:
     float   returnTime_ = 0.0f;     // カメラが戻り始めてからの秒数
     float   headBase_ = -1.0f;      // 立っている時の頭の高さ（足元から。負＝まだ測っていない）
     float   lookLift_ = 0.0f;       // ジャンプで頭が上がった分だけ、カメラの見る所も上げる（なめらかに）
+
+    // 上から落ちてくる（ワールドマップから）
+    enum class Drop { None, Waiting, Falling, Landing };
+    static inline bool dropRequested_ = false;
+    Drop    drop_ = Drop::None;
+    float   dropTime_ = 0.0f;
 
     // ロール（巻いた布）
     std::unique_ptr<Obj3d> roll_;

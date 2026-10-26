@@ -41,6 +41,10 @@ public:
 
     // 毎フレーム：動くレールへの追従＋カメラ行列の焼き直し
     void Update(const std::vector<SplineRail>& rails, bool playMode);
+    // 全体をまとめて縮めて動かす（ステージ選択の箱庭）。設定している間は、動くレールの追従はしない（止めて見せる）
+    void SetRoot(bool active, float scale, float yaw, const Vector3& translate){
+        rootActive_ = active; rootScale_ = scale; rootYaw_ = yaw; rootTranslate_ = translate;
+    }
     void Draw(bool showJoints) const;
 
     // 背面カリングの切替（既存スロットにも即時反映）
@@ -76,6 +80,10 @@ private:
     Camera*  camera_ = nullptr; // Build 中に使うカメラ（BeginBuild で設定）
     uint32_t atlasSrv_ = 0;     // 道アトラスのSRV（BeginBuild で設定）
     bool     cullNone_ = true;  // true=両面描画（従来） / false=背面カリング
+    bool     rootActive_ = false;  // 箱庭（全体を縮めて置く）
+    float    rootScale_ = 1.0f;
+    float    rootYaw_ = 0.0f;
+    Vector3  rootTranslate_ {};
 
     size_t lastVertexCount_ = 0;   // 直近 Build の総頂点数（表示用）
     size_t lastTriangleCount_ = 0; // 直近 Build の総三角形数（表示用）

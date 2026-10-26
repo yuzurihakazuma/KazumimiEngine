@@ -22,6 +22,10 @@ namespace {
     // IntroJump クリップの中の時刻（tools/stage_intro/make_intro_clips.py と同じ）
     constexpr float kTakeOffTime = 0.26f;     // 跳び上がる
     constexpr float kLandTime = 0.78f;        // 着地する
+    // 上から落ちてくる（ワールドマップから飛び込んだ時）
+    constexpr float kDropHeight = 7.0f;       // 落ち始めの高さ(m)
+    constexpr float kDropFallTime = 0.35f;    // 落ちる時間(秒)
+    constexpr float kDropLandTime = 0.25f;    // 着地でつぶれて戻る時間(秒)
     // ロールの転がり方
     constexpr float kPushSpeed = 0.3f;        // 押している間(m/秒)
     constexpr float kRollAccel = 9.0f;        // 転がり出してからの加速（約1秒で 4.5m）
@@ -71,8 +75,12 @@ void StageIntroSequence::Reset(const Context& context){
         context.player->SetFaceOverride(false, 0.0f);
         context.player->SetTurnRate(PlayerFacing::kDefaultTurnRate);
     }
-    if ( context.avatar ) { context.avatar->ClearIntroClip(); }
+    if ( context.avatar ) {
+        context.avatar->ClearIntroClip();
+        context.avatar->SetDropPose(0.0f, 1.0f);
+    }
     state_ = State::None;
+    drop_ = Drop::None;
     rollState_ = Roll::Hidden;
     unrolling_ = false;
 }
@@ -112,13 +120,19 @@ void StageIntroSequence::OnCue(const std::string& cue, const Context& context){
         player.SetTurnRate(kIntroTurnRate);        // 向きを変えるのが一瞬に見えないよう、ゆっくり
         player.SetAutoPilot(true);                 // キーの代わり：何も押さない
         if ( context.avatar ) { context.avatar->ClearIntroClip(); }
+        // ワールドマップから飛び込んで来た：カードが分かれるまで、画面の上の外で待つ
+        drop_ = dropRequested_ ? Drop::Waiting : Drop::None;
+        dropRequested_ = false;
+        if ( context.avatar ) { context.avatar->SetDropPose(drop_ == Drop::Waiting ? kDropHeight : 0.0f, 1.0f); }
         state_ = State::Waiting;
         return;
     }
     if ( !IsActive() ) { return; } // 準備の合図が来ていない（エディタから始めた時など）
     if ( !cameraPlaced_ && context.camCtrl ) { PlaceCamera(position, *context.camCtrl); }
 
-    if ( cue == "introTurn" ) {
+    if ( cue == "introDrop" ) {
+        if ( drop_ == Drop::Waiting ) { drop_ = Drop::Falling; dropTime_ = 0.0f; }
+    } else if ( cue == "introTurn" ) {
         // こっちを見て、手を振る
         player.SetFaceOverride(true, YawToCamera(position));
         if ( context.avatar ) { context.avatar->PlayIntroClip("IntroWave"); }
@@ -162,7 +176,11 @@ void StageIntroSequence::OnCue(const std::string& cue, const Context& context){
         player.SetFaceOverride(false, 0.0f);
         player.SetAutoPilot(false);
         player.SetTurnRate(PlayerFacing::kDefaultTurnRate);
-        if ( context.avatar ) { context.avatar->ClearIntroClip(); }
+        if ( context.avatar ) {
+            context.avatar->ClearIntroClip();
+            context.avatar->SetDropPose(0.0f, 1.0f);
+        }
+        drop_ = Drop::None;
         state_ = State::None;
     }
 }
@@ -171,6 +189,7 @@ void StageIntroSequence::UpdateInput(const Context& context, float dt){
     if ( !IsActive() || !context.player ) { return; }
     Player& player = *context.player;
     player.SetAutoPilot(true, {}); // 動かない・跳ばない（ジャンプの高さはクリップが出す）
+    UpdateDrop(context, dt);
 
     // ジャンプの途中：跳び上がったらカメラを向き、着地で土ぼこり（カメラが戻り始めた後も続く）
     if ( state_ == State::Action || ( state_ == State::Returning && !landed_ ) ) {
@@ -186,6 +205,29 @@ void StageIntroSequence::UpdateInput(const Context& context, float dt){
             SpawnDust(context.eggSystem, position, 0.4f);
             if ( faceForwardOnLand_ ) { player.SetFaceOverride(true, forwardYaw_); }
         }
+    }
+}
+
+// 上から落ちてくる：重力のように加速して落ち、着地でつぶれて戻る（見た目だけ。足元はずっとスタートの上）
+void StageIntroSequence::UpdateDrop(const Context& context, float dt){
+    if ( drop_ == Drop::None || drop_ == Drop::Waiting || !context.avatar ) { return; }
+    dropTime_ += dt;
+    if ( drop_ == Drop::Falling ) {
+        const float t = ( std::min )( dropTime_ / kDropFallTime, 1.0f );
+        context.avatar->SetDropPose(kDropHeight * ( 1.0f - t * t ), 1.0f + 0.12f * t); // 落ちるほど縦に伸びる
+        if ( t >= 1.0f ) {
+            drop_ = Drop::Landing;
+            dropTime_ = 0.0f;
+            SpawnDust(context.eggSystem, context.player->GetPosition(), 0.5f);
+        }
+        return;
+    }
+    const float u = ( std::min )( dropTime_ / kDropLandTime, 1.0f );
+    const float squash = 1.0f - 0.3f * std::sin(u * 3.14159265f) * ( 1.0f - 0.4f * u );
+    context.avatar->SetDropPose(0.0f, squash);
+    if ( u >= 1.0f ) {
+        drop_ = Drop::None;
+        context.avatar->SetDropPose(0.0f, 1.0f);
     }
 }
 

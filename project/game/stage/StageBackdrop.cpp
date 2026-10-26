@@ -582,12 +582,23 @@ void StageBackdrop::Update(const Camera* camera){
         for ( size_t k = 0; k < group.items.size(); ++k ) {
             const Cache& cache = cache_[group.items[k]];
             Obj3d::TransformationMatrix& matrix = group.matrices[k];
-            matrix.World = cache.world;
-            matrix.WorldInverseTranspose = cache.inverseTranspose;
-            matrix.WVP = MatrixMath::Multiply(cache.world, viewProjection);
+            if ( rootActive_ ) {
+                matrix.World = MatrixMath::Multiply(cache.world, root_);
+                matrix.WorldInverseTranspose = MatrixMath::Multiply(cache.inverseTranspose, rootNormal_);
+            } else {
+                matrix.World = cache.world;
+                matrix.WorldInverseTranspose = cache.inverseTranspose;
+            }
+            matrix.WVP = MatrixMath::Multiply(matrix.World, viewProjection);
         }
         group.batch->Update(group.matrices);
     }
+}
+
+void StageBackdrop::SetRoot(float scale, float yawRadians, const Vector3& translate){
+    rootActive_ = !( scale == 1.0f && yawRadians == 0.0f && translate.x == 0.0f && translate.y == 0.0f && translate.z == 0.0f );
+    root_ = MatrixMath::MakeAffine({ scale, scale, scale }, { 0.0f, yawRadians, 0.0f }, translate);
+    rootNormal_ = MatrixMath::MakeRotateY(yawRadians);
 }
 
 void StageBackdrop::Draw(const Camera* camera){

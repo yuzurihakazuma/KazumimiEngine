@@ -308,6 +308,16 @@
       }
     },
     {
+      "name": "上から落ちてくる",
+      "type": "sceneCue",
+      "event": "ready",
+      "delay": 0.4,
+      "duration": 0.0,
+      "params": {
+        "cue": "introDrop"
+      }
+    },
+    {
       "name": "こっちを見て手を振る",
       "type": "sceneCue",
       "event": "ready",
