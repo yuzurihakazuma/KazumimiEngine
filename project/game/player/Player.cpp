@@ -27,6 +27,8 @@ namespace {
 }
 
 void Player::Initialize(){
+    fellOut_ = false;
+    damaged_ = false;
     position_ = { 0.0f, 0.0f, 0.0f };
     rotation_ = { 0.0f, 0.0f, 0.0f };
 
@@ -58,6 +60,7 @@ void Player::Initialize(){
 void Player::Update(const std::vector<SplineRail>& allRails){
     if ( allRails.empty() ) return;
     if ( currentRailIndex_ < 0 || currentRailIndex_ >= ( int ) allRails.size() ) return;
+    if ( fellOut_ ) return; // 落ちて止まっている（シーンが Respawn するまで）
 
     const float dt = Time::GetInstance()->GetDeltaTime(); // フレームレート非依存
     knock_.TickInvincible(dt);
@@ -645,12 +648,14 @@ void Player::LandFromAir(const std::vector<SplineRail>& rails, int rail, float d
 }
 
 void Player::RespawnAfterFall(){
+    if ( holdOnFall_ ) { fellOut_ = true; return; } // シーンが体力を見て決める
     Initialize();
     fellRespawned_ = true; // アイリスワイプ演出用（シーンが Consume する）
 }
 
 // 敵にぶつかった：敵と反対側へ小さく跳ねながら弾かれる
 void Player::Knockback(const Vector3& awayDir){
+    damaged_ = true;
     knock_.Start(awayDir, rotation_.y);
     dsSign_ = 0.0f; // 次の入力で進行方向を決め直す
     const Vector3& knockDir = knock_.Direction();

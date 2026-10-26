@@ -247,6 +247,7 @@ void BaseScene::ComposeFrame(ID3D12GraphicsCommandList* commandList){
     RenderTexture* finalTarget = bloom->IsEnabled() ? bloom->GetCombineTexture() : postEffect->GetFinalTexture();
     SDFManager::GetInstance()->DrawIntoTexture(commandList, finalTarget);
     if ( features_.overlay2D ) { DrawOverlayInto(commandList, finalTarget); }
+    OnFrameComposed(commandList, finalTarget);
     // 遷移の演出（紙芝居の枠・扉・吹き飛ぶ絵）を一番上に重ねる。シーンが変わっても同じ舞台が続く
     ISceneTransition* transition = SceneManager::GetInstance()->GetTransition();
     if ( transition && transition->IsActive() ) { transition->DrawInto(commandList, finalTarget); }

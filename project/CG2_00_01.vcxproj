@@ -261,6 +261,10 @@ exit 0</Command>
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\enemy\EnemyEditor.cpp" />
     <ClCompile Include="game\editor\RailStripPanel.cpp" />
+    <ClCompile Include="game\gameover\GameOverScreen.cpp" />
+    <ClCompile Include="game\hud\HeartRing.cpp" />
+    <ClCompile Include="game\gameover\GameOverSequence.cpp" />
+    <ClCompile Include="game\gameover\PaperSheet.cpp" />
     <ClCompile Include="game\worldmap\PaperFx.cpp" />
     <ClCompile Include="game\worldmap\DioramaTrain.cpp" />
     <ClCompile Include="game\worldmap\DiveSequence.cpp" />
@@ -484,6 +488,10 @@ exit 0</Command>
     <ClInclude Include="engine\scene\ISceneTransition.h" />
     <ClInclude Include="game\title\TitleTopple.h" />
     <ClInclude Include="game\editor\RailStripPanel.h" />
+    <ClInclude Include="game\gameover\GameOverScreen.h" />
+    <ClInclude Include="game\hud\HeartRing.h" />
+    <ClInclude Include="game\gameover\GameOverSequence.h" />
+    <ClInclude Include="game\gameover\PaperSheet.h" />
     <ClInclude Include="game\worldmap\PaperFx.h" />
     <ClInclude Include="game\worldmap\DioramaTrain.h" />
     <ClInclude Include="game\worldmap\DiveSequence.h" />

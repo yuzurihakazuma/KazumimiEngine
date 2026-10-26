@@ -73,6 +73,12 @@ public:
 
     // 落下死でリスポーンした瞬間か（取得するとフラグは消える。アイリスワイプ演出用）
     bool ConsumeFellRespawn(){ bool fell = fellRespawned_; fellRespawned_ = false; return fell; }
+    // 落ちてもすぐスタートへ戻さず、その場で止めて待つ（体力・ゲームオーバーはシーンが決める）
+    void SetHoldOnFall(bool hold){ holdOnFall_ = hold; }
+    bool IsFellOut() const{ return fellOut_; }
+    void Respawn(){ fellOut_ = false; Initialize(); } // スタートへ戻す
+    // 敵にぶつかって弾かれた瞬間か（体力を減らす。取得するとフラグは消える）
+    bool ConsumeDamaged(){ bool hit = damaged_; damaged_ = false; return hit; }
 
     // ===== レール乗り換えデバッガ用（RailTransferDebugger が毎フレーム読む）=====
     //   乗り換えの種類：連結へ持ち越し / 端の先の本体へ合流 / 乗り換えキー / T字の分岐 / 空中から着地 / 空中へ
@@ -164,6 +170,9 @@ private:
 
     bool movementLocked_ = false; // true の間は移動・ジャンプ入力を無視（構え中など）
     bool fellRespawned_ = false;  // 落下死→リスポーンが起きた瞬間のフラグ（シーンが Consume して演出に使う）
+    bool holdOnFall_ = false;     // 落ちたらその場で止めて待つ（シーンが体力で決める）
+    bool fellOut_ = false;        // 落ちて止まっている
+    bool damaged_ = false;        // 敵にぶつかった（シーンが Consume）
 
     // ---- レール移動の主状態（これだけで位置が決まる）----
     float currentDistance_ = 0.0f;    // 現在レール上を進んだ距離 (m)

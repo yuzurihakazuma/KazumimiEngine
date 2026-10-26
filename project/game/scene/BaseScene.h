@@ -70,6 +70,8 @@ protected:
     virtual void OnDrawSdf(ID3D12GraphicsCommandList* /*commandList*/) {}         // SDFボリューム（専用PSO）
     virtual void OnDrawOverlay2D(ID3D12GraphicsCommandList* /*commandList*/) {}   // 最終画像へ重ねる2D（SDF文字・ロゴ）
     virtual void OnDrawUI(ID3D12GraphicsCommandList* /*commandList*/) {}          // スプライト（画面出力の後）
+    // 最終画像（ポストエフェクト・SDF・2D を重ねた後、遷移の演出より前）ができた所。写し取りなどに使う
+    virtual void OnFrameComposed(ID3D12GraphicsCommandList* /*commandList*/, RenderTexture* /*finalTarget*/) {}
 
     // --- 差し込み口：ImGui ---
     virtual void OnDrawInspector() {}         // 共有の「インスペクター (詳細設定)」ウィンドウの中へ足す項目
