@@ -1,52 +1,56 @@
 #pragma once
 // =====================================================================
 //  DiveSequence：箱庭への飛び込み（ステージ選択・飛び込み演出 企画書の5段）。
-//    構え(crouch)   … その場でかがむ
-//    ジャンプ(jump) … 箱庭の上の頂点へ跳ぶ。後半から前転を始める
-//    頂点(apex)     … 前転を終えて、頭を下に向ける
-//    飛び込み(dive) … 頭から箱庭の真ん中へ。縮みながら加速
-//    吸い込み(absorb)… 恐竜は消え、箱庭が水面のように弾む。円を箱庭の真ん中へ閉じる
-//   長さ・高さ・カメラの位置は resources/worldmap/dive.json（DiveTiming）。ここは形だけ持つ
+//    構え(crouch)   … 箱庭の方を向いて、かがむ
+//    ジャンプ(jump) … 箱庭の上へ跳ぶ。後半から前転を始める
+//    頂点(apex)     … ふわっと止まって、くるくる回る
+//    飛び込み(dive) … 回りながら落ち、箱庭と同じ大きさまで縮む
+//    着地(absorb)   … 箱庭の中のスタート地点に、小さくなって着地（ステージに入った）。円がそこへ閉じる
+//   回転は体の真ん中を軸にする（足元を軸にすると、体が大きく振り回されて見える）。
+//   前転は2回転で、着地でちょうど立った向きに戻る
+//   長さ・高さ・カメラの位置は resources/worldmap/dive.json（DiveTiming）
 // =====================================================================
 #include "engine/math/struct.h"
 #include "game/worldmap/WorldMapData.h"
 
 class DiveSequence {
 public:
-    // from＝恐竜の立っている所、center＝箱庭の真ん中、camera*＝始まった時のカメラ
-    void Start(const DiveTiming& timing, const Vector3& from, float yaw, const Vector3& center,
+    // from＝恐竜の立っている所、target＝着地する所（箱庭の中のスタート）、endScale＝着地した時の大きさ
+    void Start(const DiveTiming& timing, const Vector3& from, float yaw, const Vector3& target, float endScale,
                const Vector3& cameraPosition, const Vector3& cameraLook);
+    // 着地する所は箱庭と一緒に動く（正面へ戻る・弾む）ので、毎フレーム渡し直す
+    void SetTarget(const Vector3& target, float endScale);
     void Update(float deltaTime);
 
     bool IsActive() const{ return active_; }
     bool IsFinished() const{ return active_ && time_ >= EndTime(); }
 
-    // 恐竜の見た目（visible=false の間は描かない）
+    // 恐竜の見た目
     struct Pose {
         Vector3 position {};
         Vector3 rotation {};
         Vector3 scale { 1.0f, 1.0f, 1.0f };
-        bool    visible = true;
     };
     Pose DinoPose() const;
     void CameraPose(Vector3& outPosition, Vector3& outLook) const;
+    Vector3 Target() const{ return target_; }
     // 円の半径（2＝全開）
     float IrisRadius() const;
 
     // 段の始まり（1回だけ true。音・弾み用）
     bool ConsumeJumped();
-    bool ConsumeAbsorbed();
+    bool ConsumeLanded();
 
 private:
     float EndTime() const;
+    float LandTime() const{ return timing_.crouch + timing_.jump + timing_.apex + timing_.dive; }
 
     DiveTiming timing_;
     bool    active_ = false;
     float   time_ = 0.0f;
-    Vector3 from_ {}, apex_ {}, center_ {};
+    Vector3 from_ {}, target_ {};
+    float   endScale_ = 0.1f;
     float   yaw_ = 0.0f;
-    float   divePitch_ = 3.14159265f; // 頭から向かう角度（頂点→真ん中の向き）
     Vector3 cameraStart_ {}, lookStart_ {};
-    bool    jumped_ = false, absorbed_ = false;
-    bool    jumpTaken_ = false, absorbTaken_ = false;
+    bool    jumpTaken_ = false, landTaken_ = false;
 };

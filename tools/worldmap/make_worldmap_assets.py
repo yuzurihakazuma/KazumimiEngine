@@ -33,10 +33,10 @@ CREAM = (250, 244, 230)
 
 # --- マスと道 ---------------------------------------------------------------
 SPACING = 10.0     # マスの間(m)
-PEDESTAL_BACK = 3.4  # 立つ所から台座の中心までの奥行き(m)
-PEDESTAL_SIZE = [7.0, 0.7, 2.4]  # 台座の幅・高さ・奥行き(m)
+PEDESTAL_BACK = 3.5  # 立つ所から台座の中心までの奥行き(m)
+PEDESTAL_SIZE = [4.4, 0.7, 3.6]  # 台座の幅・高さ・奥行き(m)。ステージの一部を四角いタイルにして載せる
 STAGES = [
-    {"id": "stage1", "label": "1", "stage": "stage1", "unlocked": True},
+    {"id": "stage1", "label": "1", "stage": "stage1", "unlocked": True, "feature": "train"},  # 目印：汽車がぐるぐる走る
     {"id": "stage2", "label": "2", "stage": "", "unlocked": False},
     {"id": "stage3", "label": "3", "stage": "", "unlocked": False},
 ]
@@ -56,33 +56,34 @@ road.append([nodes[-1][0] + 6.0, 0.0, nodes[-1][2]])
 world = {
     "road": road,
     "roadSkin": {"width": 1.6, "color": [0.95, 0.55, 0.28]},
-    "pedestal": {"back": PEDESTAL_BACK, "size": PEDESTAL_SIZE},  # 奥行きは上限（ゲームが箱庭の形に合わせて縮める）
+    "pedestal": {"back": PEDESTAL_BACK, "size": PEDESTAL_SIZE},
     "camera": {"offset": [0.0, 5.2, -8.5], "lookAhead": [0.0, 0.8, 2.6], "fovY": 0.62},
     "stages": [],
 }
 for s, n in zip(STAGES, nodes):
     world["stages"].append({
-        "id": s["id"], "stage": s["stage"], "label": s["label"], "unlocked": s["unlocked"],
+        "id": s["id"], "stage": s["stage"], "label": s["label"], "unlocked": s["unlocked"], "feature": s.get("feature", ""),
         "node": n,
-        "dioramaMargin": 0.94,   # 台座の幅に対して、箱庭が占める割合
-        "preview": {"distance": 3.2, "height": 2.4, "orbitSeconds": 10.0},  # 布の道をなぞる所を追い、左右にゆっくり振れる
+        "dioramaMargin": 0.94,
+        # 箱庭に切り抜く四角（ステージの中の m）。"center": [x, z] を足すとその場所、無ければ見どころの多い所を自動で選ぶ
+        "window": {"depth": 24.0},   # 台座の幅に対して、箱庭が占める割合
+        "preview": {"distance": 5.6, "height": 4.8, "orbitSeconds": 10.0},  # 布の道をなぞる所を追い、左右にゆっくり振れる
     })
 json.dump(world, open(os.path.join(OUT, "worldmap.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
 # --- 飛び込みの時刻（企画書の5段。仮の値・調整前提） ----------------------------
 dive = {
-    "crouch": 0.3,      # 1. 構え：こっちを向いてしゃがむ
-    "jump": 0.5,        # 2. ジャンプ：放物線で箱庭の上空へ
-    "apex": 0.2,        # 3. 頂点：くるっと前転・一瞬スロー
-    "dive": 0.4,        # 4. 飛び込み：頭から落ちながら小さくなる
-    "absorb": 0.3,      # 5. 吸い込み：箱庭の中に消える／画面を閉じ始める
-    "apexHeight": 3.2,  # 箱庭の上、どれだけ高く跳ぶか(m)
-    "endScale": 0.06,   # 飛び込み終わりの恐竜の大きさ（箱庭と同じくらい小さく）
-    "irisTime": 0.35,   # 円を閉じる時間（吸い込みの始めから）
+    "crouch": 0.35,     # 1. 構え：箱庭の方を向いてかがむ（この間に箱庭は正面へ戻って止まる）
+    "jump": 0.45,       # 2. ジャンプ：箱庭の上へ。後半から前転を始める
+    "apex": 0.15,       # 3. 頂点：ふわっと止まって、くるくる回る
+    "dive": 0.45,       # 4. 飛び込み：回りながら落ち、箱庭と同じ大きさまで縮む
+    "absorb": 0.45,     # 5. 着地：箱庭の中のスタートに小さく立つ（箱庭が弾む）
+    "apexHeight": 2.2,  # 着地する所の上、どれだけ高く跳ぶか(m)
+    "irisTime": 0.4,    # 円を閉じる時間（着地の少し後から。小さな恐竜へ閉じる）
     "irisHold": 0.2,    # 閉じ切ってから、ステージ開始のカードへ移るまで
     "camera": {
-        "apex": [1.2, 4.6, -7.0],   # 頂点：跳ぶ弧と箱庭が両方入る、斜め前の高い位置（箱庭の中心から）
-        "dive": [0.0, 2.4, -3.0],   # 飛び込み：箱庭へ急に寄って見下ろす
+        "apex": [2.8, 3.0, -7.0],   # 跳ぶ弧と箱庭が両方入る、斜め前の位置（着地する所から）
+        "dive": [0.7, 1.2, -1.9],   # 着地：小さな恐竜へ寄る
     },
 }
 json.dump(dive, open(os.path.join(OUT, "dive.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)

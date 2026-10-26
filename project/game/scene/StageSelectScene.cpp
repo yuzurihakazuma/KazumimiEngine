@@ -50,10 +50,8 @@ namespace {
 	constexpr float kPreviewBlendTime = 0.8f; // マップ ⇔ プレビューのカメラの切り替え(秒)
 	constexpr float kPreviewShift = 0.7f;   // プレビューで見る所を画面の右へ寄せる量（左にパネル）
 	constexpr float kPreviewSway = 0.38f;   // プレビューのカメラが左右に振れる角度(rad)
-	constexpr float kPreviewEdge = 0.9f;    // なぞる所を追う時、箱庭の端から内側へ寄せる(m)
-	constexpr float kPedestalBorder = 0.35f; // 箱庭のまわりの台座のふち(m)
-	constexpr float kLockedDepth = 1.4f;    // まだ遊べないマスの台座の奥行き(m)
 	constexpr float kLabelSize = 0.5f;      // 台座の番号の紙(m)
+	constexpr float kSmokeInterval = 0.2f;  // 汽車のけむりの間(秒)
 
 	const char* kGuideMessage = "T : タイトルへ";
 	const char* kFontAtlas = "jpdot";
@@ -117,6 +115,7 @@ void StageSelectScene::OnInitialize(){
 	timing_.Load(kDiveFile);
 	BuildMap();
 	panel_.Initialize();
+	fx_.Initialize(TextureManager::GetInstance()->Load("resources/uvChecker.png").srvIndex);
 
 	guideText_ = std::make_unique<SDFText>();
 	guideText_->Initialize();
@@ -182,21 +181,28 @@ void StageSelectScene::BuildMap(){
 		Node node;
 		node.roadDistance = road_[0].GetClosestDistance(stage.node);
 		const Vector3 top = data_.PedestalTop(stage);
-		Vector3 size = data_.pedestalSize;
+		const Vector3 size = data_.pedestalSize;
 		node.center = { top.x, top.y + 0.3f, top.z };
-		size.z = kLockedDepth;
 		if ( stage.unlocked ) {
+			// ステージの一部を四角いタイルに切り抜いて載せる
+			StageDiorama::Window window;
+			window.depth = stage.windowDepth;
+			window.hasCenter = stage.hasWindowCenter;
+			window.centerX = stage.windowCenter.x;
+			window.centerZ = stage.windowCenter.z;
+			window.feature = stage.feature;
 			node.diorama = std::make_unique<StageDiorama>();
-			if ( node.diorama->Build(stage.stage, top, size.x * stage.dioramaMargin, data_.pedestalSize.z * stage.dioramaMargin, GetCamera(), noise, EnvironmentMapSrv()) ) {
-				// 台座の奥行きは箱庭の形に合わせる（細長いステージは細長い台座）
+			if ( node.diorama->Build(stage.stage, top, size.x * stage.dioramaMargin, size.z * stage.dioramaMargin, window,
+			                         GetCamera(), noise, EnvironmentMapSrv()) ) {
 				node.center = node.diorama->Center();
-				const float depth = node.diorama->BoundsMax().z - node.diorama->BoundsMin().z;
-				size.z = std::clamp(depth + kPedestalBorder, 0.6f, data_.pedestalSize.z);
+				node.diorama->SetSpinSeconds(stage.orbitSeconds); // 選ばれている間、台座ごと回る
 			} else {
 				node.diorama.reset();
 			}
 		}
 		// 台座（2×2×1m の台座ブロックを伸ばす。原点は底面の中心）
+		node.top = top;
+		node.size = size;
 		node.pedestal = Obj3d::Create("craftPedestal", { top.x, top.y - size.y, top.z }, { 0, 0, 0 }, { size.x * 0.5f, size.y, size.z * 0.5f });
 		// 番号の紙：台座の前の面
 		const std::string labelModel = "wm_label_" + stage.label;
@@ -219,6 +225,7 @@ void StageSelectScene::OnFinalize(){
 	road_.clear();
 	backdrop_.Clear();
 	panel_.Finalize();
+	fx_.Clear();
 	dino_.reset();
 	guideText_.reset();
 }
@@ -316,7 +323,7 @@ void StageSelectScene::OnUpdate(){
 			if ( diorama ) { diorama->SetSelected(true); }
 			panel_.SetContent(stage.stage, stage.unlocked && diorama, diorama ? diorama->CoinCount() : 0, 0);
 			orbitAngle_ = 0.0f;
-			panProgress_ = 0.0f;
+			if ( diorama ) { fx_.Confetti({ nodes_[standing].center.x, nodes_[standing].center.y + 0.2f, nodes_[standing].center.z }, 14, 2.4f, 0.07f); }
 			AudioManager::GetInstance()->PlayWave(kSplashSe, false, 0.5f);
 		}
 	}
@@ -326,22 +333,35 @@ void StageSelectScene::OnUpdate(){
 	previewBlend_ = previewBlend_ < wanted ? ( std::min )( previewBlend_ + step, wanted ) : ( std::max )( previewBlend_ - step * 1.5f, wanted );
 	if ( previewing && phase_ == Phase::Map ) {
 		orbitAngle_ += dt * 2.0f * kPi / ( std::max )( data_.stages[previewNode_].orbitSeconds, 1.0f );
-		// 布の道をなぞっている所を、なめらかに追う（最初へ戻る時はすっと戻る）
-		if ( const StageDiorama* diorama = nodes_[previewNode_].diorama.get() ) {
-			panProgress_ += ( diorama->TraceProgress() - panProgress_ ) * ( std::min )( dt * 2.0f, 1.0f );
-		}
 	}
 
 	UpdateDino(dt);
 	for ( int i = 0; i < ( int ) nodes_.size(); ++i ) {
 		Node& node = nodes_[i];
-		if ( node.diorama ) { node.diorama->Update(dt, i == previewNode_, GetCamera()); }
+		if ( node.diorama ) {
+			node.diorama->Update(dt, i == previewNode_, GetCamera());
+			// 台座と番号の紙も、箱庭と一緒に回す
+			const float yaw = node.diorama->Yaw();
+			const Vector3 front = MatrixMath::Transforms({ 0.0f, -node.size.y * 0.5f, -node.size.z * 0.5f - 0.02f }, MatrixMath::MakeRotateY(yaw));
+			node.pedestal->SetRotation({ 0.0f, yaw, 0.0f });
+			node.label->SetTranslation({ node.top.x + front.x, node.top.y + front.y, node.top.z + front.z });
+			node.label->SetRotation({ 0.0f, yaw, 0.0f });
+			// 汽車の煙突から、白い綿のけむりがぽこぽこ
+			Vector3 chimney;
+			node.smokeTimer -= dt;
+			if ( node.smokeTimer <= 0.0f && node.diorama->TrainChimney(chimney) ) {
+				node.smokeTimer = kSmokeInterval;
+				const float s = node.diorama->Scale();
+				fx_.Puff(chimney, { 0.0f, 2.2f * s, 0.0f }, 1.5f * s, 1.2f, PaperFx::PuffColor::White);
+			}
+		}
 		for ( Obj3d* obj : { node.pedestal.get(), node.label.get(), node.lid.get(), node.lidLabel.get() } ) {
 			if ( obj ) { obj->Update(); }
 		}
 	}
 	roadMesh_.Update(road_);
 	backdrop_.Update(GetCamera());
+	fx_.Update(dt, GetCamera());
 	panel_.Update(dt, previewing && phase_ == Phase::Map && previewBlend_ > 0.25f);
 	UpdateTexts();
 
@@ -386,10 +406,12 @@ void StageSelectScene::UpdateWalk(float deltaTime){
 void StageSelectScene::StartDive(){
 	Node& node = nodes_[targetNode_];
 	const Vector3 from = road_[0].GetPositionByDistance(dinoDistance_);
-	const Vector3 center = node.diorama->Center();
-	const float yaw = std::atan2(center.x - from.x, center.z - from.z);
+	// 箱庭は正面へ戻して止める。恐竜は箱庭の中のスタートへ、箱庭と同じ大きさになって着地する
+	node.diorama->SetSpinHold(true);
+	const Vector3 target = node.diorama->StartPoint();
+	const float yaw = std::atan2(target.x - from.x, target.z - from.z);
 	dinoYaw_ = yaw;
-	dive_.Start(timing_, from, yaw, center, cameraPosition_, cameraLook_);
+	dive_.Start(timing_, from, yaw, target, node.diorama->Scale(), cameraPosition_, cameraLook_);
 	phase_ = Phase::Dive;
 	phaseTime_ = 0.0f;
 	if ( dino_ ) {
@@ -401,18 +423,29 @@ void StageSelectScene::StartDive(){
 // 飛び込み：5段の形・箱庭の弾み・円を閉じて、ステージ開始カードへ
 void StageSelectScene::UpdateDive(float deltaTime){
 	if ( !dive_.IsActive() ) { return; }
+	StageDiorama* diorama = previewNode_ >= 0 ? nodes_[previewNode_].diorama.get() : nullptr;
+	if ( diorama ) { dive_.SetTarget(diorama->StartPoint(), diorama->Scale()); } // 箱庭と一緒に動く
 	dive_.Update(deltaTime);
-	if ( dive_.ConsumeJumped() ) { AudioManager::GetInstance()->PlayWave(kJumpSe, false, 0.8f); }
-	if ( dive_.ConsumeAbsorbed() ) {
+	if ( dive_.ConsumeJumped() ) {
+		AudioManager::GetInstance()->PlayWave(kJumpSe, false, 0.8f);
+		const Vector3 feet = road_[0].GetPositionByDistance(dinoDistance_);
+		fx_.PuffRing(feet, 6, 1.1f, 0.32f, PaperFx::PuffColor::Kraft);
+	}
+	if ( dive_.ConsumeLanded() ) {
 		AudioManager::GetInstance()->PlayWave(kSplashSe);
-		if ( previewNode_ >= 0 && nodes_[previewNode_].diorama ) { nodes_[previewNode_].diorama->Splash(); }
+		if ( diorama ) { diorama->Splash(); }
+		const Vector3 target = dive_.Target();
+		fx_.Confetti({ target.x, target.y + 0.05f, target.z }, 36, 2.6f, 0.06f);
+		fx_.PuffRing(target, 8, 0.45f, 0.075f, PaperFx::PuffColor::White); // 小さな恐竜を隠さない大きさ
 		PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
 	}
-	// 円は箱庭の真ん中へ閉じる
-	if ( PostEffect::GetInstance() && dive_.IrisRadius() < 1.99f && previewNode_ >= 0 ) {
+	// 円は、箱庭の中に立った小さな恐竜へ閉じる
+	if ( dive_.IrisRadius() < 1.99f ) {
 		float u = 0.5f, v = 0.5f;
 		Vector2 ndc;
-		if ( MatrixMath::WorldToNdc(nodes_[previewNode_].center, GetCamera()->GetViewProjectionMatrix(), ndc) ) {
+		const Vector3 target = dive_.Target();
+		const float lift = diorama ? diorama->Scale() * 0.6f : 0.1f;
+		if ( MatrixMath::WorldToNdc({ target.x, target.y + lift, target.z }, GetCamera()->GetViewProjectionMatrix(), ndc) ) {
 			u = ndc.x * 0.5f + 0.5f;
 			v = 1.0f - ( ndc.y * 0.5f + 0.5f );
 		}
@@ -433,7 +466,7 @@ void StageSelectScene::UpdateDino(float deltaTime){
 		const DiveSequence::Pose pose = dive_.DinoPose();
 		dino_->SetTranslation(pose.position);
 		dino_->SetRotation(pose.rotation);
-		dino_->SetScale(pose.visible ? pose.scale : Vector3 { 0.0f, 0.0f, 0.0f });
+		dino_->SetScale(pose.scale);
 		dino_->Update();
 		return;
 	}
@@ -488,13 +521,9 @@ void StageSelectScene::PreviewCamera(Vector3& outPosition, Vector3& outLook) con
 	if ( previewNode_ < 0 ) { MapCamera(outPosition, outLook); return; }
 	const WorldStage& stage = data_.stages[previewNode_];
 	const Node& node = nodes_[previewNode_];
-	Vector3 focus = node.center;
-	if ( node.diorama ) {
-		const float left = node.diorama->BoundsMin().x + kPreviewEdge;
-		const float right = ( std::max )( node.diorama->BoundsMax().x - kPreviewEdge, left );
-		focus.x = left + ( right - left ) * panProgress_;
-	}
-	const float a = kPreviewSway * std::sin(orbitAngle_);
+	const Vector3 focus = node.center; // 四角いタイルなので、真ん中を見て左右に振れる
+	// 箱庭が回るマスでは、カメラは正面で止まる（回る様子を見せる）
+	const float a = node.diorama ? 0.0f : kPreviewSway * std::sin(orbitAngle_);
 	outPosition = { focus.x + std::sin(a) * stage.previewDistance, focus.y + stage.previewHeight, focus.z - std::cos(a) * stage.previewDistance };
 	const Vector3 side { std::cos(a), 0.0f, std::sin(a) }; // カメラの右
 	outLook = { focus.x - side.x * kPreviewShift, focus.y, focus.z - side.z * kPreviewShift };
@@ -539,6 +568,7 @@ void StageSelectScene::OnDrawInstanced(){
 	for ( Node& node : nodes_ ) {
 		if ( node.diorama ) { node.diorama->DrawInstanced(GetCamera()); }
 	}
+	fx_.Draw(GetCamera()); // 紙吹雪・綿のけむり
 }
 
 void StageSelectScene::OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList){

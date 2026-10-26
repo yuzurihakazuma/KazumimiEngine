@@ -45,6 +45,13 @@ bool WorldMapData::Load(const std::string& path){
         stage.unlocked = entry.value("unlocked", false) && !stage.stage.empty();
         stage.node = ReadVector(entry.value("node", json()), {});
         stage.dioramaMargin = entry.value("dioramaMargin", stage.dioramaMargin);
+        stage.feature = entry.value("feature", std::string());
+        const json window = entry.value("window", json::object());
+        stage.windowDepth = window.value("depth", stage.windowDepth);
+        if ( window.contains("center") && window["center"].is_array() && window["center"].size() >= 2 ) {
+            stage.hasWindowCenter = true;
+            stage.windowCenter = { window["center"][0].get<float>(), 0.0f, window["center"][1].get<float>() };
+        }
         const json preview = entry.value("preview", json::object());
         stage.previewDistance = preview.value("distance", stage.previewDistance);
         stage.previewHeight = preview.value("height", stage.previewHeight);

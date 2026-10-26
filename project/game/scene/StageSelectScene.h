@@ -17,6 +17,7 @@
 #include "game/rail/RoadMesh.h"
 #include "game/stage/StageBackdrop.h"
 #include "game/worldmap/DiveSequence.h"
+#include "game/worldmap/PaperFx.h"
 #include "game/worldmap/WorldMapData.h"
 #include "game/worldmap/WorldMapPanel.h"
 
@@ -60,6 +61,9 @@ private:
 		std::unique_ptr<StageDiorama> diorama;
 		float roadDistance = 0.0f;       // 道の上のどこに立つか(m)
 		Vector3 center {};               // 箱庭の真ん中（無ければ台座の上）
+		Vector3 top {};                  // 台座の上面の中心
+		float   smokeTimer = 0.0f;       // 汽車のけむりを出すまで
+		Vector3 size {};                 // 台座の大きさ
 	};
 
 	void BuildMap();
@@ -83,6 +87,7 @@ private:
 	StageBackdrop backdrop_;        // まわりの地面・木・丘・空
 	WorldMapPanel panel_;
 	DiveSequence  dive_;
+	PaperFx       fx_;          // 紙吹雪・綿のけむり
 
 	std::unique_ptr<SkinnedObj3d> dino_;
 	std::string dinoClip_;
@@ -95,7 +100,6 @@ private:
 	float phaseTime_ = 0.0f;
 	float previewBlend_ = 0.0f;     // 0＝マップのカメラ 1＝プレビューのカメラ
 	float orbitAngle_ = 0.0f;       // プレビューのカメラが振れる位相
-	float panProgress_ = 0.0f;      // プレビューのカメラが追う所（布の道をなぞる所。0＝スタート側）
 	int   previewNode_ = -1;
 	Vector3 cameraPosition_ {}, cameraLook_ {};
 

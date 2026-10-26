@@ -18,6 +18,11 @@ struct WorldStage {
     bool    unlocked = false;
     Vector3 node {};         // 恐竜が立つ所（道の上）
     float   dioramaMargin = 0.92f;  // 台座の幅に対して、箱庭が占める割合
+    // 箱庭に切り抜く四角（ステージの中の m）。center が無ければ、ブロック・敵・道がいちばん多い所を自動で選ぶ
+    float   windowDepth = 30.0f;
+    bool    hasWindowCenter = false;
+    Vector3 windowCenter {};        // x と z を使う
+    std::string feature;            // 箱庭の目印（"train"＝汽車がぐるぐる走る）
     float   previewDistance = 2.9f; // プレビュー：箱庭の中心からカメラまで
     float   previewHeight = 1.35f;
     float   orbitSeconds = 10.0f;   // ゆっくり1周する秒数

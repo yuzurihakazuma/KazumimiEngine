@@ -1,7 +1,11 @@
 #pragma once
 // =====================================================================
 //  StageDiorama：ステージの「箱庭」。本物のステージのデータ（resources/map/<stage>.json）を読み、
-//   縮めて台座の上に載せる（ステージ選択・飛び込み演出 企画書 A案：実データ縮小描画）。
+//   四角いタイルに切り抜いて、縮めて台座の上に載せる（ステージ選択・飛び込み演出 企画書 A案：実データ縮小描画）。
+//   ・切り抜く所：ブロック・敵・道・スタートがいちばん多く入る四角（worldmap.json の window で指定もできる）
+//   ・道は四角のふちで切り、地面もふちで切る。四角いっぱいに草の台を敷いて、タイルの形にする
+//   ・目印（feature）："train"＝四角のふちに沿って線路を敷き、おもちゃの汽車がぐるぐる走る（地面は平らにならす）
+//   ・選ばれている間は、台座ごとゆっくり回る（離れると正面へ戻る）
 //   ・道（布ロード）・地面・木・草花・ブロック … ステージと同じ物を等倍の縮小で（RoadMesh / StageBackdrop の SetRoot）
 //   ・空・丘・雲・穴の底は載せない（台座の外へはみ出すので）
 //   ・敵とゴール … 縮めると見えないので、ボードゲームの駒くらいの大きさで立てる（何がいるか・どこがゴールか）
@@ -12,6 +16,7 @@
 #include "engine/rail/SplineRail.h"
 #include "game/rail/RoadMesh.h"
 #include "game/stage/StageBackdrop.h"
+#include "game/worldmap/DioramaTrain.h"
 
 #include <memory>
 #include <string>
@@ -26,8 +31,16 @@ public:
     StageDiorama();
     ~StageDiorama();
 
-    // stage＝resources/map/<stage>.json。top＝台座の上面の中心。width/depth＝箱庭を入れる大きさ(m)
-    bool Build(const std::string& stage, const Vector3& top, float width, float depth, Camera* camera, uint32_t noiseSrv, uint32_t envSrv);
+    // 切り抜く四角（ステージの中の m）。横は台座の縦横の比から決まる
+    struct Window {
+        float depth = 30.0f;     // 奥行き
+        bool  hasCenter = false; // false＝自動で選ぶ
+        float centerX = 0.0f, centerZ = 0.0f;
+        std::string feature;     // 目印（"train"＝汽車が走る。空＝なし）
+    };
+    // stage＝resources/map/<stage>.json。top＝台座の上面の中心。width/depth＝箱庭の大きさ(m)
+    bool Build(const std::string& stage, const Vector3& top, float width, float depth, const Window& window,
+               Camera* camera, uint32_t noiseSrv, uint32_t envSrv);
     void Finalize();
 
     // 毎フレーム。previewing＝プレビュー中（敵が動く・布の道をなぞる）
@@ -41,6 +54,13 @@ public:
     void Splash();
 
     Vector3 Center() const{ return center_; }   // 箱庭の真ん中（上面の少し上）
+    float Yaw() const{ return yaw_; }           // 回っている角度（台座も同じだけ回す）
+    float Scale() const{ return scale_ * bounce_; } // 箱庭の縮み（ステージの 1m が何 m に見えるか）
+    Vector3 StartPoint() const;                 // 箱庭の中のスタート地点（世界）
+    bool  TrainChimney(Vector3& out) const{ return train_.ChimneyTop(out); } // 汽車の煙突の口（けむり用）
+    // 飛び込み中：回るのをやめて、正面へすばやく戻して止める
+    void  SetSpinHold(bool hold){ spinHold_ = hold; }
+    void  SetSpinSeconds(float seconds){ spinSeconds_ = seconds; } // 選ばれている間、1周する秒数
     int CoinCount() const{ return coinCount_; }
     // 台座の上で箱庭が占める範囲（跳ねていない時。台座の大きさを合わせる・カメラが追う）
     Vector3 BoundsMin() const{ return boundsMin_; }
@@ -59,15 +79,24 @@ private:
     };
 
     Vector3 ToWorld(const Vector3& local) const;
+    DioramaRoot Root() const;
     void ApplyRoot();
+    void BuildTrain(float cx, float cz, float halfWidth, float halfDepth, float height, Camera* camera);
 
     std::vector<SplineRail> rails_;
     RoadMesh road_;
     StageBackdrop backdrop_;
     std::vector<Token> tokens_;
+    // 目印の汽車と線路
+    DioramaTrain train_;
+    std::vector<SplineRail> trackRails_; // 線路の2本のレール（布で描く）
+    RoadMesh trackMesh_;
 
     Vector3 anchor_ {};     // 台座の上面の中心（跳ねる時の支点）
-    Vector3 translate_ {};  // ステージの座標 → 世界（縮めた後にずらす量）
+    Vector3 pivot_ {};      // 箱庭の中で、台座の上面の中心に来る所
+    float   yaw_ = 0.0f;    // 回っている角度
+    float   spinSeconds_ = 10.0f;
+    bool    spinHold_ = false;
     float   scale_ = 0.01f;
     float   bounce_ = 1.0f; // 跳ねの大きさ（1=そのまま）
     float   bounceTime_ = -1.0f;
