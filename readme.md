@@ -1,3 +1,3 @@
-[![DebugBuild](https://github.com/yuzurihakazuma/CG2_00_01/actions/workflows/DebugBuild.yml/badge.svg)](https://github.com/yuzurihakazuma/CG2_00_01/actions/workflows/DebugBuild.yml)
-[![ReleaseBuild](https://github.com/yuzurihakazuma/CG2_00_01/actions/workflows/Release.yml/badge.svg)](https://github.com/yuzurihakazuma/CG2_00_01/actions/workflows/Release.yml)
-[![DevelopmentBuild](https://github.com/yuzurihakazuma/CG2_00_01/actions/workflows/Development.yml/badge.svg)](https://github.com/yuzurihakazuma/CG2_00_01/actions/workflows/Development.yml)
+[![DebugBuild](https://github.com/yuzurihakazuma/KazumimiEngine/actions/workflows/DebugBuild.yml/badge.svg?branch=%E5%80%8B%E4%BA%BA%E5%88%B6%E4%BD%9Cmain)](https://github.com/yuzurihakazuma/KazumimiEngine/actions/workflows/DebugBuild.yml)
+[![ReleaseBuild](https://github.com/yuzurihakazuma/KazumimiEngine/actions/workflows/Release.yml/badge.svg?branch=%E5%80%8B%E4%BA%BA%E5%88%B6%E4%BD%9Cmain)](https://github.com/yuzurihakazuma/KazumimiEngine/actions/workflows/Release.yml)
+[![DevelopmentBuild](https://github.com/yuzurihakazuma/KazumimiEngine/actions/workflows/Development.yml/badge.svg?branch=%E5%80%8B%E4%BA%BA%E5%88%B6%E4%BD%9Cmain)](https://github.com/yuzurihakazuma/KazumimiEngine/actions/workflows/Development.yml)

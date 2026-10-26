@@ -25,7 +25,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -95,8 +95,8 @@
       <AdditionalLibraryDirectories>$(Solution)..\generated\outputs\$(Configuration)\;$(ProjectDir)externals\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxcompiler.dll" "$(TargetDir)"
-copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "$(TargetDir)"
+      <Command>copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)"
+copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)"
 echo Sync resources to output...
 robocopy "$(ProjectDir)resources" "$(TargetDir)resources" /E /XO /NFL /NDL /NJH /NJS /NP /R:1 /W:1
 if errorlevel 8 exit 1
@@ -128,8 +128,8 @@ exit 0</Command>
       <AdditionalOptions>/ignore:4049 /ignore:4098 /IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxcompiler.dll" "$(TargetDir)"
-copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "$(TargetDir)"
+      <Command>copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)"
+copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)"
 echo Sync resources to output...
 robocopy "$(ProjectDir)resources" "$(TargetDir)resources" /E /XO /NFL /NDL /NJH /NJS /NP /R:1 /W:1
 if errorlevel 8 exit 1
@@ -164,8 +164,8 @@ exit 0</Command>
       <AdditionalOptions>/ignore:4049 /ignore:4098 /IGNORE:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxcompiler.dll" "$(TargetDir)"
-copy /Y "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\dxil.dll" "$(TargetDir)"
+      <Command>copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)"
+copy /Y "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)"
 echo Sync resources to output...
 robocopy "$(ProjectDir)resources" "$(TargetDir)resources" /E /XO /NFL /NDL /NJH /NJS /NP /R:1 /W:1
 if errorlevel 8 exit 1
