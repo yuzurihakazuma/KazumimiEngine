@@ -3,6 +3,7 @@
 //  PaperSheet：写し取った画面を貼った「1枚の紙」（ゲームオーバー演出 企画・仕様書の板メッシュ）。
 //   細かく区切った板（動的メッシュ）を CPU で毎フレーム曲げる：
 //    ・くしゃくしゃ（画面のまま、真ん中へぎゅっと縮みながら、折れ目がたくさん立つ。ふちもギザギザになる）
+//    ・紙玉（ふちから先に真ん中へ丸まって、折れ目のあるカクカクした紙玉になる＝アイリスアウトのように真ん中へ閉じる）
 //    ・広げる（くしゃくしゃを戻す。同じノイズ・同じシードなので、シワは丸めた時と同じ所に残る）
 //   面ごとの法線（頂点を共有しない）で、カクカクした折れ目の見た目にする。
 //   層：表（写し取った絵・光を当てて折れ目の陰影を出す）／重ねる絵（光なし。写したままの色・次の絵へ切り替える）／裏（段ボール）
@@ -31,6 +32,8 @@ public:
 
     // くしゃくしゃの強さ（0＝平ら 1＝いちばん縮んで折れ目だらけ）
     void SetCrumple(float amount){ crumple_ = amount; }
+    // 紙玉：0＝広げたまま 1＝真ん中で半径 radius(m) の紙玉になる（ふちから先に丸まる）。spin＝紙玉が回った角度(rad)
+    void SetBall(float amount, float radius, float spin = 0.0f){ ball_ = amount; ballRadius_ = radius; ballSpin_ = spin; }
     // 重ねる絵の濃さ（0＝表だけ 1＝重ねる絵だけ）
     enum Layer { Front, Cover, Back, LayerCount };
     void SetCoverAlpha(float alpha){ coverAlpha_ = alpha; }
@@ -62,6 +65,7 @@ private:
     Vector3 bottom_ {}, right_ { 1, 0, 0 }, up_ { 0, 1, 0 }, normal_ { 0, 0, -1 };
     float width_ = 1.0f, height_ = 1.0f;
     float crumple_ = 0.0f;
+    float ball_ = 0.0f, ballRadius_ = 0.3f, ballSpin_ = 0.0f;
     bool  visible_ = false;
     bool  meshFilled_ = true; // メッシュに形が入っている（隠した後、1回だけ空にする）
 };

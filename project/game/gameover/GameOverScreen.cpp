@@ -59,7 +59,10 @@ void GameOverScreen::Finalize(){
     for ( auto& button : buttonsOn_ ) { button.reset(); }
 }
 
-void GameOverScreen::Open(float duration){
+void GameOverScreen::Open(float duration, bool boardShown){
+    boardShown_ = boardShown;
+    keepBoard_ = false;
+    boardVisible_ = true;
     state_ = State::Opening;
     time_ = 0.0f;
     openDuration_ = ( std::max )( duration, 0.1f );
@@ -68,7 +71,8 @@ void GameOverScreen::Open(float duration){
     handY_ = kButtonY[0];
 }
 
-void GameOverScreen::Close(float duration){
+void GameOverScreen::Close(float duration, bool keepBoard){
+    keepBoard_ = keepBoard;
     state_ = State::Closed;
     closeTime_ = 0.0f;
     closeDuration_ = ( std::max )( duration, 0.05f );
@@ -118,11 +122,13 @@ void GameOverScreen::Draw(){
     // 出てくる順（開く時間に対する割合）。しまう時は全部いっしょにちぢむ
     const float t = state_ == State::Opening ? time_ / openDuration_ : 1.0f;
     const float close = state_ == State::Closed ? 1.0f - Easing::EaseInQuad(Easing::Clamp01(closeTime_ / closeDuration_)) : 1.0f;
-    if ( close <= 0.0f ) { return; }
 
-    // 板：ポンとふくらんで出る
-    const float board = Easing::EaseOutBack(Part(t, 0.0f, 0.3f));
-    DrawAt(board_.get(), boardSize_, 960.0f, 540.0f, board * close, 1.0f);
+    // 板：ポンとふくらんで出る（紙玉が開いて板になった時は、はじめから出ている）
+    if ( boardVisible_ ) {
+        const float board = boardShown_ ? 1.0f : Easing::EaseOutBack(Part(t, 0.0f, 0.3f));
+        DrawAt(board_.get(), boardSize_, 960.0f, 540.0f, board * ( keepBoard_ ? 1.0f : close ), 1.0f);
+    }
+    if ( close <= 0.0f ) { return; }
     // GAME OVER：上から落ちてきて弾む
     const float drop = Part(t, 0.18f, 0.35f);
     const float bounce = drop < 1.0f ? ( 1.0f - Easing::EaseOutBounce(drop) ) : 0.0f;

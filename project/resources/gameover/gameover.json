@@ -3,20 +3,19 @@
     "freeze": 0.5,
     "reveal": 0.0,
     "crumple": 0.8,
-    "toss": 0.5,
-    "screen": 1.0,
+    "open": 0.7,
+    "screen": 0.8,
     "rebuild": 0.8
   },
   "short": {
     "freeze": 0.3,
     "reveal": 0.0,
-    "crumple": 0.5,
-    "toss": 0.35,
+    "crumple": 0.55,
+    "open": 0.5,
     "screen": 0.5,
-    "rebuild": 0.6
+    "rebuild": 0.55
   },
   "sheetDistance": 4.0,
-  "tossDistance": 9.0,
   "reveal": {
     "back": 6.0,
     "up": 3.0,

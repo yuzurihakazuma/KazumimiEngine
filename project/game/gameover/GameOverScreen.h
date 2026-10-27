@@ -20,8 +20,12 @@ public:
     void Initialize();
     void Finalize();
 
-    void Open(float duration);  // 出す（板 → 文字 → ボタン → 恐竜・敵 → 手袋の順に出てくる）
-    void Close(float duration); // しまう（全部ちぢんで消える）
+    // 出す（板 → 文字 → ボタン → 恐竜・敵 → 手袋の順に出てくる）。boardShown＝板はもう出ている（紙玉が開いて板になった）
+    void Open(float duration, bool boardShown = false);
+    // しまう（全部ちぢんで消える）。keepBoard＝板だけ残す（そのあと板の紙が丸まる）
+    void Close(float duration, bool keepBoard = false);
+    void SetBoardVisible(bool visible){ boardVisible_ = visible; }
+    const Vector2& BoardSize() const{ return boardSize_; } // 板の絵の大きさ（1920×1080 基準の画素）
     void SetBackground(float alpha){ backgroundAlpha_ = alpha; }
     void SetChoice(int choice);
     bool IsOpened() const{ return state_ == State::Opened; }
@@ -45,4 +49,5 @@ private:
     int   choice_ = 0;
     float choiceTime_ = 0.0f; // 選び直してからの秒数（手袋がすっと動く・ボタンが弾む）
     float handY_ = 0.0f;      // 手袋の今の高さ（なめらかに追う）
+    bool  boardShown_ = false, keepBoard_ = false, boardVisible_ = true;
 };

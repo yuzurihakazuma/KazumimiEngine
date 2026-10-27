@@ -15,7 +15,7 @@
     （画面の置き場所は、ゲームが 1920×1080 を基準に並べる。GameOverScreen.cpp の値と合わせる）
   project/resources/gameover/heart.png             体力の♡（恐竜のまわりの輪に並べる）
   project/resources/gameover/se_crumple.wav        画面がくしゃっとなる「グシャッ」
-  project/resources/gameover/se_basa.wav           くしゃくしゃが広がる「バサッ」
+  project/resources/gameover/se_basa.wav            紙玉が開く「バサッ」
   project/resources/gameover/gameover.json         段ごとの秒数（フル版・短縮版）と、紙・カメラ・体力の値
 """
 import json
@@ -252,7 +252,7 @@ def crinkle(duration, bursts, seed, brightness=0.6):
 
 
 def basa(seed):
-    """広がる「バサッ」：低めの風切り＋紙のはためき"""
+    """紙玉が開く「バサッ」：低めの風切り＋紙のはためき"""
     r = random.Random(seed)
     n = int(RATE * 0.28)
     out = []
@@ -265,9 +265,9 @@ def basa(seed):
     return out
 
 
-# 前の作り方で出していた物（クレヨンの文字・選ぶ丸・空の♡・クレヨンの音）は使わなくなったので消す
+# 前の作り方で出していた物（クレヨンの文字・選ぶ丸・空の♡・クレヨンの音・シールの音）は使わなくなったので消す
 for old in ["text.png", "text_order.png", "ring_retry.png", "ring_retry_order.png", "ring_stage.png", "ring_stage_order.png",
-            "heart_empty.png", "se_crayon.wav"]:
+            "heart_empty.png", "se_crayon.wav", "se_peel.wav", "se_stick.wav"]:
     path = os.path.join(OUT, old)
     if os.path.exists(path):
         os.remove(path)
@@ -287,12 +287,12 @@ write_wav("se_basa.wav", basa(32))
 
 # --- 段ごとの秒数と、紙・カメラ・体力 --------------------------------------------
 settings = {
-    # くしゃくしゃ（P3＋P5）→ 紙が奥へ飛んでいく → ゲームオーバーの画面 → 選ぶ → くしゃくしゃが広がって再開
+    # 丸める（P3＋P5。画面がふちから真ん中へ丸まって紙玉に）→ 開く（紙玉が弾んで開くと看板）→ 看板に文字とボタン（screen）
+    #   → 選ぶ → やりなおす：看板が丸まって紙玉に（crumple×0.75）→ 開くとスタート地点の画面（rebuild）
     # reveal（カメラが引いて箱のふちを見せる）は 0＝しない。引くと遠くの空・丘だけ止まって見え、背景がついてくるようで不自然だった
-    "full":  {"freeze": 0.5, "reveal": 0.0, "crumple": 0.8, "toss": 0.5, "screen": 1.0, "rebuild": 0.8},
-    "short": {"freeze": 0.3, "reveal": 0.0, "crumple": 0.5, "toss": 0.35, "screen": 0.5, "rebuild": 0.6},
-    "sheetDistance": 4.0,     # 写し取った絵を貼る紙を、カメラからどれだけ前に置くか(m)
-    "tossDistance": 9.0,      # くしゃくしゃの紙が奥へ飛んでいく距離(m)
+    "full":  {"freeze": 0.5, "reveal": 0.0, "crumple": 0.8, "open": 0.7, "screen": 0.8, "rebuild": 0.8},
+    "short": {"freeze": 0.3, "reveal": 0.0, "crumple": 0.55, "open": 0.5, "screen": 0.5, "rebuild": 0.55},
+    "sheetDistance": 4.0,     # 写し取った絵を貼る紙（シール）を、カメラからどれだけ前に置くか(m)
     "reveal": {"back": 6.0, "up": 3.0, "fov": 0.18},  # 箱の種明かしで、カメラが引く量
     "boxRim": 1.4,            # 箱のふちが地面からどれだけ上に出るか(m)
     "hearts": 12,             # 体力（恐竜のまわりの輪の♡の数）

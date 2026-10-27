@@ -4,11 +4,12 @@
 //   P0 止まる        … ゲームの時間を止めて「ポン」。恐竜はやられポーズ
 //   P1 種明かし      … カメラが手前へ引き、ステージが段ボール箱の中のジオラマだったと分かる（箱はステージの範囲から自動で作る）
 //   P4 写し取る      … その瞬間の画面を1回だけレンダーターゲットへ写し、3D を隠して「1枚の紙」に貼り替える（見た目は途切れない）
-//   P3/P5 くしゃくしゃ… 画面そのものが、真ん中へぎゅっと縮みながら折れ目だらけになる（グシャッ）
-//   捨てる           … くしゃくしゃの紙が奥へ飛んでいき、ゲームオーバーの画面になる
-//   P7 ゲームオーバーの画面 … 「GAME OVER」「やりなおす」「ステージをえらぶ」（GameOverScreen）
-//   P8 組み上げ      … 「やりなおす」：画面がしまわれ、くしゃくしゃの紙が手前へ戻ってきながら広がると、
-//                      チェックポイント（スタート）の画面になって、そのまま再開
+//   P3/P5 丸める     … 画面そのものが、アイリスアウトのようにふちから真ん中へ丸まって、小さな紙玉になる（グシャッ）。
+//                      まわりは紫のフェルト（ゲームオーバーの画面の地）
+//   開く             … 紙玉がポンと弾んで、開くとゲームオーバーの看板（板）になっている
+//   P7 ゲームオーバーの画面 … 看板に「GAME OVER」「やりなおす」「ステージをえらぶ」が出る（GameOverScreen）
+//   P8 組み上げ      … 「やりなおす」：文字とボタンがしまわれ、看板が真ん中へ丸まって紙玉になり、
+//                      開くとチェックポイント（スタート）の画面が画面いっぱいに広がって、そのまま再開
 //                      「ステージをえらぶ」：紙芝居の遷移でステージ選択へ
 //   ・ゲームの時間は止め、演出は自分の時間（止まらない時間）で進める。カメラは写し取った所から動かさない
 //   ・P4 で見えていない間に、シーンはチェックポイントの状態へ戻しておく（死んだ瞬間を逆再生しない）
@@ -69,14 +70,19 @@ public:
     void DrawDebugUI();
 
 private:
-    enum class Phase { None, Freeze, Reveal, Capture, Crumple, Toss, Screen, Choose, ResumeShot, Unscreen, Rebuild, Leave };
-    struct Timing { float freeze = 0.4f, reveal = 0.8f, crumple = 0.8f, toss = 0.5f, screen = 1.0f, rebuild = 0.8f; };
+    enum class Phase { None, Freeze, Reveal, Capture, Crumple, Open, Screen, Choose, ResumeShot, Unscreen, Fold, Rebuild, Leave };
+    struct Timing { float freeze = 0.4f, reveal = 0.8f, crumple = 0.8f, open = 0.7f, screen = 0.8f, rebuild = 0.8f; };
 
     void LoadSettings();
     void Enter(Phase phase);
     void UpdateInput();
     void ApplyCamera();
-    void PlaceSheet(float push);
+    // 紙を、写し取った時のカメラの前（画面の真ん中）に、幅 width・高さ height(m) で置く
+    void PlaceSheet(float width, float height);
+    void PlaceSheetFull();   // 画面ぴったり
+    void PlaceSheetBoard();  // ゲームオーバーの看板（板）と同じ所・同じ大きさ
+    // 紙玉の形：amount＝丸まり具合、spin＝回った角度。半径は画面の高さに対して決まった大きさ
+    void SetBall(float amount, float spin);
     void BuildBox();
     void Warmup(); // 初めて使う描き方を、シーンの始めに見えない大きさで描いておく（初回の引っかかりを無くす）
     float PhaseLength(Phase phase) const;
@@ -90,7 +96,7 @@ private:
     bool  short_ = false;
     Timing full_, shortTiming_;
     int   hearts_ = 12, damage_ = 3;
-    float sheetDistance_ = 4.0f, tossDistance_ = 9.0f;
+    float sheetDistance_ = 4.0f;
     float revealBack_ = 6.0f, revealUp_ = 3.0f, revealFov_ = 0.18f, boxRim_ = 1.4f;
 
     // シーンとのやりとり
@@ -116,8 +122,8 @@ private:
     std::unique_ptr<RenderTexture> previous_;  // 前のフレームの絵（再開の絵を写すフレームに出し直す）
     bool  previousValid_ = false;
     float sheetWidth_ = 1.0f, sheetHeight_ = 1.0f;
-    float push_ = 0.0f;                        // 紙が奥へ飛んでいる距離
-    std::unique_ptr<Obj3d> board_;             // 紙の奥の段ボールの板（縮んだ紙のまわりに見える）
+    uint32_t boardSrv_ = 0;                    // ゲームオーバーの看板（板）の絵
+    std::unique_ptr<Obj3d> board_;             // 紙の奥の紫のフェルト（ゲームオーバーの画面の地と同じ絵。画面ぴったり）
 
     // ゲームオーバーの画面
     GameOverScreen screen_;

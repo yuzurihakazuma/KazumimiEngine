@@ -16,6 +16,8 @@ namespace {
     constexpr float kShift = 0.07f;           // 縮む時の横ずれ（紙の幅に対して。折り重なる）
     constexpr float kCreaseDepth = 0.11f;     // 折れ目の深さ（紙の幅に対して）
     constexpr float kBulge = 0.05f;           // 全体のゆるいふくらみ（紙の幅に対して）
+    constexpr float kBallCrease = 0.28f;      // 紙玉の凸凹（半径に対して）
+    constexpr float kPi = 3.14159265358979323846f;
     constexpr uint32_t kSeed = 20261027u;     // くしゃくしゃと広げで同じシード（シワの位置が一致する）
     constexpr const char* kBackTexture = "resources/craft/textures/kraft.png";
 
@@ -147,7 +149,21 @@ Vector3 PaperSheet::Deform(int column, int row) const{
     const float bulge = ( 1.0f - std::clamp(edge * 0.5f, 0.0f, 1.0f) ) * kBulge;
     const float depth = c * width_ * ( crease_[index] * kCreaseDepth + bulge );
     const Vector3 center = Add(bottom_, Mul(up_, height_ * 0.5f));
-    return Add(center, Add(Add(Mul(right_, x), Mul(up_, y)), Mul(normal_, depth)));
+    const Vector3 flat = Add(center, Add(Add(Mul(right_, x), Mul(up_, y)), Mul(normal_, depth)));
+    if ( ball_ <= 0.0f ) { return flat; }
+
+    // 紙玉：表の真ん中が手前の極、ふちが裏側へ回り込む球（折れ目で半径を凸凹に）
+    const float px = ( u - 0.5f ) * 2.0f, py = ( v - 0.5f ) * 2.0f;
+    const float rho = std::clamp(std::sqrt(px * px + py * py) / 1.4142f, 0.0f, 1.0f);
+    const float phi = rho * kPi * 0.94f;
+    const float theta = std::atan2(py, px) + ballSpin_;
+    const Vector3 around = Add(Mul(right_, std::cos(theta)), Mul(up_, std::sin(theta)));
+    const Vector3 dir = Add(Mul(normal_, std::cos(phi)), Mul(around, std::sin(phi)));
+    const float bump = 1.0f + kBallCrease * crease_[index];
+    const Vector3 onBall = Add(center, Mul(dir, ballRadius_ * bump));
+    // ふちから先に丸まる（真ん中は最後まで平ら＝アイリスのように外側から閉じる）
+    const float k = Smooth(ball_ * 1.5f - 0.5f * ( 1.0f - rho ));
+    return Add(flat, Mul(Sub(onBall, flat), k));
 }
 
 void PaperSheet::Update(){

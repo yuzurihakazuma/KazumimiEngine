@@ -11,6 +11,7 @@
 #include "engine/graphics/PipelineType.h"
 #include "engine/graphics/RenderTexture.h"
 #include "engine/graphics/SrvManager.h"
+#include "engine/graphics/TextureManager.h"
 #include "engine/math/Matrix4x4.h"
 #include "engine/utils/Easing.h"
 #include "externals/nlohmann/json.hpp"
@@ -29,18 +30,22 @@ namespace {
     constexpr const char* kSettingsFile = "resources/gameover/gameover.json";
     constexpr const char* kFreezeSe = "resources/kamishibai/se_pon.wav";
     constexpr const char* kRevealSe = "resources/kamishibai/se_whoosh.wav";
-    constexpr const char* kTossSe = "resources/kamishibai/se_whoosh.wav";
+    constexpr const char* kBasaSe = "resources/gameover/se_basa.wav";
+    constexpr const char* kBoardTexture = "resources/gameover/screen_board.png";
     constexpr const char* kScreenSe = "resources/kamishibai/se_patan.wav";
     constexpr const char* kCrumpleSe = "resources/gameover/se_crumple.wav";
-    constexpr const char* kBasaSe = "resources/gameover/se_basa.wav";
     constexpr const char* kSelectSe = "resources/kamishibai/se_pon.wav";
     constexpr const char* kKraft = "resources/craft/textures/kraft.png";
     constexpr float kFastForward = 6.0f;   // 早送りの速さ
     constexpr float kCoverFade = 0.35f;    // くしゃくしゃの始め、写したままの色から陰影の付いた色へ変わる割合
     constexpr float kShake = 0.06f;        // くしゃくしゃの瞬間の揺れ(m)
-    constexpr float kBoardBehind = 1.5f;   // 紙の奥の板までの距離(m)
-    constexpr float kUnscreenTime = 0.5f;  // ゲームオーバーの画面をしまう時間（前半で板がちぢみ、後半で背景が消える）
-    constexpr float kReturnShare = 0.5f;   // 組み上げの前に、紙をどれだけ奥に置いておくか（捨てた距離に対して）
+    constexpr float kBoardBehind = 1.5f;   // シールの奥のフェルトまでの距離(m)
+    constexpr float kScreenFadeIn = 0.25f; // ゲームオーバーの画面の地（スプライト）を、奥のフェルトに重ねてなじませる時間
+    constexpr float kBallShare = 0.075f;   // 紙玉の半径（画面の高さに対して）
+    constexpr float kBallSpin = 2.2f;      // 丸まる間に紙玉が回る角度(rad)
+    constexpr float kHoldShare = 0.3f;     // 開く段のはじめ、紙玉のまま弾んでいる割合
+    constexpr float kFlatShare = 0.35f;    // 開く段の終わり、光なしの絵（写したままの色）へなじませる割合
+    constexpr float kUnscreenTime = 0.3f;  // 文字とボタンをしまう時間（看板は残す）
 
     Vector3 Add(const Vector3& a, const Vector3& b){ return { a.x + b.x, a.y + b.y, a.z + b.z }; }
     Vector3 Sub(const Vector3& a, const Vector3& b){ return { a.x - b.x, a.y - b.y, a.z - b.z }; }
@@ -50,6 +55,11 @@ namespace {
     Vector3 Normalize(const Vector3& v){
         const float length = std::sqrt(Dot(v, v));
         return length > 1e-6f ? Mul(v, 1.0f / length) : Vector3 { 0.0f, 0.0f, 1.0f };
+    }
+    // 軸 axis（長さ1）のまわりに angle 回す
+    Vector3 Rotate(const Vector3& v, const Vector3& axis, float angle){
+        const float c = std::cos(angle), s = std::sin(angle);
+        return Add(Add(Mul(v, c), Mul(Cross(axis, v), s)), Mul(axis, Dot(axis, v) * ( 1.0f - c )));
     }
     // カメラの回転（X＝見下ろす角・Y＝向き）にする
     Vector3 RotationOf(const Vector3& forward){
@@ -93,11 +103,16 @@ void GameOverSequence::Initialize(){
         ( *target )->Initialize(DirectXCommon::GetInstance(), SrvManager::GetInstance(), width, height);
     }
     sheet_.Initialize(capture_->GetSrvIndex());
-    // 紙の奥の板：濃い段ボール（縮んだ紙のまわりに見える。紙の裏の明るい段ボールと見分ける）
-    board_ = MakeTiledBox("go_board", { 12.0f, 7.0f, 1.0f }, { 0.42f, 0.3f, 0.24f, 1.0f });
+    // シールの下：ゲームオーバーの画面の地と同じ紫のフェルト（光なし。画面ぴったりに置くので、画面の地にそのまま切り替わる）
+    board_ = MakeTiledBox("go_board", { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f });
+    if ( Model* model = ModelManager::GetInstance()->FindModel("go_board") ) {
+        model->SetTexture("resources/gameover/screen_bg.png");
+        if ( Model::Material* material = model->GetMaterial() ) { material->enableLighting = 0; }
+    }
     screen_.Initialize();
     AudioManager* audio = AudioManager::GetInstance();
     for ( const char* se : { kFreezeSe, kRevealSe, kScreenSe, kCrumpleSe, kBasaSe } ) { audio->LoadWave(se); }
+    boardSrv_ = TextureManager::GetInstance()->Load(kBoardTexture).srvIndex;
     phase_ = Phase::None;
 }
 
@@ -123,17 +138,16 @@ void GameOverSequence::LoadSettings(){
         timing.freeze = t.value("freeze", timing.freeze);
         timing.reveal = t.value("reveal", timing.reveal);
         timing.crumple = t.value("crumple", timing.crumple);
-        timing.toss = t.value("toss", timing.toss);
+        timing.open = t.value("open", timing.open);
         timing.screen = t.value("screen", timing.screen);
         timing.rebuild = t.value("rebuild", timing.rebuild);
     };
-    shortTiming_ = { 0.3f, 0.0f, 0.5f, 0.35f, 0.5f, 0.6f };
+    shortTiming_ = { 0.3f, 0.0f, 0.55f, 0.5f, 0.5f, 0.55f };
     read("full", full_);
     read("short", shortTiming_);
     hearts_ = content.value("hearts", hearts_);
     damage_ = content.value("damage", damage_);
     sheetDistance_ = content.value("sheetDistance", sheetDistance_);
-    tossDistance_ = content.value("tossDistance", tossDistance_);
     boxRim_ = content.value("boxRim", boxRim_);
     const nlohmann::json reveal = content.value("reveal", nlohmann::json::object());
     revealBack_ = reveal.value("back", revealBack_);
@@ -189,7 +203,6 @@ void GameOverSequence::Start(Camera* camera, bool shortVersion){
     resumeShotRequested_ = resumeShotTaken_ = false;
     previousValid_ = false;
     choice_ = 0;
-    push_ = 0.0f;
     // 今のカメラ（プレイ中のカメラ）から始める
     const Matrix4x4& projection = camera->GetProjectionMatrix();
     camFov_ = 2.0f * std::atan(1.0f / projection.m[1][1]);
@@ -222,19 +235,35 @@ float GameOverSequence::PhaseLength(Phase phase) const{
     case Phase::Freeze:   return t.freeze;
     case Phase::Reveal:   return t.reveal;
     case Phase::Crumple:  return t.crumple;
-    case Phase::Toss:     return t.toss;
+    case Phase::Open:     return t.open;
     case Phase::Screen:   return t.screen;
     case Phase::Unscreen: return kUnscreenTime;
+    case Phase::Fold:     return t.crumple * 0.75f;
     case Phase::Rebuild:  return t.rebuild;
     default:              return 0.0f;
     }
 }
 
-// 紙を、写し取った時のカメラの前（push だけ奥）に、画面ぴったりの大きさで置く
-void GameOverSequence::PlaceSheet(float push){
-    push_ = push;
-    const Vector3 bottom = Sub(Add(camPos_, Mul(forward_, sheetDistance_ + push)), Mul(up_, sheetHeight_ * 0.5f));
-    sheet_.Place(bottom, right_, up_, Mul(forward_, -1.0f), sheetWidth_, sheetHeight_);
+// 紙を、写し取った時のカメラの前（画面の真ん中）に、幅 width・高さ height(m) で置く
+void GameOverSequence::PlaceSheet(float width, float height){
+    const Vector3 center = Add(camPos_, Mul(forward_, sheetDistance_));
+    sheet_.Place(Sub(center, Mul(up_, height * 0.5f)), right_, up_, Mul(forward_, -1.0f), width, height);
+}
+
+void GameOverSequence::PlaceSheetFull(){ PlaceSheet(sheetWidth_, sheetHeight_); }
+
+// ゲームオーバーの看板（スプライト）と同じ所・同じ大きさ：画面の真ん中に、1920×1080 基準の画素 × 縮め（GameOverScreen と同じ計算）
+void GameOverSequence::PlaceSheetBoard(){
+    const float width = ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientWidth() );
+    const float height = ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientHeight() );
+    const float k = ( std::min )( width / 1920.0f, height / 1080.0f );
+    const float metersPerPixel = sheetHeight_ / height;
+    PlaceSheet(screen_.BoardSize().x * k * metersPerPixel, screen_.BoardSize().y * k * metersPerPixel);
+}
+
+void GameOverSequence::SetBall(float amount, float spin){
+    sheet_.SetBall(amount, sheetHeight_ * kBallShare, spin);
+    sheet_.SetCrumple(( std::min )( amount * 1.6f, 1.0f )); // 丸まりはじめから折れ目を立てる
 }
 
 void GameOverSequence::Enter(Phase phase){
@@ -263,26 +292,31 @@ void GameOverSequence::Enter(Phase phase){
         up_ = Cross(forward_, right_);
         sheetHeight_ = 2.0f * sheetDistance_ * std::tan(camFov_ * 0.5f);
         sheetWidth_ = sheetHeight_ * aspect_;
-        PlaceSheet(0.0f);
-        sheet_.SetCrumple(0.0f);
+        PlaceSheetFull();
+        SetBall(0.0f, 0.0f);
         sheet_.SetCoverAlpha(1.0f);
         sheet_.SetVisible(true);
         if ( board_ ) {
-            board_->SetTranslation(Add(camPos_, Mul(forward_, sheetDistance_ + tossDistance_ + kBoardBehind)));
+            // シールの下の紫のフェルト：少し奥に、画面ぴったりの大きさで（ゲームオーバーの画面の地と同じ見え方）
+            const float spread = ( sheetDistance_ + kBoardBehind ) / sheetDistance_;
+            board_->SetTranslation(Add(camPos_, Mul(forward_, sheetDistance_ + kBoardBehind)));
             board_->SetRotation(RotationOf(forward_));
-            const float spread = ( sheetDistance_ + tossDistance_ + kBoardBehind ) / sheetDistance_; // 奥にあるので、その分だけ大きく
-            board_->SetScale({ sheetWidth_ * spread * 1.5f, sheetHeight_ * spread * 1.5f, 0.1f });
+            board_->SetScale({ sheetWidth_ * spread, sheetHeight_ * spread, 0.05f });
         }
         restoreRequested_ = true; // 見えていない間に、シーンはチェックポイントへ戻す
         audio->PlayWave(kCrumpleSe, false, 1.0f);
         break;
     }
-    case Phase::Toss:
-        audio->PlayWave(kTossSe, false, 0.6f);
+    case Phase::Open:
+        // 紙玉の中身を看板の絵に替える（丸まり切って見えない間に）。大きさも看板に合わせる（紙玉の大きさは変わらない）
+        sheet_.SetFrontTexture(boardSrv_);
+        sheet_.SetCoverTexture(boardSrv_);
+        sheet_.SetCoverAlpha(0.0f);
+        PlaceSheetBoard();
         break;
     case Phase::Screen:
-        screen_.SetBackground(1.0f);
-        screen_.Open(PhaseLength(Phase::Screen));
+        screen_.SetBackground(0.0f); // 奥のフェルトと同じ絵を、少しずつ重ねる（Update）
+        screen_.Open(PhaseLength(Phase::Screen), true); // 看板はもう開いている
         audio->PlayWave(kScreenSe, false, 0.9f);
         break;
     case Phase::ResumeShot:
@@ -290,10 +324,27 @@ void GameOverSequence::Enter(Phase phase){
         resumeShotTaken_ = false;
         break;
     case Phase::Unscreen:
-        screen_.Close(kUnscreenTime * 0.5f);
+        screen_.Close(kUnscreenTime, true); // 文字とボタンだけしまう（看板は残す）
+        break;
+    case Phase::Fold:
+        // 看板（スプライト）を、同じ所・同じ大きさの紙に替えてから丸める。画面の地（スプライト）も外す
+        //   （スプライトは 3D の紙より手前に描かれるので、残すと紙が隠れる。奥に同じ絵の板があるので見た目は変わらない）
+        screen_.SetBoardVisible(false);
+        screen_.SetBackground(0.0f);
+        sheet_.SetFrontTexture(boardSrv_);
+        sheet_.SetCoverTexture(boardSrv_);
+        sheet_.SetCoverAlpha(1.0f);
+        PlaceSheetBoard();
+        SetBall(0.0f, 0.0f);
+        sheet_.SetVisible(true);
+        audio->PlayWave(kCrumpleSe, false, 0.9f);
         break;
     case Phase::Rebuild:
-        audio->PlayWave(kBasaSe, false, 0.9f);
+        // 紙玉の中身を再開する所の絵に替え、大きさを画面ぴったりに（丸まり切って見えない間に）
+        sheet_.SetFrontTexture(resume_->GetSrvIndex());
+        sheet_.SetCoverTexture(resume_->GetSrvIndex());
+        sheet_.SetCoverAlpha(0.0f);
+        PlaceSheetFull();
         break;
     default:
         break;
@@ -383,48 +434,62 @@ void GameOverSequence::Update(float deltaTime){
         if ( captured_ ) { Enter(Phase::Crumple); }
         break;
     case Phase::Crumple: {
-        // 画面がぎゅっと縮んで、折れ目だらけになる（少し行き過ぎて戻る）。写したままの色から、陰影の付いた紙へ
-        sheet_.SetCrumple(( std::min )( Easing::EaseOutBack(Easing::Clamp01(t / 0.7f)), 1.08f ));
+        // 画面が、ふちから真ん中へ丸まって紙玉になる（アイリスアウトのように）。写したままの色から、陰影の付いた紙へ
+        const float e = Easing::EaseInOutCubic(t);
+        SetBall(e, kBallSpin * e);
         sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
         // グシャッとした瞬間に、画面が少し揺れる
         const float shake = kShake * ( 1.0f - Easing::Clamp01(t / 0.4f) ) * std::sin(time_ * 70.0f);
         camPos_ = Add(startPos_, Add(Mul(right_, shake), Mul(up_, shake * 0.6f)));
-        if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Toss); }
+        if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Open); }
         break;
     }
-    case Phase::Toss:
-        // くしゃくしゃの紙が奥へ飛んでいき、ゲームオーバーの画面の背景が出てくる
-        sheet_.SetCrumple(1.0f);
-        PlaceSheet(tossDistance_ * Easing::EaseInQuad(t));
-        screen_.SetBackground(Easing::EaseInOutSine(Easing::Clamp01(( t - 0.3f ) / 0.7f)));
-        if ( t >= 1.0f ) { Enter(Phase::Screen); }
+    case Phase::Open: {
+        // 紙玉がポンと弾んで、開くと看板になっている
+        const float hold = Easing::Clamp01(t / kHoldShare);
+        const float open = Easing::Clamp01(( t - kHoldShare ) / ( 1.0f - kHoldShare ));
+        if ( t >= kHoldShare && time_ - dt < length * kHoldShare ) { AudioManager::GetInstance()->PlayWave(kBasaSe, false, 0.9f); }
+        const float pop = 1.0f + 0.25f * std::sin(hold * kPi); // 弾む（紙玉が少しふくらむ）
+        const float e = Easing::EaseOutCubic(open);
+        sheet_.SetBall(1.0f - e, sheetHeight_ * kBallShare * pop, kBallSpin * ( 1.0f - e ));
+        sheet_.SetCrumple(( std::min )( ( 1.0f - e ) * 1.6f, 1.0f ));
+        sheet_.SetCoverAlpha(Easing::Clamp01(( open - ( 1.0f - kFlatShare ) ) / kFlatShare));
+        if ( t >= 1.0f ) { sheet_.SetVisible(false); Enter(Phase::Screen); }
         break;
+    }
     case Phase::Screen:
+        // 画面の地（スプライト）を、奥のフェルトの上に重ねてなじませる（同じ絵なので、切り替わりは見えない）
+        screen_.SetBackground(Easing::Clamp01(time_ / kScreenFadeIn));
         if ( screen_.IsOpened() ) { Enter(Phase::Choose); }
         break;
     case Phase::ResumeShot:
         // 再開する所の絵を写した（そのフレームは前の画面を出し直したので見えない）
         if ( resumeShotTaken_ ) {
-            // くしゃくしゃの紙の絵を再開する所の絵にして、少し奥へ置いておく（画面をしまうと、そこから戻ってくる）
-            sheet_.SetFrontTexture(resume_->GetSrvIndex());
-            sheet_.SetCoverTexture(resume_->GetSrvIndex());
-            sheet_.SetCoverAlpha(0.0f);
-            sheet_.SetCrumple(1.0f);
-            PlaceSheet(tossDistance_ * kReturnShare);
             Enter(Phase::Unscreen);
         }
         break;
     case Phase::Unscreen:
-        // 板がちぢんで消え、背景が消えると、奥にくしゃくしゃの紙が見える
-        screen_.SetBackground(1.0f - Easing::EaseInOutSine(Easing::Clamp01(( t - 0.5f ) / 0.5f)));
-        if ( t >= 1.0f ) { screen_.SetBackground(0.0f); Enter(Phase::Rebuild); }
+        // 文字とボタンがしまわれる（看板と画面の地は残す）
+        if ( t >= 1.0f ) { Enter(Phase::Fold); }
         break;
+    case Phase::Fold: {
+        // 看板が真ん中へ丸まって紙玉になる
+        const float e = Easing::EaseInOutCubic(t);
+        SetBall(e, kBallSpin * e);
+        sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
+        if ( t >= 1.0f ) { Enter(Phase::Rebuild); }
+        break;
+    }
     case Phase::Rebuild: {
-        // くしゃくしゃの紙が手前へ戻ってきながら広がって、画面ぴったりの再開の絵になる
-        const float back = Easing::EaseOutCubic(Easing::Clamp01(t / 0.6f));
-        PlaceSheet(tossDistance_ * kReturnShare * ( 1.0f - back ));
-        sheet_.SetCrumple(1.0f - Easing::EaseInOutSine(t));
-        sheet_.SetCoverAlpha(Easing::EaseInOutSine(Easing::Clamp01(( t - 0.6f ) / 0.4f)));
+        // 紙玉がポンと弾んで開くと、再開する所の画面が画面いっぱいに広がる
+        const float hold = Easing::Clamp01(t / kHoldShare);
+        const float open = Easing::Clamp01(( t - kHoldShare ) / ( 1.0f - kHoldShare ));
+        if ( t >= kHoldShare && time_ - dt < length * kHoldShare ) { AudioManager::GetInstance()->PlayWave(kBasaSe, false, 0.9f); }
+        const float pop = 1.0f + 0.25f * std::sin(hold * kPi);
+        const float e = Easing::EaseOutCubic(open);
+        sheet_.SetBall(1.0f - e, sheetHeight_ * kBallShare * pop, -kBallSpin * ( 1.0f - e ));
+        sheet_.SetCrumple(( std::min )( ( 1.0f - e ) * 1.6f, 1.0f ));
+        sheet_.SetCoverAlpha(Easing::Clamp01(( open - ( 1.0f - kFlatShare ) ) / kFlatShare));
         if ( t >= 1.0f ) {
             // 紙は画面ぴったりで再開の絵になった：再開のカメラへ切り替えて、紙を外す（見た目は同じ）
             sheet_.SetVisible(false);
@@ -540,8 +605,8 @@ void GameOverSequence::DrawUI(){
 
 void GameOverSequence::DrawDebugUI(){
 #ifdef USE_IMGUI
-    static const char* kNames[] = { "なし", "P0 止まる", "P1 種明かし", "P4 写し取る", "P3/P5 くしゃくしゃ", "捨てる",
-                                    "P7 ゲームオーバーの画面", "選ぶ", "P8 再開の絵", "画面をしまう", "P8 広がって再開", "ステージ選択へ" };
+    static const char* kNames[] = { "なし", "P0 止まる", "P1 種明かし", "P4 写し取る", "P3/P5 丸める", "開いて看板",
+                                    "P7 ゲームオーバーの画面", "選ぶ", "P8 再開の絵", "文字をしまう", "P8 看板を丸める", "P8 開いて再開", "ステージ選択へ" };
     ImGui::Text("段：%s（%.2f 秒）%s", kNames[( int ) phase_], time_, short_ ? " 短縮版" : "");
     if ( ImGui::Button("秒数を読み直す (gameover.json)") ) { LoadSettings(); }
 #endif
