@@ -51,6 +51,7 @@ public:
         const std::string& directoryPath,
         const std::string& animFilename
     );
+    ~SkinnedObj3d() override; // 骨の行列の SRV を返す
 
     void Update() override;
     void Draw()   override;
@@ -129,6 +130,7 @@ private:
     // スケルトン・スキニング
     Skeleton    skeleton_;
     SkinCluster skinCluster_;
+    bool skinClusterCreated_ = false; // 骨の行列の SRV を持っている（消す時・作り直す時に返す）
 
     // アニメーション
     Animation animation_;

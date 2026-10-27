@@ -30,7 +30,12 @@ void SrvManager::Initialize(DirectXCommon* dxCommon){
 
 
 uint32_t SrvManager::Allocate(){
-	
+	// 返された番号があれば、それを使い回す
+	if ( !freeList_.empty() ) {
+		const uint32_t reused = freeList_.back();
+		freeList_.pop_back();
+		return reused;
+	}
 	assert(useIndex_ < kMaxSrvCount_);
 	
 	// 使用中のインデックスを返してインクリメント
@@ -39,6 +44,11 @@ uint32_t SrvManager::Allocate(){
 	useIndex_++;
 	
 	return index;// 戻り値
+}
+
+void SrvManager::Free(uint32_t index){
+	if ( index >= useIndex_ ) { return; }
+	freeList_.push_back(index);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE SrvManager::GetCPUDescriptorHandle(uint32_t index){

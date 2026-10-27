@@ -68,7 +68,7 @@ void PlayerAvatar::Update(const Context& context){
 	model_->SetTranslation({ pos.x, pos.y + modelYOffset_ + dropLift_, pos.z });
 	const float bulge = 1.0f + ( 1.0f - dropSquash_ ) * 0.6f;
 	model_->SetScale({ bulge, dropSquash_, bulge });
-	model_->SetRotation({ defeatTilt_, rot.y, 0.0f });
+	model_->SetRotation({ defeatTilt_, defeatHasYaw_ ? defeatYaw_ : rot.y, defeatRoll_ });
 	model_->Update();
 }
 

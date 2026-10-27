@@ -16,6 +16,7 @@
   project/resources/gameover/heart.png             体力の♡（恐竜のまわりの輪に並べる）
   project/resources/gameover/se_crumple.wav        画面がくしゃっとなる「グシャッ」
   project/resources/gameover/se_basa.wav            紙玉が開く「バサッ」
+  project/resources/gameover/se_dizzy.wav           やられてくらくら「ぴよぴよ」
   project/resources/gameover/gameover.json         段ごとの秒数（フル版・短縮版）と、紙・カメラ・体力の値
 """
 import json
@@ -265,6 +266,21 @@ def basa(seed):
     return out
 
 
+def dizzy(seed):
+    """くらくら「ぴよぴよ」：高い音が上がって下がる、短い鳴き声を3回"""
+    out = []
+    for k in range(3):
+        n = int(RATE * 0.16)
+        for i in range(n):
+            t = i / RATE
+            u = i / n
+            freq = 1500 + 700 * math.sin(u * math.pi)  # 上がって下がる
+            env = math.sin(u * math.pi) ** 1.5
+            out.append(math.sin(2 * math.pi * freq * t) * env * 0.6)
+        out += [0.0] * int(RATE * 0.05)
+    return out
+
+
 # 前の作り方で出していた物（クレヨンの文字・選ぶ丸・空の♡・クレヨンの音・シールの音）は使わなくなったので消す
 for old in ["text.png", "text_order.png", "ring_retry.png", "ring_retry_order.png", "ring_stage.png", "ring_stage_order.png",
             "heart_empty.png", "se_crayon.wav", "se_peel.wav", "se_stick.wav"]:
@@ -284,14 +300,16 @@ save_dino()
 save_heart()
 write_wav("se_crumple.wav", crinkle(0.55, 90, 31))
 write_wav("se_basa.wav", basa(32))
+write_wav("se_dizzy.wav", dizzy(36))
 
 # --- 段ごとの秒数と、紙・カメラ・体力 --------------------------------------------
 settings = {
+    # freeze＝やられの演技（こっちを向いて跳ねる → 頭の上で星がくるくる・ふらふら → しりもち → あおむけにぺたん）
     # 丸める（P3＋P5。画面がふちから真ん中へ丸まって紙玉に）→ 開く（紙玉が弾んで開くと看板）→ 看板に文字とボタン（screen）
     #   → 選ぶ → やりなおす：看板が丸まって紙玉に（crumple×0.75）→ 開くとスタート地点の画面（rebuild）
     # reveal（カメラが引いて箱のふちを見せる）は 0＝しない。引くと遠くの空・丘だけ止まって見え、背景がついてくるようで不自然だった
-    "full":  {"freeze": 0.5, "reveal": 0.0, "crumple": 0.8, "open": 0.7, "screen": 0.8, "rebuild": 0.8},
-    "short": {"freeze": 0.3, "reveal": 0.0, "crumple": 0.55, "open": 0.5, "screen": 0.5, "rebuild": 0.55},
+    "full":  {"freeze": 1.7, "reveal": 0.0, "crumple": 0.8, "open": 0.7, "screen": 0.8, "rebuild": 0.8},
+    "short": {"freeze": 1.1, "reveal": 0.0, "crumple": 0.55, "open": 0.5, "screen": 0.5, "rebuild": 0.55},
     "sheetDistance": 4.0,     # 写し取った絵を貼る紙（シール）を、カメラからどれだけ前に置くか(m)
     "reveal": {"back": 6.0, "up": 3.0, "fov": 0.18},  # 箱の種明かしで、カメラが引く量
     "boxRim": 1.4,            # 箱のふちが地面からどれだけ上に出るか(m)

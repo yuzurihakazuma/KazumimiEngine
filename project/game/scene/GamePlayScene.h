@@ -34,8 +34,7 @@
 #include "game/ui/GameHud.h"
 #include "game/editor/PlaySceneEditor.h"
 #include "game/editor/RailTransferDebugger.h"
-#include "game/gameover/GameOverSequence.h"
-#include "game/hud/HeartRing.h"
+#include "game/gameover/GameOverFlow.h"
 #include "engine/2d/Sprite.h"
 
 #include <memory>
@@ -157,13 +156,7 @@ private:
 	float testPlayDist_ = 0.0f;
 	bool  showHitShapes_ = false;          // 当たり判定の形の表示
 
-	// 体力（♡）とゲームオーバー（ゲームオーバー演出 企画・仕様書）
-	HeartRing        hearts_;
-	GameOverSequence gameOver_;
-	std::unique_ptr<Camera> resumeCamera_;  // 再開する所のカメラを求める（画面には出さない）
-	bool  defeatPoseApplied_ = false;
-	static inline int gameOverCount_ = 0;   // このステージでのゲームオーバーの回数（2回目から短縮版）
-	void StartGameOver();
-	void RestoreCheckpoint();               // チェックポイント（今はスタート）へ戻す
-	void UpdateHealth();                    // ダメージ・落下で♡を減らす
+	// 体力（♡）とゲームオーバー（中身は game/gameover/GameOverFlow。ここは決まった所で呼ぶだけ）
+	GameOverFlow gameOver_;
+	void ResetStageForRetry(); // やりなおし：敵・コイン・？ブロック・卵・構え・舌をプレイ開始の時と同じに戻す
 };

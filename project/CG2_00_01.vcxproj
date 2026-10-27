@@ -261,6 +261,7 @@ exit 0</Command>
     <ClCompile Include="game\enemy\Enemy.cpp" />
     <ClCompile Include="game\enemy\EnemyEditor.cpp" />
     <ClCompile Include="game\editor\RailStripPanel.cpp" />
+    <ClCompile Include="game\gameover\GameOverFlow.cpp" />
     <ClCompile Include="game\gameover\GameOverScreen.cpp" />
     <ClCompile Include="game\hud\HeartRing.cpp" />
     <ClCompile Include="game\gameover\GameOverSequence.cpp" />
@@ -488,6 +489,7 @@ exit 0</Command>
     <ClInclude Include="engine\scene\ISceneTransition.h" />
     <ClInclude Include="game\title\TitleTopple.h" />
     <ClInclude Include="game\editor\RailStripPanel.h" />
+    <ClInclude Include="game\gameover\GameOverFlow.h" />
     <ClInclude Include="game\gameover\GameOverScreen.h" />
     <ClInclude Include="game\hud\HeartRing.h" />
     <ClInclude Include="game\gameover\GameOverSequence.h" />

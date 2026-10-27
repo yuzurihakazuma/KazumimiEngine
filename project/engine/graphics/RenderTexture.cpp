@@ -5,7 +5,14 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/ResourceFactory.h"
 
+RenderTexture::~RenderTexture(){
+	if ( dxCommon_ && rtvIndex_ != UINT32_MAX ) { dxCommon_->FreeRtvIndex(rtvIndex_); }
+	if ( srvManager_ && srvIndex_ != UINT32_MAX ) { srvManager_->Free(srvIndex_); }
+}
+
 void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height){
+	dxCommon_ = dxCommon;
+	srvManager_ = srvManager;
 
 	// RTV用のリソースを生成
 	resource_ = ResourceFactory::GetInstance()->CreateRenderTextureResource(width, height, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, clearColor_);
@@ -20,9 +27,9 @@ void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, 
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 
-	static uint32_t s_rtvIndex = 2; // メイン画面が0と1を使っているので2からスタート
-	rtvHandle_ = dxCommon->GetRtvHandle(s_rtvIndex);
-	s_rtvIndex++;
+	// RTV の番号は DirectXCommon が配る（前は数え上げるだけで返さず、作り直すたびに増えて入れ物を超えていた）
+	if ( rtvIndex_ == UINT32_MAX ) { rtvIndex_ = dxCommon->AllocateRtvIndex(); }
+	rtvHandle_ = dxCommon->GetRtvHandle(rtvIndex_);
 	// RTVを作成
 	dxCommon->GetDevice()->CreateRenderTargetView(resource_.Get(), &rtvDesc, rtvHandle_);
 
@@ -34,8 +41,8 @@ void RenderTexture::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, 
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	// SRV用のインデックスを割り当てる
-	srvIndex_ = srvManager->Allocate();
+	// SRV用のインデックスを割り当てる（もう持っていれば使い回す）
+	if ( srvIndex_ == UINT32_MAX ) { srvIndex_ = srvManager->Allocate(); }
 
 	// SRVを作成
 	dxCommon->GetDevice()->CreateShaderResourceView(resource_.Get(), &srvDesc, srvManager->GetCPUDescriptorHandle(srvIndex_));

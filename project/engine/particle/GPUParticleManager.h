@@ -114,6 +114,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> emitUploadBuffer_;
     GPUParticleData* emitUploadData_ = nullptr; // Mapしたポインタ
     uint32_t emitSrvIndex_ = 0;                 // EmitCS が読む t0 用SRV
+    bool     descriptorsAllocated_ = false;     // 上の SRV/UAV を持っている（Finalize で返す。シーンごとに作り直すので）
 
     // Emit用定数バッファ (b0: emitCount)
     Microsoft::WRL::ComPtr<ID3D12Resource> emitCBResource_;

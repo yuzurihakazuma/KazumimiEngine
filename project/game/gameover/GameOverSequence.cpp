@@ -36,6 +36,18 @@ namespace {
     constexpr const char* kCrumpleSe = "resources/gameover/se_crumple.wav";
     constexpr const char* kSelectSe = "resources/kamishibai/se_pon.wav";
     constexpr const char* kKraft = "resources/craft/textures/kraft.png";
+    constexpr const char* kDizzySe = "resources/gameover/se_dizzy.wav";
+    constexpr const char* kThudSe = "resources/kamishibai/se_patan.wav";
+    constexpr const char* kStarTexture = "resources/kamishibai/intro_star.png";
+    // やられの演技の段（止まる段の長さに対する割合）
+    //   着地（一瞬止まる）→ 仰け反りから起き上がる → くらくら（星が回る・ふらふら）→ しりもち → あおむけにぺたん → じっと
+    constexpr float kHitEnd = 0.06f, kTurnEnd = 0.2f, kDizzyEnd = 0.62f, kSitEnd = 0.73f, kFallEnd = 0.88f;
+    constexpr float kStarRadius = 0.55f;   // 星が回る輪の半径(m)
+    constexpr float kStarSize = 0.5f;      // 星の大きさ(m)
+    constexpr float kStarSpin = 5.5f;      // 星が回る速さ(rad/秒)
+    constexpr float kStarAbove = 0.75f;    // 頭の骨（顔の真ん中あたり）からどれだけ上で回るか(m)
+    // 星の色（白いフェルトの星に掛ける。黄色・ピンク・水色）
+    const Vector4 kStarColors[] = { { 1.0f, 0.78f, 0.12f, 1.0f }, { 1.0f, 0.42f, 0.62f, 1.0f }, { 0.35f, 0.75f, 1.0f, 1.0f } };
     constexpr float kFastForward = 6.0f;   // 早送りの速さ
     constexpr float kCoverFade = 0.35f;    // くしゃくしゃの始め、写したままの色から陰影の付いた色へ変わる割合
     constexpr float kShake = 0.06f;        // くしゃくしゃの瞬間の揺れ(m)
@@ -111,7 +123,28 @@ void GameOverSequence::Initialize(){
     }
     screen_.Initialize();
     AudioManager* audio = AudioManager::GetInstance();
-    for ( const char* se : { kFreezeSe, kRevealSe, kScreenSe, kCrumpleSe, kBasaSe } ) { audio->LoadWave(se); }
+    for ( const char* se : { kFreezeSe, kRevealSe, kScreenSe, kCrumpleSe, kBasaSe, kDizzySe, kThudSe } ) { audio->LoadWave(se); }
+    // 頭の上で回る星：白いフェルトの星の板に色を付ける（光なし・いつもカメラの方を向く）
+    stars_.clear();
+    for ( int i = 0; i < 3; ++i ) {
+        const std::string name = "go_star_" + std::to_string(i);
+        ModelManager* modelManager = ModelManager::GetInstance();
+        if ( !modelManager->FindModel(name) ) { modelManager->CreatePlaneModel(name, 1.0f, 1.0f); }
+        if ( Model* model = modelManager->FindModel(name) ) {
+            model->SetTexture(kStarTexture);
+            if ( Model::Material* material = model->GetMaterial() ) {
+                material->color = kStarColors[i];
+                material->enableLighting = 0;
+                material->matte = 1.0f;
+            }
+        }
+        auto star = Obj3d::Create(name);
+        if ( star ) {
+            star->SetIsBillboard(true);
+            star->SetPipelineType(PipelineType::Object3D_CullNone);
+            stars_.push_back(std::move(star));
+        }
+    }
     boardSrv_ = TextureManager::GetInstance()->Load(kBoardTexture).srvIndex;
     phase_ = Phase::None;
 }
@@ -123,6 +156,7 @@ void GameOverSequence::Finalize(){
     resume_.reset();
     previous_.reset();
     board_.reset();
+    stars_.clear();
     walls_.clear();
     phase_ = Phase::None;
 }
@@ -274,7 +308,9 @@ void GameOverSequence::Enter(Phase phase){
     AudioManager* audio = AudioManager::GetInstance();
     switch ( phase ) {
     case Phase::Freeze:
-        audio->PlayWave(kFreezeSe, false, 0.9f);
+        audio->PlayWave(kFreezeSe, false, 0.9f); // ぶつかった
+        defeatPrev_ = 0.0f;
+        starAngle_ = 0.0f;
         break;
     case Phase::Reveal:
         if ( PhaseLength(Phase::Reveal) <= 0.0f ) { Enter(Phase::Capture); return; }
@@ -355,16 +391,79 @@ bool GameOverSequence::HidesScene() const{
     return phase_ >= Phase::Crumple && phase_ <= Phase::Rebuild && phase_ != Phase::ResumeShot;
 }
 
-bool GameOverSequence::DefeatPose(float& outLift, float& outSquash, float& outTilt) const{
+// やられの演技：ぶつかって一瞬止まる → こっちを向いて「あっ」と跳ねる → 頭の上で星がくるくる回り、ふらふら揺れる
+//   → しりもち → あおむけにぺたん（地面で1回弾む）→ そのまま、じっと（星だけゆっくり回る）
+bool GameOverSequence::DefeatPose(DefeatPoseData& out) const{
     if ( phase_ != Phase::Freeze && phase_ != Phase::Reveal && phase_ != Phase::Capture ) { return false; }
-    const float t = phase_ == Phase::Freeze ? time_ : 10.0f;
-    // その場で小さく跳ねて、あおむけに倒れる
-    const float hop = Easing::Clamp01(t / 0.35f);
-    outLift = 0.5f * std::sin(hop * kPi);
-    outSquash = 1.0f - 0.15f * std::sin(Easing::Clamp01(t / 0.2f) * kPi);
-    outTilt = -1.35f * Easing::EaseOutBack(hop);
+    const float length = ( std::max )( PhaseLength(Phase::Freeze), 0.01f );
+    const float u = phase_ == Phase::Freeze ? Easing::Clamp01(time_ / length) : 1.0f;
+    auto part = [&](float a, float b){ return Easing::Clamp01(( u - a ) / ( b - a )); };
+    out = DefeatPoseData {};
+
+    // 仰け反った形（とどめのスローの間の形）から起き上がる。着いた所で少しつぶれ、起きながら縦に伸びる
+    const float turn = part(kHitEnd, kTurnEnd);
+    out.pitch = kBendPitch * ( 1.0f - Easing::EaseOutBack(turn) );
+    out.squash = 1.0f - 0.1f * std::sin(part(0.0f, kHitEnd + 0.04f) * kPi) + 0.08f * std::sin(turn * kPi);
+    // くらくら：左右にふらふら（だんだん大きく）
+    const float dizzy = part(kTurnEnd, kDizzyEnd);
+    if ( dizzy > 0.0f && dizzy < 1.0f ) {
+        out.roll = 0.22f * std::sin(dizzy * kPi * 5.0f) * std::sin(dizzy * kPi) * ( 0.6f + 0.4f * dizzy );
+        out.wobble = 0.3f * std::sin(dizzy * kPi * 3.0f) * std::sin(dizzy * kPi); // 行きつ戻りつしながら
+    }
+    // 目を回して、ふらふらと画面から見て横向きへ（倒れる所が縮んで見えないように。横向きならほとんど回らない）
+    out.spin = Easing::EaseInOutSine(dizzy);
+    // しりもち：すとんと腰を落とす（縦につぶれる）
+    const float sit = part(kDizzyEnd, kSitEnd);
+    if ( sit > 0.0f ) {
+        out.squash = 1.0f - 0.22f * Easing::EaseOutBack(sit);
+    }
+    // あおむけにぺたん：後ろへ倒れて、地面で1回弾む。倒れながら、縦のつぶれは元へ
+    const float fall = part(kSitEnd, kFallEnd);
+    if ( fall > 0.0f ) {
+        out.pitch = -1.1f * Easing::EaseOutBounce(fall); // 倒れ切ると顔が隠れるので、少し起きた所で止める
+        out.squash = 1.0f - 0.22f * ( 1.0f - Easing::EaseOutQuad(fall) );
+    }
     return true;
 }
+
+// 頭の上で星がくるくる回る（くらくらの間にポンと出て、倒れた後もゆっくり回り続ける）
+void GameOverSequence::UpdateStars(float deltaTime){
+    const bool acting = phase_ == Phase::Freeze || phase_ == Phase::Reveal || phase_ == Phase::Capture;
+    const float length = ( std::max )( PhaseLength(Phase::Freeze), 0.01f );
+    const float u = phase_ == Phase::Freeze ? Easing::Clamp01(time_ / length) : 1.0f;
+    // 音：くらくらの始めに「ぴよぴよ」、倒れて地面に着いた時に「ぺたん」
+    if ( phase_ == Phase::Freeze ) {
+        if ( defeatPrev_ < kTurnEnd && u >= kTurnEnd ) { AudioManager::GetInstance()->PlayWave(kDizzySe, false, 0.7f); }
+        const float land = kSitEnd + ( kFallEnd - kSitEnd ) * 0.36f; // EaseOutBounce が初めて地面に着く所
+        if ( defeatPrev_ < land && u >= land ) { AudioManager::GetInstance()->PlayWave(kThudSe, false, 0.9f); }
+        defeatPrev_ = u;
+    }
+    const float appear = Easing::EaseOutBack(Easing::Clamp01(( u - kTurnEnd ) / 0.08f));
+    const float speed = u < kSitEnd ? kStarSpin : kStarSpin * 0.45f; // 倒れたらゆっくり
+    starAngle_ += deltaTime * speed;
+    starSize_ = acting ? kStarSize * appear : 0.0f;
+}
+
+// 星の位置は描く直前に決める（演出のカメラと恐竜の頭の位置が、そのフレームの物に決まった後。
+// 先に決めると1フレーム前のカメラで画面へ写り、カメラが動いた時に星だけ画面に付いてくるように見える）
+void GameOverSequence::DrawTransparent(){
+    if ( phase_ != Phase::Freeze && phase_ != Phase::Reveal && phase_ != Phase::Capture ) { return; }
+    // 輪はカメラから見た横・奥行きで回す（恐竜がどっちを向いていても、画面では同じ横長の輪）
+    Vector3 depth { forward_.x, 0.0f, forward_.z };
+    depth = depth.x * depth.x + depth.z * depth.z > 1e-8f ? Normalize(depth) : Vector3 { 0.0f, 0.0f, 1.0f };
+    const Vector3 side { depth.z, 0.0f, -depth.x };
+    for ( size_t i = 0; i < stars_.size(); ++i ) {
+        const float angle = starAngle_ + ( float ) i * 2.0f * kPi / ( float ) stars_.size();
+        Vector3 at = Add(head_, Add(Mul(side, std::cos(angle) * kStarRadius), Mul(depth, std::sin(angle) * kStarRadius * 0.55f)));
+        at.y += kStarAbove + 0.06f * std::sin(angle * 2.0f);
+        stars_[i]->SetTranslation(at);
+        stars_[i]->SetScale({ starSize_, starSize_, starSize_ });
+        stars_[i]->SetRotation({ 0.0f, 0.0f, angle * 0.6f });
+        stars_[i]->Update();
+        stars_[i]->Draw();
+    }
+}
+
 
 bool GameOverSequence::ConsumeRestoreRequest(){
     const bool requested = restoreRequested_;
@@ -419,9 +518,14 @@ void GameOverSequence::Update(float deltaTime){
     const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
 
     switch ( phase_ ) {
-    case Phase::Freeze:
-        if ( t >= 1.0f ) { Enter(Phase::Reveal); }
+    case Phase::Freeze: {
+        // ぶつかった瞬間：画面が少しだけ揺れる
+        const float hit = Easing::Clamp01(t / kHitEnd);
+        const float shake = 0.05f * ( 1.0f - hit ) * std::sin(time_ * 80.0f);
+        camPos_ = Add(startPos_, Mul(right_, shake));
+        if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Reveal); }
         break;
+    }
     case Phase::Reveal: {
         // 注視点はそのまま、手前へ引いて上がり、画角を広げる → 箱のふちが見える
         const float e = Easing::EaseInOutSine(t);
@@ -507,6 +611,7 @@ void GameOverSequence::Update(float deltaTime){
         break;
     }
 
+    UpdateStars(dt);
     ApplyCamera();
     sheet_.Update();
     if ( board_ ) { board_->Update(); }

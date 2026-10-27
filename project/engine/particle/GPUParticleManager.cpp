@@ -45,6 +45,7 @@ void GPUParticleManager::CreateParticleBuffer(){
     particleBuffer_ = ResourceFactory::GetInstance()->CreateUAVBuffer(bufferSize);
 
     // ② UAVとして登録 (Computeシェーダーで書き込む用)
+    descriptorsAllocated_ = true;
     uavIndex_ = srvManager_->Allocate();
     srvManager_->CreateUAVForStructuredBuffer(
         uavIndex_, particleBuffer_.Get(),
@@ -390,4 +391,10 @@ void GPUParticleManager::Finalize(){
     materialCBResource_.Reset();
     emitCBResource_.Reset();
     vertexResource_.Reset();
+
+    // SRV/UAV の番号を返す（シーンごとに Initialize し直すので、返さないと切り替えるたびに増え続ける）
+    if ( descriptorsAllocated_ && srvManager_ ) {
+        for ( uint32_t index : { uavIndex_, srvIndex_, emitSrvIndex_, freeListUavIndex_, freeListIndexUavIndex_ } ) { srvManager_->Free(index); }
+    }
+    descriptorsAllocated_ = false;
 }

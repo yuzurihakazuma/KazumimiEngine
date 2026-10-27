@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <dxgiformat.h>
 #include <wrl.h>
+#include <vector>
 
 
 // 前方宣言
@@ -19,8 +20,11 @@ public:
 	// 終了処理
 	void Finalize();
 
-	// SRV用ディスクリプタヒープからディスクリプタを1つ割り当てる
+	// SRV用ディスクリプタヒープからディスクリプタを1つ割り当てる（返された番号があれば、それを使い回す）
 	uint32_t Allocate();
+	// 使い終わった番号を返す（シーンごとに作る物は、消す時に必ず返す。返さないと上限を超えて、ほかの絵が壊れる）
+	void Free(uint32_t index);
+	uint32_t GetUsedCount() const{ return useIndex_ - ( uint32_t ) freeList_.size(); }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t index);
@@ -64,8 +68,10 @@ private:
 	// ディスクリプタヒープ
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps_;
 
-	// 使用中のインデックス
+	// 使用中のインデックス（ここまで配った）
 	uint32_t useIndex_ = 0;
+	// 返された番号（次の Allocate で使い回す）
+	std::vector<uint32_t> freeList_;
 private:
 	// コンストラクタを private にして外部からの new を禁止
 	SrvManager() = default;

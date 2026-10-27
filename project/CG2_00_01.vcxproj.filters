@@ -234,6 +234,9 @@
     <ClCompile Include="game\editor\RailStripPanel.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="game\gameover\GameOverFlow.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="game\gameover\GameOverScreen.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -829,6 +832,9 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\RailStripPanel.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="game\gameover\GameOverFlow.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="game\gameover\GameOverScreen.h">

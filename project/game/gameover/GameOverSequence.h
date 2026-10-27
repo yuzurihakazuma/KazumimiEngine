@@ -49,8 +49,20 @@ public:
     bool IsActive() const{ return phase_ != Phase::None; }
     // 3D のステージを描かない（紙・板だけ）
     bool HidesScene() const;
-    // P0 のやられポーズ（足元からの高さ・縦のつぶれ・あおむけの傾き）。ポーズ中でなければ false
-    bool DefeatPose(float& outLift, float& outSquash, float& outTilt) const;
+    // P0 のやられの演技（くらくら → ぺたん）。演技中でなければ false
+    struct DefeatPoseData {
+        float lift = 0.0f;   // 足元からの高さ(m)
+        float squash = 1.0f; // 縦のつぶれ（1＝そのまま）
+        float pitch = 0.0f;  // あおむけに倒れる角度(rad)
+        float roll = 0.0f;   // 左右のふらつき(rad)
+        float spin = 0.0f;   // 画面から見て横向きへ回る割合（0＝元の向き 1＝横向き）。くらくらの間に回る
+        float wobble = 0.0f; // 回りながらの向きのふらつき(rad)
+    };
+    // とどめを受けた瞬間の仰け反りの角度(rad。マイナス＝後ろへ)。GameOverFlow がスローの間この形にし、演技はここから始まる
+    static constexpr float kBendPitch = -0.4f;
+    bool DefeatPose(DefeatPoseData& out) const;
+    // 恐竜の頭の位置（毎フレーム。星はこのまわりを回る）
+    void SetHeadPosition(const Vector3& head){ head_ = head; }
 
     // 体力（♡の数）と、1回のダメージで減る数（gameover.json）
     int HeartCount() const{ return hearts_; }
@@ -66,6 +78,7 @@ public:
     void OnFrameComposed(ID3D12GraphicsCommandList* commandList, ID3D12Resource* finalTarget);
 
     void DrawOpaque();
+    void DrawTransparent(); // やられの演技の星（不透明を描き終えた後）
     void DrawUI(); // ゲームオーバーの画面（スプライト）
     void DrawDebugUI();
 
@@ -124,6 +137,14 @@ private:
     float sheetWidth_ = 1.0f, sheetHeight_ = 1.0f;
     uint32_t boardSrv_ = 0;                    // ゲームオーバーの看板（板）の絵
     std::unique_ptr<Obj3d> board_;             // 紙の奥の紫のフェルト（ゲームオーバーの画面の地と同じ絵。画面ぴったり）
+
+    // やられの演技：頭の上でくるくる回るフェルトの星
+    void UpdateStars(float deltaTime);
+    std::vector<std::unique_ptr<Obj3d>> stars_;
+    Vector3 head_ {};
+    float   starAngle_ = 0.0f;
+    float   starSize_ = 0.0f;  // 星の大きさ（出てくる途中は小さい）
+    float   defeatPrev_ = 0.0f;               // 前のフレームの、演技の進み（音を1回だけ鳴らす）
 
     // ゲームオーバーの画面
     GameOverScreen screen_;

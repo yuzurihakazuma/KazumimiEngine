@@ -98,25 +98,16 @@ void GamePlayScene::OnInitialize(){
 	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
 	BuildBackdrop();
 	// 体力（♡）とゲームオーバー
-	gameOver_.Initialize();
-	hearts_.Initialize(gameOver_.HeartCount());
-	resumeCamera_ = Camera::Create();
-	player_->SetHoldOnFall(true); // 落ちたらその場で止める（♡を見て、スタートへ戻すかゲームオーバーか決める）
-	{
-		// 種明かしの箱：ステージの地面の範囲から作る
-		Vector3 lo { 1e9f, 1e9f, 1e9f }, hi { -1e9f, -1e9f, -1e9f };
-		for ( int i = 0; i < ( int ) backdrop_.Items().size(); ++i ) {
-			Vector3 boxMin, boxMax;
-			if ( backdrop_.Items()[i].removed || !backdrop_.IsGround(i) || !backdrop_.WorldBounds(i, boxMin, boxMax) ) { continue; }
-			lo = { ( std::min )( lo.x, boxMin.x ), ( std::min )( lo.y, boxMin.y ), ( std::min )( lo.z, boxMin.z ) };
-			hi = { ( std::max )( hi.x, boxMax.x ), ( std::max )( hi.y, boxMax.y ), ( std::max )( hi.z, boxMax.z ) };
-		}
-		const auto& rails = railField_.GetRails();
-		const int startRail = railField_.GetStartRail();
-		const float groundTop = ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].nodes.size() >= 2 )
-			? rails[startRail].GetPositionByDistance(railField_.GetStartDistance()).y : 0.0f;
-		if ( lo.x < hi.x ) { gameOver_.SetStageBounds(lo, hi, groundTop); }
-	}
+	GameOverFlow::Context gameOverContext;
+	gameOverContext.player    = player_.get();
+	gameOverContext.avatar    = &avatar_;
+	gameOverContext.railField = &railField_;
+	gameOverContext.camCtrl   = &camCtrl_;
+	gameOverContext.screenFx  = &screenFx_;
+	gameOverContext.camera    = GetCamera();
+	gameOverContext.farClip   = kFarClip;
+	gameOverContext.resetStage = [this]{ ResetStageForRetry(); };
+	gameOver_.Initialize(gameOverContext, backdrop_);
 	// 操作開始の「スタート！」
 	startPop_ = Sprite::Create(TextureManager::GetInstance()->Load("resources/ui/start_pop.png").srvIndex, { 0.0f, 0.0f },
 	                           { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.5f });
@@ -456,8 +447,7 @@ void GamePlayScene::OnPlayStart(){
 	}
 	player_->Initialize();
 	player_->SetMovementLocked(false);
-	hearts_.Refill();        // 体力を満タンに（出しはしない）
-	hearts_.HideNow();
+	gameOver_.OnPlayStart(); // 体力を満タンに（出しはしない）
 	camCtrl_.Reset();        // 向き切替トリガーの状態を初期化（前回プレイの向きを持ち越さない）
 	if ( Demo() ) { Demo()->OnPlayStart(); } // デモの HitEffect を消す
 	combat_.ClearEffects();
@@ -472,9 +462,7 @@ void GamePlayScene::OnPlayStart(){
 void GamePlayScene::OnEditStart(){
 	// ステージ開始の演出の途中でエディタに切り替えた：演出をやめて、プレイヤーを元に戻す
 	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
-	if ( gameOver_.IsActive() ) { gameOver_.Abort(); }
-	hearts_.Refill();
-	hearts_.HideNow();
+	gameOver_.OnEditStart(); // ゲームオーバー演出をやめて、体力を満タンに
 	screenFx_.DisablePlayLook();
 	railField_.ResetMotion();
 	testPlayRail_ = -1;      // テストプレイの開始位置上書きは1回で解除（次は通常スタート）
@@ -490,19 +478,10 @@ void GamePlayScene::OnEditStart(){
 void GamePlayScene::UpdatePlayMode(){
 	const float deltaTime = Time::GetInstance()->GetDeltaTime();
 
-	// ゲームオーバー演出の間：ゲームの時間は止め、演出だけを止まらない時間で進める
-	if ( gameOver_.IsActive() ) {
-		gameOver_.Update(Time::GetInstance()->GetUnscaledDeltaTime());
-		if ( gameOver_.ConsumeRestoreRequest() ) { RestoreCheckpoint(); } // 紙に貼り替えて見えていない間に
+	// ゲームオーバー演出の間は、ゲームの時間を止めて演出だけ進める
+	if ( gameOver_.UpdateBeforeGame(intro_.IsActive()) ) {
 		hitFeel_.NotifyCameraOverridden();
 		return;
-	}
-	if ( gameOver_.ConsumeFinished() ) { hearts_.Show(); } // 組み上がって再開：満タンの♡を見せる
-	// 確かめる用：環境変数 CG2_DEBUG_KEYS を付けて起動した時だけ、F7 でゲームオーバー・F6 でダメージ
-	static const bool debugKeys = []{ char* value = nullptr; size_t length = 0; const bool found = _dupenv_s(&value, &length, "CG2_DEBUG_KEYS") == 0 && value; free(value); return found; }();
-	if ( debugKeys && !intro_.IsActive() ) {
-		if ( Input::GetInstance()->Triggerkey(DIK_F7) ) { StartGameOver(); return; }
-		if ( Input::GetInstance()->Triggerkey(DIK_F6) && hearts_.Damage(gameOver_.DamagePerHit()) ) { StartGameOver(); return; }
 	}
 
 	// ステージ開始の演技のロール（操作開始の後も、画面の外へ出るまで転がり続ける）
@@ -548,8 +527,7 @@ void GamePlayScene::UpdatePlayMode(){
 	}, &blockSystem_);
 
 	combat_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera());               // 当たり判定＋踏みつけ
-	UpdateHealth();                                                                      // ぶつかった・落ちた → ♡が減る
-	if ( gameOver_.IsActive() ) { return; }                                              // 最後の♡：ここで止まる
+	if ( gameOver_.UpdateAfterCombat() ) { return; }                                     // ぶつかった・落ちた → ♡が減る。最後の♡ならここで止まる
 	swallow_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera(), deltaTime);  // 舌・産卵
 	aimThrow_.Update(*player_, enemyMgr_, eggSystem_, GetCamera(), deltaTime);           // 卵の構え・投げ
 
@@ -642,21 +620,8 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatarContext.swallow   = &swallow_;
 	avatarContext.aimThrow  = &aimThrow_;
 	avatarContext.eggSystem = &eggSystem_;
-	// ゲームオーバーの最初：やられポーズ（跳ねて、あおむけに倒れる）
-	float defeatLift = 0.0f, defeatSquash = 1.0f, defeatTilt = 0.0f;
-	if ( gameOver_.DefeatPose(defeatLift, defeatSquash, defeatTilt) ) {
-		avatar_.SetDropPose(defeatLift, defeatSquash);
-		avatar_.SetDefeatTilt(defeatTilt);
-		defeatPoseApplied_ = true;
-	} else if ( defeatPoseApplied_ ) {
-		avatar_.SetDropPose(0.0f, 1.0f);
-		avatar_.SetDefeatTilt(0.0f);
-		defeatPoseApplied_ = false;
-	}
+	gameOver_.UpdateVisuals(playing, playerPos); // やられポーズと♡の輪（恐竜の見た目の更新の前）
 	avatar_.Update(avatarContext);
-	if ( playing ) {
-		hearts_.Update(Time::GetInstance()->GetUnscaledDeltaTime(), playerPos, 1.4f, *GetCamera()); // 恐竜のまわりの♡の輪
-	}
 
 	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
 	backdrop_.Update(GetCamera());
@@ -690,6 +655,7 @@ void GamePlayScene::OnDrawInstanced(){
 
 void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/){
 	if ( gameOver_.HidesScene() ) { return; }
+	gameOver_.DrawTransparent(); // やられの演技の星
 	combat_.Draw(); // 踏みつけ/命中の立体エフェクト
 }
 
@@ -703,78 +669,29 @@ void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
 
 // スプライト・HUD（画面出力の後）
 void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
-	if ( gameOver_.IsActive() ) { gameOver_.DrawUI(); return; } // ゲームオーバー演出の間は HUD の代わりにゲームオーバーの画面
+	const bool playing = EditorManager::GetInstance()->GetMode() == EngineMode::Play;
+	if ( gameOver_.DrawUI(playing) ) { return; } // ゲームオーバー演出の間は HUD の代わりにゲームオーバーの画面（それ以外は♡）
 	aimThrow_.DrawSprite(); // 構え中だけ狙いカーソル
 	// 卵・コインのHUD（プレイ中のみ。エディット中は編集の邪魔になるので出さない）
 	//   ステージ開始の演出の間は隠す（カメラが後ろへ戻り始めたら出す）
 	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play && !intro_.IsHudHidden() ) { hud_.Draw(commandList); }
-	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play ) { hearts_.Draw(); } // 体力の♡（減った時などに頭のまわりへ）
 	DrawStartCue(); // 操作開始の「スタート！」
 }
 
 // 最終画像ができた所：ゲームオーバー演出の写し取り（死んだ瞬間・再開する所）
 void GamePlayScene::OnFrameComposed(ID3D12GraphicsCommandList* commandList, RenderTexture* finalTarget){
-	if ( finalTarget ) { gameOver_.OnFrameComposed(commandList, finalTarget->GetResource().Get()); }
+	gameOver_.OnFrameComposed(commandList, finalTarget);
 }
 
-// =====================================================================
-//  体力（♡）とゲームオーバー
-// =====================================================================
-// 敵にぶつかった・穴に落ちた → ♡が1つ減る。最後の1つが無くなったらゲームオーバー
-void GamePlayScene::UpdateHealth(){
-	if ( player_->ConsumeDamaged() ) {
-		if ( hearts_.Damage(gameOver_.DamagePerHit()) ) { StartGameOver(); return; }
-	}
-	if ( player_->IsFellOut() ) {
-		if ( hearts_.Damage(gameOver_.DamagePerHit()) ) { StartGameOver(); return; }
-		// まだ♡が残っている：スタートへ戻す（円を閉じて開く）
-		player_->Respawn();
-		screenFx_.StartMissIris();
-		railField_.ResetMotion();
-	}
-}
-
-void GamePlayScene::StartGameOver(){
-	++gameOverCount_;
-	hearts_.HideNow();
-	gameOver_.Start(GetCamera(), gameOverCount_ >= 2); // 2回目からは短縮版
-}
-
-// 紙に貼り替えて見えていない間に、チェックポイント（今はスタート）の状態へ戻し、再開のカメラを求める
-void GamePlayScene::RestoreCheckpoint(){
-	player_->Respawn();
-	player_->SetMovementLocked(false);
-	railField_.ResetMotion();
-	// 位置はレールの更新で決まるので、キーを押していない扱いで1回だけ動かす（再開の絵に恐竜が写るように）
-	player_->SetAutoPilot(true);
-	player_->Update(railField_.GetRails());
-	player_->SetAutoPilot(false);
+// やりなおし：ステージをプレイ開始の時と同じに戻す（プレイヤー・カメラ・♡は GameOverFlow が戻す）
+void GamePlayScene::ResetStageForRetry(){
 	aimThrow_.Reset();
 	swallow_.Reset();
-	hearts_.Refill();
-	hearts_.HideNow();
-	// ステージもプレイ開始の時と同じに戻す（敵は置き直し、コイン・？ブロック・卵も元どおり）
-	SpawnEnemies();
+	SpawnEnemies();        // 敵は置き直し（倒した敵も戻る）
 	combat_.ClearEffects();
 	eggSystem_.Initialize();
 	coinSystem_.ResetPlay();
 	blockSystem_.ResetPlay();
-	// 再開のカメラ：プレイ中のカメラと同じ追い方を、画面に出さないカメラで落ち着くまで回す
-	camCtrl_.Reset();
-	// スタート地点（Respawn 直後はまだ位置が入っていないので、レールから求める）
-	Vector3 start = player_->GetPosition();
-	const auto& rails = railField_.GetRails();
-	const int startRail = railField_.GetStartRail();
-	if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].nodes.size() >= 2 ) {
-		start = rails[startRail].GetPositionByDistance(railField_.GetStartDistance());
-	}
-	resumeCamera_->SetAspectRatio(( float ) WindowProc::GetInstance()->GetClientWidth() / ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientHeight() ));
-	resumeCamera_->SetFarClip(kFarClip);
-	for ( int i = 0; i < 120; ++i ) {
-		camCtrl_.Update(resumeCamera_.get(), start, true, railField_.GetRails(), false, 1.0f / 60.0f);
-	}
-	resumeCamera_->Update();
-	gameOver_.SetResumeCamera(resumeCamera_->GetWorldPosition(), resumeCamera_->GetRotation(), resumeCamera_->GetProjectionMatrix());
 }
 
 // =====================================================================
@@ -841,19 +758,7 @@ void GamePlayScene::OnDrawInspector(){
 	PlaySceneInspector::Draw(targets);
 #ifdef USE_IMGUI
 	// ステージ開始の演技のクリップを、その場で流して確かめる（「止める」で元の動きへ）
-	if ( ImGui::CollapsingHeader("体力・ゲームオーバー") ) {
-		ImGui::Text("♡ %d / %d（1回で %d 減る）  ゲームオーバー %d 回", hearts_.Count(), hearts_.Max(), gameOver_.DamagePerHit(), gameOverCount_);
-		const bool playing = EditorManager::GetInstance()->GetMode() == EngineMode::Play;
-		if ( !playing ) { ImGui::BeginDisabled(); }
-		if ( ImGui::Button("ダメージ") && !gameOver_.IsActive() ) { if ( hearts_.Damage(gameOver_.DamagePerHit()) ) { StartGameOver(); } }
-		ImGui::SameLine();
-		if ( ImGui::Button("ゲームオーバーを試す") && !gameOver_.IsActive() ) { StartGameOver(); }
-		ImGui::SameLine();
-		if ( ImGui::Button("満タン") ) { hearts_.Refill(); }
-		if ( !playing ) { ImGui::EndDisabled(); }
-		if ( ImGui::Button("回数を0に（フル版に戻す）") ) { gameOverCount_ = 0; }
-		gameOver_.DrawDebugUI();
-	}
+	gameOver_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
 	if ( ImGui::CollapsingHeader("ステージ開始の演技") ) {
 		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump" } ) {
 			if ( ImGui::Button(clip) ) { avatar_.PlayIntroClip(clip); }
@@ -878,7 +783,5 @@ void GamePlayScene::OnFinalize(){
 	//   （エディタの外部ポインタ・ノードのゲーム値・GPUパーティクルの後始末は BaseScene が行う）
 	SDFManager::GetInstance()->SetExtraPanelUI(nullptr);
 	gameOver_.Finalize();
-	hearts_.Finalize();
-	resumeCamera_.reset();
 	textures_.clear();
 }

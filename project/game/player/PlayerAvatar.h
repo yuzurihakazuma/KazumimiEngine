@@ -56,8 +56,11 @@ public:
     // 上から落ちてくる演出（ワールドマップから飛び込んだ時）：見た目だけ持ち上げ・着地でつぶす。
     //   lift＝足元からの高さ(m)、squash＝縦の縮み（1=そのまま。横はその分ふくらむ）
     void SetDropPose(float lift, float squash){ dropLift_ = lift; dropSquash_ = squash; }
-    // やられポーズ：あおむけに倒れる角度（rad。0＝立っている）
-    void SetDefeatTilt(float tilt){ defeatTilt_ = tilt; }
+    // やられポーズ：pitch＝あおむけに倒れる角度・roll＝左右にふらつく角度（rad。0＝立っている）、
+    //   faceYaw を使う時（hasYaw）は、その向きを向く（こっちを向く）
+    void SetDefeatRotation(float pitch, float roll, bool hasYaw, float faceYaw){
+        defeatTilt_ = pitch; defeatRoll_ = roll; defeatHasYaw_ = hasYaw; defeatYaw_ = faceYaw;
+    }
 
 private:
     // クリップ選択。speedRatio は実際に動いた速さ÷通常の歩く速さ
@@ -78,5 +81,8 @@ private:
     bool    introRestart_ = false;      // 次の更新で、演出のクリップを頭から流す
     float   dropLift_ = 0.0f;           // 上から落ちてくる演出の高さ
     float   dropSquash_ = 1.0f;         // 着地のつぶれ
-    float   defeatTilt_ = 0.0f;         // やられポーズの傾き
+    float   defeatTilt_ = 0.0f;         // やられポーズの傾き（あおむけ）
+    float   defeatRoll_ = 0.0f;         // やられポーズの左右のふらつき
+    bool    defeatHasYaw_ = false;      // やられポーズの向きを使う
+    float   defeatYaw_ = 0.0f;
 };

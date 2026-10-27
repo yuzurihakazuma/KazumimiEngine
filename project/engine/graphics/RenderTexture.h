@@ -19,6 +19,11 @@ class SrvManager;
 class RenderTexture{
 public:
 
+	RenderTexture() = default;
+	~RenderTexture(); // RTV と SRV の番号を返す
+	RenderTexture(const RenderTexture&) = delete;
+	RenderTexture& operator=(const RenderTexture&) = delete;
+
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height);
 
@@ -53,8 +58,11 @@ public: // ゲッター・セッター
 private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_; // 書き込み用（RTV）
-	uint32_t srvIndex_;                     // 読み込み用（SRV）
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_ {}; // 書き込み用（RTV）
+	uint32_t srvIndex_ = UINT32_MAX;           // 読み込み用（SRV）
+	uint32_t rtvIndex_ = UINT32_MAX;           // RTV の番号（消す時に返す）
+	DirectXCommon* dxCommon_ = nullptr;
+	SrvManager* srvManager_ = nullptr;
 
 	Vector4 clearColor_ = { 0.0f, 0.47f, 0.84f, 1.0f };
 

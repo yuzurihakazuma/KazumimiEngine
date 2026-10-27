@@ -416,7 +416,7 @@ void DirectXCommon::CreateDepthBuffer(){
 ///  各種でスクリプタヒープの生成
 void DirectXCommon::CreateDescriptorHeaps(){
 
-	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 50, false);
+	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, kRtvCount, false);
 	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 	dsvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	// DescriptorSizeを取得しておく
@@ -568,6 +568,21 @@ void DirectXCommon::UpdateFixFPS(){
 }
 
 // ディスクリプタヒープの生成
+uint32_t DirectXCommon::AllocateRtvIndex(){
+	if ( !freeRtvIndices_.empty() ) {
+		const uint32_t reused = freeRtvIndices_.back();
+		freeRtvIndices_.pop_back();
+		return reused;
+	}
+	assert(nextRtvIndex_ < kRtvCount); // 足りない：RenderTexture を作りすぎている（消した時に返しているか確かめる）
+	return nextRtvIndex_++;
+}
+
+void DirectXCommon::FreeRtvIndex(uint32_t index){
+	if ( index < kBackBufferCount || index >= nextRtvIndex_ ) { return; }
+	freeRtvIndices_.push_back(index);
+}
+
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible){
 
 	// ディスクリプタヒープの生成

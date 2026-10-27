@@ -45,6 +45,11 @@ std::unique_ptr<SkinnedObj3d> SkinnedObj3d::Create(
 // --------------------------------------------------
 // 初期化
 // --------------------------------------------------
+SkinnedObj3d::~SkinnedObj3d(){
+	// 骨の行列の SRV を返す（返さないと、作り直すたびに SRV が増え続けて上限を超える）
+	if ( skinClusterCreated_ ) { SrvManager::GetInstance()->Free(skinCluster_.srvIndex); }
+}
+
 void SkinnedObj3d::Initialize(
 	Model* model,
 	const std::string& directoryPath,
@@ -70,7 +75,9 @@ void SkinnedObj3d::Initialize(
 	// スケルトンの作成
 	skeleton_ = CreateSkeleton(model_->GetRootNode());
 
-	// スキンクラスターの作成（inverseBindPose も設定される）
+	// スキンクラスターの作成（inverseBindPose も設定される）。作り直す時は、前の SRV を返してから
+	if ( skinClusterCreated_ ) { SrvManager::GetInstance()->Free(skinCluster_.srvIndex); }
+	skinClusterCreated_ = true;
 	skinCluster_ = CreateSkinCluster(
 		skeleton_,
 		model_->GetInverseBindPoseMap(),

@@ -21,6 +21,11 @@ std::vector<SDFVolumeObject*> SDFVolumeObject::sInstances_;
 SDFVolumeObject::~SDFVolumeObject() {
     auto it = std::find(sInstances_.begin(), sInstances_.end(), this);
     if ( it != sInstances_.end() ) { sInstances_.erase(it); }
+    // ボリュームの SRV を返す（シーンごとに作り直すので、返さないと切り替えるたびに増え続ける）
+    for ( VolumeSet* volume : { &volA_, &volB_ } ) {
+        if ( volume->srvAllocated ) { SrvManager::GetInstance()->Free(volume->srv); }
+        if ( volume->colSrvAllocated ) { SrvManager::GetInstance()->Free(volume->colSrv); }
+    }
 }
 
 // 共有パイプライン：シーンMRT（色＋マスク、深度あり）へレイマーチング結果を描く

@@ -67,6 +67,10 @@ public:
 
 	// <summary>SRVヒープ
 	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
+	// RenderTexture 用の RTV の番号を配る・返す（0 と 1 はバックバッファ。返された番号は使い回す）
+	uint32_t AllocateRtvIndex();
+	void FreeRtvIndex(uint32_t index);
+	uint32_t GetUsedRtvCount() const{ return nextRtvIndex_ - ( uint32_t ) freeRtvIndices_.size(); }
 	// <summary>RTVヒープ
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(uint32_t index) const{
 		// RTVヒープの先頭ハンドルを取得
@@ -198,6 +202,9 @@ private:
 
 	// -------------------- ディスクリプタヒープ --------------------
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;   // RTV用のヒープ
+	static constexpr uint32_t kRtvCount = 50;                          // RTV の数（rtvDescriptorHeap_ の大きさ）
+	uint32_t nextRtvIndex_ = kBackBufferCount;                         // 次に配る RTV の番号（バックバッファの後から）
+	std::vector<uint32_t> freeRtvIndices_;                             // 返された RTV の番号
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;   // SRV用のヒープ（ディスクリプタの数は128）
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;   // DSV用のヒープ（ディスクリプタの数は1）
 
