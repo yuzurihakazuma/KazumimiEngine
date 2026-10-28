@@ -31,7 +31,7 @@ void Game::Initialize(){
 	// 3. 最初のシーンをリクエストする
 	//    提出用にステージ選択から始める（タイトルから始める時は kDefaultStartScene を "TITLE" にする）
 	//    確認用：環境変数 CG2_START_SCENE にシーン名（TITLE / STAGESELECT / GAMEPLAY）を入れて起動すると、そのシーンから始まる
-	constexpr const char* kDefaultStartScene = "STAGESELECT";
+	constexpr const char* kDefaultStartScene = "TITLE";
 	char startSceneName[32] = {};
 	std::unique_ptr<IScene> startScene;
 	if ( GetEnvironmentVariableA("CG2_START_SCENE", startSceneName, sizeof(startSceneName)) > 0 ) {

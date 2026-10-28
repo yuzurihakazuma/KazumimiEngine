@@ -137,6 +137,10 @@ void RoadRenderSlots::Update(const std::vector<SplineRail>& rails, bool playMode
         outHidden = false;
         if ( !playMode || r < 0 || r >= ( int ) rails.size() ) return 0.0f;
         const SplineRail& rail = rails[r];
+        if ( rail.sideAnim < 1.0f ) { // 裏世界反転：今いない面の道は沈んで消え、反転で生えてくる
+            if ( rail.sideAnim <= 0.001f ) { outHidden = true; return 0.0f; }
+            return -( 1.0f - rail.sideAnim ) * 2.5f;
+        }
         if ( rail.appearTrigger < 0 ) return 0.0f;
         if ( rail.appearAnim <= 0.001f ) { outHidden = true; return 0.0f; }
         return -( 1.0f - rail.appearAnim ) * 2.5f; // 出現中：下からせり上がる

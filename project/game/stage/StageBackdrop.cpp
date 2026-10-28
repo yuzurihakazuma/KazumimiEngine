@@ -547,7 +547,8 @@ void StageBackdrop::RebuildGroups(){
     // モデルごとに、消していない物の番号を集める。GPU の入れ物は、足りない時だけ余裕を持たせて作り直す
     std::map<std::string, std::vector<int>> byModel;
     for ( int i = 0; i < ( int ) items_.size(); ++i ) {
-        if ( !items_[i].removed ) { byModel[items_[i].model].push_back(i); }
+        const bool hidden = i < ( int ) runtimeHidden_.size() && runtimeHidden_[i];
+        if ( !items_[i].removed && !hidden ) { byModel[items_[i].model].push_back(i); }
     }
     std::vector<Group> next;
     for ( auto& [model, indices] : byModel ) {
@@ -593,6 +594,12 @@ void StageBackdrop::Update(const Camera* camera){
         }
         group.batch->Update(group.matrices);
     }
+}
+
+void StageBackdrop::SetRuntimeHidden(const std::vector<char>& hidden){
+    if ( hidden == runtimeHidden_ ) { return; }
+    runtimeHidden_ = hidden;
+    groupsDirty_ = true;
 }
 
 void StageBackdrop::SetRoot(float scale, float yawRadians, const Vector3& translate){

@@ -37,6 +37,7 @@ public:
         const SwallowAbility* swallow = nullptr;
         AimThrowController* aimThrow = nullptr; // 構えのキャンセル通知を取り出すので非const
         const EggSystem*    eggSystem = nullptr;
+        Vector3             offset {};          // 見た目だけずらす（裏世界反転で、相手の面へ飛び移る途中）
     };
     void Update(const Context& context);
 

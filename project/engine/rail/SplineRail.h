@@ -189,8 +189,12 @@ public:
     int   appearTrigger = -1;    // -1=最初からある / >=0 = そのレール番号に乗ったら出現
     bool  appeared      = true;  // 出現済みか（実行時状態。トリガー無しなら常にtrue）
     float appearAnim    = 1.0f;  // 出現アニメ（0=隠れている → 1=完全に出現。下からせり上がる）
-    // まだ出現していない道か（＝プレイ中は見えない・乗れない・着地できない）
-    bool IsRideBlocked() const { return appearTrigger >= 0 && !appeared; }
+    // 裏世界反転（game/flip/WorldFlip が毎フレーム入れる。エディタのデータには持たない）
+    int   worldSide   = 0;     // 0=両方 / 1=表 / 2=裏
+    bool  sideBlocked = false; // 今いない面のレール（乗れない・着地しない）
+    float sideAnim    = 1.0f;  // 道の出方（0=引っ込んでいる → 1=出ている）
+    // まだ出現していない道か（＝プレイ中は見えない・乗れない・着地できない）。今いない面のレールも
+    bool IsRideBlocked() const { return ( appearTrigger >= 0 && !appeared ) || sideBlocked; }
 
     // 片方向レール（0=両方向 / 1=正方向のみ(front→back) / 2=逆方向のみ(back→front)）
     int oneWay = 0;

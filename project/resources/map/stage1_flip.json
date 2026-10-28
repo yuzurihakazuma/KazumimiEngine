@@ -1,0 +1,72 @@
+{
+  "railSides": [
+    {
+      "rail": 22,
+      "side": "back"
+    }
+  ],
+  "hitStop": 0.25,
+  "flipTime": 1.0,
+  "cooldown": 1.5,
+  "radiusGrow": 0.35,
+  "hopHeight": 2.0,
+  "backLight": {
+    "color": [
+      0.55,
+      0.5,
+      0.85
+    ],
+    "intensity": 0.45
+  },
+  "switches": [
+    {
+      "pos": [
+        17.0,
+        4.6,
+        7.42
+      ],
+      "hitRadius": 1.1,
+      "front": {
+        "rail": 2,
+        "pos": [
+          17.0,
+          2.29,
+          7.42
+        ]
+      },
+      "back": {
+        "rail": 22,
+        "pos": [
+          17.0,
+          2.29,
+          -12.0
+        ]
+      }
+    },
+    {
+      "pos": [
+        46.0,
+        4.6,
+        -12.0
+      ],
+      "hitRadius": 1.1,
+      "front": {
+        "rail": 5,
+        "pos": [
+          46.0,
+          2.0,
+          13.1
+        ]
+      },
+      "back": {
+        "rail": 22,
+        "pos": [
+          46.0,
+          2.29,
+          -12.0
+        ]
+      }
+    }
+  ],
+  "backHideZ": -3.0
+}

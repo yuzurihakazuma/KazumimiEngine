@@ -34,6 +34,7 @@ void PlayerAvatar::Update(const Context& context){
 	Vector3 pos {}, rot {};
 	if ( context.playing && context.player ) {
 		pos = context.player->GetPosition();
+		pos = { pos.x + context.offset.x, pos.y + context.offset.y, pos.z + context.offset.z };
 		rot = context.player->GetRotation();
 	} else if ( context.railField ) {
 		const auto& rails = context.railField->GetRails();

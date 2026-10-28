@@ -44,6 +44,8 @@ public:
 
     // ゲーム側が参照する実行時レール
     const std::vector<SplineRail>& GetRails() const { return rails_; }
+    // 実行時の状態を書き込む（裏世界反転の所属・出方。WorldFlip）
+    std::vector<SplineRail>& GetRailsMutable() { return rails_; }
 
     int  Version() const { return lastVersion_; }       // 直近に同期したエディタの編集世代
     int  MarkerCount() const { return markers_.Count(); }

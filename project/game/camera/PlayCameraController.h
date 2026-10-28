@@ -38,6 +38,11 @@ public:
 
     int ZoneCount() const { return ( int ) zones_.size(); }
 
+    // 裏世界反転：追従の向きに足す角度（表=0 / 裏=π。回る途中はその間）と、回る途中に距離を広げる倍率。
+    //   snap=true の間は補間せずにその位置へ置く（反転中はゲームの時間が止まっているため）
+    void SetFlip(float yawOffset, float distScale, bool snap){ flipYaw_ = yawOffset; flipDistScale_ = distScale; flipSnap_ = snap; }
+    float FlipYaw() const { return flipYaw_; }
+
     // 今の追従の向き・距離・高さでの、カメラの目標位置（補間しない）。演出のカメラから戻る先に使う
     Vector3 FollowTargetPosition(const Vector3& playerPos) const;
     // 追従カメラが見る点（プレイヤーの足元から少し上）。カメラの角度はこの点を見る向きで固定
@@ -84,6 +89,10 @@ private:
     //   入り=半径ちょうど / 出=半径×1.25 のヒステリシス付き。境界に立った時に
     //   入退場が毎フレーム入れ替わってカメラが震えるのを防ぐ。切替の適用は入った瞬間だけ。
     int lastZone_ = -1;
+
+    float flipYaw_ = 0.0f;       // 裏世界反転の角度（追従の向きに足す）
+    float flipDistScale_ = 1.0f; // 回る途中の距離の倍率
+    bool  flipSnap_ = false;     // 補間せずに置く
 
     // 追従の目標を通常（followOffset_ 基準）へ戻す（Cur は補間で滑らかに追いつく）
     void SetDefaultTargets();

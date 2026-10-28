@@ -653,6 +653,25 @@ void Player::RespawnAfterFall(){
     fellRespawned_ = true; // アイリスワイプ演出用（シーンが Consume する）
 }
 
+void Player::WarpTo(const std::vector<SplineRail>& rails, int rail, float distance){
+    if ( rail < 0 || rail >= ( int ) rails.size() || rails[rail].nodes.size() < 2 ) { return; }
+    currentRailIndex_ = rail;
+    currentDistance_  = std::clamp(distance, 0.0f, rails[rail].GetLength());
+    dsSign_           = 0.0f;
+    prevMoveInput_    = 0.0f;
+    atJunction_       = false;
+    switchCooldown_   = 0.3f;
+    endHoldTimer_     = 0.0f;
+    transferWarp_     = { 0.0f, 0.0f, 0.0f };
+    posSmooth_        = { 0.0f, 0.0f, 0.0f };
+    jump_.Reset();
+    knock_.Reset();
+    inAir_       = false;
+    airVelocity_ = { 0.0f, 0.0f, 0.0f };
+    airFromRail_ = -1;
+    position_ = rails[rail].GetPositionByDistance(currentDistance_);
+}
+
 // 敵にぶつかった：敵と反対側へ小さく跳ねながら弾かれる
 void Player::Knockback(const Vector3& awayDir){
     damaged_ = true;
