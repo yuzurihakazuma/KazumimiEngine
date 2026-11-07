@@ -55,6 +55,40 @@ namespace {
         }
     }
 
+    // フェーズ1.5：つなぎ目の切れ端を残さない。ノードを動かしたら true。
+    //   レール i の端が、相手 j の端よりも j の「2番目の点」の方に近い時（エディタで i の端を j の2番目の点へ吸着させた等）、
+    //   そのまま端どうしを溶接すると、j の最初の短い区間が i の端の向こうへ切れ端として残り、
+    //   道が折り返して重なったり、急な曲がりでねじれたりする。
+    //   j の端を2番目の点のすぐ手前（同じ向きの延長線上）へ寄せて、切れ端を無くしてから溶接する。
+    //   実行時のレールだけを直す（エディタのデータは変えない。点の数も変えないので、点の番号で置いた物はずれない）
+    bool TrimStubEnds(std::vector<SplineRail>& rails){
+        constexpr float kKeep = 0.05f; // 2番目の点の手前に残す長さ(m)
+        bool moved = false;
+        for ( int i = 0; i < ( int ) rails.size(); ++i ) {
+            if ( rails[i].nodes.size() < 2 ) continue;
+            for ( int end = 0; end < 2; ++end ) {
+                const bool isFront = ( end == 0 );
+                const int  j       = isFront ? rails[i].frontConnIndex   : rails[i].backConnIndex;
+                const bool toFront = isFront ? rails[i].frontConnToFront : rails[i].backConnToFront;
+                if ( j < 0 || j == i ) continue;
+                auto& nodes = rails[j].nodes;
+                const size_t n = nodes.size();
+                if ( n < 3 ) continue;
+                const Vector3& tip = isFront ? rails[i].nodes.front() : rails[i].nodes.back();
+                Vector3& jEnd = toFront ? nodes.front() : nodes.back();
+                const Vector3& second = toFront ? nodes[1] : nodes[n - 2];
+                const Vector3& third = toFront ? nodes[2] : nodes[n - 3];
+                if ( EndDist(tip, second) + 1e-4f >= EndDist(tip, jEnd) ) continue;
+                const float len = EndDist(second, third);
+                if ( len < 1e-4f ) continue;
+                const Vector3 dir { ( second.x - third.x ) / len, ( second.y - third.y ) / len, ( second.z - third.z ) / len };
+                jEnd = { second.x + dir.x * kKeep, second.y + dir.y * kKeep, second.z + dir.z * kKeep };
+                moved = true;
+            }
+        }
+        return moved;
+    }
+
     // フェーズ2：連結端点を溶接（隙間を物理的に詰める）。ノードを動かしたら true。
     //   【相互合意チェック】i→j と j→i が互いに選び合っている組だけ「中点」へ溶接する。
     //   片思い（jは別のレールkの方が近い）の場合、双方を別々の中点へ動かすと
@@ -189,8 +223,9 @@ void RailConnections::Build(std::vector<SplineRail>& rails){
     }
     DetectLoops(rails);
     FindEndConnections(rails);
+    const bool trimmed = TrimStubEnds(rails);
     // フェーズ3：ノードを動かしたので距離テーブルを作り直す
-    if ( WeldEnds(rails) ) {
+    if ( WeldEnds(rails) || trimmed ) {
         for ( auto& rail : rails ) { rail.BuildDistanceTable(); }
     }
     if ( SnapEndsToBodies(rails) ) {

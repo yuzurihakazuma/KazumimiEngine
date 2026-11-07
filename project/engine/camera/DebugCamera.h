@@ -12,7 +12,6 @@ public:
     // 更新 
     void Update(Camera* camera);
 	// デバッグ用UIの描画
-    void DrawDebugUI();
 	// デバッグカメラがアクティブかどうか
     bool IsActive() const { return isActive_; }
 	// 外部（メニュー等）から ON/OFF する。切替時に元カメラ姿勢を保存/復元する

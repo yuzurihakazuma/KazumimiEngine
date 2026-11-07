@@ -33,9 +33,21 @@ namespace {
 
 RoadClothBuilder::EndInfo RoadClothBuilder::EndOf(const std::vector<SplineRail>& rails, int railIndex, bool front){
     const SplineRail& rail = rails[railIndex];
-    EndInfo info { false, ( rail.endPlaza & ( front ? 1 : 2 ) ) != 0 };
+    EndInfo info { false, ( rail.endPlaza & ( front ? 1 : 2 ) ) != 0, false };
     if ( rail.isLoop ) { info.connected = true; return info; }
-    if ( ( front ? rail.frontConnIndex : rail.backConnIndex ) >= 0 ) { info.connected = true; return info; }
+    const int partner = front ? rail.frontConnIndex : rail.backConnIndex;
+    if ( partner >= 0 ) {
+        info.connected = true;
+        // 曲がり角か：この道がつなぎ目へ入る向きと、相手がつなぎ目から出ていく向き
+        const SplineRail& other = rails[partner];
+        if ( partner < ( int ) rails.size() && other.nodes.size() >= 2 && other.GetLength() > 0.0f && rail.GetLength() > 0.0f ) {
+            const Vector3 in = front ? Multiply(rail.GetTangentByDistance(0.0f), -1.0f) : rail.GetTangentByDistance(rail.GetLength());
+            const bool toFront = front ? rail.frontConnToFront : rail.backConnToFront;
+            const Vector3 outDir = toFront ? other.GetTangentByDistance(0.0f) : Multiply(other.GetTangentByDistance(other.GetLength()), -1.0f);
+            info.corner = Dot(Normalize(in), Normalize(outDir)) < 0.866f; // 30°
+        }
+        return info;
+    }
     // T字：端がほかのレールの本体に載っている（RailConnections が載せてある）
     const Vector3 end = rail.GetFrameAtDistance(front ? 0.0f : rail.GetLength()).position;
     for ( int j = 0; j < ( int ) rails.size(); ++j ) {
@@ -136,12 +148,30 @@ void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex
         const float extendFront = ( atFront && frontEnd.connected ) ? hw : 0.0f;
         const float extendBack = ( atBack && backEnd.connected ) ? hw : 0.0f;
 
+        // 伸ばした先の輪。曲がり角では水平に伸ばす（坂の途中で曲がる角で、斜め下・斜め上へ突き出さない。角は四角く埋まる）
+        auto extendedRing = [&](const Ring& endRing, float sign, float amount, bool corner){
+            Ring r = endRing;
+            Vector3 dir = r.tangent;
+            if ( corner ) {
+                const Vector3 flat { r.tangent.x, 0.0f, r.tangent.z };
+                if ( Length(flat) > 0.2f ) {
+                    dir = Normalize(flat);
+                    const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
+                    Vector3 right = Normalize(Cross(worldUp, dir));
+                    if ( Dot(right, r.right) < 0.0f ) { right = Multiply(right, -1.0f); }
+                    r.up = worldUp;
+                    r.right = right;
+                    r.tangent = dir;
+                }
+            }
+            r.pos = Add(r.pos, Multiply(dir, sign * amount));
+            r.u += sign * amount * kUvPerMeter;
+            return r;
+        };
+
         std::vector<Ring> rings;
         if ( extendFront > 0.0f ) {
-            Ring r = RingAt(rail, span.s0);
-            r.pos = Add(r.pos, Multiply(r.tangent, -extendFront));
-            r.u -= extendFront * kUvPerMeter;
-            rings.push_back(r);
+            rings.push_back(extendedRing(RingAt(rail, span.s0), -1.0f, extendFront, frontEnd.corner));
         }
         const float spanLength = span.s1 - span.s0;
         const int count = ( std::max )( 1, ( int ) std::ceil(spanLength / ( std::max )( kStep, length / 600.0f )) );
@@ -149,10 +179,7 @@ void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex
             rings.push_back(RingAt(rail, span.s0 + spanLength * ( float ) i / count));
         }
         if ( extendBack > 0.0f ) {
-            Ring r = RingAt(rail, span.s1);
-            r.pos = Add(r.pos, Multiply(r.tangent, extendBack));
-            r.u += extendBack * kUvPerMeter;
-            rings.push_back(r);
+            rings.push_back(extendedRing(RingAt(rail, span.s1), 1.0f, extendBack, backEnd.corner));
         }
 
         const uint32_t base = out.VertexCount();

@@ -83,7 +83,7 @@ namespace {
         { "\xEE\xA4\x8F\n詳細", "インスペクター（詳細設定：ポストエフェクト等）", "インスペクター (詳細設定)" },       // E90F レンチ
         { "\xEE\x9C\x8F\n変形", "インスペクター（Transform：ギズモ対象の編集）", "インスペクター (Transform)" },      // E70F 鉛筆
         { "\xEE\x9D\xB4\n線路", "レールエディタ（管理/作成/動き/配置物/接続）", "レールエディタ" },                  // E774 地球（コース）
-        { "\xEE\x9C\xA2\n映像", "カメラエディタ（カメラゾーン）", "カメラエディタ" },                              // E722 カメラ
+        { "\xEE\x9C\xA2\nカメラ", "カメラ演出（レールの上のゾーンで、カメラの向き・距離・固定を切り替える）", "カメラエディタ" },                              // E722 カメラ
         { "\xEE\x9C\x99\n配置", "配置エディタ（コイン / ブロック）", "配置エディタ (Coin/Block)" },                // E719 バッグ
         { "\xEE\x9D\xBB\n敵",   "敵配置エディタ", "敵配置エディタ (Enemy Editor)" },                              // E77B 人物
         { "\xEE\x9C\xB4\n粒子", "GPUパーティクルエディタ", "GPU Particle Editor" },                              // E734 星
@@ -94,10 +94,29 @@ namespace {
         { "\xEE\xA2\xA9\n展開図", "配置ビュー（レール展開図。ブロック・敵・コインをマス目で配置）", "配置ビュー (レール展開図)" }, // E8A9 マス目
         { "\xEE\xA2\xB9\n背景", "背景エディタ（木・草・花・柵などを置く・選ぶ・消す）", "背景エディタ (Backdrop)" },   // E8B9 写真
         { "\xEE\xA2\xAB\n乗換", "乗り換えデバッガ（レールからレールへ移る時のずれを数値で見る）", "乗り換えデバッガ (Rail Transfer)" }, // E8AB 切替
+        { "\xEE\xA2\x95\n反転", "カメラ反転（反転スイッチを道に置く・レールのカメラの向きを塗る・奥へつなぐ道を作る）", "カメラ反転 (Camera Flip)" }, // E895 回る矢印
     };
     // パネルを増やした時に行を足し忘れると、名前が空のまま参照されて実行時に落ちる。ビルド時に気づけるようにする
     static_assert(sizeof(kPanelIcons) / sizeof(kPanelIcons[0]) == EditorManager::Panel_Count,
         "kPanelIcons の行数を EditorPanel と合わせること");
+
+    // パネルを目的ごとに分けた並び（アイコン列・メニューバーの「パネル表示」で使う）。
+    //   「操作（Play / Stop）」はどの作業でも使うので、組には入れず一番上に置く
+    struct PanelGroupDef { const char* title; int panels[8]; int count; };
+    constexpr PanelGroupDef kPanelGroups[] = {
+        { "ステージを作る", { EditorManager::Panel_Rail, EditorManager::Panel_Layout, EditorManager::Panel_Items, EditorManager::Panel_Enemy,
+                              EditorManager::Panel_Backdrop, EditorManager::Panel_Camera, EditorManager::Panel_WorldFlip }, 7 },
+        { "調べる・直す",   { EditorManager::Panel_Hierarchy, EditorManager::Panel_Inspector, EditorManager::Panel_Transform,
+                              EditorManager::Panel_RailDebug, EditorManager::Panel_Minimap, EditorManager::Panel_Perf }, 6 },
+        { "素材",           { EditorManager::Panel_Assets, EditorManager::Panel_File, EditorManager::Panel_Sdf, EditorManager::Panel_GpuParticle }, 4 },
+    };
+    // パネルを足した時に組へ入れ忘れると、アイコン列にもメニューにも出なくなる。ビルド時に気づけるようにする
+    constexpr int CountGroupedPanels(){
+        int total = 1; // 操作（Panel_Control）
+        for ( const PanelGroupDef& group : kPanelGroups ) { total += group.count; }
+        return total;
+    }
+    static_assert(CountGroupedPanels() == EditorManager::Panel_Count, "新しいパネルを kPanelGroups のどれかの組に入れること");
     // 単発アクションのアイコングリフ
     const char* kIconGlyphBack = "\xEE\x9C\x80"; // U+E700 メニュー（三本線）
     const char* kIconGlyphSave = "\xEE\x9D\x8E"; // U+E74E フロッピー（保存）
@@ -287,6 +306,7 @@ void EditorManager::Update(){
         ImGui::DockBuilderDockWindow("配置ビュー (レール展開図)",     dock_bottom);
         ImGui::DockBuilderDockWindow("背景エディタ (Backdrop)",      dock_right);
         ImGui::DockBuilderDockWindow("乗り換えデバッガ (Rail Transfer)", dock_right);
+        ImGui::DockBuilderDockWindow("カメラ反転 (Camera Flip)", dock_right);
 
         ImGui::DockBuilderFinish(dockspace_id);
     }
@@ -370,18 +390,24 @@ void EditorManager::Update(){
             ImGui::Separator();
             // パネルの表示/非表示（ドック・アイコン両モード共通の機能。今のモード側の設定を切り替える）
             if ( ImGui::BeginMenu(uiShell_ == UiShell::Dock ? "パネル表示（ドック）" : "パネル表示（アイコン）") ) {
-                for ( int i = 0; i < Panel_Count; ++i ) {
+                auto panelItem = [&](int i){
                     bool visible = ( uiShell_ == UiShell::Dock ) ? !dockPanelHidden_[i] : panelVisible_[i];
                     if ( ImGui::MenuItem(kPanelIcons[i].windowTitle, nullptr, visible) ) {
                         if ( uiShell_ == UiShell::Dock ) { dockPanelHidden_[i] = visible; }
                         else                             { panelVisible_[i] = !visible; }
                         SaveUiConfig();
                     }
+                    if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("%s", kPanelIcons[i].name); }
+                };
+                panelItem(Panel_Control);
+                for ( const PanelGroupDef& group : kPanelGroups ) {
+                    ImGui::SeparatorText(group.title);
+                    for ( int k = 0; k < group.count; ++k ) { panelItem(group.panels[k]); }
                 }
                 ImGui::EndMenu();
             }
             // ワークスペース一括切替（アイコンツールバーと同じ機能をメニューからも）
-            if ( ImGui::BeginMenu("ワークスペース（一式切替）") ) {
+            if ( ImGui::BeginMenu("まとめて開く（作業ごとの一式）") ) {
                 if ( ImGui::MenuItem("設置（配置エディタ＋操作）") )       { ApplyWorkspace(0); }
                 if ( ImGui::MenuItem("調整（インスペクタ＋計測＋操作）") ) { ApplyWorkspace(1); }
                 if ( ImGui::MenuItem("線路（レール＋カメラ＋階層）") )     { ApplyWorkspace(2); }
@@ -402,6 +428,9 @@ void EditorManager::Update(){
             if (ImGui::MenuItem("タイトル (Title Scene)")) {
                 SceneManager::GetInstance()->ChangeSceneWithFade("TITLE");
             }
+            if (ImGui::MenuItem("ステージ選択 (Stage Select Scene)")) {
+                SceneManager::GetInstance()->ChangeSceneWithFade("STAGESELECT");
+            }
             if (ImGui::MenuItem("ゲームプレイ (GamePlay Scene)")) {
                 SceneManager::GetInstance()->ChangeSceneWithFade("GAMEPLAY");
             }
@@ -414,6 +443,8 @@ void EditorManager::Update(){
                 if ( ImGui::Checkbox("デバッグカメラを有効化", &active) ) {
                     debugCamera_->SetActive(active);
                 }
+                ImGui::TextDisabled("  右ドラッグ：見回す / 右ドラッグ＋WASD・QE：飛ぶ");
+                ImGui::TextDisabled("  ホイール：前後 / 中ドラッグ：平行移動 / Shift：速く");
             } else {
                 ImGui::TextDisabled("デバッグカメラ未登録");
             }
@@ -1437,19 +1468,23 @@ void EditorManager::Update(){
     if ( uiShellFrame_ == UiShell::Icon ) { DrawIconToolbar(); }
     if ( showUiSettings_ ) { DrawUiSettingsWindow(); }
 
-    // 4. 全シーン共通のUI
+    // 4. 全シーン共通のUI。インスペクター（詳細設定）は、色々な所から書き足されるので、
+    //    呼ぶ順で「画面の見た目 → このシーン → 確かめ用」に並べる（見出しは BaseScene::DrawInspector と合わせる）
+    //   ※「詳細設定」へ合流するウィンドウは必ずドックスペースより後に Begin する（先だとドッキングできなくなる）
     if ( IsPanelVisible(Panel_Inspector) ) {
+        ImGui::Begin("インスペクター (詳細設定)");
+        ImGui::SeparatorText("画面の見た目");
+        ImGui::End();
         PostEffect::GetInstance()->DrawDebugUI();
-
-        // スキニングUI（「詳細設定」へ合流するウィンドウは必ずドックスペースより後に Begin する。
-        //  先に Begin するとそのウィンドウだけドッキングできなくなる）
-        if ( targetSkinnedObj_ ) {
-            targetSkinnedObj_->DrawDebugUI();
-        }
     }
 
-    // 5. 現在のシーン固有のUI
+    // 5. 現在のシーン固有のUI（インスペクターには、光・カメラ → このシーン → 確かめ用 の順に足す）
     SceneManager::GetInstance()->DrawCurrentSceneDebugUI();
+
+    // 5.5 スキニング（確かめ用。インスペクターの後ろの方へ）
+    if ( IsPanelVisible(Panel_Inspector) && targetSkinnedObj_ ) {
+        targetSkinnedObj_->DrawDebugUI();
+    }
 
     // 6. LevelEditor のデバッグUI（パネル分類に応じてウィンドウ単位で開閉。Dockモードは全true）
     if ( levelEditor_ ) {
@@ -1525,8 +1560,9 @@ void EditorManager::Update(){
     }
 
     // 9. アイコンモードのツールバーは全ウィンドウ提出後に必ず最前面へ戻す
-    //   （Game View をクリックした時などに背面へ回って見えなくなる不具合の対策）
-    if ( uiShellFrame_ == UiShell::Icon ) {
+    //   （Game View をクリックした時などに背面へ回って見えなくなる不具合の対策）。
+    //   ただしメニュー・ドロップダウン・右クリックメニューが開いている間はしない（それらの上にかぶさって隠してしまう）
+    if ( uiShellFrame_ == UiShell::Icon && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) ) {
         if ( ImGuiWindow* toolbarWindow = ImGui::FindWindowByName("##IconToolbar") ) {
             ImGui::BringWindowToDisplayFront(toolbarWindow);
         }
@@ -1586,8 +1622,10 @@ void EditorManager::DrawIconToolbar(){
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking |
         ImGuiWindowFlags_NoFocusOnAppearing;
     if ( !ImGui::Begin("##IconToolbar", nullptr, toolbarFlags) ) { ImGui::End(); return; }
-    // 他の浮遊ウィンドウに隠れないよう毎フレーム最前面へ
-    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+    // 他の浮遊ウィンドウに隠れないよう毎フレーム最前面へ（メニューなどが開いている間は、それらを隠さないようにしない）
+    if ( !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel) ) {
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+    }
 
     const ImVec2 kIconSize { 48.0f, 50.0f }; // 上段アイコングリフ＋下段ラベルの2行ボタン
     int columnIndex = 0; // 2列に並べる（縦に長くなりすぎて画面から溢れないように）
@@ -1613,36 +1651,56 @@ void EditorManager::DrawIconToolbar(){
         dockRelayoutPending_ = true; // 元のドック配置へ組み直す
         SaveUiConfig();
     }
+    // 操作（Play / Stop）はどの作業でも使うので一番上
+    if ( iconButton(kPanelIcons[Panel_Control].icon, kPanelIcons[Panel_Control].name, panelVisible_[Panel_Control]) ) {
+        panelVisible_[Panel_Control] = !panelVisible_[Panel_Control];
+        SaveUiConfig();
+    }
     newRow();
 
-    // --- ワークスペース（作業内容に合わせて一式切替）---
+    // --- まとめて開く（作業内容に合わせて一式切替）---
+    //   アイコンにすると下の窓のアイコンと同じ名前・絵が2つずつ並んでしまうので、1つのボタン＋一覧にする
     ImGui::Separator();
-    ImGui::TextDisabled("作業");
-    bool workspaceApplied = false;
-    // ※ラベルの「##ws〜」はID重複防止（下の「窓」セクションに同名ボタンがあるため。表示はされない）
-    if ( iconButton("\xEE\x9C\x99\n設置##ws0", "設置：配置エディタだけ表示（画面が広く、クリック配置がやりやすい）", false) ) { ApplyWorkspace(0); workspaceApplied = true; }
-    if ( iconButton("\xEE\x9E\x90\n調整##ws1", "調整：インスペクタ＋パフォーマンス（スライダーを動かしながら画を見る）", false) ) { ApplyWorkspace(1); workspaceApplied = true; }
-    if ( iconButton("\xEE\x9D\xB4\n線路##ws2", "レール：レールエディタ＋カメラ＋ヒエラルキー", false) ) { ApplyWorkspace(2); workspaceApplied = true; }
-    if ( iconButton("\xEE\x9D\xBB\n敵##ws3",   "敵配置：敵エディタだけ表示", false) ) { ApplyWorkspace(3); workspaceApplied = true; }
-    if ( iconButton("\xEE\xA2\xA9\n展開図##ws5", "展開図：配置ビュー（下）＋敵エディタ。ブロック・敵・コインをマス目で配置", false) ) { ApplyWorkspace(5); workspaceApplied = true; }
-    if ( iconButton("\xEE\x9C\x91\n全閉##ws4", "全部閉じる（ゲーム画面のみ）", false) ) { ApplyWorkspace(4); workspaceApplied = true; }
-    ( void ) workspaceApplied; // ドロワーが毎フレーム自動整列するので個別配置は不要
-    newRow();
-
-    // --- パネル個別開閉 ---
-    ImGui::Separator();
-    ImGui::TextDisabled("窓");
-    for ( int i = 0; i < Panel_Count; ++i ) {
-        if ( iconButton(kPanelIcons[i].icon, kPanelIcons[i].name, panelVisible_[i]) ) {
-            panelVisible_[i] = !panelVisible_[i];
-            SaveUiConfig();
+    {
+        const float wide = kIconSize.x * 2.0f + ImGui::GetStyle().ItemSpacing.x;
+        if ( ImGui::Button("まとめて開く ▼", ImVec2(wide, 26.0f)) ) { ImGui::OpenPopup("##workspaces"); }
+        if ( ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort) ) { ImGui::SetTooltip("作業に合わせて、窓を一式で開き直す"); }
+        if ( ImGui::BeginPopup("##workspaces") ) {
+            struct Workspace { int index; const char* label; const char* detail; };
+            const Workspace workspaces[] = {
+                { 2, "線路を作る",   "レールエディタ＋カメラ演出＋ヒエラルキー" },
+                { 5, "展開図で置く", "配置ビュー（下）＋敵エディタ＋操作。ブロック・敵・コインをマス目で" },
+                { 0, "物を置く",     "配置エディタ（コイン / ブロック）＋操作" },
+                { 3, "敵を置く",     "敵エディタ＋操作" },
+                { 1, "見た目の調整", "インスペクター＋パフォーマンス＋操作" },
+                { 4, "全部閉じる",   "ゲーム画面だけにする" },
+            };
+            for ( const Workspace& workspace : workspaces ) {
+                if ( ImGui::MenuItem(workspace.label) ) { ApplyWorkspace(workspace.index); }
+                if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("%s", workspace.detail); }
+            }
+            ImGui::EndPopup();
         }
     }
     newRow();
 
+    // --- 窓（目的ごとの組）---
+    for ( const PanelGroupDef& group : kPanelGroups ) {
+        ImGui::Separator();
+        ImGui::TextDisabled("%s", group.title);
+        for ( int k = 0; k < group.count; ++k ) {
+            const int i = group.panels[k];
+            if ( iconButton(kPanelIcons[i].icon, kPanelIcons[i].name, panelVisible_[i]) ) {
+                panelVisible_[i] = !panelVisible_[i];
+                SaveUiConfig();
+            }
+        }
+        newRow();
+    }
+
     // --- その他の既存トグル ---
     ImGui::Separator();
-    ImGui::TextDisabled("他");
+    ImGui::TextDisabled("その他");
     if ( iconButton("\xEE\xA5\x90\nノード", "ノードエディタ", showNodeEditor_) ) { showNodeEditor_ = !showNodeEditor_; }
     if ( iconButton("\xEE\xA2\x98\nBlend", "Blenderインポータ", showBlenderImporter_) ) { showBlenderImporter_ = !showBlenderImporter_; }
     if ( demoAvailable_ && iconButton("\xEE\x9E\x8A\nデモ", "デモ展示（回転ブロック・オーラ・SDF卵・人形）。OFFで展示物を削除", showDemo_) ) {
@@ -1656,6 +1714,7 @@ void EditorManager::DrawIconToolbar(){
     ImGui::Separator();
     ImGui::TextDisabled("シーン");
     if ( iconButton("\xEE\xA1\x8A\n題名", "タイトルシーンへ", false) ) { SceneManager::GetInstance()->ChangeSceneWithFade("TITLE"); }
+    if ( iconButton("\xEE\xA0\x8F\n選択", "ステージ選択シーンへ", false) ) { SceneManager::GetInstance()->ChangeSceneWithFade("STAGESELECT"); }
     if ( iconButton("\xEE\x9D\xA8\n遊ぶ", "ゲームプレイシーンへ", false) ) { SceneManager::GetInstance()->ChangeSceneWithFade("GAMEPLAY"); }
     newRow();
     ImGui::Separator();

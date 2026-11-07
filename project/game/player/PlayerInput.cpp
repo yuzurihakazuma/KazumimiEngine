@@ -21,6 +21,11 @@ PlayerInput::WorldKeys PlayerInput::GetWorldKeys() const{
     int quadrant;
     if ( angleDiff < 0.6f ) { // 中心から約34°以内なら確定
         quadrant = ( ( rawQuadrant % 4 ) + 4 ) % 4;
+        // 移動キーを押しっぱなしの間は、前の割り当てのまま（カメラが回っても、押している向きへ進み続ける。
+        //   すぐ切り替えると、例えば奥へ歩いている途中でカメラが反転した時に W が手前の意味になって引き返していた）
+        Input* input = Input::GetInstance();
+        const bool holding = input->Pushkey(DIK_W) || input->Pushkey(DIK_A) || input->Pushkey(DIK_S) || input->Pushkey(DIK_D);
+        if ( quadrant != lastKeyQuad_ && holding ) { quadrant = lastKeyQuad_; }
         lastKeyQuad_ = quadrant;
     } else {
         quadrant = lastKeyQuad_; // 回転途中は前回の向きのまま

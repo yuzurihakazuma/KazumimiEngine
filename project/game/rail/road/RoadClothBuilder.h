@@ -27,6 +27,7 @@ public:
     static constexpr float kUvPerMeter = 1.0f / 1.2f; // 布の柄の繰り返し（1.2m ごと）
 
 private:
-    struct EndInfo { bool connected; bool plaza; };
+    // corner：端どうしでつながった相手が、30°以上曲がって続く（延長を水平にして、斜めに突き出さない）
+    struct EndInfo { bool connected; bool plaza; bool corner; };
     static EndInfo EndOf(const std::vector<SplineRail>& rails, int railIndex, bool front);
 };

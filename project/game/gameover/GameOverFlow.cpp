@@ -165,6 +165,7 @@ bool GameOverFlow::UpdateAfterCombat(){
         if ( sequence_.IsActive() ) { return true; }
         // まだ♡が残っている：スタートへ戻す（円を閉じて開く）。動くレールも基準へ
         player->Respawn();
+        if ( context_.onRespawn ) { context_.onRespawn(); }
         if ( context_.screenFx ) { context_.screenFx->StartMissIris(); }
         if ( context_.railField ) { context_.railField->ResetMotion(); }
     }

@@ -60,11 +60,26 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
         p3 = { 2.0f * p2.x - p1.x, 2.0f * p2.y - p1.y, 2.0f * p2.z - p1.z };
     }
 
-    // Catmull-Rom スプラインの公式を使って曲線を計算
+    // Catmull-Rom スプライン（エルミート形：両端の接線 m1・m2 で p1→p2 をつなぐ）。
+    //   接線の長さは、この区間の長さの2倍までに抑える。隣より極端に短い区間（つなぎ目で点が重なりかけた所など）では、
+    //   そのままだと曲線が行き過ぎて逆向きに戻り、道の上下が裏返っていた。普通の点の並びでは抑えは効かず、形は変わらない
+    const Vector3 chord { p2.x - p1.x, p2.y - p1.y, p2.z - p1.z };
+    const float segmentLength = std::sqrt(chord.x * chord.x + chord.y * chord.y + chord.z * chord.z);
+    auto clampTangent = [&](Vector3 m){
+        const float length = std::sqrt(m.x * m.x + m.y * m.y + m.z * m.z);
+        const float limit = 2.0f * segmentLength;
+        if ( length > limit && length > 1e-6f ) { const float k = limit / length; m = { m.x * k, m.y * k, m.z * k }; }
+        return m;
+    };
+    const Vector3 m1 = clampTangent({ ( p2.x - p0.x ) * 0.5f, ( p2.y - p0.y ) * 0.5f, ( p2.z - p0.z ) * 0.5f });
+    const Vector3 m2 = clampTangent({ ( p3.x - p1.x ) * 0.5f, ( p3.y - p1.y ) * 0.5f, ( p3.z - p1.z ) * 0.5f });
+    const float t2 = localT * localT, t3 = t2 * localT;
+    const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f, h10 = t3 - 2.0f * t2 + localT;
+    const float h01 = -2.0f * t3 + 3.0f * t2,       h11 = t3 - t2;
     Vector3 result;
-    result.x = 0.5f * ( ( 2.0f * p1.x ) + ( -p0.x + p2.x ) * localT + ( 2.0f * p0.x - 5.0f * p1.x + 4.0f * p2.x - p3.x ) * ( localT * localT ) + ( -p0.x + 3.0f * p1.x - 3.0f * p2.x + p3.x ) * ( localT * localT * localT ) );
-    result.y = 0.5f * ( ( 2.0f * p1.y ) + ( -p0.y + p2.y ) * localT + ( 2.0f * p0.y - 5.0f * p1.y + 4.0f * p2.y - p3.y ) * ( localT * localT ) + ( -p0.y + 3.0f * p1.y - 3.0f * p2.y + p3.y ) * ( localT * localT * localT ) );
-    result.z = 0.5f * ( ( 2.0f * p1.z ) + ( -p0.z + p2.z ) * localT + ( 2.0f * p0.z - 5.0f * p1.z + 4.0f * p2.z - p3.z ) * ( localT * localT ) + ( -p0.z + 3.0f * p1.z - 3.0f * p2.z + p3.z ) * ( localT * localT * localT ) );
+    result.x = h00 * p1.x + h10 * m1.x + h01 * p2.x + h11 * m2.x;
+    result.y = h00 * p1.y + h10 * m1.y + h01 * p2.y + h11 * m2.y;
+    result.z = h00 * p1.z + h10 * m1.z + h01 * p2.z + h11 * m2.z;
 
     // 列車式の回転（ガイド追従で経路の向きに合わせる）：animPivot 中心のY軸回転。
     //   剛体回転なので距離テーブルは不変。接線(GetTangentByDistance)は位置の差分から
@@ -154,6 +169,19 @@ void SplineRail::BuildFrameCache(){
         RailFrame frame;
         frame.position = GetPositionByDistance(frameDistance);
         frame.tangent  = NormalizeSafe(GetTangentByDistance(frameDistance), { 1.0f, 0.0f, 0.0f });
+        // 接線の保険：とても短い区間（つなぎ目で点が重なりかけた所など）では曲線の接線が狂うことがある。
+        //   前後 0.1m の点を結んだ向きと18°以上食い違う時は、結んだ向きを使う
+        //   （始点で狂うと、その向きが RMF で坂の上まで運ばれて、道が横倒しにねじれていた）
+        {
+            const float d0 = ( std::max )( frameDistance - 0.1f, 0.0f );
+            const float d1 = ( std::min )( frameDistance + 0.1f, totalLength_ );
+            const Vector3 a = GetPositionByDistance(d0), b = GetPositionByDistance(d1);
+            const Vector3 chord { b.x - a.x, b.y - a.y, b.z - a.z };
+            if ( d1 - d0 > 1e-3f && Dot(chord, chord) > 1e-8f ) {
+                const Vector3 chordDir = NormalizeSafe(chord, frame.tangent);
+                if ( Dot(chordDir, frame.tangent) < 0.95f ) { frame.tangent = chordDir; }
+            }
+        }
         const Vector3& T = frame.tangent;
 
         Vector3 right;

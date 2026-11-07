@@ -447,6 +447,13 @@ private:
 
 public:
 
+    // 外から路線を足す・置き直す（カメラ反転のパネルが「つなぐ道」を作る時など）。
+    //   like：見た目（布の道）・地面の種類・タイプをまねる路線（-1=既定）。足した番号を返す（失敗は -1）
+    //   取り消し（Undo）は、ほかの編集と同じく変化を見て自動で積まれる
+    //   copyType=false：横/縦の種類はまねず、形から決める（向きの違う道を作る時）
+    int  AddRailLine(const std::vector<Vector3>& line, const std::string& group, int like = -1, bool copyType = true);
+    bool ReplaceRailLine(int rail, const std::vector<Vector3>& line); // 点を全部入れ替える（穴の印は消す）
+
     // リスト上でホバー中のレール（Game View で黄色ハイライトするため。-1=なし）
     int GetHoveredListRail() const{ return hoveredListRail_; }
     // 接続一覧のホバー：相手側レールと接続点（両方光らせて場所を示す）

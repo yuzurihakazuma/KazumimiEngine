@@ -1,0 +1,47 @@
+{
+  "railSides": [],
+  "hitStop": 0.25,
+  "flipTime": 0.9,
+  "cooldown": 1.2,
+  "radiusGrow": 0.3,
+  "occludeGap": 1.0,
+  "switches": [
+    {
+      "rail": 2,
+      "dist": 8.726,
+      "height": 2.31,
+      "pos": [
+        17.0,
+        4.6,
+        7.42
+      ],
+      "hitRadius": 1.1,
+      "linkRail": 23,
+      "backRail": 22
+    }
+  ],
+  "points": [
+    {
+      "rail": 23,
+      "dist": 2.5,
+      "mode": 1,
+      "radius": 1.2
+    },
+    {
+      "rail": 23,
+      "dist": 7.5,
+      "mode": 2,
+      "radius": 1.2
+    }
+  ],
+  "evening": {
+    "enabled": true,
+    "strength": 1.0,
+    "light": [
+      1.0,
+      0.6,
+      0.38
+    ],
+    "tint": 0.12
+  }
+}

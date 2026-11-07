@@ -107,7 +107,17 @@ void GamePlayScene::OnInitialize(){
 	gameOverContext.camera    = GetCamera();
 	gameOverContext.farClip   = kFarClip;
 	gameOverContext.resetStage = [this]{ ResetStageForRetry(); };
+	gameOverContext.onRespawn  = [this]{ flip_.ResetToFront(); }; // 落ちてスタートへ戻る時は表へ
 	gameOver_.Initialize(gameOverContext, backdrop_);
+	// カメラ反転（表から見る ⇔ 裏から見る）
+	WorldFlip::Context flipContext;
+	flipContext.player    = player_.get();
+	flipContext.railField = &railField_;
+	flipContext.camCtrl   = &camCtrl_;
+	flipContext.backdrop  = &backdrop_;
+	flipContext.eggs      = &eggSystem_;
+	flipContext.camera    = GetCamera();
+	flip_.Initialize(flipContext, kStageName);
 	// 操作開始の「スタート！」
 	startPop_ = Sprite::Create(TextureManager::GetInstance()->Load("resources/ui/start_pop.png").srvIndex, { 0.0f, 0.0f },
 	                           { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.5f });
@@ -449,6 +459,7 @@ void GamePlayScene::OnPlayStart(){
 	player_->SetMovementLocked(false);
 	gameOver_.OnPlayStart(); // 体力を満タンに（出しはしない）
 	camCtrl_.Reset();        // 向き切替トリガーの状態を初期化（前回プレイの向きを持ち越さない）
+	flip_.OnPlayStart();     // 表から始める
 	if ( Demo() ) { Demo()->OnPlayStart(); } // デモの HitEffect を消す
 	combat_.ClearEffects();
 	eggSystem_.Initialize();
@@ -463,6 +474,7 @@ void GamePlayScene::OnEditStart(){
 	// ステージ開始の演出の途中でエディタに切り替えた：演出をやめて、プレイヤーを元に戻す
 	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
 	gameOver_.OnEditStart(); // ゲームオーバー演出をやめて、体力を満タンに
+	flip_.OnEditStart();     // 表へ（全部のレールを出す）
 	screenFx_.DisablePlayLook();
 	railField_.ResetMotion();
 	testPlayRail_ = -1;      // テストプレイの開始位置上書きは1回で解除（次は通常スタート）
@@ -499,6 +511,12 @@ void GamePlayScene::UpdatePlayMode(){
 		return;
 	}
 
+	// カメラ反転の回り込み中：ゲームの時間を止めて、カメラだけ回す
+	if ( flip_.Update(GetDebugCamera() && GetDebugCamera()->IsActive()) ) {
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
+
 	// 動くレール → プレイヤー → 敵 の順で更新（位置の整合のため）。
 	//   「乗ったら動き出す」レールの発動判定用に、接地中のプレイヤーのレール番号を渡す
 	const int ridingRail = player_->IsGrounded() ? player_->GetCurrentRail() : -1;
@@ -530,6 +548,7 @@ void GamePlayScene::UpdatePlayMode(){
 	if ( gameOver_.UpdateAfterCombat() ) { return; }                                     // ぶつかった・落ちた → ♡が減る。最後の♡ならここで止まる
 	swallow_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera(), deltaTime);  // 舌・産卵
 	aimThrow_.Update(*player_, enemyMgr_, eggSystem_, GetCamera(), deltaTime);           // 卵の構え・投げ
+	flip_.CheckEggHits();                                                                // 卵 ×「？」スイッチ → 反転
 
 	// 卵の追従・飛行・割れの更新
 	float yaw = player_->GetRotation().y;
@@ -567,7 +586,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	//   dt=0 で呼ぶのでパトロール等の移動は起きない
 	//   ゲームの時間を止めている間（ステージ開始の演技・ゲームオーバー）も同じ。止めたまま更新しないと、
 	//   カメラが動いても敵だけ止めた瞬間の画面の位置に貼り付く（再開の絵にも死んだ時の位置で写っていた）
-	if ( !playing || intro_.IsActive() || gameOver_.IsActive() ) {
+	if ( !playing || intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() ) {
 		enemyMgr_.Update(railField_.GetRails(), playerPos, 0.0f, nullptr, &blockSystem_);
 	}
 
@@ -620,6 +639,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatarContext.swallow   = &swallow_;
 	avatarContext.aimThrow  = &aimThrow_;
 	avatarContext.eggSystem = &eggSystem_;
+	flip_.UpdateVisuals(playing);                          // カメラ反転：スイッチ・裏から見る時に隠す背景
 	gameOver_.UpdateVisuals(playing, playerPos); // やられポーズと♡の輪（恐竜の見た目の更新の前）
 	avatar_.Update(avatarContext);
 
@@ -640,6 +660,7 @@ void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 	enemyMgr_.Draw();
 	eggSystem_.Draw();
 	coinSystem_.Draw();
+	flip_.Draw();                              // 「？」スイッチ（裏の間は奥の岩肌も）
 	swallow_.Draw();                           // 舌（伸ばす/引き込む動作中だけ）
 	intro_.Draw();                             // ステージ開始の演技のロール
 	roadMesh_.Draw();                          // 道メッシュ（Edit/Play どちらでも見える本番の見た目）
@@ -692,6 +713,7 @@ void GamePlayScene::ResetStageForRetry(){
 	eggSystem_.Initialize();
 	coinSystem_.ResetPlay();
 	blockSystem_.ResetPlay();
+	flip_.ResetToFront();
 }
 
 // =====================================================================
@@ -705,6 +727,7 @@ void GamePlayScene::OnDebugUI(){
 	SceneEditContext editContext = MakeEditContext();
 	editorTools_.DrawPanels(editContext);
 	editorTools_.UpdateGameView(editContext);
+	flip_.UpdateEditor(editContext); // カメラ反転：パネル「カメラ反転」・Game View のクリックで置く・名札
 	// 乗り換えデバッガ（パネルを開いている間だけ重ね描き）
 	if ( editContext.editor->IsPanelVisible(EditorManager::Panel_RailDebug) ) {
 		const bool playing = ( editContext.editor->GetMode() == EngineMode::Play );
@@ -783,5 +806,6 @@ void GamePlayScene::OnFinalize(){
 	//   （エディタの外部ポインタ・ノードのゲーム値・GPUパーティクルの後始末は BaseScene が行う）
 	SDFManager::GetInstance()->SetExtraPanelUI(nullptr);
 	gameOver_.Finalize();
+	flip_.Finalize();
 	textures_.clear();
 }

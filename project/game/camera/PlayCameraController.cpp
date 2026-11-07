@@ -56,6 +56,9 @@ void PlayCameraController::Reset(){
     camFovCur_  = camFovTgt_;
     lastZone_ = -1;
     heightReady_ = false; // 次の Update でプレイヤーの高さに合わせ直す
+    flipYaw_ = 0.0f;
+    flipDistScale_ = 1.0f;
+    flipSnap_ = false;
     // 回転フリーズ中にモードが切り替わっても時間が止まったままにならないよう必ず戻す
     if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(1.0f); freezingRotation_ = false; }
 }
@@ -152,7 +155,8 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
     // 回転フリーズ中：時間を止める（毎フレーム上書き＝ヒットストップ終了で戻されても維持）。
     //   dt=0 になるので、カメラの補間だけリアル時間(1/60)で進めて回転を完了させる。
     if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(0.0f); }
-    float camDt = freezingRotation_ ? ( 1.0f / 60.0f ) : dt;
+    float camDt = ( freezingRotation_ || flipSnap_ ) ? ( 1.0f / 60.0f ) : dt;
+    if ( flipSnap_ ) { groundY_ = focusY_ = playerPos.y; heightReady_ = true; } // 反転中：高さも補間しない
     float k = ( std::min )( 4.0f * camDt, 1.0f );
     // 追う点：横と奥行きはプレイヤー、高さは着地している所
     const Vector3 focus { playerPos.x, UpdateFocusHeight(playerPos, grounded, camDt), playerPos.z };
@@ -189,6 +193,7 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
     Vector3 np = { cur.x + ( targetPos.x - cur.x ) * k,
                    cur.y + ( targetPos.y - cur.y ) * k,
                    cur.z + ( targetPos.z - cur.z ) * k };
+    if ( flipSnap_ ) { np = targetPos; } // 反転中：弧の上にそのまま置く
     camera->SetTranslation(np);
 
     // 向き：固定カメラはプレイヤー（少し上）を見る。
@@ -197,7 +202,9 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
     if ( active && active->mode == 0 ) {
         look = { playerPos.x - np.x, ( playerPos.y + kLookHeight ) - np.y, playerPos.z - np.z };
     } else {
-        look = { -std::sin(camYawCur_) * camDistCur_, kLookHeight - camHgtCur_, std::cos(camYawCur_) * camDistCur_ };
+        const float yaw = camYawCur_ + flipYaw_;
+        const float dist = camDistCur_ * flipDistScale_;
+        look = { -std::sin(yaw) * dist, kLookHeight - camHgtCur_, std::cos(yaw) * dist };
     }
     float horiz = std::sqrt(look.x * look.x + look.z * look.z);
     if ( horiz > 1e-4f || std::abs(look.y) > 1e-4f ) {
@@ -211,9 +218,11 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
 }
 
 Vector3 PlayCameraController::FollowTargetPosition(const Vector3& playerPos) const{
-    return { playerPos.x + std::sin(camYawCur_) * camDistCur_,
+    const float yaw = camYawCur_ + flipYaw_;
+    const float dist = camDistCur_ * flipDistScale_;
+    return { playerPos.x + std::sin(yaw) * dist,
              playerPos.y + camHgtCur_,
-             playerPos.z - std::cos(camYawCur_) * camDistCur_ };
+             playerPos.z - std::cos(yaw) * dist };
 }
 
 // カメラ演出ゾーンの可視化（球=発動範囲 / 白い箱=カメラ位置の目安 / 線=対応）
