@@ -159,7 +159,8 @@ private:
     int  paintSide_ = 2;         // レールを塗る時の向き（0=両方 / 1=表 / 2=裏）
     int  pointMode_ = 2;         // 置くポイントの切り替え方（0=反転 / 1=表へ / 2=裏へ）
     int  selectedPoint_ = -1;
-    float linkDepth_ = 6.0f;     // つなぐ道：スイッチの道から奥（表のカメラから遠い方）へ(m)
+    float linkDepth_ = 12.0f;    // つなぐ道：スイッチの道からどれだけ離すか(m)
+    bool  linkTowardCamera_ = true; // true＝表のカメラ側（手前）へ＝裏から見て奥へ延びる / false＝表の奥へ
     float linkBefore_ = 8.0f;    //   裏から見る道の、つなぐ所より前の長さ(m)
     float linkAfter_ = 20.0f;    //   後ろの長さ(m)
     bool  previewBack_ = false;  // 編集中に「裏のカメラで見る」を押した（背の高い背景を隠す）

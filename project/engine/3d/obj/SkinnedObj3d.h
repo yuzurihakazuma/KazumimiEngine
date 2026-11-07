@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <map>
+#include <vector>
 
 // 
 #include "engine/math/struct.h"
@@ -100,6 +101,17 @@ public:  // --- Getter / Setter ---
 		overrideBoneName_ = boneName; overrideBoneScale_ = scale; hasBoneOverride_ = true;
 	}
 	void ClearBoneScaleOverride(){ hasBoneOverride_ = false; }
+	// 一部の骨だけ別のクリップの time の形にする（例：構えたまま歩く＝体は構えのまま、足だけ歩き）。
+	//   bones の骨（の名前）だけを上書きする。ClearLayer で解除
+	void SetLayer(const std::string& clip, float time, const std::vector<std::string>& bones){
+		layerClip_ = clip; layerTime_ = time; layerBones_ = bones; hasLayer_ = true;
+	}
+	void ClearLayer(){ hasLayer_ = false; }
+	// クリップの長さ(秒)。無ければ 0
+	float GetClipDuration(const std::string& clip) const{
+		auto found = clips_.find(clip);
+		return found != clips_.end() ? found->second.duration : 0.0f;
+	}
 	// 指定ジョイントのワールド座標を取得（持ち物ソケット Item への卵アタッチ等に使う）
 	bool GetJointWorldPosition(const std::string& jointName, Vector3& out) const;
 
@@ -141,6 +153,11 @@ private:
     std::string overrideBoneName_;           // アニメ後スケール上書きの対象ボーン
     Vector3     overrideBoneScale_ { 1.0f, 1.0f, 1.0f };
     bool        hasBoneOverride_ = false;
+	// 重ねがけ（SetLayer）
+	bool        hasLayer_ = false;
+	std::string layerClip_;
+	float       layerTime_ = 0.0f;
+	std::vector<std::string> layerBones_;
     std::string currentClip_;                // 再生中のクリップ名（クリップ未使用なら空）
     bool      isLoop_ = true;
 

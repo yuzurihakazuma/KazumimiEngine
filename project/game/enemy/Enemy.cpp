@@ -5,11 +5,18 @@
 #include "engine/3d/obj/SkinnedObj3d.h"
 #include "engine/3d/model/Model.h"
 #include "engine/graphics/DebugDraw.h"
+#include "engine/graphics/TextureManager.h"
 #include "engine/rail/SplineRail.h"
 #include "game/stage/BlockSystem.h"
 
 #include <algorithm>
 #include <cmath>
+
+namespace {
+    constexpr float kMeltTime = 0.7f;        // 倒されてから溶け切るまで(秒)
+    constexpr float kSwallowTime = 0.25f;    // 食べられる時に口へ吸い込まれる長さ(秒)（その間に溶ける）
+    constexpr const char* kMeltNoise = "Resources/noise0.png"; // 溶けて穴があく模様
+}
 
 namespace {
     // 種類ごとのモデル
@@ -91,6 +98,9 @@ void Enemy::ApplySpawn(const EnemySpawnData& spawn){
     consumed_     = false;
     swallowT_     = 0.0f;
     visualHidden_ = false;
+    meltT_        = -1.0f;
+    if ( skinnedObj_ ) { skinnedObj_->SetDissolveThreshold(0.0f); } // 使い回した個体の溶け具合を戻す
+    if ( obj_ )        { obj_->SetDissolveThreshold(0.0f); }
     moving_       = false;
     waitTimer_    = 0.0f;
     turnCooldown_ = 0.0f;
@@ -122,8 +132,10 @@ void Enemy::Initialize(const EnemySpawnData& spawn){
         skinnedObj_->SetEnvironmentMap(Obj3dCommon::GetInstance()->GetEnvironmentTextureSrvIndex());
         skinnedObj_->LoadClips("resources/enemy", spec.modelFile);
         skinnedObj_->SetClip(startClip, true);
+        skinnedObj_->SetNoiseTexture(TextureManager::GetInstance()->Load(kMeltNoise).srvIndex);
     } else {
         obj_ = Obj3d::Create("sphere");
+        if ( obj_ ) { obj_->SetNoiseTexture(TextureManager::GetInstance()->Load(kMeltNoise).srvIndex); }
         if ( obj_ && spawn.type != EnemyType::Zako ) {
             auto model = obj_->GetModel();
             if ( model && model->GetMaterial() ) {
@@ -147,7 +159,10 @@ bool Enemy::Reapply(const EnemySpawnData& spawn){
 
 void Enemy::Update(const std::vector<SplineRail>& rails, const Vector3& playerPos, float dt,
                    const BlockSystem* blocks){
-    if ( !alive_ ) return;
+    if ( !alive_ ) {
+        if ( meltT_ >= 0.0f ) { TickMelt(dt); } // 倒された：溶けて消える途中
+        return;
+    }
     if ( swallowing_ ) return; // 吸い込み中は TickSwallow が動かすのでレール移動はしない
     if ( railIndex_ < 0 || railIndex_ >= ( int ) rails.size() ) return;
     const SplineRail& rail = rails[railIndex_];
@@ -287,21 +302,46 @@ void Enemy::Update(const std::vector<SplineRail>& rails, const Vector3& playerPo
 
     // 当たり判定と見た目を追従（モデルは足元原点なので footPos に置く）
     collider_.SetCenter(position_);
+    ApplyLook(1.0f, 0.0f);
+}
+
+// 見た目の行列と溶け具合。squash＝縦の大きさ（溶ける時につぶれる）、melt＝溶け具合（穴があいていく）
+void Enemy::ApplyLook(float squash, float melt){
+    const float spread = 1.0f + ( 1.0f - squash ) * 0.45f; // つぶれた分だけ横へ広がる
+    const float threshold = melt > 0.0f ? 0.02f + 0.98f * melt : 0.0f;
     if ( skinnedObj_ ) {
         skinnedObj_->SetTranslation(footPos_);
         skinnedObj_->SetRotation(rotation_);
-        skinnedObj_->SetScale({ scale_, scale_, scale_ });
+        skinnedObj_->SetScale({ scale_ * spread, scale_ * squash, scale_ * spread });
+        skinnedObj_->SetDissolveThreshold(threshold);
         skinnedObj_->Update();
     } else if ( obj_ ) {
-        obj_->SetTranslation(position_);
+        obj_->SetTranslation({ position_.x, position_.y - radius_ * ( 1.0f - squash ), position_.z });
         obj_->SetRotation(rotation_);
-        obj_->SetScale({ radius_, radius_, radius_ });
+        obj_->SetScale({ radius_ * spread, radius_ * squash, radius_ * spread });
+        obj_->SetDissolveThreshold(threshold);
         obj_->Update();
     }
 }
 
+void Enemy::Defeat(){
+    if ( !alive_ ) { return; }
+    alive_ = false;
+    meltT_ = 0.0f; // ここから溶けて消える（Update が進める。溶け終わるまで Draw する）
+}
+
+// 倒された：その場でぐにゃっとつぶれながら、模様のとおりに穴があいて溶けて消える
+void Enemy::TickMelt(float dt){
+    meltT_ += dt;
+    const float k = ( std::min )( meltT_ / kMeltTime, 1.0f );
+    const float squash = 1.0f - 0.5f * k * k;      // だんだん速くつぶれる
+    ApplyLook(squash, k);
+    if ( k >= 1.0f ) { meltT_ = -2.0f; }            // 溶け切った（もう描かない）
+}
+
 void Enemy::Draw(){
-    if ( !alive_ || visualHidden_ ) return; // 吸い込み中も alive_ は true のまま → 縮む様子を描画する
+    if ( visualHidden_ ) return;
+    if ( !alive_ && meltT_ < 0.0f ) return; // 倒されて溶けている間は描く。吸い込み中も alive_ は true のまま → 縮む様子を描画する
     if ( skinnedObj_ )   { skinnedObj_->Draw(); }
     else if ( obj_ )     { obj_->Draw(); }
 }
@@ -360,9 +400,8 @@ void Enemy::StartSwallow(){
 // 吸い込み中の更新：プレイヤーの口元へ寄りながらスケールを 1→0 へ縮める。
 void Enemy::TickSwallow(const Vector3& playerPos, float dt){
     if ( !swallowing_ ) return;
-    const float duration = 0.06f; // 食ったら即回収（掴んだ瞬間ほぼその場で消えてお腹に入る）
     swallowT_ += dt;
-    float t = swallowT_ / duration;
+    float t = swallowT_ / kSwallowTime; // 口へ吸い込まれながら、縮んで溶けていく
     if ( t > 1.0f ) t = 1.0f;
 
     // 口元へ近づく（少し上）
@@ -377,16 +416,19 @@ void Enemy::TickSwallow(const Vector3& playerPos, float dt){
     float shrink = 1.0f - t;
     float centerHeight = ( bodyBottom_ + bodyTop_ ) * 0.5f; // 足元→体の中心
     footPos_ = { position_.x, position_.y - centerHeight * shrink, position_.z };
+    const float threshold = 0.02f + 0.9f * t; // 吸い込まれながら溶けていく
     if ( skinnedObj_ ) {
         skinnedObj_->SetTranslation(footPos_); // 足元原点ぶん下げる
         skinnedObj_->SetScale({ scale_ * shrink, scale_ * shrink, scale_ * shrink });
         skinnedObj_->SetRotation(rotation_);
+        skinnedObj_->SetDissolveThreshold(threshold);
         skinnedObj_->Update();
     } else if ( obj_ ) {
         float shrinkScale = radius_ * shrink; // どんどん小さく
         obj_->SetTranslation(position_);
         obj_->SetScale({ shrinkScale, shrinkScale, shrinkScale });
         obj_->SetRotation(rotation_);
+        obj_->SetDissolveThreshold(threshold);
         obj_->Update();
     }
 

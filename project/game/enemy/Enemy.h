@@ -91,7 +91,7 @@ public:
 
     // --- 状態 ---
     bool IsAlive() const{ return alive_ && !swallowing_; } // 吸い込み中は踏み・ロック対象外
-    void Defeat(){ alive_ = false; }   // 踏まれた時など
+    void Defeat();                     // 踏まれた・卵や吐き出しが当たった：その場で溶けて消える（溶け終わるまで描く）
 
     // --- 飲み込み（ヨッシー）：その場から縮みながらプレイヤーへ吸い込まれる ---
     void StartSwallow();                                  // 吸い込み開始
@@ -155,7 +155,11 @@ private:
     bool      consumed_   = false;        // 吸い込み完了（シーンが消してお腹を増やす）
     float     swallowT_   = 0.0f;         // 吸い込み経過(秒)
     Vector3   swallowStart_ { 0.0f, 0.0f, 0.0f }; // 吸い込み開始位置
-    bool      visualHidden_ = false;      // true の間は Draw をスキップ（SDF演出に差し替え中）
+    bool      visualHidden_ = false;      // true の間は Draw をスキップ
+    // 溶けて消える（倒された時）。-1＝溶けていない / 0以上＝溶けはじめてからの秒 / 溶け終わったら -2
+    float     meltT_ = -1.0f;
+    void TickMelt(float dt);
+    void ApplyLook(float squash, float melt); // 見た目の行列と溶け具合（melt 0=そのまま → 1=消えた）
 
     Vector3 footPos_  { 0.0f, 0.0f, 0.0f }; // 足元（モデル原点）
     Vector3 position_ { 0.0f, 0.0f, 0.0f }; // 体の中心

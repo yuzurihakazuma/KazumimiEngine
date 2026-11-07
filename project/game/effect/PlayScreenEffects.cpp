@@ -1,5 +1,6 @@
 #include "PlayScreenEffects.h"
 #include "game/combat/CombatSystem.h"
+#include "game/egg/EggSystem.h"
 #include "engine/postEffect/PostEffect.h"
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
@@ -70,12 +71,12 @@ void PlayScreenEffects::UpdateIris(const Vector3& focus, const Camera& camera){
 	postEffect->SetIrisParams(( std::max )( radius, 0.0f ), centerU, centerV);
 }
 
-void PlayScreenEffects::UpdateWarmup(CombatSystem& combat, bool playing){
+void PlayScreenEffects::UpdateWarmup(CombatSystem& combat, EggSystem& eggs, bool playing){
 	if ( warmupFrame_ > 4 ) return;
 	++warmupFrame_;
 	PostEffect* postEffect = PostEffect::GetInstance();
 	if ( warmupFrame_ == 1 ) {
-		combat.WarmupDissolveFx(); // 画面外でSDF溶けを1回描かせる
+		eggs.WarmupBirthFx(); // 画面外で産卵の SDF の卵を描かせる（SDF の初回描画の固まりを前倒し）
 		postEffect->SetMaskParams(PostEffectMaskParams{});   // マスク半径0＝画面に影響なし
 		postEffect->SetEffectActive(PostEffectType::MaskedDistortion, true);
 		postEffect->SetEffectActive(PostEffectType::MaskedGlow, true);

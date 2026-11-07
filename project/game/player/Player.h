@@ -60,6 +60,8 @@ public:
 
     // --- ノードエディタの「→ ゲーム値」用：調整したい変数のポインタを公開 ---
     float* MoveSpeedPtr(){ return &moveSpeed_; }
+    // 歩く速さの倍率（卵を構えている間はゆっくり歩く、など。1＝ふつう）
+    void SetMoveSpeedScale(float scale){ moveSpeedScale_ = scale; }
     float* JumpPowerPtr(){ return &jump_.power; }
 
     // スタート地点（リスポーン先）。マップ設定から Sync 後にシーンが渡す
@@ -163,6 +165,7 @@ private:
     Vector3 position_ { 0.0f, 0.0f, 0.0f };
     Vector3 rotation_ { 0.0f, 0.0f, 0.0f };
     float   moveSpeed_ = 5.0f;        // 移動速度 (m/s)
+    float   moveSpeedScale_ = 1.0f;   // 歩く速さの倍率（SetMoveSpeedScale）
 
     // スタート地点（Initialize / リスポーンで使う）
     int   spawnRail_ = 0;
