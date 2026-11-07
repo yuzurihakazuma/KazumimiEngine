@@ -159,7 +159,7 @@ private:
 
 	// 体力（♡）とゲームオーバー（中身は game/gameover/GameOverFlow。ここは決まった所で呼ぶだけ）
 	GameOverFlow gameOver_;
-	// 裏世界反転（「？」スイッチに卵を当てると、カメラが回り込んで裏のルートへ。game/flip/WorldFlip）
+	// カメラ反転（レールの向き・「？」スイッチに卵を当てると、カメラが180°回り込んで裏から見る。game/flip/WorldFlip）
 	WorldFlip flip_;
 	void ResetStageForRetry(); // やりなおし：敵・コイン・？ブロック・卵・構え・舌をプレイ開始の時と同じに戻す
 };

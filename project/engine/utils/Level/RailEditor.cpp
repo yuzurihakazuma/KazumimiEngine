@@ -787,6 +787,29 @@ int RailEditor::AppendRail(std::vector<Vector3> line, const std::string& group){
 	return ( int ) data_->railLines.size() - 1;
 }
 
+int RailEditor::AddRailLine(const std::vector<Vector3>& line, const std::string& group, int like, bool copyType){
+	if ( !data_ || line.size() < 2 ) return -1;
+	const int rail = AppendRail(line, group);
+	if ( like >= 0 && like < rail ) {
+		data_->railSkins[rail]       = data_->railSkins[like];
+		data_->railGroundTypes[rail] = data_->railGroundTypes[like];
+		data_->railRoadModes[rail]   = data_->railRoadModes[like];
+		data_->railLineModes[rail]   = data_->railLineModes[like];
+		if ( copyType ) { data_->railTypes[rail] = data_->railTypes[like]; }
+	}
+	RebuildRailPoints();
+	return rail;
+}
+
+bool RailEditor::ReplaceRailLine(int rail, const std::vector<Vector3>& line){
+	if ( !data_ || rail < 0 || rail >= ( int ) data_->railLines.size() || line.size() < 2 ) return false;
+	SyncRailArraySizes();
+	data_->railLines[rail] = line;
+	data_->railNodeHoles[rail].assign(line.size(), 0);
+	RebuildRailPoints();
+	return true;
+}
+
 // レール1本と、それに紐づく全設定配列の同じ番号を削除する（配列ズレの一元防止）。
 //   選択状態のリセットと RebuildRailPoints は呼び出し側で行う（まとめて消す時に1回で済むように）
 void RailEditor::EraseRail(int idx){

@@ -109,7 +109,7 @@ void GamePlayScene::OnInitialize(){
 	gameOverContext.resetStage = [this]{ ResetStageForRetry(); };
 	gameOverContext.onRespawn  = [this]{ flip_.ResetToFront(); }; // 落ちてスタートへ戻る時は表へ
 	gameOver_.Initialize(gameOverContext, backdrop_);
-	// 裏世界反転
+	// カメラ反転（表から見る ⇔ 裏から見る）
 	WorldFlip::Context flipContext;
 	flipContext.player    = player_.get();
 	flipContext.railField = &railField_;
@@ -511,7 +511,7 @@ void GamePlayScene::UpdatePlayMode(){
 		return;
 	}
 
-	// 裏世界反転の間：ゲームの時間を止めて、カメラの回り込みと飛び移りだけ進める
+	// カメラ反転の回り込み中：ゲームの時間を止めて、カメラだけ回す
 	if ( flip_.Update(GetDebugCamera() && GetDebugCamera()->IsActive()) ) {
 		hitFeel_.NotifyCameraOverridden();
 		return;
@@ -639,8 +639,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatarContext.swallow   = &swallow_;
 	avatarContext.aimThrow  = &aimThrow_;
 	avatarContext.eggSystem = &eggSystem_;
-	avatarContext.offset    = flip_.PlayerVisualOffset(); // 裏世界反転で飛び移る途中
-	flip_.UpdateVisuals(playing);                          // スイッチ・レールの出方・背景・光
+	flip_.UpdateVisuals(playing);                          // カメラ反転：スイッチ・裏から見る時に隠す背景
 	gameOver_.UpdateVisuals(playing, playerPos); // やられポーズと♡の輪（恐竜の見た目の更新の前）
 	avatar_.Update(avatarContext);
 
@@ -728,7 +727,7 @@ void GamePlayScene::OnDebugUI(){
 	SceneEditContext editContext = MakeEditContext();
 	editorTools_.DrawPanels(editContext);
 	editorTools_.UpdateGameView(editContext);
-	flip_.DrawGameViewLabels(editContext); // 裏世界反転：スイッチ・乗り換え点・裏のレールの名札
+	flip_.UpdateEditor(editContext); // カメラ反転：パネル「カメラ反転」・Game View のクリックで置く・名札
 	// 乗り換えデバッガ（パネルを開いている間だけ重ね描き）
 	if ( editContext.editor->IsPanelVisible(EditorManager::Panel_RailDebug) ) {
 		const bool playing = ( editContext.editor->GetMode() == EngineMode::Play );
@@ -783,7 +782,6 @@ void GamePlayScene::OnDrawInspector(){
 #ifdef USE_IMGUI
 	// ステージ開始の演技のクリップを、その場で流して確かめる（「止める」で元の動きへ）
 	gameOver_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
-	flip_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
 	if ( ImGui::CollapsingHeader("ステージ開始の演技") ) {
 		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump" } ) {
 			if ( ImGui::Button(clip) ) { avatar_.PlayIntroClip(clip); }

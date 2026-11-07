@@ -1,21 +1,22 @@
 #pragma once
 // =====================================================================
-//  WorldFlip：裏世界反転レール（企画書「裏世界反転レールシステム」）の試作。
-//   ・レールに「両方 / 表 / 裏」の所属を持たせる（resources/map/<ステージ>_flip.json）。
-//     今いない面のレールは乗れない・着地しない・道が沈んで消える（SplineRail::sideBlocked / sideAnim）
-//   ・「？」スイッチ（紫の箱。表裏どちらからも見える）に卵を当てる
-//     → くるっと回ってヒットストップ → カメラがプレイヤーのまわりを弧を描いて180°回り込む
-//     → 回る間に、恐竜が相手の面の乗り換え点へ飛び移り、相手の面の道が生えてくる → クールダウン（灰色）
-//     反転中はゲームの時間を止める（入力・敵・当たり判定も止まる）
-//   ・裏にいる間に「両方」のレールへ着いたら（合流）、乗り換えなしで表へ戻す
-//   ・裏ルートはカメラ側（表の手前、z がマイナスの方）に置く。表のカメラからは背中側なので見えない。
-//     裏の間は、手前（z が backHideZ より小さい）の草・地面を消して、洞窟の床・奥の岩肌・岩に置き換え、光を暗くして恐竜のまわりだけ灯す
-//   ・確かめ用：Game View にスイッチと乗り換え点の名札・矢印、裏のレールを青い線で（環境変数 CG2_DEBUG_KEYS で F8＝近くのスイッチで反転）
-//   ・インスペクター「裏世界（反転）」：所属・スイッチ・乗り換え点・時間を直して保存
-//  入力はもともとカメラの向き基準（PlayerInput）なので、裏でも「D＝画面の右」のまま
+//  WorldFlip：カメラ反転（表から見る ⇔ 裏から見る）。
+//   別の世界へ移るのではなく、同じステージをカメラが反対側から見るだけ。
+//   ・切り替えポイント（resources/map/<ステージ>_flip.json の points）：レールの上に置いた所を通ると、
+//     「裏へ / 表へ / 反転」のとおりにカメラがプレイヤーのまわりを弧を描いて180°回り込む。置いた所でだけ切り替わる
+//   ・レールごとの向き（railSides。表から見る / 裏から見る / 変えない）も使える：向きの違うレールへ乗り移ると回る
+//   ・「？」スイッチ（工作の文字盤 FlipDial）に卵を当てても回る（くるっと回ってヒットストップ → 回り込み）。
+//     回っている間はゲームの時間を止める（入力・敵・当たり判定も止まる）。回り終えたら少しの間スイッチは使えない（灰色）
+//   ・裏から見ている間は、恐竜とカメラの間に入る背の高い背景（木・丘など）を隠す（地面は残す）
+//   ・裏から見ると夕方になる（カメラの回り具合に合わせて、光が夕日の色に・画面にうすく橙・裏のカメラから見える側に夕焼けの空）
+//   ・入力はもともとカメラの向き基準（PlayerInput）なので、裏から見ても「D＝画面の右」
+//   ・エディタ：左のパネル「反転」。Game View の道をクリックしてスイッチを置く・レールの向きを塗る、
+//     スイッチの所から「つなぐ道」（スイッチの道から奥へ延びる道＋その先の裏から見る道）を作る、表/裏のカメラで見る
+//   ・確かめ用：環境変数 CG2_DEBUG_KEYS で F8＝カメラを反転
 // =====================================================================
 #include "engine/3d/obj/Obj3dCommon.h"
 #include "engine/math/struct.h"
+#include "externals/nlohmann/json.hpp"
 
 #include <memory>
 #include <string>
@@ -23,16 +24,18 @@
 
 class Camera;
 class EggSystem;
+class FlipDial;
 class Obj3d;
 class Player;
 class PlayCameraController;
+class RailEditor;
 class RailField;
 class StageBackdrop;
 struct SceneEditContext;
 
 class WorldFlip {
 public:
-    enum class Side { Both = 0, Front = 1, Back = 2 };
+    enum class Side { Both = 0, Front = 1, Back = 2 }; // レールのカメラの向き
 
     // シーンの部品（持たない）
     struct Context {
@@ -48,95 +51,118 @@ public:
     ~WorldFlip();
 
     void Initialize(const Context& context, const std::string& stage);
-    void Finalize(); // 光を元に戻す
+    void Finalize();
 
     void OnPlayStart(){ ResetToFront(); }
     void OnEditStart(){ ResetToFront(); }
-    void ResetToFront(); // 表へ戻す（プレイ開始・落ちた・やりなおし）
+    void ResetToFront(); // 表のカメラへ戻す（プレイ開始・落ちた・やりなおし）
 
-    // プレイ中の進行のはじめ。反転中（ゲームの時間を止めている）なら true → シーンはそのフレームのゲームを進めない
+    // プレイ中の進行のはじめ。回り込み中（ゲームの時間を止めている）なら true → シーンはそのフレームのゲームを進めない
     //   debugCameraActive：デバッグカメラを使っている間はカメラを動かさない
     bool Update(bool debugCameraActive);
     // 飛んでいる卵と「？」スイッチの当たり（卵を投げた後・卵の更新の前に呼ぶ）
     void CheckEggHits();
-    // 見た目（毎フレーム、モードに関わらず）：スイッチ・レールの出方・背景・光
+    // 見た目（毎フレーム、モードに関わらず）：スイッチ・隠す背景
     void UpdateVisuals(bool playing);
     void Draw();
 
     bool IsFlipping() const{ return phase_ != Phase::None; }
-    Side CurrentSide() const{ return side_; }
-    Vector3 PlayerVisualOffset() const{ return visualOffset_; } // 恐竜の見た目のずれ（飛び移る途中）
+    bool IsBackView() const{ return back_; }
 
-    void DrawInspector(bool playing);
-    // Game View に名札（スイッチ・乗り換え点・裏のレール）を出す（エディタの ImGui の中で呼ぶ）
-    void DrawGameViewLabels(const SceneEditContext& context);
+    // エディタ（ImGui の中で毎フレーム呼ぶ）：パネル「カメラ反転」・Game View のクリックで置く・名札
+    void UpdateEditor(const SceneEditContext& context);
 
 private:
-    struct TransferPoint {
-        int     rail = -1;
-        Vector3 pos {};   // この近くのレールの位置へ移る
+    // 切り替えポイント：レールの上の1点。通った（入った）時に、mode のとおりカメラの向きを決める
+    struct FlipPoint {
+        int   rail = -1;
+        float dist = 0.0f;
+        int   mode = 2;          // 0=反転（通るたびに入れ替え）/ 1=表へ / 2=裏へ
+        float radius = 1.5f;     // 通ったとみなす半径(m)
+        Vector3 pos {};          // レールの上の位置（毎フレーム求め直す）
+        bool  valid = false;     // pos が求まっているか（レールが無い・まだ求めていない間は見ない）
+        bool  inside = false;    // 今、半径の中にいるか（入った瞬間だけ切り替える）
     };
     struct Switch {
-        Vector3 pos {};             // 箱の底の真ん中
-        TransferPoint front, back;  // 表側・裏側の乗り換え点
+        int   rail = -1;            // 載せているレール（-1＝位置 pos のまま。古いデータは読み込んだ後に近くのレールへ載せる）
+        float dist = 0.0f;          // レール上の距離(m)
+        float height = 2.3f;        // 道からの高さ(m)（スイッチの底。文字盤の真ん中はその FlipDial::kCenterAbove 上）
+        Vector3 pos {};             // スイッチの底（レールに載っていれば毎フレーム求め直す）
         float hitRadius = 1.1f;     // 卵の当たり半径（見た目より少し大きく）
         float spin = 0.0f;          // くるっと回る（当たった時）
-        std::unique_ptr<Obj3d> obj;
+        int   linkRail = -1;        // 「つなぐ道を作る」で作った、奥へ延びる道（置き直し用）
+        int   backRail = -1;        //   その先の、裏から見る道
+        std::unique_ptr<FlipDial> dial; // 見た目
     };
     enum class Phase { None, Hit, Turn };
 
     bool Load();
-    bool Save() const;
+    bool Save();
+    nlohmann::json SaveData() const; // 保存する中身（未保存の変更があるかの比べにも使う）
     Side RailSide(int rail) const;
-    void BeginFlip(int switchIndex);          // switchIndex<0＝乗り換えなし（合流で表へ戻る）
-    void StartTurn();
+    void SetRailSide(int rail, Side side);
+    void BeginTurn(bool withHit, int switchIndex); // withHit：スイッチに当たった（ヒットストップ・音）
     void FinishTurn();
-    void ApplyRails(bool playing);
     void ApplyBackdrop(bool playing);
-    void ApplyLight();
+    void ApplyEvening(float amount);   // 夕方の度合い（0=昼 → 1=夕方）を光・画面の色・空へ
+    void RestoreDaylight();            // 光と画面の色を元に戻す
     void MakeSwitchObject(Switch& sw);
+    void UpdateSwitchAnchors();
+    void UpdatePointAnchors();
+    bool UpdatePoints();       // 入ったポイントがあれば回り始める（回り始めたら true）
+    bool SwitchRailPoint(const Switch& sw, Vector3& outPos, Vector3& outTangent) const;
+    Vector3 CameraSideOf(const Vector3& tangent) const; // 表のレールから見て、表のカメラ側（手前）の向き
 
     Context context_;
     std::string stage_;
     std::vector<Switch> switches_;
-    std::vector<int>    railSides_;           // レール番号 → 所属（無い所は両方）
+    std::vector<int>    railSides_;     // レール番号 → カメラの向き（無い所は両方）
+    std::vector<FlipPoint> points_;     // 切り替えポイント
 
     // 時間（実時間の秒）
     float hitStop_ = 0.25f;
-    float flipTime_ = 1.0f;
-    float cooldownTime_ = 1.5f;
-    float radiusGrow_ = 0.35f;  // 回る途中に距離を何割広げるか（両方の世界が一瞬見える）
-    float hopHeight_ = 2.0f;    // 飛び移る時の山の高さ(m)
-    float backHideZ_ = -3.0f;   // 背景：これより手前（カメラ側）の物は、裏の間は消す（洞窟の床に置き換える）
-    Vector3 backLightColor_ { 0.55f, 0.5f, 0.85f };
-    float backLightScale_ = 0.45f;
+    float flipTime_ = 0.9f;
+    float cooldownTime_ = 1.2f;
+    float radiusGrow_ = 0.3f;   // 回る途中に距離を何割広げるか
+    float occludeGap_ = 1.0f;   // 裏から見る時：恐竜よりこれ以上カメラ側にある背の高い背景を隠す(m)
 
-    Side  side_ = Side::Front;  // 今の面（乗り換えた時点で相手の面になる）
+    // 夕方（裏から見ると）
+    bool  eveningOnBack_ = true;
+    float eveningStrength_ = 1.0f;
+    Vector3 eveningLight_ { 1.0f, 0.6f, 0.38f };  // 夕日の色
+    float eveningTint_ = 0.12f;                   // 画面に重ねる橙の濃さ
+    float evening_ = 0.0f;                        // 今の夕方の度合い
+    std::unique_ptr<Obj3d> eveningSky_;           // 夕焼けの空（裏のカメラから見える側に立てる板）
+    bool  lightSaved_ = false;
+    Obj3dCommon::DirectionalLightData savedLight_ {};
+
+    bool  back_ = false;        // 今、裏のカメラか（回り始めた時点で切り替わる）
     Phase phase_ = Phase::None;
     float time_ = 0.0f;
     float cooldown_ = 0.0f;
-    int   activeSwitch_ = -1;
-    bool  toBack_ = true;        // この反転の向き
-    float progress_ = 0.0f;      // 0→1（回る途中）。表=0 / 裏=1 として見た目を混ぜる量は look_
-    float look_ = 0.0f;          // 見た目の裏らしさ（0=表 → 1=裏）
-    Vector3 jumpFrom_ {};        // 飛び移る前の恐竜の位置 − 移った先（見た目のずれの元）
-    Vector3 visualOffset_ {};
-
-    // 洞窟（裏の間だけ描く。表のカメラからは背中側なので見えない）
-    std::unique_ptr<Obj3d> caveWall_;  // 奥の岩肌
-    std::unique_ptr<Obj3d> caveFloor_; // 床
-    std::vector<std::unique_ptr<Obj3d>> rocks_;
-    void BuildCave();
-
-    // 光（シーンに入った時の値を覚えて、裏の暗さと混ぜる。終わったら戻す）
-    bool lightSaved_ = false;
-    Obj3dCommon::DirectionalLightData savedLight_ {};
-    Obj3dCommon::PointLight savedPoint_ {};
-    Vector3 lanternColor_ { 1.0f, 0.75f, 0.45f }; // 恐竜のまわりの明かり
-    float lanternIntensity_ = 1.6f;
+    float look_ = 0.0f;         // カメラの回り具合（0=表 → 1=裏）
+    float lookFrom_ = 0.0f;     // 回り始めの look_
+    int   lastRail_ = -1;       // 前のフレームに乗っていたレール（乗り移った時だけ向きを見る）
 
     // エディタ
+    enum class Tool { None, SwitchPos, PaintRail, PlacePoint };
+    void DrawEditorWindow(const SceneEditContext& context);
+    void UpdateGameViewTool(const SceneEditContext& context);
+    void DrawGameViewLabels(const SceneEditContext& context);
+    void BuildLinkRoute(int switchIndex, RailEditor* railEditor); // スイッチの所から奥へつなぐ道と、裏から見る道を作る
+    void FrameEditorCamera(Camera* camera, int switchIndex, bool back) const;
     int  selected_ = 0;
-    bool showDebug_ = true;      // 当たり・乗り換え点・裏のレールを線で
+    bool showDebug_ = true;      // 名札と線
     bool showInPlay_ = false;    // プレイ中も出す
+    bool panelOpen_ = false;     // パネル「カメラ反転」が開いているか（前のフレームの値）
+    Tool tool_ = Tool::None;     // Game View のクリックで何をするか
+    int  paintSide_ = 2;         // レールを塗る時の向き（0=両方 / 1=表 / 2=裏）
+    int  pointMode_ = 2;         // 置くポイントの切り替え方（0=反転 / 1=表へ / 2=裏へ）
+    int  selectedPoint_ = -1;
+    float linkDepth_ = 6.0f;     // つなぐ道：スイッチの道から奥（表のカメラから遠い方）へ(m)
+    float linkBefore_ = 8.0f;    //   裏から見る道の、つなぐ所より前の長さ(m)
+    float linkAfter_ = 20.0f;    //   後ろの長さ(m)
+    bool  previewBack_ = false;  // 編集中に「裏のカメラで見る」を押した（背の高い背景を隠す）
+    Vector3 previewPivot_ {};    //   その時に見ている所
+    std::string savedJson_;      // 最後に読んだ・保存した中身（未保存の印）
 };

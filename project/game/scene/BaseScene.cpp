@@ -305,16 +305,15 @@ void BaseScene::DrawDebugUI(){
 
 void BaseScene::DrawInspector(){
 #ifdef USE_IMGUI
-    // エンジン側の各部品のUI（同じ「詳細設定」ウィンドウへ合流する）
-    Obj3dCommon::GetInstance()->DrawDebugUI();
-    if ( ISceneTransition* transition = SceneManager::GetInstance()->GetTransition() ) { transition->DrawDebugUI(); } // 紙芝居遷移
-    camera_->DrawDebugUI();
-    debugCamera_->DrawDebugUI();
-    ParticleManager::GetInstance()->DrawDebugUI();
-    TextManager::GetInstance()->DrawDebugUI();
+    // 同じ「詳細設定」ウィンドウへ、呼ぶ順に足される。見出しで3つに分ける
+    //   画面の見た目（ポストエフェクトは EditorManager が先に足す）→ このシーン → 確かめ用
+    Obj3dCommon::GetInstance()->DrawDebugUI(); // 光
+    camera_->DrawDebugUI();                    // カメラ（視野角・クリップ）
 
     ImGui::Begin("インスペクター (詳細設定)");
+    ImGui::SeparatorText("このシーン");
     OnDrawInspector();
+    ImGui::SeparatorText("確かめ用");
     if ( ImGui::CollapsingHeader("デバッグ描画 (DebugDraw)") ) {
         bool grid = EditorManager::GetInstance()->IsGridVisible();
         if ( ImGui::Checkbox("グリッドを表示", &grid) ) { EditorManager::GetInstance()->SetGridVisible(grid); }
@@ -322,5 +321,9 @@ void BaseScene::DrawInspector(){
         ImGui::TextDisabled("Box/Sphere/Line はコードから積む。Game View にも表示されます");
     }
     ImGui::End();
+    // エンジンの部品（確かめ用）。デバッグカメラの使い方はメニュー「表示」へ移した
+    if ( ISceneTransition* transition = SceneManager::GetInstance()->GetTransition() ) { transition->DrawDebugUI(); } // 紙芝居遷移
+    ParticleManager::GetInstance()->DrawDebugUI();
+    TextManager::GetInstance()->DrawDebugUI();
 #endif
 }

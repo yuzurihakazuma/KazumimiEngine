@@ -38,7 +38,7 @@ public:
         Camera*               camera = nullptr;
         float                 farClip = 200.0f;          // 再開のカメラの遠くの見える限界（プレイ中のカメラと同じに）
         std::function<void()> resetStage;                 // 敵・コイン・？ブロック・卵・構え・舌を、プレイ開始の時と同じに戻す
-        std::function<void()> onRespawn;                  // 落ちて♡が残っていた：スタートへ戻す時（裏世界を表へ戻すなど）
+        std::function<void()> onRespawn;                  // 落ちて♡が残っていた：スタートへ戻す時（カメラを表へ戻すなど）
     };
 
     GameOverFlow();

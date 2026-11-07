@@ -55,7 +55,7 @@ public:
     void Build(const nlohmann::json& list, const Vector3& origin, uint32_t noiseSrv);
     void Clear();
     void Update(const Camera* camera); // カメラの行列を反映（毎フレーム）
-    // 実行中だけ隠す物（裏世界反転で、今いない面の物）。保存はしない。空＝全部出す
+    // 実行中だけ隠す物（カメラ反転で裏から見る時に、カメラの前をふさぐ物）。保存はしない。空＝全部出す
     void SetRuntimeHidden(const std::vector<char>& hidden);
     // 全体をまとめて縮めて動かす（ステージ選択の箱庭：本物のステージを台座の上に小さく載せる）。
     //   scale=1・yaw=0・translate=0 で元のまま。拡縮は等倍（縦横同じ）だけ

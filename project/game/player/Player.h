@@ -52,8 +52,6 @@ public:
 
     // 卵を構えている間など、移動・ジャンプを止める（その場で待機）
     void SetMovementLocked(bool locked){ movementLocked_ = locked; }
-    // 指定のレールの距離へ移す（裏世界反転の乗り換え点。向きはそのまま、ジャンプ・弾かれ・空中は止める）
-    void WarpTo(const std::vector<SplineRail>& rails, int rail, float distance);
     // ベロ動作中などに呼ぶ：移動はできるが振り向かない（見た目の向きを固定する）
     void SetTurnLocked(bool locked){ facing_.SetTurnLocked(locked); }
     // 向きの強制指定（卵の構え中、狙い方向を向かせる）。active=false で通常の移動向きに戻る
