@@ -12,7 +12,6 @@ class Enemy;
 class Camera;
 class Model;
 class Obj3d;
-class SDFVolumeObject;
 
 // =====================================================================
 //  SwallowAbility：ヨッシーの「舌で捕まえて食べる／産む／吐き出す」アクション。
@@ -40,9 +39,8 @@ class SDFVolumeObject;
 //  舌はワールド座標へ直接焼く動的メッシュ（薄い十字リボン）。実体を持つのは
 //  Shooting/Retracting 中だけで、Idle では空メッシュにして描画コストを0にする。
 //
-//  捕獲した敵は実体メッシュを隠し（Enemy::SetVisualHidden）、代わりに
-//  enemyBall.sdf3d の SDFボリュームを口へ引き込みながらエロージョンで溶かして
-//  消す（CombatSystem の踏みつけ消滅と同じ「SDFで溶ける」演出を、食べる時にも使う）。
+//  捕獲した敵は、舌の先にくっついたまま口へ引き込まれ、縮みながら溶けて消える（Enemy::TickSwallow）。
+//  お腹に入って少しすると、自動で卵を産む（その前に F を押せば吐き出せる）。
 //
 //  シーンから分離した理由：入力→対象選択→開始通知だけの独立したアクションで、
 //  他シーンでも同じ組み合わせで再利用できる。
@@ -50,11 +48,7 @@ class SDFVolumeObject;
 class SwallowAbility {
 public:
     SwallowAbility();
-    ~SwallowAbility(); // unique_ptr<Model>/<Obj3d>/<SDFVolumeObject> のため cpp 側で定義
-
-    // 捕まえた敵をSDFで溶かして消す演出のセットアップ（enemyBall.sdf3d を先読み。
-    //   シーンの LoadResources から呼ぶ。失敗時は従来の縮小アニメへ自動フォールバック）
-    void InitializeEatFx(ID3D12GraphicsCommandList* commandList);
+    ~SwallowAbility(); // unique_ptr<Model>/<Obj3d> のため cpp 側で定義
 
     // 毎フレーム（Play中のみ）呼ぶ。dt はクールタイム・舌アニメの経過用
     void Update(Player& player, EnemyManager& enemies, EggSystem& eggs, HitFeel& hitFeel,
@@ -62,9 +56,6 @@ public:
 
     // 舌の描画（Shooting/Retracting中だけ描く。不透明パスで他のObj3dと一緒に呼ぶ）
     void Draw() const;
-
-    // 捕獲した敵のSDF溶解演出の描画（専用PSOのため、シーンMRTパスの最後で呼ぶこと）
-    void DrawEatFx(ID3D12GraphicsCommandList* commandList) const;
 
     // モード切替時などに強制的にIdleへ戻す（対象への参照も破棄する）。
     //   敵がマップ再同期で作り直される瞬間（Edit→Play）に必ず呼ぶこと
@@ -98,8 +89,8 @@ private:
     Vector3 grabPos_  { 0.0f, 0.0f, 0.0f }; // 捕獲時：掴んだ瞬間の敵位置（Retractingの起点）
     float   retractDuration_ = 0.0f;        // Retracting の秒数（捕獲=0.35秒固定 / 空振り=短め）
     bool    retractCaught_   = false;       // Retracting が捕獲後か空振りかの区別
-    float   eatRadius_       = 0.6f;        // 捕獲時：敵の半径（SDF溶解の大きさに使う）
-    bool    eatFxActive_     = false;       // 今回の捕獲でSDF溶解演出を使っているか（読込失敗時はfalse）
+    int     lastBelly_       = 0;           // 前のフレームのお腹の数（増えた＝食べた）
+    float   autoLayTimer_    = -1.0f;       // 食べてから自動で産むまでの残り秒（-1＝待っていない）
     float   highlightPulseT_ = 0.0f;        // 「捕まえられる」プレビューリングの脈動タイマー
 
     float swallowReach_    = 2.0f;  // 飲み込みの届く距離 (m)
@@ -111,7 +102,4 @@ private:
 
     std::unique_ptr<Model> tongueModel_;
     std::unique_ptr<Obj3d> tongueObj_;
-
-    // 捕まえた敵を溶かして消すSDFボリューム（1個を使い回す。同時に飲み込みは1匹だけなので十分）
-    std::unique_ptr<SDFVolumeObject> eatFx_;
 };

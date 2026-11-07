@@ -531,7 +531,8 @@ Vector3 WorldFlip::CameraSideOf(const Vector3& tangent) const{
 }
 
 // ===== エディタ =====
-// スイッチの所から奥（表のカメラから遠い方）へまっすぐ延びる「つなぐ道」と、その先で横へ延びる「裏から見る道」を作る（もうあれば置き直す）。
+// スイッチの所からまっすぐ延びる「つなぐ道」と、その先で横へ延びる「裏から見る道」を作る（もうあれば置き直す）。
+//   向きは既定で表のカメラ側（手前）＝裏のカメラから見ると奥へ延びて、その先に裏の世界が広がる。
 //   つなぐ道の両端は、スイッチの道・裏から見る道の途中に載る（T字）＝分かれ道のキー（奥/手前）で乗り移れる。
 //   スイッチの道は「表から見る」、つなぐ道は「変えない」、裏から見る道は「裏から見る」にする
 void WorldFlip::BuildLinkRoute(int switchIndex, RailEditor* railEditor){
@@ -540,7 +541,7 @@ void WorldFlip::BuildLinkRoute(int switchIndex, RailEditor* railEditor){
     Vector3 base, tangent;
     if ( !SwitchRailPoint(sw, base, tangent) ) { return; }
     const Vector3 side = CameraSideOf(tangent);
-    const Vector3 deep { -side.x, 0.0f, -side.z }; // 奥
+    const Vector3 deep = linkTowardCamera_ ? side : Vector3 { -side.x, 0.0f, -side.z }; // 延ばす向き
     const Vector3 joint { base.x + deep.x * linkDepth_, base.y, base.z + deep.z * linkDepth_ };
 
     std::vector<Vector3> link;
@@ -810,9 +811,14 @@ void WorldFlip::DrawEditorWindow(const SceneEditContext& context){
         ImGui::SliderFloat("卵の当たり半径", &sw.hitRadius, 0.3f, 3.0f);
 
         // つなぐ道
-        ImGui::SeparatorText("つなぐ道（スイッチの所から奥へ）");
+        ImGui::SeparatorText("つなぐ道（スイッチの所から）");
+        int toward = linkTowardCamera_ ? 1 : 0;
+        ImGui::RadioButton("裏から見て奥へ", &toward, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("表から見て奥へ", &toward, 0);
+        linkTowardCamera_ = ( toward == 1 );
         ImGui::SetNextItemWidth(160.0f);
-        ImGui::SliderFloat("奥へ(m)", &linkDepth_, 3.0f, 30.0f);
+        ImGui::SliderFloat("離す(m)", &linkDepth_, 3.0f, 30.0f);
         ImGui::SetNextItemWidth(160.0f);
         ImGui::SliderFloat("裏の道：前(m)", &linkBefore_, 0.0f, 40.0f);
         ImGui::SetNextItemWidth(160.0f);
@@ -827,8 +833,8 @@ void WorldFlip::DrawEditorWindow(const SceneEditContext& context){
             previewPivot_ = { sw.pos.x, sw.pos.y - sw.height, sw.pos.z };
         }
         if ( !canBuild ) { ImGui::EndDisabled(); }
-        ImGui::TextDisabled("奥へ延びる道（変えない）と、その先の横の道（裏から見る）");
-        if ( exists ) { ImGui::TextColored(kOk, "奥へ：レール%d　裏の道：レール%d", sw.linkRail, sw.backRail); }
+        ImGui::TextDisabled("まっすぐ延びる道（変えない）と、その先の横の道（裏から見る）");
+        if ( exists ) { ImGui::TextColored(kOk, "延びる道：レール%d　裏の道：レール%d", sw.linkRail, sw.backRail); }
     }
 
     ImGui::SeparatorText("ためす");

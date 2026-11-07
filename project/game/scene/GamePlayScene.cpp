@@ -79,8 +79,6 @@ void GamePlayScene::OnLoadResources(){
 
 	// SDF演出のパイプライン構築（産卵・舌で食べる・敵の消滅・溶け道）
 	eggSystem_.InitializeBirthFx(commandList);
-	swallow_.InitializeEatFx(commandList);
-	combat_.InitializeDissolveFx(commandList);
 	dissolveRoad_.Initialize(commandList);
 	// 溶け道の調整UIを SDF パネル（SDF化の管理画面）の最下部へ差し込む
 	//   ※「調整項目」ウィンドウ内から同名 Begin で追記する方式は、タブが同じドックに
@@ -412,7 +410,7 @@ void GamePlayScene::OnUpdate(){
 	UpdateSceneVisuals(currentMode);
 
 	// 初めて敵を倒した瞬間のフリーズを無くすため、起動直後に演出を一度通しておく
-	screenFx_.UpdateWarmup(combat_, currentMode == EngineMode::Play);
+	screenFx_.UpdateWarmup(combat_, eggSystem_, currentMode == EngineMode::Play);
 
 	// タイトルへ戻る（読み込み中のカードで切り替える）
 	if ( Input::GetInstance()->Triggerkey(DIK_T) ) {
@@ -530,6 +528,8 @@ void GamePlayScene::UpdatePlayMode(){
 	player_->SetTurnLocked(swallow_.IsTongueActive());
 	// 卵の構え中は狙い（カーソル）方向を向く（後ろ狙いなら振り向く）
 	player_->SetFaceOverride(aimThrow_.IsAiming(), aimThrow_.GetAimYaw());
+	// 構えている間は、狙いながらそろそろ歩く（見た目は体が構えのまま、足だけ歩く。PlayerAvatar）
+	player_->SetMoveSpeedScale(aimThrow_.IsAiming() ? 0.6f : 1.0f);
 	// 構え中は後ろの列の先頭の卵を非表示（手に持っている扱い。キャンセルで列に戻る）
 	eggSystem_.SetAimHolding(aimThrow_.IsAiming());
 	// 構え中はベロ(E)と産卵(左Ctrl)を発動禁止（両手が卵でふさがっている）
@@ -683,9 +683,7 @@ void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/
 void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
 	if ( gameOver_.HidesScene() ) { return; }
 	eggSystem_.DrawBirthFx(commandList);   // 産卵エロージョン演出中のSDF卵
-	combat_.DrawDissolveFx(commandList);   // 倒された敵がSDFで溶けて消える演出
 	dissolveRoad_.Draw(commandList);       // SDF溶け道
-	swallow_.DrawEatFx(commandList);       // 舌で捕まえた敵がSDFで溶けて消える演出
 }
 
 // スプライト・HUD（画面出力の後）

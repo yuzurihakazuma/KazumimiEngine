@@ -12,7 +12,6 @@
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/DebugDraw.h"
-#include "engine/sdf/SDFVolumeObject.h"
 
 #include <cmath>
 #include <algorithm>
@@ -27,28 +26,19 @@ namespace {
     const float kMissRetractDuration = 0.25f; // 空振り時の引っ込み秒数
     const float kTongueHalfWidth   = 0.09f; // 舌の太さ(半幅)
     const Vector4 kTongueColor     = { 1.0f, 0.42f, 0.5f, 1.0f }; // ヨッシー舌のピンク
-    const Vector4 kEatFxColor      = { 0.98f, 0.96f, 0.86f, 1.0f }; // カラーボリューム無い時の予備色
+    const float kAutoLayDelay      = 0.3f;  // 食べてから自動で産むまで(秒)。その間に F を押せば吐き出せる
     const Vector4 kCatchableColor  = { 1.0f, 0.55f, 0.7f, 0.9f };  // 「今なら捕まえられる」ハイライト（舌と同系色）
 }
 
 SwallowAbility::SwallowAbility() = default;
 SwallowAbility::~SwallowAbility() = default;
 
-// 捕まえた敵をSDFで溶かして消す演出のセットアップ（enemyBall.sdf3d を先読み）
-void SwallowAbility::InitializeEatFx(ID3D12GraphicsCommandList* commandList){
-    eatFx_ = std::make_unique<SDFVolumeObject>();
-    if ( !eatFx_->Load("resources/sdf3d/enemyBall.sdf3d", commandList) ) {
-        eatFx_.reset(); // 読めなければ演出なし（従来の縮小アニメへ自動フォールバック）
-        return;
-    }
-    eatFx_->SetColor(kEatFxColor);
-}
-
 void SwallowAbility::Reset(){
     state_       = State::Idle;
     target_      = nullptr;
     phaseT_      = 0.0f;
-    eatFxActive_ = false;
+    lastBelly_   = 0;
+    autoLayTimer_ = -1.0f;
 }
 
 // E=舌を伸ばして捕まえる / 左Ctrl=産卵 / F=吐き出す。
@@ -144,13 +134,9 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
         }
         if ( hitNow || t >= 1.0f ) {
             if ( target_ ) {
-                // 掴んだ瞬間：位置移動は Enemy 側の既存アニメ(TickSwallow)へそのまま委ねるが、
-                // 見た目は実体メッシュを隠してSDF溶解に差し替える（読込済みの時だけ）。
+                // 掴んだ瞬間：敵は舌の先にくっついたまま口へ引き込まれ、縮みながら溶ける（Enemy::TickSwallow）。
                 // target_ はここで手放す（EnemyManager が完了時に消すため、以後ダングリングになりうる）
                 grabPos_   = target_->GetPosition();
-                eatRadius_ = target_->GetRadius();
-                eatFxActive_ = ( eatFx_ != nullptr );
-                if ( eatFxActive_ ) { target_->SetVisualHidden(true); }
                 target_->StartSwallow();
                 AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.5f); // 捕獲音（流用）
                 hitFeel.Trigger(0.03f, 0.12f); // 捕まえた手応え
@@ -178,23 +164,26 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             : mouth + facing * ( swallowReach_ * ( 1.0f - t ) );
         UpdateTongueMesh(mouth, tip, camera);
 
-        // 捕獲した敵：実体の代わりに、舌の先端と同じ位置でSDFボールを溶かしながら引き込む
-        if ( retractCaught_ && eatFxActive_ && eatFx_ ) {
-            float melt = t * t; // 2次イン：最初はゆっくり崩れ、後半で一気に消える
-            eatFx_->SetScale(eatRadius_ * 2.0f); // 直径。EggSystem/CombatSystem と同じ換算
-            eatFx_->SetTranslation(tip);
-            eatFx_->SetErode(eatRadius_ * melt); // eatRadius_ に達すると完全に溶けきる
-            eatFx_->SetColor(kEatFxColor);
-            eatFx_->Update();
-        }
-
         if ( t >= 1.0f ) {
             state_ = State::Idle;
         }
     }
 
-    // --- 左Ctrl（しゃがみ）：お腹の敵を1匹、後ろに卵として産む ---
-    if ( input->Triggerkey(DIK_LCONTROL) && !actionBlocked_ ) {
+    // --- 食べたら自動で産む：お腹が増えたら少し待ってから（その間に F で吐き出せる）。構え中は構え終わるまで待つ ---
+    const int belly = eggs.BellyCount();
+    if ( belly > lastBelly_ ) { autoLayTimer_ = kAutoLayDelay; }
+    lastBelly_ = belly;
+    bool autoLay = false;
+    if ( autoLayTimer_ >= 0.0f ) {
+        autoLayTimer_ -= dt;
+        if ( autoLayTimer_ < 0.0f ) {
+            if ( actionBlocked_ ) { autoLayTimer_ = 0.0f; } // 卵の構え中：終わったら産む
+            else { autoLay = belly > 0; }
+        }
+    }
+
+    // --- 左Ctrl（しゃがみ）・食べた後の自動：お腹の敵を1匹、後ろに卵として産む ---
+    if ( ( input->Triggerkey(DIK_LCONTROL) || autoLay ) && !actionBlocked_ ) {
         float yaw = player.GetRotation().y;
         Vector3 behind = { playerPos.x - std::sin(yaw) * 0.8f, playerPos.y + 0.3f, playerPos.z - std::cos(yaw) * 0.8f };
         if ( eggs.LayEgg(behind) ) {
@@ -281,11 +270,4 @@ void SwallowAbility::UpdateTongueMesh(const Vector3& mouth, const Vector3& tip, 
 void SwallowAbility::Draw() const{
     // ベロの見た目はプレイヤーモデルの TongueOut アニメに一本化した（二重表示防止のためリボンは描かない）。
     // 捕獲判定・敵の引き込み・SDF消滅・食べられる敵のプレビューリング等の仕様はそのまま生きている
-}
-
-// 捕獲した敵のSDF溶解演出の描画（専用PSOのため、シーンMRTパスの最後で呼ばれる）
-void SwallowAbility::DrawEatFx(ID3D12GraphicsCommandList* commandList) const{
-    if ( state_ == State::Retracting && retractCaught_ && eatFxActive_ && eatFx_ ) {
-        eatFx_->Draw(commandList);
-    }
 }

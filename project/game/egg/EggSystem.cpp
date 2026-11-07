@@ -62,7 +62,16 @@ void EggSystem::InitializeBirthFx(ID3D12GraphicsCommandList* commandList){
 
 // 演出中のSDF卵の描画（専用PSOに切り替えるためMRTパスの最後で呼ばれる）
 void EggSystem::DrawBirthFx(ID3D12GraphicsCommandList* commandList){
-    if ( birthTimer_ >= 0.0f && birthFx_ ) { birthFx_->Draw(commandList); }
+    if ( !birthFx_ ) { return; }
+    if ( birthTimer_ >= 0.0f ) { birthFx_->Draw(commandList); }
+    else if ( birthWarmupDraws_ > 0 ) { --birthWarmupDraws_; birthFx_->Draw(commandList); }
+}
+
+void EggSystem::WarmupBirthFx(){
+    if ( !birthFx_ || birthTimer_ >= 0.0f ) { return; }
+    birthFx_->SetTranslation({ 0.0f, -10000.0f, 0.0f });
+    birthFx_->Update();
+    birthWarmupDraws_ = 3;
 }
 
 // パフ用 Obj3d の事前生成：ロード時にプールへ積んでおく（初回バーストの固まり対策）

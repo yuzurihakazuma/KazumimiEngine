@@ -6,6 +6,7 @@
 #include "game/rail/RailField.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
+#include "engine/base/TimeManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -54,7 +55,12 @@ void PlayerAvatar::Update(const Context& context){
 		float dx = pos.x - prevPos_.x;
 		float dz = pos.z - prevPos_.z;
 		horizontalSpeed = std::sqrt(dx * dx + dz * dz) * 60.0f; // 固定60FPS想定で m/s へ
+		// 向いている方へ動いたか（構えたまま後ろへ下がる時は、足を逆回しにする）
+		if ( std::abs(dx) + std::abs(dz) > 1e-5f ) {
+			moveForward_ = ( dx * std::sin(rot.y) + dz * std::cos(rot.y) ) >= 0.0f ? 1.0f : -1.0f;
+		}
 	}
+	frameSeconds_ = Time::GetInstance()->GetDeltaTime();
 	prevPos_ = pos;
 	prevPosValid_ = true;
 	const float kWalkBaseSpeed = 5.0f; // プレイヤーの通常移動速度(m/s)で Walk を等速再生
@@ -65,9 +71,24 @@ void PlayerAvatar::Update(const Context& context){
 
 	SelectClip(context, speedRatio);
 
+	// 跳ぶ・着く時の伸び縮み：跳んだ瞬間に縦に伸び、着いた瞬間にぽよんとつぶれる（どこで跳んで、どこへ着いたかが分かるように）
+	if ( context.playing && context.player ) {
+		const bool grounded = context.player->IsGrounded();
+		if ( wasGrounded_ && !grounded ) { jumpStretch_ = 1.0f; }
+		if ( !wasGrounded_ && grounded ) { landSquash_ = 1.0f; jumpStretch_ = 0.0f; }
+		wasGrounded_ = grounded;
+	} else {
+		wasGrounded_ = true;
+		jumpStretch_ = landSquash_ = 0.0f;
+	}
+	jumpStretch_ = ( std::max )( 0.0f, jumpStretch_ - frameSeconds_ / 0.22f );
+	landSquash_ = ( std::max )( 0.0f, landSquash_ - frameSeconds_ / 0.18f );
+	const float actionY = ( 1.0f + 0.16f * jumpStretch_ ) * ( 1.0f - 0.22f * std::sin(landSquash_ * 3.14159265f * 0.5f) );
+
 	model_->SetTranslation({ pos.x, pos.y + modelYOffset_ + dropLift_, pos.z });
-	const float bulge = 1.0f + ( 1.0f - dropSquash_ ) * 0.6f;
-	model_->SetScale({ bulge, dropSquash_, bulge });
+	const float scaleY = dropSquash_ * actionY;
+	const float bulge = 1.0f + ( 1.0f - scaleY ) * 0.6f; // 縦につぶれた分だけ横へふくらむ（伸びた時は細く）
+	model_->SetScale({ bulge, scaleY, bulge });
 	model_->SetRotation({ defeatTilt_, defeatHasYaw_ ? defeatYaw_ : rot.y, defeatRoll_ });
 	model_->Update();
 }
@@ -88,6 +109,7 @@ bool PlayerAvatar::GetJointWorldPosition(const std::string& joint, Vector3& out)
 
 void PlayerAvatar::ResetTongueAndHeldEgg(){
 	model_->ClearBoneScaleOverride();
+	model_->ClearLayer();
 	tongueSeeked_ = false;
 	heldEggVisible_ = false;
 }
@@ -116,6 +138,7 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		// ベロの長さを実距離に同期（Tongueボーンの伸びを上書き）＝目の前の敵でも貫通しない
 		float stretch = std::clamp(context.swallow->GetTongueLength() / 1.2f, 0.10f, 1.0f);
 		model_->SetBoneScaleOverride("Tongue", { 1.0f, stretch, 1.0f });
+		model_->ClearLayer();
 		// 捕獲成立で戻しに入った瞬間、クリップを収納パートへ飛ばす（伸ばす絵をスキップ）
 		if ( wasRetracting && context.swallow->IsRetracting() && !tongueSeeked_ ) {
 			model_->SetAnimationTime(0.85f);
@@ -129,6 +152,14 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		model_->SetPlaybackSpeed(0.0f);
 		model_->SetAnimationTime(0.67f); // 溜め(f16)のポーズ
 		throwTimer_ = 0.65f;             // 離した後にリリース→復帰を再生する時間
+		// 構えたまま歩く：体は構えのまま、足としっぽだけ歩く（後ろへ下がる時は逆回し）。止まれば構えの足に戻す
+		//   （足が止まったまま滑っているように見えていた）
+		if ( speedRatio > 0.05f ) {
+			aimWalkTime_ += frameSeconds_ * ( std::max )( speedRatio, 0.5f ) * 1.3f * moveForward_;
+			model_->SetLayer("Walk", aimWalkTime_, { "Foot_L", "Foot_R", "Tail" });
+		} else {
+			model_->ClearLayer();
+		}
 		// 構え中は卵を持ち物ソケット（Itemジョイント）に持たせる
 		Vector3 itemPos;
 		heldEggVisible_ = context.eggSystem && ( context.eggSystem->HeldCount() > 0 )
@@ -141,6 +172,7 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 	} else if ( playing && throwTimer_ > 0.0f ) {
 		// 離した直後：リリース(f20)→復帰を最後まで再生
 		heldEggVisible_ = false;
+		model_->ClearLayer();
 		if ( model_->GetCurrentClip() == "Throw" && throwTimer_ >= 0.649f ) {
 			model_->SetAnimationTime(0.75f); // リリース直前(f18)から
 		}
@@ -150,6 +182,7 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 	} else if ( playing && context.eggSystem && context.eggSystem->IsBirthActive() ) {
 		// 産卵：しゃがみ踏ん張り→ポンッ（演出時間に合わせて早回し）
 		heldEggVisible_ = false;
+		model_->ClearLayer();
 		model_->SetClip("EggLay", false);
 		model_->SetPlaybackSpeed(2.5f);
 	} else if ( playing && context.player && !context.player->IsGrounded() ) {

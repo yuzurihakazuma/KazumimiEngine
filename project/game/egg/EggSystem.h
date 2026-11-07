@@ -86,6 +86,8 @@ public:
     void InitializeBirthFx(ID3D12GraphicsCommandList* commandList);
     //   描画：専用PSOへ切り替えるため、シーンMRTパスの最後（他のObj3dの後）で呼ぶこと
     void DrawBirthFx(ID3D12GraphicsCommandList* commandList);
+    // 初回描画の前倒し：数フレームだけ、画面の外で SDF の卵を描く（最初に産んだ瞬間に止まらないように）
+    void WarmupBirthFx();
 
 private:
     std::vector<std::unique_ptr<Egg>> eggs_;
@@ -96,6 +98,7 @@ private:
     std::unique_ptr<SDFVolumeObject> birthFx_; // SDFの卵（1個を使い回す）
     Egg*  birthEgg_   = nullptr;               // 演出対象（eggs_ 内に存在するか毎フレーム検証）
     float birthTimer_ = -1.0f;                 // 経過秒。負=演出していない
+    int   birthWarmupDraws_ = 0;               // WarmupBirthFx：画面の外で描く残りフレーム
     bool  aimHolding_ = false;                 // 構え中（列の先頭の卵を手に持っている扱いで非表示）
 
     // --- 飛行中の卵が残す「煙パフ」---

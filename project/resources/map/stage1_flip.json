@@ -23,13 +23,13 @@
   "points": [
     {
       "rail": 23,
-      "dist": 2.5,
+      "dist": 1.5,
       "mode": 1,
-      "radius": 1.2
+      "radius": 0.9
     },
     {
       "rail": 23,
-      "dist": 7.5,
+      "dist": 4.0,
       "mode": 2,
       "radius": 1.2
     }

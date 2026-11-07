@@ -1,5 +1,6 @@
 #include "SkinnedObj3d.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -157,6 +158,25 @@ void SkinnedObj3d::Update(){
 	// --- スケルトンにアニメーションを適用して行列を更新 ---
 	UpdateSkeleton(skeleton_, animation_, animationTime_);
 
+	// --- 重ねがけ（アニメ適用後）：指定の骨だけ別のクリップの形に差し替える ---
+	bool rebuild = false;
+	if ( hasLayer_ ) {
+		auto found = clips_.find(layerClip_);
+		if ( found != clips_.end() ) {
+			const Animation& layer = found->second;
+			const float time = layer.duration > 0.0f ? std::fmod(std::fmod(layerTime_, layer.duration) + layer.duration, layer.duration) : 0.0f;
+			for ( auto& joint : skeleton_.joints ) {
+				if ( std::find(layerBones_.begin(), layerBones_.end(), joint.name) == layerBones_.end() ) { continue; }
+				auto node = layer.nodeAnimations.find(joint.name);
+				if ( node == layer.nodeAnimations.end() ) { continue; }
+				joint.transform.translate = CalculateValue(node->second.translate.keyframes, time);
+				joint.transform.rotate = CalculateValue(node->second.rotate.keyframes, time);
+				joint.transform.scale = CalculateValue(node->second.scale.keyframes, time);
+				rebuild = true;
+			}
+		}
+	}
+
 	// --- ボーン上書き（アニメ適用後）：ベロの長さ等をゲーム側で直接制御する ---
 	if ( hasBoneOverride_ ) {
 		for ( auto& joint : skeleton_.joints ) {
@@ -166,6 +186,9 @@ void SkinnedObj3d::Update(){
 				joint.transform.scale.z *= overrideBoneScale_.z;
 			}
 		}
+		rebuild = true;
+	}
+	if ( rebuild ) {
 		for ( auto& joint : skeleton_.joints ) { // 手動モードと同じ手順で行列を作り直す（親→子順）
 			joint.localMatrix = MakeAffineMatrix(joint.transform.scale, joint.transform.rotate, joint.transform.translate);
 			if ( joint.parent ) { joint.skeletonSpaceMatrix = Multiply(joint.localMatrix, skeleton_.joints[*joint.parent].skeletonSpaceMatrix); }

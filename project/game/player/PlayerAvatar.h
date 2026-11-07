@@ -77,6 +77,14 @@ private:
     bool    tongueSeeked_ = false;      // 捕獲時の収納パートへのシークを1回だけ行うためのフラグ
     float   throwTimer_ = 0.0f;         // 投げリリース後の復帰モーション再生の残り時間
     int     blinkFrame_ = 0;            // 無敵中の点滅用
+    // 構えたまま歩く：体は構えのまま、足としっぽだけ歩きのクリップを重ねる（SkinnedObj3d::SetLayer）
+    float   aimWalkTime_ = 0.0f;        // 重ねる歩きの時刻（後ろへ下がる時は戻す）
+    float   moveForward_ = 1.0f;        // 向いている方へ動いたか（+1）・後ろへ下がったか（-1）
+    float   frameSeconds_ = 0.0f;       // このフレームの長さ（ゲームの時間）
+    // 跳ぶ・着く時の伸び縮み（動きを分かりやすく）
+    bool    wasGrounded_ = true;
+    float   jumpStretch_ = 0.0f;        // 跳んだ瞬間 1 → 0（縦に伸びる）
+    float   landSquash_ = 0.0f;         // 着いた瞬間 1 → 0（縦につぶれる）
     std::string introClip_;             // ステージ開始演出のクリップ（空＝指定なし）
     bool    introRestart_ = false;      // 次の更新で、演出のクリップを頭から流す
     float   dropLift_ = 0.0f;           // 上から落ちてくる演出の高さ

@@ -218,7 +218,7 @@ void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float mo
     const float oldFootY = rail.GetPositionByDistance(currentDistance_).y;
     // 入力の大きさ（キーは常に1。自動操縦は目標の手前で1未満にして、ぴったり止まる）を速さに掛ける
     const float inputScale = ( std::min )( std::abs(moveInput), 1.0f );
-    currentDistance_ += dsSign_ * inputScale * moveSpeed_ * rail.speedMul * dt;
+    currentDistance_ += dsSign_ * inputScale * moveSpeed_ * moveSpeedScale_ * rail.speedMul * dt;
     if ( !jump_.grounded ) {
         // 空中（ジャンプ中）はワールド空間の弾道を保つ：
         //   最終位置は「レール上の点 + 高さ」なので、何もしないと

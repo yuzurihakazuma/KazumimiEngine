@@ -8,7 +8,6 @@
 #include "engine/base/TimeManager.h"
 #include "engine/graphics/DebugDraw.h"
 #include "engine/math/VectorMath.h"
-#include "engine/sdf/SDFVolumeObject.h"
 
 #include <algorithm>
 #include <cmath>
@@ -16,12 +15,6 @@
 using namespace VectorMath;
 
 namespace {
-    // --- 敵のSDF消滅演出の定数 ---
-    const int   kDissolvePool  = 3;     // 同時に溶かせる敵の数（超えたら一番古いのを使い回す）
-    const float kDissolveTime  = 0.45f; // 溶けきるまでの秒数
-    const float kDissolveFade  = 0.35f; // この割合を過ぎたら透明化も並行（0〜1）
-    const Vector4 kDissolveColor = { 0.9f, 0.35f, 0.3f, 1.0f }; // カラーボリュームが無い時の予備色
-
     // --- プレイヤーの体（足元から立つ縦の筒）---
     //   高さはブロックの当たり（Player の体の帯・頭の高さ1.0m）と同じ値に揃える
     const float kPlayerBodyHeight = 1.0f;
@@ -35,21 +28,6 @@ void CombatSystem::Initialize(uint32_t circleTexSrv, uint32_t envTexSrv){
     circleTex_ = circleTexSrv;
     envTex_    = envTexSrv;
     stompEffects_.clear();
-}
-
-// 敵のSDF消滅演出のセットアップ（enemyBall.sdf3d＋カラーボリュームをプールぶん先読み）
-void CombatSystem::InitializeDissolveFx(ID3D12GraphicsCommandList* commandList){
-    dissolves_.clear();
-    for ( int i = 0; i < kDissolvePool; ++i ) {
-        DissolveFx dissolveFx;
-        dissolveFx.vol = std::make_unique<SDFVolumeObject>();
-        if ( !dissolveFx.vol->Load("resources/sdf3d/enemyBall.sdf3d", commandList) ) {
-            dissolves_.clear(); // 読めなければ演出なし（従来のポン消えに自動フォールバック）
-            return;
-        }
-        dissolveFx.vol->SetColor(kDissolveColor);
-        dissolves_.push_back(std::move(dissolveFx));
-    }
 }
 
 // エフェクトの事前生成：ロード画面のうちに Obj3d 一式（専用モデル4種の登録込み）を作ってプールへ。
@@ -76,26 +54,6 @@ void CombatSystem::SpawnStompEffect(const Vector3& pos, Camera* camera, StompEff
 }
 
 // 倒れた敵の位置でSDFボールを溶かし始める
-void CombatSystem::SpawnEnemyDissolve(const Vector3& pos, float radius){
-    if ( dissolves_.empty() ) return;
-    // 未使用スロット優先。無ければ一番進んだ（=一番古い）演出を使い回す
-    DissolveFx* slot = nullptr;
-    for ( auto& dissolve : dissolves_ ) {
-        if ( dissolve.timer < 0.0f ) { slot = &dissolve; break; }
-    }
-    if ( !slot ) {
-        slot = &dissolves_[0];
-        for ( auto& dissolve : dissolves_ ) { if ( dissolve.timer > slot->timer ) slot = &dissolve; }
-    }
-    slot->timer = 0.0f;
-    slot->scale = radius * 2.0f; // 敵の見た目（直径）と同じ大きさで重ねる
-    slot->vol->SetScale(slot->scale);
-    slot->vol->SetTranslation(pos);
-    slot->vol->SetErode(0.0f);
-    slot->vol->SetColor(kDissolveColor);
-    slot->vol->Update();
-}
-
 void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs, HitFeel& hitFeel, Camera* camera){
     // --- プレイヤー × 敵：体どうしの接触（踏みつけ／横からぶつかる）---
     //   プレイヤーは「足元から高さ1m・半径0.35m」の縦の筒、敵は見た目の実寸の筒で判定する。
@@ -152,8 +110,7 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
             player.Bounce();
             hitFeel.Trigger(0.06f, 0.28f);      // 一瞬停止＋カメラ揺れ
             hitFeel.TriggerImpactFx(enemyPos);  // 踏んだ点中心のポストエフェクト起動
-            SpawnStompEffect(enemyPos, camera, StompEffectType::Stomp);
-            SpawnEnemyDissolve(enemyPos, enemy->GetRadius()); // 敵はSDFで芯まで溶けて消える
+            SpawnStompEffect(enemyPos, camera, StompEffectType::Stomp); // 敵は Defeat でその場で溶けて消える
         } else if ( contactKnockback_ && !player.IsInvincible() ) {
             // 横や下からぶつかった：敵と反対側へ弾かれる（すり抜けない）。直後は少しの間だけ無敵
             player.Knockback({ dx, 0.0f, dz });
@@ -168,11 +125,9 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
             if ( !enemy->IsAlive() ) continue;
             if ( enemy->HitsSweptSphere(ballFrom, ballTo, ballRadius) ) {
                 Vector3 enemyPos = enemy->GetPosition();
-                float enemyRadius = enemy->GetRadius();
-                enemy->Defeat();
+                enemy->Defeat();              // 敵はその場で溶けて消える
                 hitFeel.Trigger(0.05f, 0.2f); // 命中の手応え
                 SpawnStompEffect(enemyPos, camera, StompEffectType::EggHit);
-                SpawnEnemyDissolve(enemyPos, enemyRadius);   // 敵はSDFで溶けて消える
                 AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.7f);
                 return true; // 弾も消える
             }
@@ -186,12 +141,10 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
             if ( !enemy->IsAlive() ) continue;
             if ( enemy->HitsSweptSphere(eggFrom, eggTo, eggRadius) ) {
                 Vector3 enemyPos = enemy->GetPosition();
-                float enemyRadius = enemy->GetRadius();
-                enemy->Defeat();
+                enemy->Defeat();                    // 敵はその場で溶けて消える
                 hitFeel.Trigger(0.05f, 0.2f); // 命中の手応え
                 eggs.SpawnHitFx(enemyPos);          // 黄＆オレンジが鋭く飛び散る（踏みつけのリングとは別物）
                 SpawnStompEffect(enemyPos, camera, StompEffectType::EggHit); // 立体の着弾エフェクト
-                SpawnEnemyDissolve(enemyPos, enemyRadius);   // 敵はSDFで溶けて消える
                 AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.7f); // 命中音
                 return true; // 命中（殻の緑＋黄身は卵の割れ演出が別に出す）
             }
@@ -211,32 +164,10 @@ void CombatSystem::UpdateEffects(float dt){
             ++it;
         }
     }
-
-    // --- 敵のSDF消滅：エロージョンを進めて芯まで溶かす（終盤は透明化も並行）---
-    for ( auto& dissolve : dissolves_ ) {
-        if ( dissolve.timer < 0.0f ) continue;
-        dissolve.timer += dt;
-        float t = dissolve.timer / kDissolveTime;
-        if ( t >= 1.0f ) { dissolve.timer = -1.0f; continue; } // 溶けきった→スロットを空ける
-
-        float melt = t * t; // 2次イン（最初はゆっくり崩れ、後半一気に消える）
-        dissolve.vol->SetErode(0.5f * dissolve.scale * melt); // 0.5*scale で完全消滅（birthFx と同じ換算）
-        Vector4 color = kDissolveColor;
-        color.w = 1.0f - std::clamp(( t - kDissolveFade ) / ( 1.0f - kDissolveFade ), 0.0f, 1.0f);
-        dissolve.vol->SetColor(color);
-        dissolve.vol->Update(); // カメラ行列＋CBを毎フレーム焼き直す
-    }
 }
 
 void CombatSystem::Draw(){
     for ( auto& effect : stompEffects_ ) { effect->Draw(); }
-}
-
-// SDF消滅演出の描画（専用PSOのためMRTパスの最後で呼ばれる）
-void CombatSystem::DrawDissolveFx(ID3D12GraphicsCommandList* commandList){
-    for ( auto& dissolve : dissolves_ ) {
-        if ( dissolve.timer >= 0.0f && dissolve.vol ) { dissolve.vol->Draw(commandList); }
-    }
 }
 
 // プレイヤーの当たり判定の形（縦の筒）をワイヤーで描く
@@ -268,5 +199,4 @@ void CombatSystem::ClearEffects(){
         if ( stompPool_.size() < 8 ) { stompPool_.push_back(std::move(effect)); }
     }
     stompEffects_.clear();
-    for ( auto& dissolve : dissolves_ ) { dissolve.timer = -1.0f; } // 溶かし中の演出も止める
 }

@@ -10,6 +10,7 @@
 
 class Camera;
 class CombatSystem;
+class EggSystem;
 
 class PlayScreenEffects {
 public:
@@ -27,7 +28,7 @@ public:
     //   SDF溶け演出は初めて描画された瞬間にシェーダー/パイプラインの遅延構築で1秒以上固まり、
     //   ヒット時ポストエフェクト（歪み+グロー）の初回パスも約0.2秒かかる（フレーム計測で実測）。
     //   playing=true なら、終わった時にプレイ用の見た目を戻す（リリース版は最初から Play で始まるため）
-    void UpdateWarmup(CombatSystem& combat, bool playing);
+    void UpdateWarmup(CombatSystem& combat, EggSystem& eggs, bool playing);
 
 private:
     enum class IrisPhase { None, Closing, Hold, Opening };
