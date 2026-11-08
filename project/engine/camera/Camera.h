@@ -38,6 +38,7 @@ public:
 	void SetRotation(const Vector3& rotation){ transform.rotate = rotation; } // 回転をセット
 	void SetTranslation(const Vector3& translation){ transform.translate = translation; } // 位置をセット
 	void SetFovY(float fovY){ this->fovY = fovY; } // 視野角をセット
+	float GetFovY() const{ return fovY; }            // 視野角のgetter
 	void SetAspectRatio(float aspectRatio){ this->aspectRatio = aspectRatio; } // アスペクト比をセット
 	void SetNearClip(float nearClip){ this->nearClip = nearClip; } // ニアクリップ距離をセット
 	void SetFarClip(float farClip){ this->farClip = farClip; } // ファークリップ距離をセット

@@ -161,5 +161,9 @@ private:
 	GameOverFlow gameOver_;
 	// カメラ反転（レールの向き・「？」スイッチに卵を当てると、カメラが180°回り込んで裏から見る。game/flip/WorldFlip）
 	WorldFlip flip_;
+	// 撮影のテイク（ScreenCapture）：記録を始めた所から、敵・コインなどを置き直して始める
+	void SetupCaptureTakes();
+	void RestartForTake(int rail, float dist);
+	bool snapCameraOnce_ = false; // 次のプレイの更新で、カメラを補間せずに追従の位置へ置く
 	void ResetStageForRetry(); // やりなおし：敵・コイン・？ブロック・卵・構え・舌をプレイ開始の時と同じに戻す
 };

@@ -45,6 +45,8 @@
 
 #include "externals/nlohmann/json.hpp"
 
+#include "engine/utils/ScreenCapture.h"
+
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -95,6 +97,7 @@ void GamePlayScene::OnInitialize(){
 	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
 	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
 	BuildBackdrop();
+	SetupCaptureTakes();             // 撮影のテイク：記録・再生の始めに戻す状態
 	// 体力（♡）とゲームオーバー
 	GameOverFlow::Context gameOverContext;
 	gameOverContext.player    = player_.get();
@@ -558,8 +561,11 @@ void GamePlayScene::UpdatePlayMode(){
 	stageFlow_.Update(player_->GetPosition(), railField_, hitFeel_);
 
 	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
+	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true); } // 撮影のテイクの始め：補間せずに置く
 	camCtrl_.Update(GetCamera(), player_->GetPosition(), player_->IsGrounded(), railField_.GetRails(),
 		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
+	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, false); snapCameraOnce_ = false; }
+	ScreenCapture::GetInstance()->ApplyCameraLock(GetCamera()); // 撮影の画角プリセットで固定している間は、追従カメラより優先
 	hitFeel_.NotifyCameraOverridden(); // カメラ位置を上書きしたのでシェイクの自己相殺をリセット
 	transferDebugger_.Record(*player_, railField_.GetRails(), GetCamera(), deltaTime); // 乗り換えデバッガの記録
 
@@ -703,6 +709,43 @@ void GamePlayScene::OnFrameComposed(ID3D12GraphicsCommandList* commandList, Rend
 }
 
 // やりなおし：ステージをプレイ開始の時と同じに戻す（プレイヤー・カメラ・♡は GameOverFlow が戻す）
+// 撮影のテイク：記録を始めた所（レール・距離）を覚え、記録・再生の始めに同じ状態へ戻す
+void GamePlayScene::SetupCaptureTakes(){
+	ScreenCapture::TakeHooks hooks;
+	hooks.scene = "GAMEPLAY";
+	hooks.capture = [this](nlohmann::json& start, std::string& error){
+		if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play ) { error = "Play 中に押す"; return false; }
+		if ( intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() ) { error = "演出の間は始められない"; return false; }
+		if ( !player_->IsGrounded() ) { error = "地面に立っている時に押す"; return false; }
+		start["rail"] = player_->GetCurrentRail();
+		start["dist"] = player_->GetDebugStep().dist;
+		return true;
+	};
+	hooks.apply = [this](const nlohmann::json& start){ RestartForTake(start.value("rail", -1), start.value("dist", 0.0f)); };
+	ScreenCapture::GetInstance()->SetTakeHooks(hooks);
+}
+
+// プレイを最初の状態からやり直し、プレイヤーを rail / dist に立たせる（敵・コイン・？ブロック・卵・♡・カメラも戻す）
+void GamePlayScene::RestartForTake(int rail, float dist){
+	if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play ) { return; }
+	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
+	testPlayRail_ = rail; // OnPlayStart がこの場所に立たせる（落ちた時の戻り先もここ）
+	testPlayDist_ = dist;
+	OnPlayStart();
+	railField_.ResetMotion();
+	SpawnEnemies();
+	// カメラは補間せずに追従の位置へ置く（遠くから寄ってくる所から始まらないように）。
+	//   プレイヤーの位置は次の Player::Update で決まるので、ここではレールの上の開始地点で置き、次のプレイの更新でもう一度置く
+	const auto& rails = railField_.GetRails();
+	if ( rail >= 0 && rail < ( int ) rails.size() ) {
+		camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true);
+		camCtrl_.Update(GetCamera(), rails[rail].GetPositionByDistance(dist), true, rails, false, 0.0f);
+		camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, false);
+		GetCamera()->Update();
+	}
+	snapCameraOnce_ = true;
+}
+
 void GamePlayScene::ResetStageForRetry(){
 	aimThrow_.Reset();
 	swallow_.Reset();
@@ -803,6 +846,7 @@ void GamePlayScene::OnFinalize(){
 	// SDFパネルへ差し込んだ溶け道設定UI（this をキャプチャ）を解除する
 	//   （エディタの外部ポインタ・ノードのゲーム値・GPUパーティクルの後始末は BaseScene が行う）
 	SDFManager::GetInstance()->SetExtraPanelUI(nullptr);
+	ScreenCapture::GetInstance()->ClearTakeHooks(); // this をキャプチャしている
 	gameOver_.Finalize();
 	flip_.Finalize();
 	textures_.clear();

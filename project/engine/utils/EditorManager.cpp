@@ -36,6 +36,7 @@
 #include <filesystem>
 #ifdef USE_IMGUI
 #include "externals/ImGuizmo/ImGuizmo.h"
+#include "engine/utils/ScreenCapture.h"
 #endif
 
 namespace {
@@ -95,6 +96,7 @@ namespace {
         { "\xEE\xA2\xB9\n背景", "背景エディタ（木・草・花・柵などを置く・選ぶ・消す）", "背景エディタ (Backdrop)" },   // E8B9 写真
         { "\xEE\xA2\xAB\n乗換", "乗り換えデバッガ（レールからレールへ移る時のずれを数値で見る）", "乗り換えデバッガ (Rail Transfer)" }, // E8AB 切替
         { "\xEE\xA2\x95\n反転", "カメラ反転（反転スイッチを道に置く・レールのカメラの向きを塗る・奥へつなぐ道を作る）", "カメラ反転 (Camera Flip)" }, // E895 回る矢印
+        { "\xEE\x9C\x94\n撮影", "撮影（F12 スクショ・F9 連番録画・GIF にまとめる・テイク・画角プリセット）", "撮影 (Capture)" }, // E714 ビデオ
     };
     // パネルを増やした時に行を足し忘れると、名前が空のまま参照されて実行時に落ちる。ビルド時に気づけるようにする
     static_assert(sizeof(kPanelIcons) / sizeof(kPanelIcons[0]) == EditorManager::Panel_Count,
@@ -107,7 +109,7 @@ namespace {
         { "ステージを作る", { EditorManager::Panel_Rail, EditorManager::Panel_Layout, EditorManager::Panel_Items, EditorManager::Panel_Enemy,
                               EditorManager::Panel_Backdrop, EditorManager::Panel_Camera, EditorManager::Panel_WorldFlip }, 7 },
         { "調べる・直す",   { EditorManager::Panel_Hierarchy, EditorManager::Panel_Inspector, EditorManager::Panel_Transform,
-                              EditorManager::Panel_RailDebug, EditorManager::Panel_Minimap, EditorManager::Panel_Perf }, 6 },
+                              EditorManager::Panel_RailDebug, EditorManager::Panel_Minimap, EditorManager::Panel_Perf, EditorManager::Panel_Capture }, 7 },
         { "素材",           { EditorManager::Panel_Assets, EditorManager::Panel_File, EditorManager::Panel_Sdf, EditorManager::Panel_GpuParticle }, 4 },
     };
     // パネルを足した時に組へ入れ忘れると、アイコン列にもメニューにも出なくなる。ビルド時に気づけるようにする
@@ -230,6 +232,9 @@ void EditorManager::Update(){
     if ( nodeEditor_ ) {
         nodeEditor_->Update();
     }
+
+    // 録画中の「REC」・テイクの記録/再生中の印（エディタを隠していても出す。ImGui なのでゲーム画面の録画には入らない）
+    ScreenCapture::GetInstance()->DrawOverlay();
 
     if ( !isEditorActive_ ) {
         // エディタ非表示（フルスクリーン）ではホイールズーム・視点ドラッグを常に許可
@@ -1552,6 +1557,11 @@ void EditorManager::Update(){
     // 7. パフォーマンスモニター（master_engine から移植：履歴グラフ・メモリ/VRAM・ドローコール付き）
     if ( perfMonitor_ && IsPanelVisible(Panel_Perf) ) {
         perfMonitor_->DrawDebugUI(cpuUpdateTimeMs_, cpuDrawTimeMs_);
+    }
+
+    // 撮影（スクショ・連番録画・テイク・画角プリセット）
+    if ( IsPanelVisible(Panel_Capture) ) {
+        ScreenCapture::GetInstance()->DrawPanel(kPanelIcons[Panel_Capture].windowTitle);
     }
 
     // 8. ノードエディタ（表示メニューでON/OFF。master_engine から移植）

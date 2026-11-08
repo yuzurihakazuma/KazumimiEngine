@@ -22,6 +22,7 @@
 #include "engine/utils/RenderStats.h"
 #include "engine/utils/GlobalVariables.h"
 #include "engine/graphics/DebugDraw.h"
+#include "engine/utils/ScreenCapture.h"
 
 
 void Framework::Initialize(){
@@ -96,6 +97,7 @@ void Framework::Initialize(){
 
 	// デバッグ描画（線/球/AABB/グリッド）の初期化
 	DebugDraw::GetInstance()->Initialize(dxCommon);
+	ScreenCapture::GetInstance()->Initialize(); // 撮影（F12 スクショ / F9 録画。画面に出す直前に写す）
 }
 
 void Framework::Finalize(){
@@ -104,6 +106,7 @@ void Framework::Finalize(){
 	// 終了処理は初期化の逆順で行う
 	// ---------------------------------------------
 	SceneManager::GetInstance()->Finalize();
+	ScreenCapture::GetInstance()->Finalize(); // 保存待ちの画像を書き切ってから
 
 	// 2. ゲーム固有のマネージャー類を終了
 
@@ -141,6 +144,8 @@ void Framework::Update(){
 	// ウィンドウ・入力の基盤更新
 	WindowProc::GetInstance()->Update();
 	Input::GetInstance()->Update();
+	// 撮影：F9/F12・テイクの記録と再生（キーの差し替え）。シーンの更新より前
+	ScreenCapture::GetInstance()->OnInputUpdated();
 
 	// オーディオ更新（フェード進行＋再生終了ボイスの掃除）
 	AudioManager::GetInstance()->UpdateVoices();

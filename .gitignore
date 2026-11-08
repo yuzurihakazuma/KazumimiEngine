@@ -345,3 +345,5 @@ project/Dumps/
 *.ilk
 *.idb
 *.ipch
+# 撮影機能（ScreenCapture）が保存するスクショ・連番録画・テイク・プリセット
+project/capture/

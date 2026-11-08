@@ -228,6 +228,9 @@ void DirectXCommon::PostDraw(){
 	// コマンドリストのクローズ
 	ExecuteCommand();
 
+	// 撮影：このフレームの絵を写す（写す側が同じキューに読み出しを積んで待つので、描き終わった絵が取れる）
+	if ( beforePresentHook_ ) { beforePresentHook_(backBuffers_[backBufferIndex].Get()); }
+
 	// 画面の表示
 	hr_ = swapChain_->Present(0, 0);
 	assert(SUCCEEDED(hr_));

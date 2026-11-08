@@ -179,6 +179,7 @@ exit 0</Command>
     <ClCompile Include="engine\3d\animation\CustomAnimation.cpp" />
     <ClCompile Include="engine\utils\EditorManager.cpp" />
     <ClCompile Include="engine\utils\PerformanceMonitor.cpp" />
+    <ClCompile Include="engine\utils\ScreenCapture.cpp" />
     <ClCompile Include="engine\utils\FileEditor.cpp" />
     <ClCompile Include="engine\utils\NodeEditor.cpp" />
     <ClCompile Include="game\camera\PlayCameraController.cpp" />
@@ -388,6 +389,7 @@ exit 0</Command>
     <ClInclude Include="engine\3d\obj\IAnimatable.h" />
     <ClInclude Include="engine\utils\EditorManager.h" />
     <ClInclude Include="engine\utils\PerformanceMonitor.h" />
+    <ClInclude Include="engine\utils\ScreenCapture.h" />
     <ClInclude Include="engine\utils\FileEditor.h" />
     <ClInclude Include="engine\utils\NodeEditor.h" />
     <ClInclude Include="game\camera\PlayCameraController.h" />

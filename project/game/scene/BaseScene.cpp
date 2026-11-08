@@ -11,6 +11,7 @@
 #include "engine/graphics/DebugDraw.h"
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/RenderTexture.h"
+#include "engine/utils/ScreenCapture.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/TextureManager.h"
 #include "engine/particle/GPUParticleManager.h"
@@ -91,6 +92,7 @@ void BaseScene::SetupCameras(){
     debugCamera_->Initialize();
     EditorManager::GetInstance()->SetDebugCamera(debugCamera_.get()); // メニュー「表示」でON/OFF
     EditorManager::GetInstance()->SetCamera(camera_.get());
+    ScreenCapture::GetInstance()->SetCamera(camera_.get()); // 撮影の画角プリセット
 }
 
 // エンジン機能の展示。使うモデル・テクスチャはここで読む（どのシーンでも単独で出せるように）。
@@ -123,6 +125,8 @@ void BaseScene::Finalize(){
     EditorManager* editorManager = EditorManager::GetInstance();
     // エディタが保持している外部ポインタ（カメラ・ギズモ対象など）をリセット（ダングリングポインタ防止）
     editorManager->ResetSceneReferences();
+    ScreenCapture::GetInstance()->SetCamera(nullptr);
+    ScreenCapture::GetInstance()->SetSource(nullptr);
     // ノードエディタに登録したゲーム値（シーンの変数へのポインタ）も解除する
     editorManager->ClearNodeGameValues();
     GPUParticleManager::GetInstance()->Finalize();
@@ -137,6 +141,7 @@ void BaseScene::Update(){
     OnPreUpdate();
     HandleEditorCameraRequests();
     UpdateCamera();
+    ScreenCapture::GetInstance()->ApplyCameraLock(camera_.get()); // 撮影の画角プリセットで固定している間
     OnUpdate();
     UpdateCommonVisuals();
 }
@@ -252,6 +257,8 @@ void BaseScene::ComposeFrame(ID3D12GraphicsCommandList* commandList){
     ISceneTransition* transition = SceneManager::GetInstance()->GetTransition();
     if ( transition && transition->IsActive() ) { transition->DrawInto(commandList, finalTarget); }
 
+    // 撮影：ImGui を重ねる前の最終画像を写す（画面に出す直前に読み出す。状態は PIXEL_SHADER_RESOURCE のまま）
+    ScreenCapture::GetInstance()->SetSource(finalTarget);
     // エディタに最終的なゲーム画面のSRVを渡す（Game View 表示用）
     EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
     // 最終結果をバックバッファへ（エディタアクティブ時はRTVのセットのみ行い描画はスキップ）

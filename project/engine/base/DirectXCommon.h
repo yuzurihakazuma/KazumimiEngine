@@ -7,6 +7,7 @@
 #include <dxcapi.h>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 
 // --- エンジン側のファイル ---
 #include "engine/utils/LogManager.h"
@@ -91,6 +92,9 @@ public:
 
 	/// <summary>コマンドキューのゲッター
 	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
+	// 画面に出す直前（このフレームのコマンドを流した後・Present の前）に呼ぶ。引数はこれから出すバックバッファ（PRESENT 状態）。
+	//   撮影（ScreenCapture）が使う
+	void SetBeforePresentHook(std::function<void(ID3D12Resource*)> hook){ beforePresentHook_ = std::move(hook); }
 
 	// ログマネージャーのゲッター
 	logs::LogManager& GetLogManager(){ return logManager_; }
@@ -237,6 +241,7 @@ private:
 
 	void InitializeFixFPS(); // FPS固定の初期化
 	void UpdateFixFPS();     // FPS固定の更新
+	std::function<void(ID3D12Resource*)> beforePresentHook_;
 
 	std::chrono::steady_clock::time_point reference_; // 前フレーム時間
 

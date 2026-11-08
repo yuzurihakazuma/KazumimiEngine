@@ -525,6 +525,9 @@
     <ClCompile Include="engine\utils\PerformanceMonitor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\utils\ScreenCapture.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\utils\FileEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -1135,6 +1138,9 @@
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\utils\PerformanceMonitor.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\utils\ScreenCapture.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\utils\FileEditor.h">

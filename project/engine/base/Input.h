@@ -44,6 +44,16 @@ public:
 	void SetTextInputActive(bool active){ textInputActive_ = active; }
 	bool IsTextInputActive() const{ return textInputActive_; }
 
+	// 撮影（ScreenCapture）用：遷移の演出中・文字入力中でも読むキー（F9/F12 などの撮影のキー）
+	bool TriggerkeyRaw(BYTE keyNumber) const{ return !( preKeys[keyNumber] & 0x80 ) && ( keys[keyNumber] & 0x80 ); }
+	// 撮影の「テイク」：今押しているキーの一覧（F1〜F12・Esc は除く。文字入力中は空）
+	std::vector<uint8_t> GetPressedKeysForTake() const;
+	// 撮影の「テイク」の再生：このフレームのキーを pressed に差し替える（Update の後に呼ぶ）。
+	//   F1〜F12・Esc だけは本物のキーのまま（再生中も撮影やエディタの切り替えができるように）。
+	//   コントローラーは「つながっていない」扱いにする
+	void OverrideKeysForTake(const std::vector<uint8_t>& pressed);
+	static bool IsTakeLiveKey(BYTE keyNumber);
+
 	// ==========================================
 	// 🖱 マウス
 	// ==========================================

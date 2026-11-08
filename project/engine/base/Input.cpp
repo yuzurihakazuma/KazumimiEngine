@@ -94,6 +94,31 @@ void Input::Update() {
 // =====================================
 //  キーボード処理
 // =====================================
+// F1〜F12・Esc：テイクに記録せず、再生中も本物のキーのまま使う
+bool Input::IsTakeLiveKey(BYTE keyNumber){
+	return keyNumber == DIK_ESCAPE || ( keyNumber >= DIK_F1 && keyNumber <= DIK_F10 ) || keyNumber == DIK_F11 || keyNumber == DIK_F12;
+}
+
+std::vector<uint8_t> Input::GetPressedKeysForTake() const{
+	std::vector<uint8_t> pressed;
+	if ( textInputActive_ ) { return pressed; } // 文字入力中はゲームにキーが届いていない
+	for ( int key = 0; key < 256; ++key ) {
+		if ( ( keys[key] & 0x80 ) && !IsTakeLiveKey(static_cast< BYTE >( key )) ) { pressed.push_back(static_cast< uint8_t >( key )); }
+	}
+	return pressed;
+}
+
+void Input::OverrideKeysForTake(const std::vector<uint8_t>& pressed){
+	for ( int key = 0; key < 256; ++key ) {
+		if ( !IsTakeLiveKey(static_cast< BYTE >( key )) ) { keys[key] = 0; }
+	}
+	for ( uint8_t key : pressed ) {
+		if ( !IsTakeLiveKey(key) ) { keys[key] = 0x80; }
+	}
+	ZeroMemory(&joyState, sizeof(joyState));
+	isJoyConnected = false;
+}
+
 bool Input::Pushkey(BYTE keyNumber) {
 	if (textInputActive_ || locked_) { return false; } // 文字入力中・遷移の演出中はゲーム側のキー操作を止める
 	// キーが押されているかを判定 (0x80は最上位ビットで、キーが押されているときにセットされる)

@@ -31,6 +31,8 @@ public:
 		// ブレークポイントや初回フレームでの異常な大ジャンプを防ぐためにクランプ
 		if (dt > maxDelta_) { dt = maxDelta_; }
 		if (dt < 0.0f) { dt = 0.0f; }
+		// 固定コマ送り（撮影の録画中など）：実際にかかった時間に関係なく、1フレーム＝1/60秒で進める
+		if (fixedStep_) { dt = 1.0f / 60.0f; }
 
 		unscaledDeltaTime_ = dt;
 		deltaTime_ = dt * timeScale_;
@@ -57,6 +59,11 @@ public:
 	// デルタタイムの上限（秒）。既定 0.1（=最低10fps相当でクランプ）
 	void SetMaxDelta(float seconds) { maxDelta_ = seconds; }
 
+	// 固定コマ送り：true の間は1フレーム＝1/60秒（保存などで1フレームが遅くなっても、動きは60fpsのまま）。
+	//   次の Update から効く
+	void SetFixedStep(bool fixed) { fixedStep_ = fixed; }
+	bool IsFixedStep() const { return fixedStep_; }
+
 private:
 	Time() = default;
 	Time(const Time&) = delete;
@@ -72,5 +79,6 @@ private:
 	float  unscaledTotalTime_ = 0.0f;
 	float  timeScale_ = 1.0f;
 	float  maxDelta_ = 0.1f;
+	bool   fixedStep_ = false;
 	uint64_t frameCount_ = 0;
 };
