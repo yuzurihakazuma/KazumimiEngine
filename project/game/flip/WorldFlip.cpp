@@ -36,6 +36,7 @@ namespace {
     constexpr const char* kFlipSe = "resources/gameover/se_basa.wav";   // カメラが回り込む
     constexpr float kBobAmp = 0.15f;      // スイッチが上下に揺れる幅(m)
     constexpr const char* kEveningSkyModel = "flipEveningSkyDome";
+    constexpr float kDialHalfDepth = 1.6f; // スイッチ（文字盤と雲）の奥行きの半分(m)。隠すかどうかの判定に使う
     constexpr const char* kEveningSkyTexture = "resources/flip/sky_evening.png"; // tools/flip/make_flip_assets.py が作る
 
     // 確かめる用のキー：環境変数 CG2_DEBUG_KEYS を付けて起動した時だけ（F8＝カメラを反転）
@@ -363,12 +364,27 @@ void WorldFlip::CheckEggHits(){
 
 // ===== 見た目 =====
 // 裏から見る間：恐竜（編集中は見ている所）よりカメラ側にある、背の高い背景を隠す（木や丘が画面をふさがないように）
+void WorldFlip::GetSwitchSpheres(std::vector<Vector3>& outCenters, std::vector<float>& outRadii) const{
+    for ( const Switch& sw : switches_ ) {
+        outCenters.push_back({ sw.pos.x, sw.pos.y + FlipDial::kCenterAbove, sw.pos.z });
+        outRadii.push_back(sw.hitRadius);
+    }
+}
+
+bool WorldFlip::GetBackCut(bool playing, Vector3& outPivot, float& outGap) const{
+    outGap = occludeGap_;
+    if ( playing && look_ > 0.5f && context_.player ) { outPivot = context_.player->GetPosition(); return true; }
+    if ( !playing && previewBack_ ) { outPivot = previewPivot_; return true; }
+    return false;
+}
+
 void WorldFlip::ApplyBackdrop(bool playing){
-    if ( !context_.backdrop ) { return; }
     Vector3 pivot {};
-    bool hide = false;
-    if ( playing && look_ > 0.5f && context_.player ) { hide = true; pivot = context_.player->GetPosition(); }
-    if ( !playing && previewBack_ ) { hide = true; pivot = previewPivot_; }
+    float gap = occludeGap_;
+    const bool hide = GetBackCut(playing, pivot, gap);
+    cutActive_ = hide;
+    cutMinZ_ = pivot.z + gap;
+    if ( !context_.backdrop ) { return; }
     std::vector<char> hidden;
     if ( hide ) {
         const auto& items = context_.backdrop->Items();
@@ -440,6 +456,8 @@ void WorldFlip::UpdateVisuals(bool playing){
 
 void WorldFlip::Draw(){
     for ( Switch& sw : switches_ ) {
+        // 裏から見ている間、恐竜よりカメラ側にあるスイッチは描かない（文字盤の雲がカメラを包んで画面をふさいでいた）
+        if ( cutActive_ && sw.pos.z - kDialHalfDepth > cutMinZ_ ) { continue; }
         if ( sw.dial ) { sw.dial->Draw(); }
     }
     if ( eveningSky_ && evening_ > 0.0f ) { eveningSky_->Draw(); } // 表のカメラからは背中側（回り始めてから見えてくる）

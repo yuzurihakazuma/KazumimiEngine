@@ -9,6 +9,7 @@
 #include "game/stage/BlockShape.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -34,6 +35,10 @@ public:
     void Update(const std::vector<PlacedBlock>& blocks, const std::vector<SplineRail>& rails);
     // 見た目グループごとに1ドローコール
     void Draw(const Camera* camera);
+    // ジャンプ台が跳ねた（そのばねを縮めて、びよんと戻す）
+    void BounceSpring(int blockIndex);
+    // 裏から見ている間、カメラ側（minZ より +z）の、minY より上に出ているブロックを隠す（大きさ 0 にする）
+    void SetViewCut(bool active, float minZ, float minY){ cutActive_ = active; cutMinZ_ = minZ; cutMinY_ = minY; }
 
 private:
     struct LookGroup {
@@ -60,4 +65,9 @@ private:
     LookGroup flowerLooks_[2];                    // 花（0=オレンジ / 1=白い顔つき）
     std::vector<FlowerSpot> flowers_;
     std::vector<std::unique_ptr<Obj3d>> objPool_; // 行列計算用プール
+    std::map<int, float> springTimers_;          // 跳ねたばね（ブロック番号 → 跳ねてからの秒）
+    bool  cutActive_ = false;                    // SetViewCut
+    float cutMinZ_ = 0.0f;
+    float cutMinY_ = 0.0f;
+    static float SpringSquash(float t);
 };

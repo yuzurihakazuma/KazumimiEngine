@@ -68,6 +68,11 @@ public:
 
     bool IsFlipping() const{ return phase_ != Phase::None; }
     bool IsBackView() const{ return back_; }
+    // 裏から見ている間、カメラ側の物を隠す基準（恐竜の位置と、そこからの距離）。隠さない時は false。
+    //   恐竜より gap 以上カメラ側（+z）にある、背の高い物を隠す（背景・ブロック・敵・スイッチ）
+    bool GetBackCut(bool playing, Vector3& outPivot, float& outGap) const;
+    // 反転スイッチの当たりの球（卵の奥投げが、スイッチの後ろの背景をロックしないように）
+    void GetSwitchSpheres(std::vector<Vector3>& outCenters, std::vector<float>& outRadii) const;
 
     // エディタ（ImGui の中で毎フレーム呼ぶ）：パネル「カメラ反転」・Game View のクリックで置く・名札
     void UpdateEditor(const SceneEditContext& context);
@@ -137,6 +142,8 @@ private:
     Obj3dCommon::DirectionalLightData savedLight_ {};
 
     bool  back_ = false;        // 今、裏のカメラか（回り始めた時点で切り替わる）
+    bool  cutActive_ = false;   // 今のフレーム、カメラ側の物を隠しているか（UpdateVisuals で決める）
+    float cutMinZ_ = 0.0f;      // これより +z（カメラ側）は隠す
     Phase phase_ = Phase::None;
     float time_ = 0.0f;
     float cooldown_ = 0.0f;

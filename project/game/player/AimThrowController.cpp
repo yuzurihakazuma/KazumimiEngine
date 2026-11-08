@@ -3,6 +3,7 @@
 #include "game/player/Player.h"
 #include "game/enemy/EnemyManager.h"
 #include "game/egg/EggSystem.h"
+#include "game/egg/EggCombo.h"
 #include "engine/2d/Sprite.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/base/Input.h"
@@ -93,13 +94,28 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
     float lockThreshold = aimLocked_ ? 120.0f : 80.0f; // 粘り（付く<外れる）
     aimLocked_ = ( lockEnemy != nullptr && bestPixelDist < lockThreshold );
 
+    // 敵にロックしていない時：カーソルの先の背景（木・柵・岩・看板・花）をロック＝奥へ投げる
+    EggCombo::Pick depthPick;
+    depthLocked_ = !aimLocked_ && combo_
+        && combo_->PickForAim(*camera, cursorX_, cursorY_, screenWidth, screenHeight, playerPos, depthPick);
+    depthTarget_ = depthLocked_ ? depthPick.target : -1;
+
     Vector3 origin = { playerPos.x, playerPos.y + 0.5f, playerPos.z };
     Vector3 throwDir = { 0.0f, 0.0f, 1.0f };
     float   throwSpeed = throwSpeedNormal_;  // 通常の投げ速度（ノードエディタから調整可）
     float   displayX = cursorX_, displayY = cursorY_;
     Vector3 cursorWorld;         // 狙い線の先端（奥に追従させる）
 
-    if ( aimLocked_ ) {
+    if ( depthLocked_ ) {
+        // 背景の物にロック：その物の中心へ（奥へ）。カーソルは物の真ん中に合わせ、リングは物の大きさ
+        displayX = depthPick.screenX; displayY = depthPick.screenY;
+        cursorWorld = depthPick.center;
+        Vector3 toTarget = cursorWorld - origin;
+        float targetDist = Length(toTarget);
+        if ( targetDist > 1e-4f ) throwDir = { toTarget.x / targetDist, toTarget.y / targetDist, toTarget.z / targetDist };
+        throwSpeed = throwSpeedLock_;
+        depthRingSize_ = std::clamp(depthPick.screenRadius * 2.2f, 70.0f, 260.0f);
+    } else if ( aimLocked_ ) {
         // ロック中：その敵へ。命中しやすいよう速度を上げる。カーソルは敵にピタッと合わせる。
         displayX = bestEnemyX; displayY = bestEnemyY;
         cursorWorld = lockEnemy->GetPosition();
@@ -168,10 +184,20 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
         float baseSize = aimLocked_ ? 68.0f : 52.0f;
         cursorSprite_->SetSize({ baseSize * pulse, baseSize * pulse });
         cursorSprite_->SetColor(aimLocked_ ? Vector4{ 1.0f, 0.25f, 0.2f, 1.0f }    // ロック=赤
+                              : depthLocked_ ? Vector4{ 0.35f, 0.9f, 1.0f, 1.0f }   // 背景（奥投げ）=水色
                                            : Vector4{ 1.0f, 0.95f, 0.35f, 0.95f }); // 通常=黄
         cursorSprite_->Update();
     }
     // ロックオンリング：ロック中の敵の周りでゆっくり回りながら収縮（「捕まえてる」感）
+    if ( lockRingSprite_ && depthLocked_ ) {
+        // 奥投げのリング：物の大きさで、ゆっくり回る水色
+        lockRingSprite_->SetPosition({ displayX, displayY });
+        float ring = depthRingSize_ * ( 1.0f + 0.06f * std::sin(pulseT_ * 6.0f) );
+        lockRingSprite_->SetSize({ ring, ring });
+        lockRingSprite_->SetRotation(pulseT_ * 1.5f);
+        lockRingSprite_->SetColor({ 0.35f, 0.9f, 1.0f, 0.55f });
+        lockRingSprite_->Update();
+    }
     if ( lockRingSprite_ && aimLocked_ ) {
         lockRingSprite_->SetPosition({ displayX, displayY });
         float ring = 104.0f + 10.0f * std::sin(pulseT_ * 6.0f);
@@ -197,16 +223,18 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
             Vector3 rotation = player.GetRotation();
             player.SetRotation({ rotation.x, yaw, rotation.z });
         }
-        if ( eggs.TryThrow(playerPos, throwDir, throwSpeed) ) {
+        if ( Egg* egg = eggs.ThrowEgg(playerPos, throwDir, throwSpeed) ) {
             AudioManager::GetInstance()->PlayWave("resources/se/eggThrow.wav", false, 0.55f); // 投擲音
+            if ( depthLocked_ && combo_ ) { combo_->Launch(egg, depthTarget_); } // 奥の物へ（当たると跳ね返ってコンボ）
         }
         state_ = State::Idle;
         aimLocked_ = false;
+        depthLocked_ = false;
     }
 }
 
 void AimThrowController::DrawSprite(){
     if ( state_ != State::Aiming ) return;
-    if ( lockRingSprite_ && aimLocked_ ) { lockRingSprite_->Draw(); } // リングはカーソルの下に
+    if ( lockRingSprite_ && ( aimLocked_ || depthLocked_ ) ) { lockRingSprite_->Draw(); } // リングはカーソルの下に
     if ( cursorSprite_ ) { cursorSprite_->Draw(); }
 }

@@ -98,6 +98,18 @@ void BlockSystem::DrawCellGhost(int rail, float dist, int level, float side, int
 }
 
 // 頭をぶつけた時に Player が呼ぶ。ぶつけた先が未使用の？ブロックならコインを出して使用済みにする
+void BlockSystem::NotifySpringBounce(int rail, float dist, float footY){
+    int best = -1; float bestTop = -1.0f;
+    grid_.ForEachNear(rail, dist, kQueryCells, [&](int index){
+        const PlacedBlock& block = blocks_[index];
+        if ( block.type != kTypeSpring || !OverlapsCenterLine(block.side) ) return;
+        if ( std::abs(block.dist - dist) > BlockShape::FootprintHalf(block.type) + kSupportEdge ) return;
+        const float top = block.SurfaceHeightAt(dist);
+        if ( std::abs(top - footY) < 0.3f && top > bestTop ) { bestTop = top; best = index; }
+    });
+    if ( best >= 0 ) { renderer_.BounceSpring(best); }
+}
+
 void BlockSystem::NotifyHeadBump(int rail, float dist, float headY){
     bool changed = false;
     grid_.ForEachNear(rail, dist, 1, [&](int index){

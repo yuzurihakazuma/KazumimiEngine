@@ -2,6 +2,7 @@
 #include "game/stage/BlockGrid.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/graphics/InstancedGroup.h"
+#include "engine/base/TimeManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +16,7 @@ namespace {
         "craftLayer",    // 1: 1m角の段ボール層
         "craftSlope45",  // 2: 斜面45°（巻き段ボール筒）
         "craftSlope26",  // 3: ゆるい斜面26.6°
-        "craftSpring",   // 4: ジャンプ台（緑のスポンジ。上に飛び乗ると跳ねる）
+        "craftSpring",   // 4: ジャンプ台（工作のばね。上に飛び乗ると跳ねる。跳ねた時は縮んでびよんと戻る）
         "craftHatena",   // 5: ？ブロック（金色。下から頭突きでコイン）
         "craftCloud",    // 6: すり抜け床（白。上にだけ乗れる薄い板）
         "craftWide",     // 7: 横長ブロック（進行方向2m×1m。スポンジ側面）
@@ -58,10 +59,12 @@ void BlockRenderer::EnsurePool(size_t count){
 void BlockRenderer::PlaceFlowers(const std::vector<PlacedBlock>& blocks, const BlockGrid& grid){
     flowers_.clear();
     for ( const PlacedBlock& block : blocks ) {
-        if ( BlockShape::IsSlope(block.type) ) continue; // 斜面の上面は斜めなので花は咲かせない
+        // 花を咲かせない：斜面（上面が斜め）・ジャンプ台（ばねの板の上に花はおかしい。跳ねた時に縮むので浮いても見える）
+        auto noFlower = [](int type){ return BlockShape::IsSlope(type) || type == BlockShape::kTypeSpring; };
+        if ( noFlower(block.type) ) continue;
         int cell = BlockGrid::CellOf(block.dist);
         int rightIdx = grid.Find(block.rail, cell + 1, block.level, block.side);
-        if ( rightIdx < 0 || BlockShape::IsSlope(blocks[rightIdx].type) ) continue; // 右隣なし/斜面
+        if ( rightIdx < 0 || noFlower(blocks[rightIdx].type) ) continue; // 右隣なし/斜面/ジャンプ台
         if ( grid.Has(block.rail, cell, block.level + 1, block.side) ) continue;     // 自分の上が塞がり
         if ( grid.Has(block.rail, cell + 1, block.level + 1, block.side) ) continue; // 隣の上が塞がり
         uint32_t hash = CellHash(block.rail, cell, block.level, ( int ) std::lround(block.side));
@@ -115,6 +118,11 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
                 // すり抜け床：セル上端に薄い板として置く（当たりの支持面＝セル上端と一致）
                 pos.y += 0.7f;
                 obj->SetScale({ 1.0f, 0.3f, 1.0f });
+            } else if ( block.type == BlockShape::kTypeSpring && springTimers_.count(idx) ) {
+                // 跳ねたばね：縦に縮めて戻す（縮んだ分だけ少し横へふくらむ）
+                const float squash = SpringSquash(springTimers_[idx]);
+                const float bulge = 1.0f + ( 1.0f - squash ) * 0.25f;
+                obj->SetScale({ bulge, squash, bulge });
             } else {
                 obj->SetScale({ 1.0f, 1.0f, 1.0f }); // プール使い回しなので毎回戻す
             }
@@ -129,6 +137,8 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
                 pos.y += -std::tan(pitch) * forward; // 原点も勾配に沿って上下（レール相対の高さを保つ）
                 if ( block.ascend < 0 ) { yaw += kPi; pitch = -pitch; } // 180°回すと勾配の向きも反転
             }
+            // 裏から見ている間、恐竜よりカメラ側のブロックは隠す（画面をふさがないように）
+            if ( cutActive_ && pos.z - 1.0f > cutMinZ_ && pos.y + 1.0f > cutMinY_ ) { obj->SetScale({ 0.0f, 0.0f, 0.0f }); }
             obj->SetTranslation(pos);
             // ピッチ＝道の勾配。回転は Rx→Ry の順に掛かるので、モデルの左右軸で傾けてから向きを合わせる
             obj->SetRotation({ pitch, yaw, 0.0f });
@@ -139,6 +149,7 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
             Vector3 pos {}; float yaw = 0.0f;
             if ( !BlockShape::PoseOnRail(rails, asBlock, pos, yaw) ) continue;
             pos.y += flower.topY;
+            obj->SetScale(( cutActive_ && pos.z - 1.0f > cutMinZ_ ) ? Vector3 { 0.0f, 0.0f, 0.0f } : Vector3 { 1.0f, 1.0f, 1.0f });
             obj->SetTranslation(pos);
             obj->SetRotation({ 0.0f, yaw + flower.yawOffset, 0.0f });
         }
@@ -148,7 +159,21 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
     if ( look.batch ) { look.batch->Update(look.objs); }
 }
 
+// ジャンプ台が跳ねた：そのばねを縮めて、びよんと戻す
+void BlockRenderer::BounceSpring(int blockIndex){ springTimers_[blockIndex] = 0.0f; }
+
+// ばねの縦の大きさ（跳ねてからの秒 t）。ぎゅっと縮んで、伸びすぎて、ゆれながら戻る
+float BlockRenderer::SpringSquash(float t){
+    const float kPi = 3.14159265f;
+    return 1.0f - 0.45f * std::exp(-6.0f * t) * std::cos(2.0f * kPi * t / 0.32f);
+}
+
 void BlockRenderer::Update(const std::vector<PlacedBlock>& blocks, const std::vector<SplineRail>& rails){
+    const float dt = Time::GetInstance()->GetDeltaTime();
+    for ( auto it = springTimers_.begin(); it != springTimers_.end(); ) {
+        it->second += dt;
+        if ( it->second > 0.8f || it->first >= ( int ) blocks.size() ) { it = springTimers_.erase(it); } else { ++it; }
+    }
     for ( auto& look : typeLooks_ )   { UpdateLook(look, blocks, rails); }
     UpdateLook(usedHatenaLook_, blocks, rails);
     for ( auto& look : flowerLooks_ ) { UpdateLook(look, blocks, rails); }

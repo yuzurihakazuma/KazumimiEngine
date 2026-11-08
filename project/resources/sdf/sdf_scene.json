@@ -1,22 +1,5 @@
 {
-    "texts": [
-        {
-            "atlas": "jpdot",
-            "text": "操作説明\nA/D : 移動   W/S : 奥・手前\nSPACE : ジャンプ（長押しでふんばり）\nE : 敵を飲み込む   F : 吐き出す\n左Ctrl : 卵を産む\nQ長押し : 構え→矢印で狙う→離して投げる",
-            "x": 100.0,
-            "y": 100.0,
-            "size": 48.0,
-            "color": [ 1.0, 1.0, 1.0, 1.0 ],
-            "outlineWidth": 0.22,
-            "outlineColor": [ 0.06, 0.12, 0.06, 1.0 ],
-            "thickness": 0.02,
-            "use3D": true,
-            "worldPos": [ 0.0, 4.5, 3.0 ],
-            "worldScale": 0.45,
-            "proximity": true,
-            "proximityRadius": 8.0
-        }
-    ],
+    "texts": [],
     "sprites": [
         {
             "atlas": "star64",

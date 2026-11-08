@@ -28,6 +28,9 @@ public:
 
     // aiming=true なら構え中（1個を手に持っている扱いで、列から1個減らして見せる）
     void Update(const EggSystem& eggSystem, bool aiming, const CoinSystem& coinSystem);
+    // 奥投げコンボ（画面の上の真ん中に「コンボ ×n」）と、かくれ花の数（札の中）
+    void SetCombo(int combo, float alpha, float pop){ combo_ = combo; comboAlpha_ = alpha; comboPop_ = pop; }
+    void SetFlowers(int found, int total, float pop){ flowers_ = found; flowerTotal_ = total; flowerPop_ = pop; }
 
     // スプライト描画の準備（SpriteCommon::PreDraw）の後に呼ぶ
     void Draw(ID3D12GraphicsCommandList* commandList);
@@ -39,6 +42,12 @@ private:
 
     std::unique_ptr<Sprite> board_;
     std::unique_ptr<Sprite> coin_;
+    std::unique_ptr<Sprite> comboLabel_;
+    std::unique_ptr<Sprite> flower_;
+    int   combo_ = 0;
+    float comboAlpha_ = 0.0f, comboPop_ = 0.0f;
+    int   flowers_ = 0, flowerTotal_ = 0;
+    float flowerPop_ = 0.0f;
     std::vector<std::unique_ptr<Sprite>> eggs_, emptyEggs_, belly_;
     std::vector<std::unique_ptr<Sprite>> digits_;
     int nextDigit_ = 0;

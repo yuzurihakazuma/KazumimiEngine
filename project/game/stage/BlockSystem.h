@@ -46,6 +46,8 @@ public:
     void Sync(const std::vector<BlockData>& blockDatas, const std::vector<SplineRail>* rails);
     void Update();                 // 位置・向きの更新（動くレール追従＋インスタンス行列の収集＋ワールドの箱）
     void Draw(const Camera* camera){ renderer_.Draw(camera); }
+    // 裏から見ている間、カメラ側（minZ より +z）の、minY より上に出ているブロックを隠す
+    void SetViewCut(bool active, float minZ, float minY){ renderer_.SetViewCut(active, minZ, minY); }
 
     // --- レール空間の当たり判定（Player・敵が使う）---
     //   いずれも「道の中心線に重なるブロック」だけを対象にする（横へずらした飾りは当たらない）
@@ -100,6 +102,8 @@ public:
     // --- ？ブロック（頭突きでコイン）---
     // 頭をぶつけた時に Player が呼ぶ：ぶつけた先が未使用の？ブロックならコインを出す
     void  NotifyHeadBump(int rail, float dist, float headY);
+    // ジャンプ台で跳ねた（足元のばねを縮めて戻す見た目）
+    void  NotifySpringBounce(int rail, float dist, float footY);
     // 頭突きで出たコインのワールド位置（1フレーム分。シーンが取り出して演出とカウントに使う）
     bool  ConsumeBumpCoin(Vector3& outPos);
     // Play開始時：？ブロックを全部未使用に戻す

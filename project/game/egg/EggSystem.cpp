@@ -171,7 +171,7 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
         if ( !egg->IsHeld() ) continue;
         Vector3 slot = {
             playerPos.x - facing.x * ( 0.8f + held * 0.6f ),
-            playerPos.y + 0.3f,
+            playerPos.y + kHeldEggHeight,
             playerPos.z - facing.z * ( 0.8f + held * 0.6f )
         };
         egg->SetTarget(slot);
@@ -357,6 +357,15 @@ void EggSystem::Draw() const{
 
 // 保持中の一番古い卵を指定方向へ投げる。
 bool EggSystem::TryThrow(const Vector3& playerPos, const Vector3& dir, float speed){
+    return ThrowEgg(playerPos, dir, speed) != nullptr;
+}
+
+bool EggSystem::Contains(const Egg* target) const{
+    for ( const auto& egg : eggs_ ) { if ( egg.get() == target ) { return true; } }
+    return false;
+}
+
+Egg* EggSystem::ThrowEgg(const Vector3& playerPos, const Vector3& dir, float speed){
     for ( auto& egg : eggs_ ) {
         if ( !egg->IsHeld() ) continue;
         Vector3 from = { playerPos.x, playerPos.y + 0.5f, playerPos.z };
@@ -367,9 +376,9 @@ bool EggSystem::TryThrow(const Vector3& playerPos, const Vector3& dir, float spe
             SpawnPuff(from, { Rand11() * 1.2f, 0.5f + Rand11() * 0.5f, Rand11() * 1.2f },
                       { 0.95f, 0.97f, 1.0f, 1.0f }, 0.25f, 0.35f);
         }
-        return true;
+        return egg.get();
     }
-    return false;
+    return nullptr;
 }
 
 // 飲み込み：口元で緑の小球がふわっと上へ吸い込まれる（リング無し＝踏みつけと別物）。

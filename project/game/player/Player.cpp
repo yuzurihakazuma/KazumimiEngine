@@ -29,6 +29,7 @@ namespace {
 void Player::Initialize(){
     fellOut_ = false;
     damaged_ = false;
+    springBounced_ = false;
     position_ = { 0.0f, 0.0f, 0.0f };
     rotation_ = { 0.0f, 0.0f, 0.0f };
 
@@ -457,9 +458,15 @@ bool Player::UpdateJumpAndLand(const SplineRail& rail, const std::vector<SplineR
     const float landVelocity = jump_.velocity; // 着地の瞬間の落下速度（ジャンプ台の判定に使う）
     jump_.Land(groundHeight);
 
-    // ジャンプ台ブロック：勢いよく飛び乗ったら大きく跳ね返る（歩いて乗っただけでは跳ねない）
-    if ( landVelocity < -4.0f && blockContact_.IsOnSpring(currentRailIndex_, currentDistance_, jump_.height) ) {
-        jump_.Launch(jump_.power * 1.35f); // 通常ジャンプより高く跳ぶ（跳ねた後もふんばり可能）
+    // ジャンプ台ブロック：空中から乗ったら必ず大きく跳ね返る（歩いて乗っただけでは跳ねない）。
+    //   前は「落ちる速さ 4m/s 以上」の時だけで、地面から跳び乗った程度（約3.7m/s）では跳ねず、
+    //   跳ねても約2.3mで、となりの4段の壁を越えられなかった
+    if ( landVelocity < -0.5f && blockContact_.IsOnSpring(currentRailIndex_, currentDistance_, jump_.height) ) {
+        jump_.Launch(kSpringVelocity); // 約3.9m 上がる（跳ねた後もふんばり可能）
+        springBounced_ = true;
+        springRail_ = currentRailIndex_;
+        springDist_ = currentDistance_;
+        springFoot_ = jump_.height;
     }
     return false;
 }
