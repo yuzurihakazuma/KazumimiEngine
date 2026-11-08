@@ -185,7 +185,7 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     // --- 左Ctrl（しゃがみ）・食べた後の自動：お腹の敵を1匹、後ろに卵として産む ---
     if ( ( input->Triggerkey(DIK_LCONTROL) || autoLay ) && !actionBlocked_ ) {
         float yaw = player.GetRotation().y;
-        Vector3 behind = { playerPos.x - std::sin(yaw) * 0.8f, playerPos.y + 0.3f, playerPos.z - std::cos(yaw) * 0.8f };
+        Vector3 behind = { playerPos.x - std::sin(yaw) * 0.8f, playerPos.y + EggSystem::kHeldEggHeight, playerPos.z - std::cos(yaw) * 0.8f };
         if ( eggs.LayEgg(behind) ) {
             eggs.SpawnLayFx(behind);        // 産まれた合図（白＆緑がぽわっと）
             hitFeel.Trigger(0.03f, 0.08f);

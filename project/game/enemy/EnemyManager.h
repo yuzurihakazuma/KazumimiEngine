@@ -28,6 +28,8 @@ public:
                 const BlockSystem* blocks = nullptr);
 
     void Draw();
+    // 裏から見ている間、カメラ側（minZ より +z）の敵は描かない（画面をふさがないように。動き・当たりはそのまま）
+    void SetViewCut(bool active, float minZ){ cutActive_ = active; cutMinZ_ = minZ; }
     void Clear(){ enemies_.clear(); }
 
     // 各システム（踏みつけ・飲み込み・ロックオン・卵命中）が走査に使う
@@ -36,4 +38,6 @@ public:
 
 private:
     std::vector<std::unique_ptr<Enemy>> enemies_;
+    bool  cutActive_ = false; // SetViewCut
+    float cutMinZ_ = 0.0f;
 };

@@ -81,6 +81,13 @@ public:
     void Respawn(){ fellOut_ = false; Initialize(); } // スタートへ戻す
     // 敵にぶつかって弾かれた瞬間か（体力を減らす。取得するとフラグは消える）
     bool ConsumeDamaged(){ bool hit = damaged_; damaged_ = false; return hit; }
+    // ジャンプ台で跳ねた瞬間（シーンがばねの見た目・音に使う）。足元のレール・距離・高さ
+    bool ConsumeSpringBounce(int& rail, float& dist, float& footY){
+        if ( !springBounced_ ) { return false; }
+        springBounced_ = false; rail = springRail_; dist = springDist_; footY = springFoot_;
+        return true;
+    }
+    static constexpr float kSpringVelocity = 14.0f; // ジャンプ台の打ち上げの速さ(m/s)。重力25で約3.9m
 
     // ===== レール乗り換えデバッガ用（RailTransferDebugger が毎フレーム読む）=====
     //   乗り換えの種類：連結へ持ち越し / 端の先の本体へ合流 / 乗り換えキー / T字の分岐 / 空中から着地 / 空中へ
@@ -176,6 +183,10 @@ private:
     bool holdOnFall_ = false;     // 落ちたらその場で止めて待つ（シーンが体力で決める）
     bool fellOut_ = false;        // 落ちて止まっている
     bool damaged_ = false;        // 敵にぶつかった（シーンが Consume）
+    bool  springBounced_ = false; // ジャンプ台で跳ねた（シーンが Consume）
+    int   springRail_ = -1;
+    float springDist_ = 0.0f;
+    float springFoot_ = 0.0f;
 
     // ---- レール移動の主状態（これだけで位置が決まる）----
     float currentDistance_ = 0.0f;    // 現在レール上を進んだ距離 (m)

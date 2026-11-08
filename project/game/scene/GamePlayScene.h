@@ -28,6 +28,7 @@
 #include "game/stage/StageObstacles.h"
 #include "game/stage/StageIntroSequence.h"
 #include "game/stage/StageBackdrop.h"
+#include "game/egg/EggCombo.h"
 #include "game/enemy/EnemyManager.h"
 #include "game/egg/EggSystem.h"
 #include "game/effect/PlayScreenEffects.h"
@@ -138,6 +139,7 @@ private:
 	PlayCameraController camCtrl_;   // プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
 	PlayScreenEffects    screenFx_;  // プレイ用の見た目・落下ミスのアイリス・起動時ウォームアップ
 	GameHud              hud_;       // 卵の数・コインの数
+	EggCombo             eggCombo_;  // 卵の奥投げ・跳ね返りコンボ・かくれ花
 
 	// --- エディタ ---
 	PlaySceneEditor editorTools_;          // Game View の操作・配置ビュー・ミニマップ

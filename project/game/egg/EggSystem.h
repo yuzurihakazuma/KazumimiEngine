@@ -18,6 +18,9 @@ struct ID3D12GraphicsCommandList;
 class EggSystem {
 public:
     static const int kMaxEggs = 6; // 同時に持てる卵の最大数（お腹の容量）
+    // 後ろに並ぶ卵の中心の高さ（足元から）。卵の半分の高さ（モデル 1.3m×0.7 の半分＝0.455m）より少し上にして、
+    //   地面にめり込まないようにする（前は 0.3 で、卵の下が 15cm ほど地面に沈んでいた）
+    static constexpr float kHeldEggHeight = 0.47f;
 
     EggSystem() = default;
     ~EggSystem(); // unique_ptr<Obj3d> を含むため cpp 側で定義
@@ -45,6 +48,10 @@ public:
 
     // 保持中の卵を1個、指定方向へ投げる（Held → Flying）。speed=初速。投げられたら true。
     bool TryThrow(const Vector3& playerPos, const Vector3& dir, float speed = 12.0f);
+    // TryThrow と同じ。投げた卵を返す（無ければ nullptr）。奥投げコンボ（EggCombo）が卵を追うのに使う
+    class Egg* ThrowEgg(const Vector3& playerPos, const Vector3& dir, float speed);
+    // その卵がまだあるか（割れて消えた卵を指したままにしない）
+    bool Contains(const class Egg* egg) const;
 
     // お腹の敵を1匹、指定方向へ吐き出す（ヨッシーの吐き出し攻撃）。吐けたら true。
     //   from=口元の位置 / dir=プレイヤーの向いている水平方向

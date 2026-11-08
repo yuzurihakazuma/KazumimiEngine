@@ -98,6 +98,12 @@ void GamePlayScene::OnInitialize(){
 	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
 	BuildBackdrop();
 	SetupCaptureTakes();             // 撮影のテイク：記録・再生の始めに戻す状態
+	// 編集を始めた時のカメラ：裏の世界の地面（表の道の奥、-z 側）より上から、表のステージを少し見下ろす
+	//   （共通の初期位置 (0, 2, -15) は裏の世界の地面の中に入ってしまう）
+	GetCamera()->SetTranslation({ 0.0f, 7.5f, -10.0f });
+	GetCamera()->SetRotation({ 0.25f, 0.0f, 0.0f });
+	eggCombo_.SetContext(&backdrop_, &eggSystem_, &coinSystem_); // 卵の奥投げ・跳ね返りコンボ
+	aimThrow_.SetCombo(&eggCombo_);
 	// 体力（♡）とゲームオーバー
 	GameOverFlow::Context gameOverContext;
 	gameOverContext.player    = player_.get();
@@ -468,6 +474,7 @@ void GamePlayScene::OnPlayStart(){
 	swallow_.Reset();        // 舌アクションを解除（敵が作り直されるので target_ を確実に手放す）
 	coinSystem_.ResetPlay(); // コインを全部復活させる
 	blockSystem_.ResetPlay(); // ？ブロックを未使用に戻す
+	eggCombo_.Reset();       // コンボ・かくれ花を戻す
 }
 
 // プレイ → エディット：動くレールを基準位置に戻す（編集と表示を一致させる）
@@ -480,6 +487,7 @@ void GamePlayScene::OnEditStart(){
 	railField_.ResetMotion();
 	testPlayRail_ = -1;      // テストプレイの開始位置上書きは1回で解除（次は通常スタート）
 	coinSystem_.ResetPlay(); // 取得済みコインを復活（エディタで配置が見えなくならないように）
+	eggCombo_.Reset();       // ゆれている背景を元の形へ（編集で保存されないように）
 	// カメラ関連の後始末：
 	//   ・回転フリーズ中に Stop しても時間が止まったままにならないよう Reset（内部で TimeScale を戻す）
 	//   ・ゾーンで視野角を変えたまま戻るとエディタ画面が広角/望遠のままになるので標準に戻す
@@ -535,10 +543,26 @@ void GamePlayScene::UpdatePlayMode(){
 	player_->SetMoveSpeedScale(aimThrow_.IsAiming() ? 0.6f : 1.0f);
 	// 構え中は後ろの列の先頭の卵を非表示（手に持っている扱い。キャンセルで列に戻る）
 	eggSystem_.SetAimHolding(aimThrow_.IsAiming());
+	// 卵の奥投げ：反転スイッチを狙っている時は、その後ろの背景をロックしない
+	{
+		std::vector<Vector3> centers; std::vector<float> radii;
+		flip_.GetSwitchSpheres(centers, radii);
+		std::vector<EggCombo::Blocker> blockers;
+		for ( size_t i = 0; i < centers.size(); ++i ) { blockers.push_back({ centers[i], radii[i] }); }
+		eggCombo_.SetAimBlockers(blockers);
+	}
 	// 構え中はベロ(E)と産卵(左Ctrl)を発動禁止（両手が卵でふさがっている）
 	swallow_.SetActionBlocked(aimThrow_.IsAiming());
 	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
 	player_->Update(railField_.GetRails());
+	// ジャンプ台で跳ねた：足元のばねを縮めてびよんと戻し、音を鳴らす
+	{
+		int springRail = -1; float springDist = 0.0f, springFoot = 0.0f;
+		if ( player_->ConsumeSpringBounce(springRail, springDist, springFoot) ) {
+			blockSystem_.NotifySpringBounce(springRail, springDist, springFoot);
+			AudioManager::GetInstance()->PlayWave("resources/se/se_spring.wav", false, 0.6f);
+		}
+	}
 
 	// 敵の移動＋吸い込みTick。吸い込み完了 → お腹に+1（口元で緑がふわっと）。
 	//   ブロックを渡す＝パトロールの敵が壁で引き返す（貫通防止）
@@ -556,6 +580,7 @@ void GamePlayScene::UpdatePlayMode(){
 	// 卵の追従・飛行・割れの更新
 	float yaw = player_->GetRotation().y;
 	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime);
+	eggCombo_.Update(player_->GetPosition(), deltaTime); // 奥へ投げた卵：背景に当たったら跳ね返ってコンボ
 
 	// ゴール判定＋ゴールマーカー
 	stageFlow_.Update(player_->GetPosition(), railField_, hitFeel_);
@@ -613,6 +638,13 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 
 	// コイン（回転・浮遊はエディタ中も見せる。取得判定はプレイ中のみ）とブロック
 	coinSystem_.Update(playerPos, playing, 1.0f / 60.0f);
+	// 裏から見ている間：恐竜よりカメラ側のブロック・敵を隠す（表の道の物が画面をふさがないように）
+	{
+		Vector3 cutPivot {}; float cutGap = 0.0f;
+		const bool backCut = flip_.GetBackCut(playing, cutPivot, cutGap);
+		blockSystem_.SetViewCut(backCut, cutPivot.z + cutGap, cutPivot.y + 0.6f);
+		enemyMgr_.SetViewCut(backCut, cutPivot.z + cutGap);
+	}
 	blockSystem_.Update();
 
 	// 落下ミス→リスポーン：アイリスワイプで閉じて→開く
@@ -650,6 +682,8 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatar_.Update(avatarContext);
 
 	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
+	hud_.SetCombo(eggCombo_.ComboCount(), eggCombo_.ComboAlpha(), eggCombo_.ComboPop());
+	hud_.SetFlowers(eggCombo_.FlowersFound(), eggCombo_.FlowersTotal(), eggCombo_.FlowerPop());
 	backdrop_.Update(GetCamera());
 }
 
@@ -748,6 +782,7 @@ void GamePlayScene::RestartForTake(int rail, float dist){
 
 void GamePlayScene::ResetStageForRetry(){
 	aimThrow_.Reset();
+	eggCombo_.Reset();
 	swallow_.Reset();
 	SpawnEnemies();        // 敵は置き直し（倒した敵も戻る）
 	combat_.ClearEffects();

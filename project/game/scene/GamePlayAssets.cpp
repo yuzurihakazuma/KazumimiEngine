@@ -16,6 +16,8 @@ namespace {
         audio->LoadWave("resources/se/eggThrow.wav");
         audio->LoadWave("resources/se/eggHit.wav");
         audio->LoadWave("resources/se/eggBreak.wav");
+        audio->LoadWave("resources/se/se_spring.wav"); // ジャンプ台で跳ねた音
+        audio->LoadWave("resources/kamishibai/se_pon.wav"); // かくれ花が飛び出した音
     }
 
     void LoadCharacterModels(ModelManager* modelManager){
@@ -117,7 +119,8 @@ namespace {
                 if ( model->GetMaterial() ) { model->GetMaterial()->color = color; }
             }
         };
-        loadTintedBlock("craftSpring",     "block_1x1x1_sponge.obj", { 0.5f, 1.0f, 0.55f, 1.0f }); // ジャンプ台（緑）
+        // ジャンプ台：工作のばね（段ボールの土台・白い紙のコイル・緑のフェルトの板。tools/craftkit/make_spring_block.py）
+        modelManager->LoadModel("craftSpring", "resources/block/craft", "spring_1x1x1.obj", true);
         loadTintedBlock("craftHatena",     "block_1x1x1_layer.obj",  { 1.0f, 0.8f, 0.15f, 1.0f }); // ？ブロック（金）
         loadTintedBlock("craftHatenaUsed", "block_1x1x1_layer.obj",  { 0.45f, 0.42f, 0.4f, 1.0f }); // 使用済み（灰）
         loadTintedBlock("craftCloud",      "block_1x1x1_layer.obj",  { 0.9f, 0.97f, 1.0f, 1.0f }); // すり抜け床（白）

@@ -54,5 +54,8 @@ void EnemyManager::Update(const std::vector<SplineRail>& rails, const Vector3& p
 }
 
 void EnemyManager::Draw(){
-    for ( auto& enemy : enemies_ ) { enemy->Draw(); }
+    for ( auto& enemy : enemies_ ) {
+        if ( cutActive_ && enemy->GetPosition().z - enemy->GetRadius() > cutMinZ_ ) { continue; } // 裏から見ている間のカメラ側
+        enemy->Draw();
+    }
 }

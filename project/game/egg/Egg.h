@@ -28,6 +28,8 @@ public:
 
     // --- 状態遷移 ---
     void Throw(const Vector3& dir, float speed); // Held → Flying
+    // 飛んでいる卵の向きと速さを変える（奥の背景へ・跳ね返り）。flyTime＝ここから飛べる秒
+    void Redirect(const Vector3& dir, float speed, float flyTime);
     void Break();                                // → Broken
 
     // 並ぶ目標位置（後ろのスロット）。Held の間、ここへ滑らかに寄っていく。

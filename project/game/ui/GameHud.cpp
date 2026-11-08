@@ -31,6 +31,10 @@ void GameHud::Initialize(){
 	board_ = Make("resources/ui/hud_board.png");
 	board_->SetAnchorPoint({ 0.0f, 0.0f });
 	coin_ = Make("resources/ui/hud_coin.png");
+	comboLabel_ = Make("resources/ui/hud_combo.png");   // tools/hud/make_combo_assets.py
+	comboLabel_->SetAnchorPoint({ 0.5f, 0.5f });
+	flower_ = Make("resources/ui/hud_flower.png");
+	flower_->SetAnchorPoint({ 0.5f, 0.5f });
 	eggs_.clear();
 	emptyEggs_.clear();
 	belly_.clear();
@@ -85,9 +89,10 @@ void GameHud::Draw(ID3D12GraphicsCommandList* /*commandList*/){
 	if ( !board_ ) { return; }
 	nextDigit_ = 0;
 	const bool showCoins = coinTotal_ > 0; // コインが1枚も置かれていないマップでは出さない
+	const bool showFlowers = flowerTotal_ > 0; // かくれ花が隠れている木があるステージだけ
 	// 段ボールの札（中身に合わせて伸ばす）
 	const float boardW = kEggX + kEggStep * ( EggSystem::kMaxEggs - 1 ) + 150.0f;
-	const float boardH = showCoins ? 182.0f : 128.0f;
+	const float boardH = ( showCoins ? 182.0f : 128.0f ) + ( showFlowers ? 56.0f : 0.0f );
 	board_->SetAnchorPoint({ 0.0f, 0.0f });
 	Place(board_.get(), kLeft - 14.0f, kTop - 14.0f, boardW + 28.0f, boardH + 28.0f);
 
@@ -107,5 +112,19 @@ void GameHud::Draw(ID3D12GraphicsCommandList* /*commandList*/){
 	if ( showCoins ) {
 		Place(coin_.get(), kCoinX, kCoinY, kCoinSize, kCoinSize);
 		DrawNumber(std::to_string(coins_) + "/" + std::to_string(coinTotal_), kCoinX + kCoinSize * 0.7f, kCoinY, kCoinCountH);
+	}
+	// かくれ花「n/全体」（見つけた瞬間はぽんと大きく）
+	if ( showFlowers ) {
+		const float y = ( showCoins ? kCoinY + 56.0f : kCoinY );
+		const float size = 50.0f * ( 1.0f + 0.5f * flowerPop_ );
+		Place(flower_.get(), kCoinX + 22.0f, y + 22.0f, size, size);
+		DrawNumber(std::to_string(flowers_) + "/" + std::to_string(flowerTotal_), kCoinX + kCoinSize * 0.7f, y, kCoinCountH);
+	}
+	// コンボ：画面の上の真ん中に「コンボ」の札と「×n」。当てた瞬間にぽんと大きく
+	if ( combo_ > 0 && comboAlpha_ > 0.0f ) {
+		const float centerX = 960.0f * ( float ) WindowProc::GetInstance()->GetClientWidth() / ( 1920.0f * scale_ );
+		const float pop = 1.0f + 0.35f * comboPop_;
+		Place(comboLabel_.get(), centerX - 70.0f, 130.0f, 364.0f * pop, 105.0f * pop, comboAlpha_);
+		DrawNumber("x" + std::to_string(combo_), centerX + 130.0f, 130.0f, 84.0f * pop);
 	}
 }

@@ -509,6 +509,7 @@ bool ScreenCapture::ApplyCameraLock(Camera* camera){
 void ScreenCapture::DrawOverlay(){
 #ifdef USE_IMGUI
     if ( !ImGui::GetCurrentContext() ) { return; }
+    if ( recording_ && captureMode_ == 1 ) { return; } // 「ImGui ごと」を録画中は、印が録画に入るので何も出さない
     ImDrawList* draw = ImGui::GetForegroundDrawList(ImGui::GetMainViewport()); // 今の窓ではなく、ゲームの窓の一番手前
     const ImVec2 size = ImGui::GetMainViewport()->Size;
     const ImVec2 origin = ImGui::GetMainViewport()->Pos;

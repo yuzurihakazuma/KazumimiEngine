@@ -8,6 +8,7 @@ class EnemyManager;
 class EggSystem;
 class Camera;
 class Sprite;
+class EggCombo;
 
 // =====================================================================
 //  AimThrowController：ヨッシー風の卵投げ（構え→狙い→投擲）。
@@ -33,7 +34,9 @@ public:
     void DrawSprite();
 
     // 構えを解除して通常状態へ（モード切替時などに呼ぶ）
-    void Reset(){ state_ = State::Idle; aimLocked_ = false; }
+    void Reset(){ state_ = State::Idle; aimLocked_ = false; depthLocked_ = false; }
+    // 奥投げ：カーソルを背景の木・柵などに合わせるとロックして、奥へ投げる（EggCombo）
+    void SetCombo(EggCombo* combo){ combo_ = combo; }
 
     bool IsAiming() const { return state_ == State::Aiming; }
 
@@ -55,6 +58,10 @@ private:
     float cursorX_ = 0.0f;   // 狙いカーソルの画面位置X(px)
     float cursorY_ = 0.0f;   // 狙いカーソルの画面位置Y(px)
     bool  aimLocked_ = false; // 敵にロックオン中か（カーソルの色/サイズ変更）
+    bool  depthLocked_ = false; // 背景の物にロック中か（奥投げ。カーソルは水色）
+    int   depthTarget_ = -1;
+    float depthRingSize_ = 96.0f;
+    EggCombo* combo_ = nullptr;
     bool  canceled_ = false;  // 直前にXでキャンセルしたか（1回読まれたら消えるフラグ）
     float aimYaw_ = 0.0f;     // 今の狙い方向のヨー角（プレイヤーの向き合わせ用）
     float aimAxisYaw_ = 0.0f; // 構え開始時のレール軸の向き（狙い中は固定）

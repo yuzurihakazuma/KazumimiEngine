@@ -82,6 +82,12 @@ void Egg::StopAtObstacle(const Vector3& hitPos){
 }
 
 // Held → Flying：指定方向へ初速を与える。
+void Egg::Redirect(const Vector3& dir, float speed, float flyTime){
+    if ( state_ != EggState::Flying ) return;
+    vel_      = { dir.x * speed, dir.y * speed, dir.z * speed };
+    flyTimer_ = flyTime;
+}
+
 void Egg::Throw(const Vector3& dir, float speed){
     if ( state_ != EggState::Held ) return;
     prevPos_ = pos_;
