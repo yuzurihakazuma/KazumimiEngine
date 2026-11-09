@@ -53,6 +53,10 @@ void EnemyManager::Update(const std::vector<SplineRail>& rails, const Vector3& p
         [](const std::unique_ptr<Enemy>& enemy){ return enemy->IsConsumed(); }), enemies_.end());
 }
 
+void EnemyManager::SetHighlight(const Enemy* target, float pulse){
+    for ( auto& enemy : enemies_ ) { enemy->SetHighlight(enemy.get() == target, pulse); }
+}
+
 void EnemyManager::Draw(){
     for ( auto& enemy : enemies_ ) {
         if ( cutActive_ && enemy->GetPosition().z - enemy->GetRadius() > cutMinZ_ ) { continue; } // 裏から見ている間のカメラ側

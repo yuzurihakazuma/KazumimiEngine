@@ -1176,6 +1176,9 @@
     <ClInclude Include="game\stage\CoinSystem.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="game\stage\StageRecords.h">
+      <Filter>ソース ファイル\ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="game\stage\BlockSystem.h">
       <Filter>ソース ファイル\ヘッダー ファイル</Filter>
     </ClInclude>

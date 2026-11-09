@@ -190,15 +190,18 @@ def panel(path, locked):
         text(d, (W / 2, 250), "まだ あそべない", 44, anchor="mm")
         text(d, (W / 2, 312), "つくっているところ…", 30, anchor="mm", width=4)
     else:
-        # 名前はゲームが重ねる（intro_name_<stage>.png）。下の段に「コイン」と「ベスト」
+        # 名前はゲームが重ねる（intro_name_<stage>.png）。下の段に「コイン」と「コンボ花」
         coin_y, best_y = 228, 304
         d.ellipse([46, coin_y - 26, 98, coin_y + 26], fill=(250, 206, 46), outline=BROWN, width=4)
         d.ellipse([60, coin_y - 12, 84, coin_y + 12], outline=(230, 170, 30), width=3)
         text(d, (118, coin_y), "コイン", 40, anchor="lm")
-        d.polygon([(72, best_y - 28), (80, best_y - 8), (102, best_y - 8), (84, best_y + 5), (91, best_y + 26),
-                   (72, best_y + 13), (53, best_y + 26), (60, best_y + 5), (42, best_y - 8), (64, best_y - 8)],
-                  fill=(255, 150, 60), outline=BROWN)
-        text(d, (118, best_y), "ベスト", 40, anchor="lm")
+        # コンボ花（卵のコンボで ×8 を出すと見つかる。HUD の hud_combo_flower.png と同じ形）
+        for k in range(8):
+            a = -math.pi / 2 + k * math.pi / 4
+            px, py = 72 + math.cos(a) * 17, best_y + math.sin(a) * 17
+            d.ellipse([px - 10, py - 10, px + 10, py + 10], fill=(250, 200, 50), outline=BROWN, width=3)
+        d.ellipse([60, best_y - 12, 84, best_y + 12], fill=(240, 140, 50), outline=BROWN, width=3)
+        text(d, (118, best_y), "コンボ花", 40, anchor="lm")
     # 操作の案内
     y = H - 62
     if not locked:

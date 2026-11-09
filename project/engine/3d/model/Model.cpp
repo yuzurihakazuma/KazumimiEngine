@@ -335,7 +335,7 @@ void Model::InitializeCylinder(ModelCommon* modelCommon, int subdivision, float 
 	modelData_.material.textureFilePath = "resources/uvChecker.png";
 	CreateBuffers();
 }
-void Model::Draw(uint32_t instanceCount) {
+void Model::Draw(uint32_t instanceCount, D3D12_GPU_VIRTUAL_ADDRESS materialOverride) {
 	// 描くものが無い（動的メッシュが空）なら何もしない
 	if ( drawIndexCount_ == 0 ) { return; }
 	// 1. コマンドリストを取得する
@@ -350,7 +350,8 @@ void Model::Draw(uint32_t instanceCount) {
 
 	// 4. マテリアル定数バッファの設定 (RootParameter 0番)
 	// ※元のObj3d.cppで 0番 に設定していたものです
-	commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+	//   materialOverride があれば、物ごとのマテリアル（Obj3d::SetMaterialOverride。モデルの共有マテリアルは書き換えない）
+	commandList->SetGraphicsRootConstantBufferView(0, materialOverride ? materialOverride : materialResource_->GetGPUVirtualAddress());
 	// プリミティブトポロジの設定（三角形リスト）
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 

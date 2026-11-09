@@ -102,6 +102,8 @@ public:
     // 見た目だけ非表示にする（舌で捕まえた瞬間、SDF溶解演出に差し替えるため使う。
     //   position_/collider_ 等の内部状態はそのまま動き続ける＝実体は生きている）
     void SetVisualHidden(bool hidden){ visualHidden_ = hidden; }
+    // 卵で狙われている（光る。背景の物と同じ光り方）。pulse＝0〜1 の脈打ち
+    void SetHighlight(bool on, float pulse);
 
     // 体の中心（ロックオン・演出・舌の狙い先）
     const Vector3& GetPosition() const{ return position_; }
@@ -158,6 +160,8 @@ private:
     bool      visualHidden_ = false;      // true の間は Draw をスキップ
     // 溶けて消える（倒された時）。-1＝溶けていない / 0以上＝溶けはじめてからの秒 / 溶け終わったら -2
     float     meltT_ = -1.0f;
+    bool      highlighted_ = false;
+    float     highlightPop_ = 0.0f;       // 狙われた瞬間 1 → 0（ぽんと大きく）
     void TickMelt(float dt);
     void ApplyLook(float squash, float melt); // 見た目の行列と溶け具合（melt 0=そのまま → 1=消えた）
 

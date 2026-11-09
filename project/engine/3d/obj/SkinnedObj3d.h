@@ -71,6 +71,13 @@ public:  // --- Getter / Setter ---
     void SetLoopAnimation(bool loop) { isLoop_ = loop; }
     void SetNoiseTexture(uint32_t index) { noiseTextureIndex_ = index; }
     void SetDissolveThreshold(float threshold);
+    // 物ごとのマテリアル：この物だけ色を明るくしたり光らせたりする（モデルのマテリアルは同じモデルの物すべてで共有なので書き換えない）。
+    //   brighten＝色に掛ける倍率、emissive＝1 を超えると光る（マスクに書かれて Bloom で光る）。enabled=false でモデルのまま
+    void SetMaterialOverride(bool enabled, float brighten = 1.0f, float emissive = 0.0f);
+    bool HasMaterialOverride() const { return materialOverrideOn_; }
+private:
+    D3D12_GPU_VIRTUAL_ADDRESS PrepareMaterialOverride();
+public:
 
     void SetEnvironmentMap(uint32_t srvIndex){ skyboxTextureIndex_ = srvIndex; }
 
@@ -136,6 +143,12 @@ private:
 
     // ディゾルブ定数バッファ
     Microsoft::WRL::ComPtr<ID3D12Resource> dissolveResource_;
+    // SetMaterialOverride（初めて使う時に作る）
+    Microsoft::WRL::ComPtr<ID3D12Resource> materialOverrideResource_;
+    void* materialOverrideData_ = nullptr;
+    bool  materialOverrideOn_ = false;
+    float materialBrighten_ = 1.0f;
+    float materialEmissive_ = 0.0f;
     DissolveData* dissolveData_ = nullptr;
     uint32_t      noiseTextureIndex_ = 0;
 

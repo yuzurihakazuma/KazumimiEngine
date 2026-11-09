@@ -92,9 +92,11 @@ public:
 
 	/// <summary>コマンドキューのゲッター
 	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
-	// 画面に出す直前（このフレームのコマンドを流した後・Present の前）に呼ぶ。引数はこれから出すバックバッファ（PRESENT 状態）。
-	//   撮影（ScreenCapture）が使う
-	void SetBeforePresentHook(std::function<void(ID3D12Resource*)> hook){ beforePresentHook_ = std::move(hook); }
+	// フレームの最後（ImGui まで描き終わり、バックバッファを PRESENT へ戻す前）に呼ぶ。
+	//   引数はコマンドリストと、これから出すバックバッファ（RENDER_TARGET 状態）。撮影（ScreenCapture）が写し取りを積む
+	void SetFrameEndHook(std::function<void(ID3D12GraphicsCommandList*, ID3D12Resource*)> hook){ frameEndHook_ = std::move(hook); }
+	// 今描いているバックバッファ
+	ID3D12Resource* GetCurrentBackBuffer() const{ return backBuffers_[swapChain_->GetCurrentBackBufferIndex()].Get(); }
 
 	// ログマネージャーのゲッター
 	logs::LogManager& GetLogManager(){ return logManager_; }
@@ -241,7 +243,7 @@ private:
 
 	void InitializeFixFPS(); // FPS固定の初期化
 	void UpdateFixFPS();     // FPS固定の更新
-	std::function<void(ID3D12Resource*)> beforePresentHook_;
+	std::function<void(ID3D12GraphicsCommandList*, ID3D12Resource*)> frameEndHook_;
 
 	std::chrono::steady_clock::time_point reference_; // 前フレーム時間
 

@@ -57,6 +57,12 @@ public:
     void Update(const Camera* camera); // カメラの行列を反映（毎フレーム）
     // 実行中だけ隠す物（カメラ反転で裏から見る時に、カメラの前をふさぐ物）。保存はしない。空＝全部出す
     void SetRuntimeHidden(const std::vector<char>& hidden);
+    // 卵コンボ用に、物を1つずつ隠す（代役を出している間・はじけ飛んだ後）。反転用の SetRuntimeHidden とは別に持ち、
+    //   どちらかで隠れていれば描かない。遊んでいる間だけ（保存される「消した」とは別）
+    void SetComboHidden(int index, bool hidden);
+    void ClearComboHidden();
+    // 今描かれていない物か（反転用・コンボ用のどちらかで隠れている）
+    bool IsRuntimeHidden(int index) const;
     // 全体をまとめて縮めて動かす（ステージ選択の箱庭：本物のステージを台座の上に小さく載せる）。
     //   scale=1・yaw=0・translate=0 で元のまま。拡縮は等倍（縦横同じ）だけ
     void SetRoot(float scale, float yawRadians, const Vector3& translate);
@@ -167,6 +173,7 @@ private:
     std::vector<Group>        groups_;
     bool groupsDirty_ = true;
     std::vector<char> runtimeHidden_; // items_ と同じ並び（短ければ足りない分は出す）
+    std::vector<char> comboHidden_;   // 卵コンボ用（SetComboHidden）
     bool rootActive_ = false;
     Matrix4x4 root_ {};          // 全体の行列（箱庭）
     Matrix4x4 rootNormal_ {};    // 法線の向きだけ（回転。等倍の拡縮は法線の向きを変えない）

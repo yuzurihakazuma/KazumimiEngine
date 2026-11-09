@@ -46,6 +46,7 @@
 #include "externals/nlohmann/json.hpp"
 
 #include "engine/utils/ScreenCapture.h"
+#include "game/stage/StageRecords.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -91,7 +92,8 @@ void GamePlayScene::OnLoadResources(){
 // カメラ・共通機能の用意が済んだ後（Obj3d::Create がデフォルトカメラを掴むため）
 void GamePlayScene::OnInitialize(){
 	avatar_.Initialize(textures_["skybox"].srvIndex);
-	aimThrow_.Initialize(textures_["circle2"].srvIndex); // 狙い用カーソル（構え中だけ表示）
+	aimThrow_.Initialize();          // 紙を切り抜いた照準（構え中だけ表示）
+	swallow_.InitializeMark();       // 食べられる敵の頭の上のベロの印
 	hud_.Initialize();
 	SetupGameplay();
 	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
@@ -102,7 +104,10 @@ void GamePlayScene::OnInitialize(){
 	//   （共通の初期位置 (0, 2, -15) は裏の世界の地面の中に入ってしまう）
 	GetCamera()->SetTranslation({ 0.0f, 7.5f, -10.0f });
 	GetCamera()->SetRotation({ 0.25f, 0.0f, 0.0f });
-	eggCombo_.SetContext(&backdrop_, &eggSystem_, &coinSystem_); // 卵の奥投げ・跳ね返りコンボ
+	eggCombo_.SetContext(&backdrop_, &eggSystem_, &coinSystem_); // 卵の奥投げ・はじけ飛ぶコンボ
+	eggCombo_.Prewarm(textures_["noise0"].srvIndex);              // 代役（光る物・飛ぶ物）を先に作る
+	eggCombo_.SetStage(kStageName);
+	eggCombo_.SetOnMaxCombo([this]{ gameOver_.Heal(1); });        // ×8 で♡が 1 つ戻る
 	aimThrow_.SetCombo(&eggCombo_);
 	// 体力（♡）とゲームオーバー
 	GameOverFlow::Context gameOverContext;
@@ -203,6 +208,10 @@ void GamePlayScene::SetupGameplay(){
 
 	// 卵・吐き出し弾がブロックと道に当たるようにする
 	obstacles_.Initialize(&blockSystem_, &railField_.GetRails());
+	// ベロは壁（ブロック）を通り抜けない（壁越しに敵を食べられないように）
+	swallow_.SetWallQuery([this](const Vector3& from, const Vector3& to, Vector3& outHit){
+		return blockSystem_.SweepSphere(from, to, 0.08f, &outHit);
+	});
 	eggSystem_.SetObstacleQuery(
 		[this](const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos) -> bool {
 			return obstacles_.Sweep(from, to, radius, outHitPos);
@@ -551,6 +560,9 @@ void GamePlayScene::UpdatePlayMode(){
 		for ( size_t i = 0; i < centers.size(); ++i ) { blockers.push_back({ centers[i], radii[i] }); }
 		eggCombo_.SetAimBlockers(blockers);
 	}
+	// 狙いの線・球（デバッグ）は「当たり判定を表示」の時だけ
+	aimThrow_.SetDebugVisible(showHitShapes_);
+	swallow_.SetDebugVisible(showHitShapes_);
 	// 構え中はベロ(E)と産卵(左Ctrl)を発動禁止（両手が卵でふさがっている）
 	swallow_.SetActionBlocked(aimThrow_.IsAiming());
 	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
@@ -580,7 +592,7 @@ void GamePlayScene::UpdatePlayMode(){
 	// 卵の追従・飛行・割れの更新
 	float yaw = player_->GetRotation().y;
 	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime);
-	eggCombo_.Update(player_->GetPosition(), deltaTime); // 奥へ投げた卵：背景に当たったら跳ね返ってコンボ
+	eggCombo_.Update(player_->GetPosition(), GetCamera(), deltaTime); // 奥へ投げた卵：当たった物がはじけ飛んでコンボ
 
 	// ゴール判定＋ゴールマーカー
 	stageFlow_.Update(player_->GetPosition(), railField_, hitFeel_);
@@ -684,7 +696,10 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
 	hud_.SetCombo(eggCombo_.ComboCount(), eggCombo_.ComboAlpha(), eggCombo_.ComboPop());
 	hud_.SetFlowers(eggCombo_.FlowersFound(), eggCombo_.FlowersTotal(), eggCombo_.FlowerPop());
+	hud_.SetComboFlowers(eggCombo_.ComboFlowersFound(), eggCombo_.ComboFlowersTotal(), eggCombo_.ComboFlowerPop());
+	if ( playing ) { StageRecords::GetInstance()->NoteCoins(kStageName, coinSystem_.CollectedCount()); } // ワールドマップの「コイン」
 	backdrop_.Update(GetCamera());
+	eggCombo_.UpdateVisuals(); // 光る物・飛ぶ物の代役（カメラが決まった後）
 }
 
 // =====================================================================
@@ -712,6 +727,7 @@ void GamePlayScene::OnDrawInstanced(){
 	if ( gameOver_.HidesScene() ) { return; }
 	blockSystem_.Draw(GetCamera()); // 配置ブロック（見た目グループごとに1ドローコール）
 	backdrop_.Draw(GetCamera());    // ステージのクラフトの背景（モデルごとに1ドローコール）
+	eggCombo_.Draw();               // 狙って光っている物・はじけ飛んでいる物（背景の代役）
 }
 
 void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/){
@@ -730,7 +746,8 @@ void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
 void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
 	const bool playing = EditorManager::GetInstance()->GetMode() == EngineMode::Play;
 	if ( gameOver_.DrawUI(playing) ) { return; } // ゲームオーバー演出の間は HUD の代わりにゲームオーバーの画面（それ以外は♡）
-	aimThrow_.DrawSprite(); // 構え中だけ狙いカーソル
+	aimThrow_.DrawSprite(); // 構え中だけ紙の照準（投げた直後はぱっと開いて消える）
+	if ( playing ) { swallow_.DrawSprite(); } // 食べられる敵の頭の上のベロの印
 	// 卵・コインのHUD（プレイ中のみ。エディット中は編集の邪魔になるので出さない）
 	//   ステージ開始の演出の間は隠す（カメラが後ろへ戻り始めたら出す）
 	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play && !intro_.IsHudHidden() ) { hud_.Draw(commandList); }
@@ -804,6 +821,11 @@ void GamePlayScene::OnDebugUI(){
 	editorTools_.DrawPanels(editContext);
 	editorTools_.UpdateGameView(editContext);
 	flip_.UpdateEditor(editContext); // カメラ反転：パネル「カメラ反転」・Game View のクリックで置く・名札
+	// 背景エディタで的を選んでいる：卵を当てた時にはじける順（コンボの道）を線で見せる
+	if ( editContext.editor->GetMode() == EngineMode::Edit && editContext.editor->IsPanelVisible(EditorManager::Panel_Backdrop)
+		&& editorTools_.BackdropTool().ShowComboPreview() ) {
+		eggCombo_.DrawPreview(editorTools_.BackdropTool().Selection(), *GetCamera());
+	}
 	// 乗り換えデバッガ（パネルを開いている間だけ重ね描き）
 	if ( editContext.editor->IsPanelVisible(EditorManager::Panel_RailDebug) ) {
 		const bool playing = ( editContext.editor->GetMode() == EngineMode::Play );

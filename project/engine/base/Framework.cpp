@@ -181,6 +181,9 @@ void Framework::Draw(){
 	// シーン固有の描画（継承先で実装）
 	DrawScene();
 
+	// 撮影：ゲーム＋HUD（ImGui を重ねる前のバックバッファ）を写す時の写し取り
+	ScreenCapture::GetInstance()->OnBeforeImGui(dxCommon->GetCommandList(), dxCommon->GetCurrentBackBuffer());
+
 	// ImGui 描画コマンド発行
 	EditorManager::GetInstance()->End();
 

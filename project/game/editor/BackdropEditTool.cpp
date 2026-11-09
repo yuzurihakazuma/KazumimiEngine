@@ -41,7 +41,7 @@ namespace {
         if ( model.rfind("grass_", 0) == 0 )  return 0;
         if ( model.rfind("flower_", 0) == 0 ) return 1;
         if ( model.rfind("tree_", 0) == 0 )   return 2;
-        if ( model.rfind("paper_rock", 0) == 0 || model == "fence_sticks" || model == "sign_arrow" ) return 3;
+        if ( model.rfind("paper_rock", 0) == 0 || model == "fence_sticks" || model == "sign_arrow" || model == "combo_target" ) return 3;
         if ( model.rfind("ground_", 0) == 0 ) return 5;
         return 4;
     }
@@ -170,6 +170,8 @@ void BackdropEditTool::DrawPanel(const SceneEditContext& context){
     toolButton("ブラシ##bd", Tool::Brush);  ImGui::SameLine();
     toolButton("消しゴム##bd", Tool::Eraser); ImGui::SameLine();
     toolButton("地面##bd", Tool::Ground);
+    ImGui::Checkbox("コンボの道を見せる##bd", &comboPreview_);
+    if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("選んだ木・柵・岩・看板・花・コンボの的に、卵を当てた時にはじける順を線で見せる\n（青＝左のふち・白＝真ん中・橙＝右のふちに当てた時）"); }
 
     switch ( tool_ ) {
     case Tool::Select:

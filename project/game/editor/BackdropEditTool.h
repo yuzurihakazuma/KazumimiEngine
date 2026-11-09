@@ -39,6 +39,9 @@ public:
     void Cancel(const SceneEditContext& context);
 
     bool IsDirty() const { return dirty_; }
+    // コンボの道を見せる（選んだ的から、卵が当たった時にはじける順。EggCombo::DrawPreview）
+    bool ShowComboPreview() const { return enabled_ && comboPreview_ && tool_ == Tool::Select; }
+    const std::vector<int>& Selection() const { return selection_; }
     // 背景を編集しているか（Edit モード・パネル表示中・「背景を編集する」ON）。この間は Game View のクリックを背景に使う
     bool IsEditing(const SceneEditContext& context) const;
 
@@ -93,6 +96,7 @@ private:
     bool  enabled_ = true;          // 「背景を編集する」
     Tool  tool_ = Tool::Select;
     bool  includeGround_ = false;   // 地面・丘・空も選べる
+    bool  comboPreview_ = true;     // 選んだ的のコンボの道を見せる
     std::string placeModel_ = "grass_tuft_00";
     // 置く時のばらつき
     bool  randomTurn_ = true;  float turnRange_ = 25.0f;

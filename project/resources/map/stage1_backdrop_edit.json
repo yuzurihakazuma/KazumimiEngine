@@ -10031,8 +10031,1077 @@
     2.53
    ],
    "group": 7001
+  },
+  {
+   "model": "combo_target",
+   "pos": [
+    -42.0,
+    2.23,
+    10.6
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.6,
+    1.6,
+    1.6
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "origin"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -42.0,
+    2.78,
+    14.4
+   ],
+   "rot": [
+    0.0,
+    175.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "center"
+  },
+  {
+   "model": "paper_rock_00",
+   "pos": [
+    -41.7,
+    2.78,
+    17.7
+   ],
+   "rot": [
+    0.0,
+    169.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "center"
+  },
+  {
+   "model": "sign_arrow",
+   "pos": [
+    -41.7,
+    3.33,
+    21.0
+   ],
+   "rot": [
+    0.0,
+    169.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "center"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -38.8,
+    2.78,
+    13.3
+   ],
+   "rot": [
+    0.0,
+    187.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    -35.3,
+    2.78,
+    15.3
+   ],
+   "rot": [
+    0.0,
+    168.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "paper_rock_01",
+   "pos": [
+    -31.6,
+    2.78,
+    16.8
+   ],
+   "rot": [
+    0.0,
+    165.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -27.8,
+    2.78,
+    17.9
+   ],
+   "rot": [
+    0.0,
+    194.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    -23.9,
+    2.78,
+    18.7
+   ],
+   "rot": [
+    0.0,
+    169.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "paper_rock_00",
+   "pos": [
+    -19.9,
+    3.33,
+    19.4
+   ],
+   "rot": [
+    0.0,
+    193.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "tree_round_small_00",
+   "pos": [
+    -15.9,
+    3.33,
+    20.2
+   ],
+   "rot": [
+    0.0,
+    187.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "right"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    -45.2,
+    2.23,
+    13.3
+   ],
+   "rot": [
+    0.0,
+    166.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "left"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -48.7,
+    2.78,
+    15.3
+   ],
+   "rot": [
+    0.0,
+    190.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "start",
+   "branch": "left"
+  },
+  {
+   "model": "combo_target",
+   "pos": [
+    2.0,
+    2.23,
+    10.6
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.6,
+    1.6,
+    1.6
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "origin"
+  },
+  {
+   "model": "paper_rock_00",
+   "pos": [
+    2.0,
+    2.78,
+    14.0
+   ],
+   "rot": [
+    0.0,
+    183.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "center"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    1.6,
+    2.78,
+    17.0
+   ],
+   "rot": [
+    0.0,
+    182.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "center"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    1.6,
+    3.33,
+    20.0
+   ],
+   "rot": [
+    0.0,
+    182.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "center"
+  },
+  {
+   "model": "tree_round_small_01",
+   "pos": [
+    1.6,
+    3.33,
+    22.8
+   ],
+   "rot": [
+    0.0,
+    182.0,
+    0.0
+   ],
+   "scale": [
+    1.6,
+    1.6,
+    1.6
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "center"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    5.0,
+    2.78,
+    13.6
+   ],
+   "rot": [
+    0.0,
+    192.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "right"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    8.2,
+    2.78,
+    15.9
+   ],
+   "rot": [
+    0.0,
+    186.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "right"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    -1.0,
+    2.78,
+    13.6
+   ],
+   "rot": [
+    0.0,
+    191.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "left"
+  },
+  {
+   "model": "sign_arrow",
+   "pos": [
+    -4.2,
+    2.78,
+    15.9
+   ],
+   "rot": [
+    0.0,
+    194.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "middle",
+   "branch": "left"
+  },
+  {
+   "model": "combo_target",
+   "pos": [
+    49.0,
+    1.58,
+    16.4
+   ],
+   "rot": [
+    0.0,
+    180.0,
+    0.0
+   ],
+   "scale": [
+    1.6,
+    1.6,
+    1.6
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "origin"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    49.0,
+    2.13,
+    20.2
+   ],
+   "rot": [
+    0.0,
+    166.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "center"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    49.5,
+    2.13,
+    23.5
+   ],
+   "rot": [
+    0.0,
+    192.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "center"
+  },
+  {
+   "model": "paper_rock_00",
+   "pos": [
+    49.6,
+    2.68,
+    26.8
+   ],
+   "rot": [
+    0.0,
+    165.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "center"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    52.2,
+    1.58,
+    19.1
+   ],
+   "rot": [
+    0.0,
+    193.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    55.7,
+    2.17,
+    21.1
+   ],
+   "rot": [
+    0.0,
+    187.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "paper_rock_01",
+   "pos": [
+    59.4,
+    2.19,
+    22.6
+   ],
+   "rot": [
+    0.0,
+    193.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    63.2,
+    2.19,
+    23.7
+   ],
+   "rot": [
+    0.0,
+    188.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    67.1,
+    2.74,
+    24.5
+   ],
+   "rot": [
+    0.0,
+    168.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "paper_rock_00",
+   "pos": [
+    71.1,
+    2.54,
+    25.2
+   ],
+   "rot": [
+    0.0,
+    181.0,
+    0.0
+   ],
+   "scale": [
+    1.3,
+    1.3,
+    1.3
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "tree_round_small_00",
+   "pos": [
+    75.2,
+    2.54,
+    25.9
+   ],
+   "rot": [
+    0.0,
+    191.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "right"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    45.8,
+    1.58,
+    19.1
+   ],
+   "rot": [
+    0.0,
+    190.0,
+    0.0
+   ],
+   "scale": [
+    1.8,
+    1.8,
+    1.8
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "left"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    42.3,
+    2.13,
+    21.1
+   ],
+   "rot": [
+    0.0,
+    174.0,
+    0.0
+   ],
+   "scale": [
+    1.7,
+    1.7,
+    1.7
+   ],
+   "group": 7100,
+   "spot": "hill",
+   "branch": "left"
   }
  ],
- "removed": [],
+ "removed": [
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -43.946,
+    2.23,
+    9.224
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -41.546,
+    2.23,
+    9.224
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -39.146,
+    2.23,
+    9.224
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    -43.096,
+    2.23,
+    10.539
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    -43.14,
+    2.23,
+    10.454
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    -43.674,
+    2.23,
+    10.329
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    -41.12,
+    2.23,
+    10.022
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    -41.796,
+    2.23,
+    10.266
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    -41.829,
+    2.23,
+    10.055
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_cutout_00",
+   "pos": [
+    -40.183,
+    2.23,
+    12.496
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_round_small_01",
+   "pos": [
+    -42.263,
+    2.23,
+    12.756
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_red",
+   "pos": [
+    -40.024,
+    2.23,
+    11.617
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    -39.512,
+    2.23,
+    11.398
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_round_small_01",
+   "pos": [
+    -40.353,
+    3.33,
+    22.294
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_round_small_00",
+   "pos": [
+    -24.282,
+    3.33,
+    19.971
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_cutout_00",
+   "pos": [
+    -18.092,
+    3.33,
+    19.88
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    -0.746,
+    2.23,
+    9.224
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    1.654,
+    2.23,
+    9.224
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    4.054,
+    2.23,
+    9.224
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    -0.305,
+    2.23,
+    10.183
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    -0.311,
+    2.23,
+    10.037
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    0.355,
+    2.23,
+    10.134
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_orange",
+   "pos": [
+    0.282,
+    2.23,
+    10.054
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    2.933,
+    2.23,
+    9.816
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    2.767,
+    2.23,
+    10.321
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    2.462,
+    2.23,
+    10.312
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    4.203,
+    2.23,
+    9.797
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    3.944,
+    2.23,
+    9.938
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    47.254,
+    1.58,
+    14.907
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "fence_sticks",
+   "pos": [
+    49.654,
+    1.58,
+    14.811
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "flower_white",
+   "pos": [
+    45.797,
+    1.58,
+    15.981
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_cutout_02",
+   "pos": [
+    43.79,
+    1.58,
+    17.935
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_cutout_00",
+   "pos": [
+    46.16,
+    1.58,
+    16.932
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_round_small_01",
+   "pos": [
+    52.865,
+    1.58,
+    17.146
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_cutout_01",
+   "pos": [
+    51.543,
+    2.68,
+    25.057
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_cutout_02",
+   "pos": [
+    62.494,
+    2.74,
+    26.774
+   ],
+   "by": "combo_spots"
+  },
+  {
+   "model": "tree_round_small_00",
+   "pos": [
+    70.991,
+    2.54,
+    26.394
+   ],
+   "by": "combo_spots"
+  }
+ ],
  "moved": []
 }

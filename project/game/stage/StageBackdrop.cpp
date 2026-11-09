@@ -547,7 +547,7 @@ void StageBackdrop::RebuildGroups(){
     // モデルごとに、消していない物の番号を集める。GPU の入れ物は、足りない時だけ余裕を持たせて作り直す
     std::map<std::string, std::vector<int>> byModel;
     for ( int i = 0; i < ( int ) items_.size(); ++i ) {
-        const bool hidden = i < ( int ) runtimeHidden_.size() && runtimeHidden_[i];
+        const bool hidden = IsRuntimeHidden(i);
         if ( !items_[i].removed && !hidden ) { byModel[items_[i].model].push_back(i); }
     }
     std::vector<Group> next;
@@ -594,6 +594,24 @@ void StageBackdrop::Update(const Camera* camera){
         }
         group.batch->Update(group.matrices);
     }
+}
+
+void StageBackdrop::SetComboHidden(int index, bool hidden){
+    if ( index < 0 || index >= ( int ) items_.size() ) { return; }
+    if ( comboHidden_.size() < items_.size() ) { comboHidden_.resize(items_.size(), 0); }
+    if ( ( comboHidden_[index] != 0 ) == hidden ) { return; }
+    comboHidden_[index] = hidden ? 1 : 0;
+    groupsDirty_ = true;
+}
+
+void StageBackdrop::ClearComboHidden(){
+    for ( char hidden : comboHidden_ ) { if ( hidden ) { groupsDirty_ = true; break; } }
+    comboHidden_.clear();
+}
+
+bool StageBackdrop::IsRuntimeHidden(int index) const{
+    return ( index < ( int ) runtimeHidden_.size() && runtimeHidden_[index] )
+        || ( index < ( int ) comboHidden_.size() && comboHidden_[index] );
 }
 
 void StageBackdrop::SetRuntimeHidden(const std::vector<char>& hidden){

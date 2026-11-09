@@ -25,6 +25,7 @@ public:
     // amount 個減らす。ゼロになったら true
     bool Damage(int amount);
     void Refill();          // 満タンに戻す（見せる）
+    void Heal(int amount);  // amount 個戻す（満タンより多くはしない。見せる）
     void Show();            // 今の数を見せる
     void HideNow();         // すぐ隠す（ゲームオーバー演出の間など）
     int  Count() const{ return count_; }
