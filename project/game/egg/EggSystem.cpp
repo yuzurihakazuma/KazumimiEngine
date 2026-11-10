@@ -1,6 +1,7 @@
 #include "game/egg/EggSystem.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/model/Model.h"
+#include "engine/3d/model/ModelManager.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/graphics/DebugDraw.h"
 #include "engine/sdf/SDFVolumeObject.h"
@@ -20,6 +21,8 @@ namespace {
     const float kBirthFadeTime   = 0.15f; // 育ちきった後、実体メッシュへクロスフェードする秒数
     const float kBirthFxScale    = 0.91f; // メッシュ卵(モデル高さ1.3×スケール0.7=0.91m)と同じ大きさ
     const float kBirthFullErode  = 0.5f * kBirthFxScale; // これだけ痩せると完全に消える量
+    const float kBirthDepthBias  = 0.03f; // 実体へ交代する間だけ、SDF の卵の深度をこれだけ手前へ（同じ形の実体と面を取り合わないように）
+    const float kEggHalfHeight   = 0.65f; // 卵のモデルの高さの半分（egg.obj。SDF の卵に実体と同じ UV で模様を貼るのに使う）
     const Vector4 kBirthFxColor  = { 0.98f, 0.96f, 0.86f, 1.0f }; // 予備色（αはフェードで使う）
 
     // 壁・ブロック・道に対する当たりの大きさ（敵に対する半径への倍率）。
@@ -52,6 +55,7 @@ void EggSystem::Initialize(){
 //   （旧実装の敵ボール→卵モーフは廃止。モーフ用の2ボリューム目も読まないぶん軽い）
 void EggSystem::InitializeBirthFx(ID3D12GraphicsCommandList* commandList){
     birthFx_ = std::make_unique<SDFVolumeObject>();
+    birthLookReady_ = false; // 作り直したら、見た目の設定もやり直す
     if ( !birthFx_->Load("resources/sdf3d/egg.sdf3d", commandList) ) {
         birthFx_.reset(); // 無ければ演出なし（従来のポン出しに自動フォールバック）
         return;
@@ -153,12 +157,21 @@ bool EggSystem::LayEgg(const Vector3& birthPos){
         //   （戻さないと演出が新しい卵へ移った時、前の卵が永久に見えなくなる）
         if ( birthEgg_ ) {
             for ( auto& egg : eggs_ ) {
-                if ( egg.get() == birthEgg_ ) { birthEgg_->SetVisualHidden(false); break; }
+                if ( egg.get() == birthEgg_ ) { birthEgg_->SetVisualHidden(false); birthEgg_->SetSpinPaused(false); break; }
+            }
+        }
+        // SDF の卵を、実体の卵と同じ見た目（同じテクスチャ・同じ光・同じつや）にする。交代しても模様・明るさが変わらない
+        if ( !birthLookReady_ ) {
+            if ( Model* model = ModelManager::GetInstance()->FindModel("egg") ) {
+                const float shininess = model->GetMaterial() ? model->GetMaterial()->shininess : 32.0f;
+                birthFx_->SetMeshLook(true, model->GetTextureIndex(), kEggHalfHeight, shininess);
+                birthLookReady_ = true;
             }
         }
         birthEgg_   = eggs_.back().get();
         birthTimer_ = 0.0f;
         birthEgg_->SetVisualHidden(true);
+        birthEgg_->SetSpinPaused(true); // 交代が終わるまで回さない（SDF の卵と模様の向きをそろえる）
     }
     return true;
 }
@@ -319,7 +332,7 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
 
         if ( !exists || !birthEgg_->IsHeld() || tFade >= 1.0f ) {
             // 演出終了（or 途中で投げられた/割られた）→ 完全に実体メッシュへ交代
-            if ( exists ) { birthEgg_->SetVisualHidden(false); }
+            if ( exists ) { birthEgg_->SetVisualHidden(false); birthEgg_->SetSpinPaused(false); }
             birthEgg_   = nullptr;
             birthTimer_ = -1.0f;
         } else if ( tGrow >= 1.0f ) {
@@ -329,6 +342,8 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
             fadeColor.w = 1.0f - std::clamp(tFade, 0.0f, 1.0f);
             birthFx_->SetColor(fadeColor);
             birthFx_->SetErode(0.0f);
+            // 実体の卵と同じ形・同じ場所に重ねるので、深度だけ少し手前へずらす（面の取り合いでちらつかない）
+            birthFx_->SetDepthBias(kBirthDepthBias);
             birthFx_->SetTranslation(birthEgg_->GetPosition());
             birthFx_->Update();
         } else {
@@ -336,6 +351,7 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
             float grow = 1.0f - ( 1.0f - tGrow ) * ( 1.0f - tGrow ); // 2次アウト（最初勢いよく→ゆっくり整う）
 
             birthFx_->SetColor(kBirthFxColor); // α=1（次の産卵に備えて毎回リセット）
+            birthFx_->SetDepthBias(0.0f);
             birthFx_->SetTranslation(birthEgg_->GetPosition());
             birthFx_->SetErode(kBirthFullErode * ( 1.0f - grow ));
             birthFx_->Update(); // カメラ行列＋CBを毎フレーム焼き直す

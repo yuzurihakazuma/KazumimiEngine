@@ -30,17 +30,6 @@ namespace {
     constexpr float kBendIn = 0.18f;     // 仰け反り切るまで(実時間の秒)
     constexpr float kLandTimeout = 4.0f; // 着地を待つ限り（どこにも着かない時の保険）
 
-    // 確かめる用のキー：環境変数 CG2_DEBUG_KEYS を付けて起動した時だけ
-    bool DebugKeysEnabled(){
-        static const bool enabled = []{
-            char* value = nullptr;
-            size_t length = 0;
-            const bool found = _dupenv_s(&value, &length, "CG2_DEBUG_KEYS") == 0 && value;
-            free(value);
-            return found;
-        }();
-        return enabled;
-    }
 }
 
 GameOverFlow::GameOverFlow() = default;
@@ -106,11 +95,7 @@ bool GameOverFlow::UpdateBeforeGame(bool introActive){
         UpdateDying();
         return sequence_.IsActive();
     }
-    if ( DebugKeysEnabled() && !introActive ) {
-        Input* input = Input::GetInstance();
-        if ( input->Triggerkey(DIK_F7) ) { BeginDying(); return false; }
-        if ( input->Triggerkey(DIK_F6) ) { Damage(); if ( sequence_.IsActive() ) { return true; } }
-    }
+    ( void ) introActive;
     return false;
 }
 

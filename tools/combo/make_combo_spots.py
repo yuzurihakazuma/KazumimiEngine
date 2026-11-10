@@ -30,7 +30,8 @@ BLOCK_H = 0.62
 ROAD_Z = 7.42
 
 # ゲームと同じ値（EggCombo.cpp）
-REACH, CONE, WIDE, SPREAD, MAX_COMBO = 9.0, 60.0, 100.0, 0.8, 8
+REACH, CONE, SPREAD, MAX_COMBO = 9.0, 60.0, 0.8, 8
+MOMENTUM = 0.9  # はじけるたびに残る勢い（届く距離が 1 割ずつ縮む）
 
 # --------------------------------------------------------------------- 場所の作り
 #  origin＝的の位置（x, z）、road＝プレイヤーが立って投げる所（x, z）
@@ -138,31 +139,30 @@ def bounce(center, contact, fallback):
 
 
 def pick_next(targets, cur, out_dir, visited, depth_axis):
+    # EggCombo::PickNext と同じ：届く距離は、はじけるたびに 1 割ずつ縮む。向き（±60°）の合う物が無ければ終わり
     fc = targets[cur]["center"]
     from_depth = fc[0] * depth_axis[0] + fc[2] * depth_axis[1]
-    for pass_ in range(2):
-        cone = math.radians(CONE if pass_ == 0 else WIDE)
-        best, best_score = -1, 1e9
-        for k, t in enumerate(targets):
-            if k == cur or k in visited:
-                continue
-            c = t["center"]
-            to = (c[0] - fc[0], c[1] - fc[1], c[2] - fc[2])
-            d = math.sqrt(sum(v * v for v in to))
-            if d < 1.0 or d > REACH:
-                continue
-            if c[0] * depth_axis[0] + c[2] * depth_axis[1] < from_depth - 2.5:
-                continue
-            flat = norm2((to[0], to[2]))
-            ang = math.acos(max(-1.0, min(1.0, flat[0] * out_dir[0] + flat[1] * out_dir[1])))
-            if ang > cone:
-                continue
-            score = ang / math.radians(CONE) * 0.6 + d / REACH + (0 if pass_ == 0 else 1.0)
-            if score < best_score:
-                best_score, best = score, k
-        if best >= 0:
-            return best
-    return -1
+    reach = REACH * MOMENTUM ** max(len(visited) - 1, 0)
+    cone = math.radians(CONE)
+    best, best_score = -1, 1e9
+    for k, t in enumerate(targets):
+        if k == cur or k in visited:
+            continue
+        c = t["center"]
+        to = (c[0] - fc[0], c[1] - fc[1], c[2] - fc[2])
+        d = math.sqrt(sum(v * v for v in to))
+        if d < 1.0 or d > reach:
+            continue
+        if c[0] * depth_axis[0] + c[2] * depth_axis[1] < from_depth - 2.5:
+            continue
+        flat = norm2((to[0], to[2]))
+        ang = math.acos(max(-1.0, min(1.0, flat[0] * out_dir[0] + flat[1] * out_dir[1])))
+        if ang > cone:
+            continue
+        score = ang / cone * 0.6 + d / reach
+        if score < best_score:
+            best_score, best = score, k
+    return best
 
 
 def chain_from(targets, start, incoming, side_frac, depth_axis):

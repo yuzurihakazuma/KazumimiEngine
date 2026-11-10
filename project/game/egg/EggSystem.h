@@ -103,6 +103,7 @@ private:
 
     // --- 産卵エロージョン演出の状態 ---
     std::unique_ptr<SDFVolumeObject> birthFx_; // SDFの卵（1個を使い回す）
+    bool birthLookReady_ = false;              // SDF の卵に、実体の卵と同じ見た目（テクスチャ・光）を設定したか
     Egg*  birthEgg_   = nullptr;               // 演出対象（eggs_ 内に存在するか毎フレーム検証）
     float birthTimer_ = -1.0f;                 // 経過秒。負=演出していない
     int   birthWarmupDraws_ = 0;               // WarmupBirthFx：画面の外で描く残りフレーム

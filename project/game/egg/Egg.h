@@ -60,6 +60,8 @@ public:
     // 産卵エロージョン演出中は実体メッシュを隠す（SDFの卵が育ちきったら表示に戻す）
     void SetVisualHidden(bool hidden) { visualHidden_ = hidden; }
     bool IsVisualHidden() const { return visualHidden_; }
+    // 回るのを止めておく（SDF の卵から実体へ交代する間。SDF の卵は回らないので、模様の向きをそろえたまま重ねる）
+    void SetSpinPaused(bool paused) { spinPaused_ = paused; }
 
 private:
     EggState state_ = EggState::Held;
@@ -73,6 +75,7 @@ private:
     float    brokenTimer_ = 0.0f;
     bool     justBroke_   = false;         // この瞬間に割れたか（1フレームだけ true）
     bool     visualHidden_ = false;        // 産卵演出中の実体メッシュ非表示
+    bool     spinPaused_ = false;          // 産卵演出の交代が終わるまで回さない
     float    bornTimer_   = 0.25f;         // 生まれた直後の「ポンッ」と出る演出時間
     float    spinAngle_   = 0.0f;          // 見た目のくるくる回転
 

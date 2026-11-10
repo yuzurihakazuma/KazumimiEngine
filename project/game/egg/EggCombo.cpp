@@ -29,20 +29,22 @@ namespace {
     constexpr float kMinDepth      = 0.8f;   // プレイヤーより、カメラから見てこれだけ奥の物だけ（奥へ投げる）
     constexpr float kAssistPixels  = 40.0f;  // カーソルが少し外れていても拾う（画面の画素）
     constexpr float kEggSpeed      = 19.0f;  // 奥へ投げる卵の速さ(m/s)
-    constexpr float kChainReach    = 9.0f;   // はじけた物が次に当たれる距離(m)
+    constexpr float kChainReach    = 9.0f;   // はじけた物が次に当たれる距離(m)。最初の 1 回の値
+    constexpr float kMomentumKeep  = 0.9f;   // はじけるたびに残る勢い（届く距離・飛ぶ速さ・回る速さが 1 割ずつ落ちる）
     constexpr int   kMaxCombo      = 8;
     constexpr float kGravity       = 16.0f;  // 飛ぶ物の重力
     constexpr float kDissolveTime  = 0.8f;   // 溶けて消えるまで
     constexpr float kRegrowDelay   = 4.0f;   // 飛んでから生え戻るまで(秒)
     constexpr float kRegrowTime    = 0.35f;  // ぽんと生え戻る演出
     constexpr float kComboShowTime = 1.6f;   // 最後に当ててから札を出しておく秒
-    constexpr float kConeDeg       = 60.0f;  // はじける向きから、次の物を探す角度（まずこの中）
-    constexpr float kWideConeDeg   = 100.0f; // 上で見つからなければ、ここまで広げる（少し選ばれにくい）
+    constexpr float kConeDeg       = 60.0f;  // はじける向きから、次の物を探す角度（この外の物へは飛ばない＝そこでコンボが終わる）
     constexpr float kAimSpread     = 0.8f;   // 狙える所：物の真ん中から、大きさのこの割合まで
     constexpr float kPi            = 3.14159265f;
 
     uint32_t Hash(uint32_t x){ x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return x; }
     float Rand01(uint32_t& seed){ seed = Hash(seed + 0x9e3779b9u); return ( seed & 0xffffff ) / float(0xffffff); }
+    // bursts 個目がはじけた時に残っている勢い（1 個目＝1.0）
+    float Momentum(int bursts){ return std::pow(kMomentumKeep, ( float ) ( std::max )( bursts - 1, 0 )); }
 }
 
 EggCombo::EggCombo() = default;
@@ -282,37 +284,37 @@ float EggCombo::DepthOf(const Vector3& p) const{
     return Dot({ p.x - eye_.x, 0.0f, p.z - eye_.z }, forward_);
 }
 
-// ビリヤード：はじける向き outDir に一番合う物。向きのずれ（60°で 0.6）と距離（9m で 1.0）を足した点が小さい物。
-//   ±60° に無ければ ±100° まで広げる（点に 1.0 足す＝選ばれにくい）。カメラの方へ 2.5m 以上戻る物は選ばない（画面をふさがない）
+// ビリヤード：はじける向き outDir（±60°）の中で一番合う物。向きのずれ（60°で 0.6）と距離（届く距離で 1.0）を足した点が小さい物。
+//   勢い：届く距離は、はじけるたびに 1 割ずつ縮む（9m → 8.1m → 7.3m …。visited＝ここまでにはじけた物）。
+//   向きの合う物が届く所に無ければ -1＝そこでコンボが終わる（前は ±100° まで探し直していて、どこでもほぼ ×8 まで続いた）。
+//   カメラの方へ 2.5m 以上戻る物は選ばない（画面をふさがない）
 int EggCombo::PickNext(int from, const Vector3& outDir, const std::vector<int>& visited, bool live) const{
     const Vector3& fromPos = targets_[from].center;
     const float fromDepth = DepthOf(fromPos);
-    for ( int pass = 0; pass < 2; ++pass ) {
-        const float cone = ( pass == 0 ? kConeDeg : kWideConeDeg ) * kPi / 180.0f;
-        int best = -1;
-        float bestScore = 1e9f;
-        for ( int k = 0; k < ( int ) targets_.size(); ++k ) {
-            if ( k == from || std::find(visited.begin(), visited.end(), k) != visited.end() ) { continue; }
-            const Target& target = targets_[k];
-            if ( live ) {
-                if ( target.state != State::Idle ) { continue; }
-                if ( backdrop_->IsRuntimeHidden(target.item) && k != highlightTarget_ ) { continue; }
-            }
-            const Vector3 to = Subtract(target.center, fromPos);
-            const float d = Length(to);
-            if ( d < 1.0f || d > kChainReach ) { continue; } // すぐとなり（同じ物の別の部品など）は飛ばない
-            if ( DepthOf(target.center) < fromDepth - 2.5f ) { continue; }
-            Vector3 flat { to.x, 0.0f, to.z };
-            if ( Length(flat) < 1e-3f ) { continue; }
-            const float angle = std::acos(std::clamp(Dot(Normalize(flat), outDir), -1.0f, 1.0f));
-            if ( angle > cone ) { continue; }
-            float score = angle / ( kConeDeg * kPi / 180.0f ) * 0.6f + d / kChainReach + ( pass == 0 ? 0.0f : 1.0f );
-            if ( live && !target.rewarded ) { score -= 0.1f; } // まだ当てていない物を少しだけ優先
-            if ( score < bestScore ) { bestScore = score; best = k; }
+    const float reach = kChainReach * Momentum(( int ) visited.size());
+    const float cone = kConeDeg * kPi / 180.0f;
+    int best = -1;
+    float bestScore = 1e9f;
+    for ( int k = 0; k < ( int ) targets_.size(); ++k ) {
+        if ( k == from || std::find(visited.begin(), visited.end(), k) != visited.end() ) { continue; }
+        const Target& target = targets_[k];
+        if ( live ) {
+            if ( target.state != State::Idle ) { continue; }
+            if ( backdrop_->IsRuntimeHidden(target.item) && k != highlightTarget_ ) { continue; }
         }
-        if ( best >= 0 ) { return best; }
+        const Vector3 to = Subtract(target.center, fromPos);
+        const float d = Length(to);
+        if ( d < 1.0f || d > reach ) { continue; } // すぐとなり（同じ物の別の部品など）は飛ばない
+        if ( DepthOf(target.center) < fromDepth - 2.5f ) { continue; }
+        Vector3 flat { to.x, 0.0f, to.z };
+        if ( Length(flat) < 1e-3f ) { continue; }
+        const float angle = std::acos(std::clamp(Dot(Normalize(flat), outDir), -1.0f, 1.0f));
+        if ( angle > cone ) { continue; }
+        float score = angle / cone * 0.6f + d / reach;
+        if ( live && !target.rewarded ) { score -= 0.1f; } // まだ当てていない物を少しだけ優先
+        if ( score < bestScore ) { bestScore = score; best = k; }
     }
-    return -1;
+    return best;
 }
 
 // 背景エディタ：選んだ物から、真ん中・左のふち・右のふちに当てた時のはじける順（線と球）。数は小さい窓に出す
@@ -456,16 +458,17 @@ void EggCombo::Burst(int targetIndex, int chainIndex, const Vector3& at, const V
     uint32_t seed = ( uint32_t ) targetIndex * 2654435761u + ( uint32_t ) chain.count;
     const float side = Rand01(seed) < 0.5f ? -1.0f : 1.0f;
     const int next = chain.count < kMaxCombo ? PickNext(targetIndex, outDir, chain.visited, true) : -1;
+    const float momentum = Momentum(chain.count); // 勢い：後の物ほど、ゆっくり飛んでゆっくり回る
     if ( next >= 0 ) {
-        // 次の物の真ん中を通る山なり（飛ぶ時間は距離から。重力のぶん上へ）
+        // 次の物の真ん中を通る山なり（飛ぶ時間は距離と勢いから。重力のぶん上へ）
         const Vector3 d = Subtract(targets_[next].center, flyer.pos);
-        const float time = std::clamp(Length(d) / 10.0f, 0.35f, 0.85f);
+        const float time = std::clamp(Length(d) / ( 10.0f * momentum ), 0.35f, 1.1f);
         flyer.vel = { d.x / time, d.y / time + 0.5f * kGravity * time, d.z / time };
         flyer.flightTime = time;
         flyer.aim = next;
     } else {
-        // 向かう先が無い：はじけた向きと上へ飛びながら溶ける
-        flyer.vel = Add(Multiply(3.5f, outDir), { 0.0f, 6.5f, 0.0f });
+        // 向かう先が無い：はじけた向きと上へ飛びながら溶ける（勢いが無いほど、その場に落ちる）
+        flyer.vel = Add(Multiply(3.5f * momentum, outDir), { 0.0f, 4.5f + 2.0f * momentum, 0.0f });
         flyer.aim = -1;
         flyer.dissolveAt = 0.35f;
     }
@@ -480,6 +483,7 @@ void EggCombo::Burst(int targetIndex, int chainIndex, const Vector3& at, const V
     case Kind::Flower: flyer.spin = { 0.0f, 8.0f, 0.0f };                                     // ぽんと上に跳ねる
                        if ( next < 0 ) { flyer.vel = Add(Multiply(1.0f, outDir), { 0.0f, 8.0f, 0.0f }); } break;
     }
+    flyer.spin = Multiply(0.45f + 0.55f * momentum, flyer.spin);
     flyers_.push_back(flyer);
 }
 

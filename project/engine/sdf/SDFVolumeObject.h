@@ -59,6 +59,14 @@ public:
     void SetMeltStyle(float style, float noiseFreq = 9.0f, float band = 0.3f) {
         meltStyle_ = style; meltNoiseFreq_ = noiseFreq; meltBand_ = band;
     }
+    // 実体のメッシュと同じ見た目で描く：色はカラーボリュームではなく実体と同じテクスチャ（球の展開の UV。UV 球から作った形用）、
+    //   光は Obj3d と同じライト・同じ式（つやも）。SDF の物から実体へ交代する時に、模様・明るさが変わらない。
+    //   textureSrv＝実体のモデルのテクスチャ、uvHalfHeight＝モデルの高さの半分（ボリュームの単位）、shininess＝実体のマテリアルの値
+    void SetMeshLook(bool enabled, uint32_t textureSrv = 0, float uvHalfHeight = 1.0f, float shininess = 32.0f) {
+        meshLook_ = enabled; surfaceSrv_ = textureSrv; uvHalfHeight_ = uvHalfHeight; shininess_ = shininess;
+    }
+    // 深度だけをカメラ側へずらす量(m)。同じ形の実体と重ねて描く時（交代のクロスフェード）に、面の取り合いでちらつかない
+    void SetDepthBias(float meters) { depthBias_ = meters; }
 
     Vector3& RefTranslation() { return translation_; }   // ImGui編集用
     float&   RefScale() { return scale_; }               // ImGui編集用
@@ -114,6 +122,8 @@ private:
         float lightDir[3]; float erode;
         float useColorTexA; float useColorTexB; float useMorph; float morphT;
         float meltStyle; float meltNoiseFreq; float meltBand; float meltPad;
+        float meshLook; float shininess; float depthBias; float uvHalfHeight;
+        float center[3]; float pixelAngle;
     };
 
     // .sdf3d（＋あれば .sdfcol）を1組読み込んで GPU リソース化する共通処理
@@ -143,6 +153,11 @@ private:
     float   meltStyle_     = 0.0f;           // 溶け方（0=均一 / 1=段ボール焼け）
     float   meltNoiseFreq_ = 9.0f;           // 不均一ノイズの細かさ(1/m)
     float   meltBand_      = 0.3f;           // 焦げ判定の基準エロージョン量(m)
+    bool     meshLook_ = false;              // 実体のメッシュと同じ見た目で描く
+    uint32_t surfaceSrv_ = 0;                // 実体と同じテクスチャ
+    float    uvHalfHeight_ = 1.0f;
+    float    shininess_ = 32.0f;
+    float    depthBias_ = 0.0f;
 
     // 共有パイプライン（全インスタンスで1組）
     static Microsoft::WRL::ComPtr<ID3D12RootSignature> sRootSignature_;

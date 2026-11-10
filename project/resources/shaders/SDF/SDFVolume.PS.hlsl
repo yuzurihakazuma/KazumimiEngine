@@ -4,6 +4,9 @@
 //   ・モーフィング : 2つの距離場を lerp ＝ 形Aから形Bへ連続変形（メッシュでは不可能）
 //   ・カラー       : .sdfcol（最寄り表面色の焼き込み）をヒット点でサンプル
 //   ・SV_Depth にヒット点の深度を書くので、通常の3Dモデルと正しく前後関係が出る
+//   ・実体と同じ見た目（meshLook）: 色をカラーボリューム（64^3 でぼやける）ではなく、実体のメッシュと同じテクスチャ
+//     （球の展開の UV を当たった点から求める）で付け、光も Object3d.PS と同じ式・同じライトで当てる。
+//     SDF の物から実体のメッシュへ交代する時に、模様・明るさ・つやが変わらない（産卵の卵）
 
 struct VolumeCB
 {
@@ -19,8 +22,20 @@ struct VolumeCB
     float3 lightDir; float erode;
     float useColorTexA; float useColorTexB; float useMorph; float morphT;
     float meltStyle; float meltNoiseFreq; float meltBand; float meltPad; // 溶け方（0=均一/1=段ボール焼け）
+    float meshLook; float shininess; float depthBias; float uvHalfHeight; // 実体と同じ見た目・つや・深度を手前へずらす量(m)・UV の高さの半分
+    float3 center; float pixelAngle;                                      // 物の中心（ワールド）・1 画素の角度(rad)
 };
 ConstantBuffer<VolumeCB> gVolume : register(b0);
+
+// ライト（Object3d.hlsli と同じ並び。Obj3dCommon の定数バッファをそのまま挿す）
+struct DirectionalLight { float4 color; float3 direction; float intensity; };
+struct DirectionalLightData { DirectionalLight lights[4]; int activeCount; float3 padding; };
+struct PointLight { float4 color; float3 position; float intensity; float radius; float decay; };
+struct SpotLight { float4 color; float3 position; float intensity; float3 direction; float distance; float decay; float cosAngle; float cosFalloffStart; };
+ConstantBuffer<DirectionalLightData> gDirectionalLightData : register(b1);
+ConstantBuffer<PointLight> gPointLight : register(b2);
+ConstantBuffer<SpotLight> gSpotLight : register(b3);
+Texture2D<float4> gSurfaceTex : register(t4); // 実体のメッシュと同じテクスチャ（meshLook の時だけ読む）
 
 Texture3D<float>  gSDFA      : register(t0); // 距離ボリュームA
 Texture3D<float4> gColorVolA : register(t1); // カラーボリュームA
@@ -156,6 +171,58 @@ PSOutput main(PSInput input)
     float ndl = saturate(dot(n, l) * 0.5f + 0.5f);
     float3 rgb = albedo * (0.25f + 0.75f * ndl);
 
+    // --- 実体と同じ見た目：同じテクスチャ・同じ光の式（Object3d.PS）---
+    if (gVolume.meshLook > 0.5f)
+    {
+        // 痩せている間（育つ途中）は、元の表面の点まで戻して UV を求める（模様が縮んだり流れたりしない）。
+        //   距離の値は正規化されていることがあるので、数回くり返して寄せる
+        float3 q = p;
+        if (abs(gVolume.erode) > 1e-5f)
+        {
+            for (int k = 0; k < 4; ++k) { q -= n * SampleVol(gSDFA, gVolume.boxMinA, gVolume.boxMaxA, q); }
+        }
+        // 球の展開の UV（卵のモデルと同じ式）。メッシュは読み込み時に X を反転しているので、ここでも X を返す
+        float3 local = (q - gVolume.center) / gVolume.distScale;
+        float u = frac(atan2(local.z, -local.x) / 6.2831853f + 1.0f);
+        float v = 1.0f - acos(clamp(-local.y / gVolume.uvHalfHeight, -1.0f, 1.0f)) / 3.14159265f;
+        // ミップの段：1 画素の大きさ ÷ 1 テクセルの大きさ（UV のつなぎ目で微分が暴れないように、式で決める）
+        float texW, texH, mips;
+        gSurfaceTex.GetDimensions(0, texW, texH, mips);
+        float texelWorld = 2.2f * gVolume.distScale / max(texW, 1.0f);
+        float lod = clamp(log2(max(t * gVolume.pixelAngle / texelWorld, 1e-4f)), 0.0f, mips - 1.0f);
+        float3 tex = gSurfaceTex.SampleLevel(gSampler, float2(u, v), lod).rgb;
+
+        float3 toEye = normalize(gVolume.cameraPos - p);
+        float3 diffuse = float3(0.0f, 0.0f, 0.0f);
+        float3 specular = float3(0.0f, 0.0f, 0.0f);
+        for (int li = 0; li < gDirectionalLightData.activeCount; ++li)
+        {
+            DirectionalLight light = gDirectionalLightData.lights[li];
+            float c = pow(dot(n, -light.direction) * 0.5f + 0.5f, 2.0f);
+            diffuse += tex * light.color.rgb * c * light.intensity;
+            float3 halfVector = normalize(-light.direction + toEye);
+            specular += light.color.rgb * light.intensity * pow(saturate(dot(n, halfVector)), gVolume.shininess);
+        }
+        {   // 点光源
+            float3 dir = normalize(p - gPointLight.position);
+            float c = pow(dot(n, -dir) * 0.5f + 0.5f, 2.0f);
+            float factor = pow(saturate(-length(gPointLight.position - p) / gPointLight.radius + 1.0f), gPointLight.decay);
+            diffuse += tex * gPointLight.color.rgb * c * gPointLight.intensity * factor;
+            float3 halfVector = normalize(-dir + toEye);
+            specular += gPointLight.color.rgb * gPointLight.intensity * pow(saturate(dot(n, halfVector)), gVolume.shininess) * factor;
+        }
+        {   // スポットライト
+            float3 dir = normalize(p - gSpotLight.position);
+            float falloff = saturate((dot(dir, gSpotLight.direction) - gSpotLight.cosAngle) / (gSpotLight.cosFalloffStart - gSpotLight.cosAngle));
+            float attenuation = pow(saturate(-length(gSpotLight.position - p) / gSpotLight.distance + 1.0f), gSpotLight.decay);
+            float c = pow(dot(n, -dir) * 0.5f + 0.5f, 2.0f);
+            diffuse += tex * gSpotLight.color.rgb * c * gSpotLight.intensity * attenuation * falloff;
+            float3 halfVector = normalize(-dir + toEye);
+            specular += gSpotLight.color.rgb * gSpotLight.intensity * pow(saturate(dot(n, halfVector)), gVolume.shininess) * attenuation * falloff;
+        }
+        rgb = tex * 0.15f + diffuse + specular;
+    }
+
     // --- 段ボール焼け：溶け際の焦げ＋赤熱 ---
     //   ここに到達した表面は「元の深さ ≒ 局所エロージョン量」の溶け前線。
     //   局所エロージョンが基準量(meltBand)に近い所ほど今まさに焼け落ちる寸前なので、
@@ -173,8 +240,8 @@ PSOutput main(PSInput input)
     output.color = float4(rgb, gVolume.baseColor.a);
     output.mask  = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
-    // ヒット点のクリップ空間深度
-    float4 clip = mul(float4(p, 1.0f), gVolume.viewProj);
+    // ヒット点のクリップ空間深度（depthBias：同じ形の実体と重ねる時に、ほんの少しカメラ側へずらして面の取り合いを防ぐ）
+    float4 clip = mul(float4(p - rd * gVolume.depthBias, 1.0f), gVolume.viewProj);
     output.depth = clip.z / clip.w;
     return output;
 }

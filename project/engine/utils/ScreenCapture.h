@@ -1,10 +1,14 @@
 #pragma once
 // =====================================================================
 //  ScreenCapture：ゲーム画面をそのまま保存する撮影機能（撮影機能 企画書）
+//   エディタのあるビルド（Debug / Development）だけで動く。Release では初期化もキーの受け付けもしない
 //   キー（遷移の演出中・文字入力中でも効く）
 //     F12 … スクショ（capture/shot_日時.png。クリップボードにも入るので、スライドへそのまま貼れる）
-//     F9  … 録画の開始/停止（3・2・1 で始まる。止めると自動で GIF・mp4 も作る。capture/rec_日時/ と rec_日時.gif/.mp4）
-//     F5  … 直前を保存（いつも直前の数秒をためていて、押すとそこを GIF・mp4 にする。capture/replay_日時.gif/.mp4）
+//     F9  … 録画の開始/停止（3・2・1 で始まる。止めると自動で GIF・mp4 を作る）
+//            ふつうの速さで録る（既定）… ゲームは遅くならない。縮めた絵を 30fps でためて capture/rec_日時.gif/.mp4 にする
+//            きれいに録る … 1920×1080 の連番 PNG（capture/rec_日時/）。書き出しが重いので、録画中は固定コマ送りでゲームが遅く見える
+//            （テイクの「再生しながら録画」は、いつも きれいに録る）
+//   直前を保存 … パネルのボタン（いつも直前の数秒をためていて、押すとそこを GIF・mp4 にする。capture/replay_日時.gif/.mp4）
 //   写すもの
 //     ゲーム画面だけ … ImGui も HUD も無い最終画像
 //     ゲーム＋HUD    … ImGui を重ねる前の画面（撮る時・録る時はエディタを自動で隠して、終わったら戻す）
@@ -86,12 +90,16 @@ private:
     enum Source { kGame = 0, kGameHud = 1, kScreen = 2 };
 
     // 写し取り
-    struct Grab { bool shot = false; bool record = false; int recIndex = 0; bool replay = false; bool Any() const{ return shot || record || replay; } };
+    struct Grab { bool shot = false; bool record = false; int recIndex = 0; bool replay = false; bool light = false;
+                  bool Any() const{ return shot || record || replay || light; } };
     void PlanGrab();
     void RecordCopy(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES state);
     void OnFrameEnd(ID3D12GraphicsCommandList* commandList, ID3D12Resource* backBuffer);
     void ProcessCopied();
     void PushReplayFrame(const uint8_t* source, uint32_t width, uint32_t height, uint32_t pitch);
+    void PushLightFrame(const uint8_t* source, uint32_t width, uint32_t height, uint32_t pitch);
+    void OpenLightWriter();
+    void CloseLightWriter();
     void CopyToClipboard(const uint8_t* source, uint32_t width, uint32_t height, uint32_t pitch);
     void PushJob(const uint8_t* source, uint32_t width, uint32_t height, uint32_t pitch, const std::filesystem::path& path);
 
@@ -164,9 +172,21 @@ private:
     int  recLimitFrames_ = 0;
     int  recFrame_ = 0;
     std::filesystem::path recDir_;
+    // ふつうの速さで録る：縮めた RGB を 30fps で別スレッドへ渡して .rgb に書き、止めたら GIF・mp4 にする（ゲームを待たせない）
+    bool  recordLight_ = true;     // 設定：ふつうの速さで録る（false＝きれいに録る＝連番 PNG）
+    int   lightSizeIndex_ = 0;     // 0=960×540 / 1=1280×720
+    bool  recLight_ = false;       // 今の録画が、ふつうの速さか
+    float recTime_ = 0.0f;         // 録画を始めてからの秒（実時間）
+    float recAccum_ = 0.0f;        // 次の 1 枚までのたまり
+    float recLimitSeconds_ = 0.0f; // 自動で止める秒（0＝止めるまで）
+    float frameDt_ = 0.0f;
+    struct LightWriter;
+    std::shared_ptr<LightWriter> light_;
+    std::future<bool> lightDone_;
+    int   lightCloseDelay_ = 0;    // 止めてから書き出しを閉じるまでのフレーム（最後の 1 枚を待つ）
     std::filesystem::path lastRecDir_;
     int  gifWidthIndex_ = 0;      // 0=960 / 1=640
-    int  gifFpsIndex_ = 0;        // 0=30 / 1=15
+    int  gifFpsIndex_ = 1;        // 0=30 / 1=15（GIF は 15 で十分。30 だと 4 秒で 30MB を超える。mp4 はいつも 30）
 
     // 直前を保存（リプレイ）：30fps で縮めた絵をためておく
     bool replayOn_ = true;
@@ -175,7 +195,7 @@ private:
     uint64_t replayTick_ = 0;
     std::deque<std::vector<uint8_t>> replayFrames_;
     uint32_t replayW_ = 0, replayH_ = 0;
-    struct ReplaySave { std::future<bool> written; std::filesystem::path raw; uint32_t width = 0, height = 0; };
+    struct ReplaySave { std::future<bool> written; std::filesystem::path raw; uint32_t width = 0, height = 0; std::string label = "直前"; };
     std::vector<ReplaySave> replaySaves_;
 
     // 書き出しのスレッド

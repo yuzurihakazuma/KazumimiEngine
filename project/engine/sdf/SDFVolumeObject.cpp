@@ -4,8 +4,10 @@
 #include <vector>
 #include <cstring>
 #include <algorithm>
+#include <cmath>
 
 #include "engine/base/DirectXCommon.h"
+#include "engine/base/WindowProc.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/graphics/RootSignatureBuilder.h"
@@ -41,6 +43,10 @@ bool SDFVolumeObject::BuildPipeline() {
     rsBuilder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [2] t1（カラーA）
     rsBuilder.AddDescriptorTableSRV(2, D3D12_SHADER_VISIBILITY_PIXEL); // [3] t2（距離B=モーフ先）
     rsBuilder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [4] t3（カラーB）
+    rsBuilder.AddDescriptorTableSRV(4, D3D12_SHADER_VISIBILITY_PIXEL); // [5] t4（実体と同じテクスチャ。meshLook の時だけ読む）
+    rsBuilder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [6] b1（平行光源。Obj3d と同じ物）
+    rsBuilder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [7] b2（点光源）
+    rsBuilder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [8] b3（スポットライト）
     rsBuilder.AddDefaultSampler(0);                                    //     s0
     rsBuilder.Build(device, sRootSignature_);
     if ( !sRootSignature_ ) return false;
@@ -351,6 +357,17 @@ void SDFVolumeObject::Update() {
     cbData_->meltNoiseFreq = meltNoiseFreq_;
     cbData_->meltBand      = meltBand_;
     cbData_->meltPad       = 0.0f;
+
+    cbData_->meshLook = meshLook_ ? 1.0f : 0.0f;
+    cbData_->shininess = shininess_;
+    cbData_->depthBias = depthBias_;
+    cbData_->uvHalfHeight = uvHalfHeight_;
+    cbData_->center[0] = translation_.x;
+    cbData_->center[1] = translation_.y;
+    cbData_->center[2] = translation_.z;
+    // 1 画素の角度（テクスチャのミップの段を決める）
+    const float clientHeight = ( float ) ( std::max )( WindowProc::GetInstance()->GetClientHeight(), 1 );
+    cbData_->pixelAngle = 2.0f * std::tan(camera->GetFovY() * 0.5f) / clientHeight;
 }
 
 // シーンMRTパスの最後で呼ぶ（専用のPSO/ルートシグネチャを自分でセットする）
@@ -369,5 +386,11 @@ void SDFVolumeObject::Draw(ID3D12GraphicsCommandList* commandList) {
     srv->SetGraphicsRootDescriptorTable(2, volA_.hasColor ? volA_.colSrv : volA_.srv);          // t1 色A
     srv->SetGraphicsRootDescriptorTable(3, volB_.loaded ? volB_.srv : volA_.srv);               // t2 距離B
     srv->SetGraphicsRootDescriptorTable(4, volB_.hasColor ? volB_.colSrv : volA_.srv);          // t3 色B
+    // t4：実体と同じテクスチャ。使わない時は 0 番（Obj3d のノイズの既定と同じ。読まれないが、2D の記述子が要る）
+    srv->SetGraphicsRootDescriptorTable(5, meshLook_ ? surfaceSrv_ : 0);
+    Obj3dCommon* common = Obj3dCommon::GetInstance();
+    commandList->SetGraphicsRootConstantBufferView(6, common->GetLightResource()->GetGPUVirtualAddress());      // b1
+    commandList->SetGraphicsRootConstantBufferView(7, common->GetPointLightResource()->GetGPUVirtualAddress()); // b2
+    commandList->SetGraphicsRootConstantBufferView(8, common->GetSpotLightResource()->GetGPUVirtualAddress());  // b3
     commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 }

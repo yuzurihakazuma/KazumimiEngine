@@ -30,6 +30,8 @@ namespace {
     constexpr size_t kMaxPendingJobs = 8;  // 保存待ちがこれを超えたら待つ（1枚 8MB ほど）
     constexpr int    kFramesPerSecond = 60;
     constexpr int    kReplayFps = 30;      // 直前を保存：2フレームに1枚ためる
+    constexpr int    kLightFps = 30;       // ふつうの速さで録る：1 秒あたりの枚数（実時間で数える）
+    constexpr size_t kLightQueueMax = 45;  // 書き出し待ちがこれを超えたら、その 1 枚は捨てる（ゲームを待たせない）
     constexpr float  kToastSeconds = 6.0f;
     constexpr size_t kRecentMax = 10;
 
@@ -52,6 +54,30 @@ namespace {
         barrier.Transition.StateAfter = after;
         commandList->ResourceBarrier(1, &barrier);
     }
+
+    // 真ん中を 16:9 に切り抜いて outW×outH の RGB へ縮める（4点の平均）
+    void DownscaleRgb(const uint8_t* source, uint32_t width, uint32_t height, uint32_t pitch, uint32_t outW, uint32_t outH, std::vector<uint8_t>& frame){
+        uint32_t cropW = width, cropH = height;
+        if ( ( uint64_t ) width * 9 > ( uint64_t ) height * 16 ) { cropW = height * 16 / 9; } else { cropH = width * 9 / 16; }
+        const uint32_t x0 = ( width - cropW ) / 2, y0 = ( height - cropH ) / 2;
+        frame.resize(( size_t ) outW * outH * 3);
+        for ( uint32_t oy = 0; oy < outH; ++oy ) {
+            const uint32_t syA = y0 + ( uint32_t ) ( ( ( uint64_t ) oy * 4 + 1 ) * cropH / ( outH * 4 ) );
+            const uint32_t syB = y0 + ( uint32_t ) ( ( ( uint64_t ) oy * 4 + 3 ) * cropH / ( outH * 4 ) );
+            const uint8_t* rowA = source + ( size_t ) syA * pitch;
+            const uint8_t* rowB = source + ( size_t ) syB * pitch;
+            uint8_t* out = frame.data() + ( size_t ) oy * outW * 3;
+            for ( uint32_t ox = 0; ox < outW; ++ox ) {
+                const uint32_t sxA = x0 + ( uint32_t ) ( ( ( uint64_t ) ox * 4 + 1 ) * cropW / ( outW * 4 ) );
+                const uint32_t sxB = x0 + ( uint32_t ) ( ( ( uint64_t ) ox * 4 + 3 ) * cropW / ( outW * 4 ) );
+                const uint8_t* a = rowA + sxA * 4; const uint8_t* b = rowA + sxB * 4;
+                const uint8_t* c = rowB + sxA * 4; const uint8_t* d = rowB + sxB * 4;
+                out[ox * 3 + 0] = ( uint8_t ) ( ( a[0] + b[0] + c[0] + d[0] + 2 ) >> 2 );
+                out[ox * 3 + 1] = ( uint8_t ) ( ( a[1] + b[1] + c[1] + d[1] + 2 ) >> 2 );
+                out[ox * 3 + 2] = ( uint8_t ) ( ( a[2] + b[2] + c[2] + d[2] + 2 ) >> 2 );
+            }
+        }
+    }
 }
 
 // 書き出し待ちの1枚
@@ -73,16 +99,17 @@ ScreenCapture* ScreenCapture::GetInstance(){
 //  初期化・終了
 // =====================================================================
 void ScreenCapture::Initialize(){
+#ifndef USE_IMGUI
+    return; // エディタの無いビルド（Release）では撮影しない（キーも効かない・スレッドも作らない）
+#else
     if ( initialized_ ) { return; }
     initialized_ = true;
     stopWorkers_ = false;
-#ifndef USE_IMGUI
-    replayOn_ = false; // エディタの無いビルドでは、直前をためない（メモリと時間を使わない）
-#endif
     for ( int i = 0; i < kWorkerCount; ++i ) { workers_.emplace_back([this]{ WorkerLoop(); }); }
     DirectXCommon::GetInstance()->SetFrameEndHook([this](ID3D12GraphicsCommandList* commandList, ID3D12Resource* backBuffer){
         OnFrameEnd(commandList, backBuffer);
     });
+#endif
 }
 
 void ScreenCapture::Finalize(){
@@ -91,6 +118,7 @@ void ScreenCapture::Finalize(){
     recording_ = false;
     takeState_ = TakeState::Idle;
     Time::GetInstance()->SetFixedStep(false);
+    CloseLightWriter(); // 録画の途中で終わる時も、書いた所までは残す
     for ( ReplaySave& save : replaySaves_ ) { if ( save.written.valid() ) { save.written.wait(); } }
     replaySaves_.clear();
     {
@@ -128,7 +156,7 @@ std::string ScreenCapture::TimeStamp(){
 
 // 固定コマ送り：録画中（設定が ON の時）と、テイクの記録・再生中（入力はフレーム単位なので、dt がずれると別の動きになる）
 void ScreenCapture::UpdateFixedStep(){
-    const bool fixed = ( recording_ && fixedStep_ ) || takeState_ != TakeState::Idle;
+    const bool fixed = ( recording_ && fixedStep_ && !recLight_ ) || takeState_ != TakeState::Idle;
     Time::GetInstance()->SetFixedStep(fixed);
 }
 
@@ -152,7 +180,6 @@ void ScreenCapture::OnInputUpdated(){
         else if ( countdown_ >= 0.0f ) { countdown_ = -1.0f; status_ = "録画をやめた"; }
         else { BeginCountdownOrRecord(); }
     }
-    if ( input->TriggerkeyRaw(DIK_F5) ) { SaveReplay(); }
 
     // 3・2・1
     if ( countdown_ >= 0.0f ) {
@@ -200,6 +227,7 @@ void ScreenCapture::OnInputUpdated(){
     }
 
     UpdateFixedStep();
+    frameDt_ = dt;
     PlanGrab();
     PollProcesses();
 }
@@ -220,7 +248,18 @@ void ScreenCapture::PlanGrab(){
         if ( captureMode_ == kGameHud && editor->IsActive() ) { SetEditorHidden(true); shotHidEditor_ = true; } // 写したら戻す
         frameGrab_.shot = true;
     }
-    if ( recording_ ) {
+    if ( recording_ && recLight_ ) {
+        // ふつうの速さ：実時間で 1/30 秒ごとに 1 枚（ゲームの進み方は変えない）
+        const float step = 1.0f / kLightFps;
+        recTime_ += frameDt_;
+        recAccum_ += frameDt_;
+        if ( recFrame_ == 0 || recAccum_ >= step ) {
+            recAccum_ = recFrame_ == 0 ? 0.0f : ( std::min )( recAccum_ - step, step );
+            frameGrab_.light = true;
+            ++recFrame_;
+        }
+        if ( recLimitSeconds_ > 0.0f && recTime_ >= recLimitSeconds_ ) { StopRecording(); }
+    } else if ( recording_ ) {
         frameGrab_.record = true;
         frameGrab_.recIndex = recFrame_++;
         if ( recLimitFrames_ > 0 && recFrame_ >= recLimitFrames_ ) { StopRecording(); } // この1枚は写して取り出す
@@ -314,6 +353,7 @@ void ScreenCapture::ProcessCopied(){
         std::snprintf(name, sizeof(name), "%05d.png", copiedGrab_.recIndex);
         PushJob(pixels, grabWidth_, grabHeight_, pitch, recDir_ / name);
     }
+    if ( copiedGrab_.light ) { PushLightFrame(pixels, grabWidth_, grabHeight_, pitch); }
     if ( copiedGrab_.replay ) { PushReplayFrame(pixels, grabWidth_, grabHeight_, pitch); }
 
     const D3D12_RANGE written { 0, 0 };
@@ -341,29 +381,10 @@ void ScreenCapture::PushReplayFrame(const uint8_t* source, uint32_t width, uint3
     const uint32_t outW = replayWidthIndex_ == 0 ? 640 : 960;
     const uint32_t outH = outW * 9 / 16;
     if ( outW != replayW_ || outH != replayH_ ) { replayFrames_.clear(); replayW_ = outW; replayH_ = outH; }
-    uint32_t cropW = width, cropH = height;
-    if ( ( uint64_t ) width * 9 > ( uint64_t ) height * 16 ) { cropW = height * 16 / 9; } else { cropH = width * 9 / 16; }
-    const uint32_t x0 = ( width - cropW ) / 2, y0 = ( height - cropH ) / 2;
     const size_t cap = ( size_t ) replaySeconds_ * kReplayFps;
     std::vector<uint8_t> frame;
     if ( replayFrames_.size() >= cap ) { frame = std::move(replayFrames_.front()); replayFrames_.pop_front(); } // 一番古い入れ物を使い回す
-    frame.resize(( size_t ) outW * outH * 3);
-    for ( uint32_t oy = 0; oy < outH; ++oy ) {
-        const uint32_t syA = y0 + ( uint32_t ) ( ( ( uint64_t ) oy * 4 + 1 ) * cropH / ( outH * 4 ) );
-        const uint32_t syB = y0 + ( uint32_t ) ( ( ( uint64_t ) oy * 4 + 3 ) * cropH / ( outH * 4 ) );
-        const uint8_t* rowA = source + ( size_t ) syA * pitch;
-        const uint8_t* rowB = source + ( size_t ) syB * pitch;
-        uint8_t* out = frame.data() + ( size_t ) oy * outW * 3;
-        for ( uint32_t ox = 0; ox < outW; ++ox ) {
-            const uint32_t sxA = x0 + ( uint32_t ) ( ( ( uint64_t ) ox * 4 + 1 ) * cropW / ( outW * 4 ) );
-            const uint32_t sxB = x0 + ( uint32_t ) ( ( ( uint64_t ) ox * 4 + 3 ) * cropW / ( outW * 4 ) );
-            const uint8_t* a = rowA + sxA * 4; const uint8_t* b = rowA + sxB * 4;
-            const uint8_t* c = rowB + sxA * 4; const uint8_t* d = rowB + sxB * 4;
-            out[ox * 3 + 0] = ( uint8_t ) ( ( a[0] + b[0] + c[0] + d[0] + 2 ) >> 2 );
-            out[ox * 3 + 1] = ( uint8_t ) ( ( a[1] + b[1] + c[1] + d[1] + 2 ) >> 2 );
-            out[ox * 3 + 2] = ( uint8_t ) ( ( a[2] + b[2] + c[2] + d[2] + 2 ) >> 2 );
-        }
-    }
+    DownscaleRgb(source, width, height, pitch, outW, outH, frame);
     replayFrames_.push_back(std::move(frame));
     while ( replayFrames_.size() > cap ) { replayFrames_.pop_front(); }
 }
@@ -451,32 +472,125 @@ void ScreenCapture::WorkerLoop(){
 //  録画
 // =====================================================================
 void ScreenCapture::StartRecording(int limitFrames){
-    if ( recording_ ) { return; }
+    if ( recording_ || light_ ) { return; } // light_：前の録画の書き出しを閉じている所（2 フレームだけ）
     countdown_ = -1.0f;
-    recDir_ = CaptureDir() / ( "rec_" + TimeStamp() );
-    for ( int n = 2; std::filesystem::exists(recDir_); ++n ) { recDir_ = CaptureDir() / ( "rec_" + TimeStamp() + "_" + std::to_string(n) ); }
-    std::error_code error;
-    std::filesystem::create_directories(recDir_, error);
     recFrame_ = 0;
     recLimitFrames_ = limitFrames;
+    recLimitSeconds_ = limitFrames / static_cast< float >( kFramesPerSecond );
+    recTime_ = 0.0f;
+    recAccum_ = 0.0f;
+    // テイクの「再生しながら録画」は、いつも きれいに録る（同じ動きを 1 フレームずつ確実に残す）
+    recLight_ = recordLight_ && takeState_ != TakeState::Playing;
+    if ( recLight_ ) {
+        OpenLightWriter();
+        status_ = "録画中（ふつうの速さ）";
+    } else {
+        recDir_ = CaptureDir() / ( "rec_" + TimeStamp() );
+        for ( int n = 2; std::filesystem::exists(recDir_); ++n ) { recDir_ = CaptureDir() / ( "rec_" + TimeStamp() + "_" + std::to_string(n) ); }
+        std::error_code error;
+        std::filesystem::create_directories(recDir_, error);
+        status_ = "録画中：" + Utf8FromPath(recDir_);
+    }
     recording_ = true;
     recordForTake_ = false;
     // ゲーム＋HUD を録る間は、エディタを隠す（止めたら戻す）
     if ( captureMode_ == kGameHud && EditorManager::GetInstance()->IsActive() ) { SetEditorHidden(true); recordHidEditor_ = true; }
-    status_ = "録画中：" + Utf8FromPath(recDir_);
-    UpdateFixedStep(); // 次のフレームから 1/60 秒で進める
+    UpdateFixedStep(); // きれいに録る時は、次のフレームから 1/60 秒で進める
 }
 
 void ScreenCapture::StopRecording(){
     if ( !recording_ ) { return; }
     recording_ = false;
     recordForTake_ = false;
-    lastRecDir_ = recDir_;
     if ( recordHidEditor_ ) { SetEditorHidden(false); recordHidEditor_ = false; }
-    status_ = std::to_string(recFrame_) + " 枚録った：" + Utf8FromPath(recDir_);
-    autoGifPending_ = autoGif_; // 書き出しが終わったら GIF・mp4 を作る（PollProcesses）
-    if ( !autoGif_ ) { AddRecent(recDir_); Notify("録画した（" + std::to_string(recFrame_) + " 枚）", recDir_); }
+    if ( recLight_ ) {
+        lightCloseDelay_ = 2; // 最後に積んだ 1 枚を取り出してから閉じる（PollProcesses）
+        char text[96];
+        std::snprintf(text, sizeof(text), "%.1f 秒録った。GIF・mp4 にしている…", recTime_);
+        status_ = text;
+        Notify(text);
+    } else {
+        lastRecDir_ = recDir_;
+        status_ = std::to_string(recFrame_) + " 枚録った：" + Utf8FromPath(recDir_);
+        autoGifPending_ = autoGif_; // 書き出しが終わったら GIF・mp4 を作る（PollProcesses）
+        if ( !autoGif_ ) { AddRecent(recDir_); Notify("録画した（" + std::to_string(recFrame_) + " 枚）", recDir_); }
+    }
     UpdateFixedStep();
+}
+
+// =====================================================================
+//  ふつうの速さで録る：縮めた絵を別スレッドで .rgb に書く（ゲームは待たせない。間に合わない時はその 1 枚を捨てる）
+// =====================================================================
+struct ScreenCapture::LightWriter {
+    std::mutex mutex;
+    std::condition_variable ready;
+    std::deque<std::vector<uint8_t>> frames;
+    std::vector<std::vector<uint8_t>> spare; // 書き終えた入れ物を使い回す
+    bool closing = false;
+    int  dropped = 0;
+    std::filesystem::path raw;
+    uint32_t width = 0, height = 0;
+};
+
+void ScreenCapture::OpenLightWriter(){
+    auto writer = std::make_shared<LightWriter>();
+    writer->width = lightSizeIndex_ == 0 ? 960 : 1280;
+    writer->height = writer->width * 9 / 16;
+    writer->raw = CaptureDir() / ( "rec_" + TimeStamp() + ".rgb" );
+    for ( int n = 2; std::filesystem::exists(writer->raw); ++n ) { writer->raw = CaptureDir() / ( "rec_" + TimeStamp() + "_" + std::to_string(n) + ".rgb" ); }
+    light_ = writer;
+    lightDone_ = std::async(std::launch::async, [writer]{
+        std::ofstream file(writer->raw, std::ios::binary);
+        if ( !file ) { return false; }
+        for ( ;; ) {
+            std::vector<uint8_t> frame;
+            {
+                std::unique_lock<std::mutex> lock(writer->mutex);
+                writer->ready.wait(lock, [&]{ return !writer->frames.empty() || writer->closing; });
+                if ( writer->frames.empty() ) { break; } // 閉じる合図が来て、もう残っていない
+                frame = std::move(writer->frames.front());
+                writer->frames.pop_front();
+            }
+            file.write(reinterpret_cast< const char* >( frame.data() ), ( std::streamsize ) frame.size());
+            std::lock_guard<std::mutex> lock(writer->mutex);
+            if ( writer->spare.size() < 8 ) { writer->spare.push_back(std::move(frame)); }
+        }
+        return ( bool ) file;
+    });
+}
+
+void ScreenCapture::PushLightFrame(const uint8_t* source, uint32_t width, uint32_t height, uint32_t pitch){
+    if ( !light_ ) { return; }
+    std::vector<uint8_t> frame;
+    {
+        std::lock_guard<std::mutex> lock(light_->mutex);
+        if ( light_->frames.size() >= kLightQueueMax ) { ++light_->dropped; return; } // ディスクが間に合わない：ゲームを止めずに 1 枚捨てる
+        if ( !light_->spare.empty() ) { frame = std::move(light_->spare.back()); light_->spare.pop_back(); }
+    }
+    DownscaleRgb(source, width, height, pitch, light_->width, light_->height, frame);
+    {
+        std::lock_guard<std::mutex> lock(light_->mutex);
+        light_->frames.push_back(std::move(frame));
+    }
+    light_->ready.notify_one();
+}
+
+// 書き出しを閉じて、GIF・mp4 を作る列へ回す（PollProcesses が書き終わりを待って make_gif.py を動かす）
+void ScreenCapture::CloseLightWriter(){
+    if ( !light_ ) { return; }
+    {
+        std::lock_guard<std::mutex> lock(light_->mutex);
+        light_->closing = true;
+    }
+    light_->ready.notify_all();
+    ReplaySave save;
+    save.written = std::move(lightDone_);
+    save.raw = light_->raw;
+    save.width = light_->width;
+    save.height = light_->height;
+    save.label = "録画";
+    replaySaves_.push_back(std::move(save));
+    light_.reset();
 }
 
 // =====================================================================
@@ -556,18 +670,21 @@ void ScreenCapture::PollProcesses(){
             if ( LaunchMakeGif(arguments, lastRecDir_, "録画") ) { Notify("録画を GIF・mp4 にしている…"); }
         }
     }
-    // 直前を保存：書き出しが終わったら GIF・mp4 を作る
+    // ふつうの速さの録画：止めてから 2 フレーム後（最後の 1 枚を取り出した後）に書き出しを閉じる
+    if ( lightCloseDelay_ > 0 && --lightCloseDelay_ == 0 ) { CloseLightWriter(); }
+    // 直前を保存・ふつうの速さの録画：書き出しが終わったら GIF・mp4 を作る
     for ( auto it = replaySaves_.begin(); it != replaySaves_.end(); ) {
         if ( it->written.wait_for(std::chrono::seconds(0)) != std::future_status::ready ) { ++it; continue; }
         if ( it->written.get() ) {
             const int fps = gifFpsIndex_ == 0 ? 30 : 15;
             const std::wstring arguments = Quote(std::filesystem::absolute(it->raw, error)) + L" --raw " + std::to_wstring(it->width) + L"x"
-                + std::to_wstring(it->height) + L" --rate " + std::to_wstring(kReplayFps) + L" --width " + std::to_wstring(it->width) + L" --fps " + std::to_wstring(fps);
+                + std::to_wstring(it->height) + L" --rate " + std::to_wstring(kReplayFps) + L" --width "
+                + std::to_wstring(( std::min )( ( int ) it->width, it->label == "録画" ? gifWidth : ( int ) it->width )) + L" --fps " + std::to_wstring(fps);
             std::filesystem::path stem = it->raw;
             stem.replace_extension();
-            LaunchMakeGif(arguments, stem, "直前");
+            LaunchMakeGif(arguments, stem, it->label);
         } else {
-            Notify("直前を書き出せなかった");
+            Notify(it->label + "を書き出せなかった");
         }
         it = replaySaves_.erase(it);
     }
@@ -803,7 +920,8 @@ void ScreenCapture::DrawOverlay(){
     if ( !quiet ) {
         if ( recording_ ) {
             char text[80];
-            std::snprintf(text, sizeof(text), "REC  %.2f 秒（%d 枚）  F9 で止める", recFrame_ / static_cast< float >( kFramesPerSecond ), recFrame_);
+            if ( recLight_ ) { std::snprintf(text, sizeof(text), "REC  %.1f 秒  F9 で止める", recTime_); }
+            else { std::snprintf(text, sizeof(text), "REC  %.2f 秒（%d 枚・きれいに録る）  F9 で止める", recFrame_ / static_cast< float >( kFramesPerSecond ), recFrame_); }
             badge(IM_COL32(235, 40, 40, 255), text);
         }
         if ( takeState_ == TakeState::Recording ) { badge(IM_COL32(255, 160, 30, 255), "テイク記録中  " + std::to_string(takeFrames_.size())); }
@@ -867,7 +985,7 @@ void ScreenCapture::DrawPanel(const char* windowTitle){
     ImGui::SameLine();
     ImGui::BeginDisabled(!replayOn_);
     char replayLabel[48];
-    std::snprintf(replayLabel, sizeof(replayLabel), "直前 %d 秒を保存\nF5", replaySeconds_);
+    std::snprintf(replayLabel, sizeof(replayLabel), "直前 %d 秒を\n保存", replaySeconds_);
     if ( ImGui::Button(replayLabel, buttonSize) ) { SaveReplay(); }
     ImGui::EndDisabled();
 
@@ -881,8 +999,9 @@ void ScreenCapture::DrawPanel(const char* windowTitle){
     if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("見えているまま（エディタの窓も入る）"); }
 
     // 今の様子
-    if ( recording_ ) { ImGui::TextColored({ 1.0f, 0.45f, 0.4f, 1.0f }, "録画中：%d 枚（%.2f 秒）", recFrame_, recFrame_ / static_cast< float >( kFramesPerSecond )); }
-    else if ( replayOn_ ) { ImGui::TextDisabled("直前 %.1f 秒 たまっている（F5 で保存）", replayFrames_.size() / ( float ) kReplayFps); }
+    if ( recording_ && recLight_ ) { ImGui::TextColored({ 1.0f, 0.45f, 0.4f, 1.0f }, "録画中：%.1f 秒（ふつうの速さ）", recTime_); }
+    else if ( recording_ ) { ImGui::TextColored({ 1.0f, 0.45f, 0.4f, 1.0f }, "録画中：%d 枚（%.2f 秒）", recFrame_, recFrame_ / static_cast< float >( kFramesPerSecond )); }
+    else if ( replayOn_ ) { ImGui::TextDisabled("直前 %.1f 秒 たまっている（上のボタンで保存）", replayFrames_.size() / ( float ) kReplayFps); }
     if ( pending > 0 ) { ImGui::TextColored({ 1.0f, 0.8f, 0.3f, 1.0f }, "保存待ち %d 枚", pending); }
     if ( !processes_.empty() || !replaySaves_.empty() ) { ImGui::TextColored({ 1.0f, 0.8f, 0.3f, 1.0f }, "GIF・mp4 を作っている…"); }
     if ( failed > 0 ) { ImGui::TextColored({ 1.0f, 0.4f, 0.4f, 1.0f }, "保存に失敗した %d 枚", failed); }
@@ -910,14 +1029,31 @@ void ScreenCapture::DrawPanel(const char* windowTitle){
         ImGui::Checkbox("クリップボードにも入れる（スライドへそのまま貼れる）", &copyToClipboard_);
 
         ImGui::SeparatorText("録る");
+        ImGui::BeginDisabled(recording_);
+        int recordMode = recordLight_ ? 0 : 1;
+        ImGui::RadioButton("ふつうの速さで録る（遊びながら撮れる）", &recordMode, 0);
+        if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("ゲームは遅くならない。縮めた絵を 1 秒 30 枚でためて、止めたら GIF・mp4 にする"); }
+        if ( recordMode == 0 ) {
+            ImGui::Indent();
+            ImGui::TextUnformatted("大きさ"); ImGui::SameLine();
+            ImGui::RadioButton("960×540##ls", &lightSizeIndex_, 0); ImGui::SameLine();
+            ImGui::RadioButton("1280×720##ls", &lightSizeIndex_, 1);
+            ImGui::Unindent();
+        }
+        ImGui::RadioButton("きれいに録る（1920×1080 の連番 PNG）", &recordMode, 1);
+        if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("1 フレームずつ PNG に書くので、録画中はゲームが遅く見える（できた動画はなめらか）。\nテイクの「再生しながら録画」は、いつもこちらで録る"); }
+        recordLight_ = recordMode == 0;
+        ImGui::EndDisabled();
         ImGui::Checkbox("3・2・1 で始める", &countdownOn_);
         ImGui::Checkbox("秒数で止める", &useLimit_);
-        if ( useLimit_ ) { ImGui::SameLine(); ImGui::SetNextItemWidth(120.0f); ImGui::SliderInt("秒", &limitSeconds_, 1, 15); }
-        ImGui::Checkbox("止めたら GIF・mp4 も作る", &autoGif_);
-        if ( ImGui::Checkbox("固定コマ送り（1フレーム＝1/60 秒）", &fixedStep_) ) { UpdateFixedStep(); }
-        if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("録画中は保存で1フレームが遅くなる。ON なら、それでもゲームは 1/60 秒ずつ進むので、できた動画はなめらか"); }
+        if ( useLimit_ ) { ImGui::SameLine(); ImGui::SetNextItemWidth(120.0f); ImGui::SliderInt("秒", &limitSeconds_, 1, 30); }
+        if ( !recordLight_ ) {
+            ImGui::Checkbox("止めたら GIF・mp4 も作る", &autoGif_);
+            if ( ImGui::Checkbox("固定コマ送り（1フレーム＝1/60 秒）", &fixedStep_) ) { UpdateFixedStep(); }
+            if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("録画中は保存で1フレームが遅くなる。ON なら、それでもゲームは 1/60 秒ずつ進むので、できた動画はなめらか"); }
+        }
 
-        ImGui::SeparatorText("直前を保存（F5）");
+        ImGui::SeparatorText("直前を保存");
         ImGui::Checkbox("いつも直前をためておく", &replayOn_);
         if ( !replayOn_ ) { replayFrames_.clear(); }
         ImGui::SetNextItemWidth(160.0f);

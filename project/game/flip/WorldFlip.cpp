@@ -39,18 +39,6 @@ namespace {
     constexpr float kDialHalfDepth = 1.6f; // スイッチ（文字盤と雲）の奥行きの半分(m)。隠すかどうかの判定に使う
     constexpr const char* kEveningSkyTexture = "resources/flip/sky_evening.png"; // tools/flip/make_flip_assets.py が作る
 
-    // 確かめる用のキー：環境変数 CG2_DEBUG_KEYS を付けて起動した時だけ（F8＝カメラを反転）
-    bool DebugKeysEnabled(){
-        static const bool enabled = []{
-            char* value = nullptr;
-            size_t length = 0;
-            const bool found = _dupenv_s(&value, &length, "CG2_DEBUG_KEYS") == 0 && value;
-            free(value);
-            return found;
-        }();
-        return enabled;
-    }
-
     std::string FlipPath(const std::string& stage){ return "resources/map/" + stage + "_flip.json"; }
 
     const char* SideName(WorldFlip::Side side){
@@ -265,22 +253,8 @@ bool WorldFlip::Update(bool debugCameraActive){
 
     if ( phase_ == Phase::None ) {
         if ( cooldown_ > 0.0f ) { cooldown_ -= dt; }
-        // 確かめ用：F8 でカメラを反転（一番近いスイッチが回る）
-        if ( DebugKeysEnabled() && Input::GetInstance()->Triggerkey(DIK_F8) ) {
-            int nearest = -1;
-            float best = 1e30f;
-            if ( player ) {
-                const Vector3 p = player->GetPosition();
-                for ( int i = 0; i < ( int ) switches_.size(); ++i ) {
-                    const Vector3& q = switches_[i].pos;
-                    const float d = ( p.x - q.x ) * ( p.x - q.x ) + ( p.z - q.z ) * ( p.z - q.z );
-                    if ( d < best ) { best = d; nearest = i; }
-                }
-            }
-            BeginTurn(nearest >= 0, nearest);
-        }
         // 切り替えポイントに入った：そのとおりに回る
-        else if ( UpdatePoints() ) {}
+        if ( UpdatePoints() ) {}
         // 歩いて別のレールへ乗り移った：そのレールの向きが今のカメラと違えば回る（「変えない」のレールでは回らない）
         else if ( player && player->IsGrounded() ) {
             const int rail = player->GetCurrentRail();
