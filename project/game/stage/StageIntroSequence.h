@@ -106,6 +106,7 @@ private:
 
     // ステージごとの設定
     float distance_ = 3.8f, side_ = 1.3f, height_ = 0.75f, lookHeight_ = 1.0f; // イントロカメラ
-    float rollAhead_ = 1.25f;   // ロールを置く所（プレイヤーから進む方向へ）
+    float rollAhead_ = 1.04f;   // ロールを置く所（プレイヤーから進む方向へ）。押す時に一歩出ると、手とお腹がちょうど当たる所
+                                //   （手を振る間はこれより近いと体がめり込む。tools/stage_intro/make_intro_clips.py の PUSH_STEP と合わせる）
     float rollRadius_ = 0.45f;  // ロールの太さ（半径）
 };

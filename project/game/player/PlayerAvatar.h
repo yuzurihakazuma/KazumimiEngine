@@ -49,6 +49,8 @@ public:
     // ステージ開始演出のクリップ（IntroWave / IntroPush / IntroJump）。指定している間は、状態（空中・歩き・待機）から
     //   選ぶより先にこれを1回だけ再生し、最後の形で止まる。同じクリップでも頭から流し直す
     void PlayIntroClip(const std::string& clip);
+    // 壁にぶつかった：顔がつぶれて戻り、両手で顔を押さえる（WallBump クリップ。tools/stage_intro/make_intro_clips.py）
+    void PlayWallBump(){ bumpTimer_ = kBumpTime; bumpRestart_ = true; }
     void ClearIntroClip();
     const std::string& GetIntroClip() const{ return introClip_; }
     // ボーンの世界での位置（キラキラを頭の上に出すなど）
@@ -86,6 +88,9 @@ private:
     float   jumpStretch_ = 0.0f;        // 跳んだ瞬間 1 → 0（縦に伸びる）
     float   landSquash_ = 0.0f;         // 着いた瞬間 1 → 0（縦につぶれる）
     std::string introClip_;             // ステージ開始演出のクリップ（空＝指定なし）
+    static constexpr float kBumpTime = 0.85f; // WallBump クリップの長さ
+    float   bumpTimer_ = 0.0f;          // ぶつかった動きの残り秒
+    bool    bumpRestart_ = false;       // 頭から流し直す
     bool    introRestart_ = false;      // 次の更新で、演出のクリップを頭から流す
     float   dropLift_ = 0.0f;           // 上から落ちてくる演出の高さ
     float   dropSquash_ = 1.0f;         // 着地のつぶれ

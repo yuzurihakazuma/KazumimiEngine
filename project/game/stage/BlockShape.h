@@ -31,6 +31,11 @@ namespace BlockShape {
     inline float FootprintHalf(int type){
         return ( type == 3 || type == kTypeWide || type == kTypePedestal ) ? 1.0f : 0.5f;
     }
+    // 道幅いっぱいに作ってある種類か（斜面・台座。モデルの幅 2m）。置くレールの道の幅に合わせて細くする
+    inline bool IsRoadWide(int type){ return IsSlope(type) || type == kTypePedestal; }
+    // 斜面のモデルを見た目だけ下げる量(m)。モデルは段ボールの筒を並べた形で、筒の上の線が、歩く面（当たり判定の直線）より
+    //   平均で 45°＝0.19m・26°＝0.17m 高い。下げないと足が筒にめり込み、坂の上の端が隣のブロックより 5〜10cm 高く出る
+    inline float SlopeVisualDrop(int type){ return type == 2 ? 0.19f : ( type == 3 ? 0.165f : 0.0f ); }
 }
 
 // 置かれたブロック1個（実行時）
@@ -53,4 +58,9 @@ namespace BlockShape {
     //   レールが無効なら false
     bool PoseOnRail(const std::vector<SplineRail>& rails, const PlacedBlock& block,
                     Vector3& outPos, float& outYaw, float* outPitch = nullptr);
+    // そのレールの道の半幅(m)：布の道は布の幅の半分、土台だけの道は土台の幅（1.0）
+    float RoadHalfWidth(const SplineRail& rail);
+    // 道幅方向の半幅(m)：ふつうは 0.5。道幅いっぱいの種類（斜面・台座）は、置くレールの道の幅に合わせる（最大 1.0＝モデルの実寸）。
+    //   描画（横に縮める）・ワールドの箱（卵の当たり）が同じ値を使う
+    float SideHalf(const std::vector<SplineRail>& rails, const PlacedBlock& block);
 }

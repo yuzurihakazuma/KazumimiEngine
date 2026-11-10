@@ -17,6 +17,10 @@ float PlayerBlockContact::ResolveWalk(int rail, float prevDist, float newDist, f
     if ( !blocks_->BlockedAt(rail, newDist, footY + kBodyBottom, footY + kBodyTop, &blockMin, &blockMax) ) {
         return newDist;
     }
+    // 歩いている時：壁の手前に坂（や小さな段）があって、そのまま面まで歩くとブロックの上面まで登れるなら、壁にしない。
+    //   体の当たりを見た目の幅（0.55m）に広げたので、坂の途中（まだ低い所）で、坂の先のブロックの壁の範囲に入る。
+    //   面まで 0.1m ずつ歩いた時の立つ高さを順に求めて、その高さの体がブロックに重ならなければ通す
+    if ( grounded && CanWalkUpTo(rail, newDist, footY, blockMin, blockMax) ) { return newDist; }
     const float kPushGap = 0.01f; // 面から少し離す（毎フレーム再衝突しない）
     if ( prevDist <= blockMin ) { return blockMin - kPushGap; }
     if ( prevDist >= blockMax ) { return blockMax + kPushGap; }
@@ -24,6 +28,33 @@ float PlayerBlockContact::ResolveWalk(int rail, float prevDist, float newDist, f
     //   ブロックから離れる向きの動きだけ許す。以前は一切動けず、端の外側で身動きが取れなくなっていた
     const float center = ( blockMin + blockMax ) * 0.5f;
     return ( std::abs(newDist - center) >= std::abs(prevDist - center) ) ? newDist : prevDist;
+}
+
+// dist（壁の範囲 [blockMin, blockMax] の中）から、ブロックの実際の面まで歩いた時に、ブロックの上面の高さまで登れるか。
+//   面まで 0.1m ずつ進んだ時の立つ高さ（坂の表面・小さな段）を順に求めて、その高さの体がブロックに重ならなければ true
+bool PlayerBlockContact::CanWalkUpTo(int rail, float dist, float footY, float blockMin, float blockMax) const{
+    const float center = ( blockMin + blockMax ) * 0.5f;
+    const float radius = BlockSystem::WallRadius();
+    const float face = ( dist <= center ) ? blockMin + radius : blockMax - radius; // ブロックの実際の面
+    const float direction = ( face >= dist ) ? 1.0f : -1.0f;
+    float height = footY;
+    for ( float d = dist; ( face - d ) * direction > 0.0f; d += direction * 0.1f ) {
+        height = ( std::max )( height, blocks_->GroundHeightAt(rail, d, height) );
+    }
+    height = ( std::max )( height, blocks_->GroundHeightAt(rail, face - direction * 0.02f, height) );
+    return height > footY && !blocks_->BlockedAt(rail, dist, height + kBodyBottom, height + kBodyTop, nullptr, nullptr);
+}
+
+float PlayerBlockContact::SlideOutOfWall(int rail, float dist, float footY, float maxStep, bool grounded) const{
+    if ( !blocks_ ) return dist;
+    float blockMin = 0.0f, blockMax = 0.0f;
+    if ( !blocks_->BlockedAt(rail, dist, footY + kBodyBottom, footY + kBodyTop, &blockMin, &blockMax) ) { return dist; }
+    if ( grounded && CanWalkUpTo(rail, dist, footY, blockMin, blockMax) ) { return dist; } // 坂を登っている途中
+    const float kPushGap = 0.01f;
+    const float center = ( blockMin + blockMax ) * 0.5f;
+    const float target = ( dist < center ) ? blockMin - kPushGap : blockMax + kPushGap;
+    if ( blocks_->BlockedAt(rail, target, footY + kBodyBottom, footY + kBodyTop, nullptr, nullptr) ) { return dist; }
+    return dist + std::clamp(target - dist, -maxStep, maxStep);
 }
 
 bool PlayerBlockContact::IsBodyBlocked(int rail, float dist, float footY) const{
@@ -55,6 +86,18 @@ bool PlayerBlockContact::PushOutOfBlocks(int rail, float dist, float& footY) con
         pushed = true;
     }
     return pushed;
+}
+
+float PlayerBlockContact::ClearHeight(int rail, float dist, float footY) const{
+    if ( !blocks_ ) return 0.0f;
+    float height = blocks_->GroundHeightAt(rail, dist, footY);
+    for ( int guard = 0; guard < 10; ++guard ) { // 積み重なったブロックは 1 段ずつ上へ
+        float blockMin = 0.0f, blockMax = 0.0f, top = 0.0f;
+        if ( !blocks_->BlockedAt(rail, dist, height + kBodyBottom, height + kBodyTop, &blockMin, &blockMax, &top) ) { break; }
+        if ( CanWalkUpTo(rail, dist, height, blockMin, blockMax) ) { break; } // 坂の途中：坂の表面のまま
+        height = top;
+    }
+    return height;
 }
 
 float PlayerBlockContact::GroundHeight(int rail, float dist, float footY) const{

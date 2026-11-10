@@ -5,7 +5,10 @@
 
 namespace {
     const float kHalf = BlockShape::kHalf;
-    const float kPlayerRadius  = 0.30f; // プレイヤーの横当たり半径
+    const float kPlayerRadius  = 0.30f; // 道の中心線から横へずらしたブロックに当たる幅（OverlapsCenterLine）
+    // 進む向き（道に沿った前後）の体の当たりの半径。恐竜の見た目（鼻先まで 0.62m・しっぽまで 0.50m）に合わせる。
+    //   前は 0.30 で、壁へ歩いて当たると顔が 0.3m ほどブロックにめり込んでいた
+    const float kWallRadius    = 0.55f;
     const float kStepTolerance = 0.25f; // これ以下の段差は支持面として拾う（小さなガタつき吸収）
     // 支持面（乗れる範囲）はブロックの実寸＋わずかな縁の許容だけ。
     //   壁当たり半径をそのまま使うと1マス空きの落とし穴を歩いて渡れてしまう
@@ -116,7 +119,7 @@ void BlockSystem::NotifyHeadBump(int rail, float dist, float headY){
         PlacedBlock& block = blocks_[index];
         if ( block.type != kTypeHatena || block.used ) return;
         if ( !OverlapsCenterLine(block.side) ) return;
-        if ( std::abs(block.dist - dist) > kHalf + kPlayerRadius ) return;
+        if ( std::abs(block.dist - dist) > kHalf + kWallRadius ) return;
         float bottom = ( float ) block.level * kSize;
         if ( std::abs(bottom - headY) > 0.15f ) return; // 頭が当たった面のブロックだけ
         block.used = true;
@@ -177,14 +180,28 @@ int BlockSystem::SupportTypeAt(int rail, float dist, float footY) const{
 // 体の高さ帯がブロックへ横から重なるか（支持面として乗っている場合は重ならない）
 bool BlockSystem::BlockedAt(int rail, float dist, float bodyBottom, float bodyTop,
                             float* outMin, float* outMax, float* outTop, float bodyRadius) const{
-    const float radius = ( bodyRadius >= 0.0f ) ? bodyRadius : kPlayerRadius;
+    const float radius = ( bodyRadius >= 0.0f ) ? bodyRadius : kWallRadius;
     bool blocked = false;
     grid_.ForEachNear(rail, dist, kQueryCells, [&](int index){
         if ( blocked ) return;
         const PlacedBlock& block = blocks_[index];
         if ( !OverlapsCenterLine(block.side) ) return;
-        if ( BlockShape::IsSlope(block.type) ) return;    // 斜面は壁にならない（歩いて登る）
         if ( block.type == kTypeCloud ) return;           // すり抜け床は横から通り抜けられる
+        if ( BlockShape::IsSlope(block.type) ) {
+            // 斜面：低い側からは歩いて登れるので壁にしない。坂の表面より下へもぐる向き（高い側の面へ横から歩く）は壁。
+            //   前は斜面を一切壁にしていなかったので、斜面だけを置くと高い側から中を通り抜けられた
+            const float half = BlockShape::FootprintHalf(block.type);
+            if ( std::abs(block.dist - dist) > half + radius ) return;
+            const float surface = block.SurfaceHeightAt(std::clamp(dist, block.dist - half, block.dist + half)); // 一番近い所の坂の高さ
+            const float slopeBottom = ( float ) block.level * kSize;
+            if ( bodyBottom < surface - kStepTolerance && bodyTop > slopeBottom + 0.05f ) {
+                if ( outMin ) { *outMin = block.dist - half - radius; }
+                if ( outMax ) { *outMax = block.dist + half + radius; }
+                if ( outTop ) { *outTop = surface; }
+                blocked = true;
+            }
+            return;
+        }
         // 型別の footprint（横長2m/台座2×2m は半幅1.0m）で壁の届く範囲を決める
         float reach = BlockShape::FootprintHalf(block.type) + radius;
         if ( std::abs(block.dist - dist) > reach ) return;
@@ -203,6 +220,8 @@ bool BlockSystem::BlockedAt(int rail, float dist, float bodyBottom, float bodyTo
     return blocked;
 }
 
+float BlockSystem::WallRadius(){ return kWallRadius; }
+
 // 頭上の天井（footY より上にあるブロックの底面のうち一番低いもの）
 float BlockSystem::CeilingHeightAt(int rail, float dist, float footY) const{
     float best = 1e9f;
@@ -212,7 +231,7 @@ float BlockSystem::CeilingHeightAt(int rail, float dist, float footY) const{
         if ( BlockShape::IsSlope(block.type) ) return;    // 斜面の下は薄いので頭ぶつけ無し
         if ( block.type == kTypeCloud ) return;           // すり抜け床は下から通り抜けられる
         // 型別の footprint（横長・台座は半幅1.0m）。外縁の下でも頭がぶつかるように
-        if ( std::abs(block.dist - dist) > BlockShape::FootprintHalf(block.type) + kPlayerRadius ) return;
+        if ( std::abs(block.dist - dist) > BlockShape::FootprintHalf(block.type) + kWallRadius ) return;
         float bottom = ( float ) block.level * kSize;
         if ( bottom > footY + 0.1f && bottom < best ) { best = bottom; }
     });

@@ -24,6 +24,9 @@ public:
     int TotalCount() const{ return ( int ) coins_.size(); }
     // ？ブロック等から出たボーナスコイン（配置コインの総数には含まれない）
     void AddBonus(int count){ collected_ += count; }
+    // 当たり判定を表示（エディタの「当たり判定を表示」）：コインの球と、コインを取る恐竜の体の筒
+    void DrawHitShapes(const Vector4& color) const;
+    static void DrawPickupBody(const Vector3& foot, const Vector4& color);
 
 private:
     struct Coin {
@@ -31,6 +34,8 @@ private:
         std::unique_ptr<Obj3d> obj;
         bool taken = false;
     };
+    Vector3 CurrentPos(const Coin& coin) const;
+    static bool Touches(const Vector3& foot, const Vector3& center);
     std::vector<Coin> coins_;
     int   collected_ = 0;
     float spinT_ = 0.0f; // 全コイン共通の回転タイマー

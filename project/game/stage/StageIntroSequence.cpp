@@ -27,7 +27,7 @@ namespace {
     constexpr float kDropFallTime = 0.35f;    // 落ちる時間(秒)
     constexpr float kDropLandTime = 0.25f;    // 着地でつぶれて戻る時間(秒)
     // ロールの転がり方
-    constexpr float kPushSpeed = 0.3f;        // 押している間(m/秒)
+    constexpr float kPushSpeed = 0.025f;      // 押している間(m/秒)。手が当たったまま、ほんの少しずつ前へ（速いと手から離れていく）
     constexpr float kRollAccel = 9.0f;        // 転がり出してからの加速（約1秒で 4.5m）
     constexpr float kRollMaxSpeed = 9.0f;     // その後の一定の速さ(m/秒)
     constexpr float kRollShrink = 0.3f;       // 転がるほど細くなる割合（布を敷いていく感じ）

@@ -17,11 +17,11 @@ bool BlockWorldShapes::MakeBox(const std::vector<SplineRail>& rails, const Place
 
     // 寸法はモデルの実寸：斜面と台座は道幅2m、横長・台座・ゆるい斜面は進行方向2m
     const float kHalf = BlockShape::kHalf;
-    float halfSide   = ( BlockShape::IsSlope(block.type) || block.type == BlockShape::kTypePedestal ) ? 1.0f : kHalf;
+    float halfSide   = BlockShape::SideHalf(rails, block); // 描画と同じ幅（斜面・台座は道の幅に合わせてある）
     float halfAlong  = BlockShape::FootprintHalf(block.type);
     float halfHeight = kHalf;
     float centerUp   = kHalf; // 底面中心（原点）から箱の中心までの高さ
-    if ( block.type == BlockShape::kTypeCloud ) { centerUp = 0.85f; halfHeight = 0.15f; } // セル上端の薄い板
+    if ( block.type == BlockShape::kTypeCloud ) { centerUp = 0.93f; halfHeight = 0.07f; } // マスの上の端の網（モデルの高さ 0.86〜1.0）
     box.half   = { halfSide, halfHeight, halfAlong };
     box.center = { origin.x + box.up.x * centerUp,
                    origin.y + box.up.y * centerUp,

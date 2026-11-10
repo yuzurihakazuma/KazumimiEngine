@@ -60,6 +60,8 @@ public:
     bool  BlockedAt(int rail, float dist, float bodyBottom, float bodyTop,
                     float* outMin, float* outMax, float* outTop = nullptr,
                     float bodyRadius = -1.0f) const;
+    // プレイヤーの体の、進む向き（前後）の当たりの半径（BlockedAt の既定の bodyRadius）
+    static float WallRadius();
     // 頭上の天井：dist に重なるブロックの底面のうち、footY より上で一番低いもの（無ければ大きな値）
     float CeilingHeightAt(int rail, float dist, float footY) const;
     // 今の足元を支えているブロックの種類（-1=レール面/ブロックなし）。ジャンプ台の判定に使う

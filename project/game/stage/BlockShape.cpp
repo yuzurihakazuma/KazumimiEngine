@@ -19,6 +19,16 @@ float PlacedBlock::SurfaceHeightAt(float atDist) const{
     return bottom + BlockShape::kSize;
 }
 
+float BlockShape::RoadHalfWidth(const SplineRail& rail){
+    return rail.skin.HasCloth() ? ( std::max )( rail.skin.width * 0.5f, 0.2f ) : 1.0f;
+}
+
+float BlockShape::SideHalf(const std::vector<SplineRail>& rails, const PlacedBlock& block){
+    if ( !IsRoadWide(block.type) ) { return kHalf; }
+    if ( block.rail < 0 || block.rail >= ( int ) rails.size() ) { return 1.0f; }
+    return ( std::min )( RoadHalfWidth(rails[block.rail]), 1.0f );
+}
+
 bool BlockShape::PoseOnRail(const std::vector<SplineRail>& rails, const PlacedBlock& block,
                             Vector3& outPos, float& outYaw, float* outPitch){
     if ( block.rail < 0 || block.rail >= ( int ) rails.size() ) return false;

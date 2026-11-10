@@ -420,8 +420,8 @@ void Enemy::TickSwallow(const Vector3& playerPos, float dt){
     float t = swallowT_ / kSwallowTime; // 口へ吸い込まれながら、縮んで溶けていく
     if ( t > 1.0f ) t = 1.0f;
 
-    // 口元へ近づく（少し上）
-    Vector3 mouth = { playerPos.x, playerPos.y + 0.5f, playerPos.z };
+    // 口元へ近づく（ベロの付け根。SetSwallowMouthOffset）
+    Vector3 mouth = { playerPos.x + swallowMouthOffset_.x, playerPos.y + swallowMouthOffset_.y, playerPos.z + swallowMouthOffset_.z };
     position_ = {
         swallowStart_.x + ( mouth.x - swallowStart_.x ) * t,
         swallowStart_.y + ( mouth.y - swallowStart_.y ) * t,
@@ -429,10 +429,13 @@ void Enemy::TickSwallow(const Vector3& playerPos, float dt){
     };
 
     collider_.SetCenter(position_);
-    float shrink = 1.0f - t;
+    // ベロの先にくっついて口まで来るのが見えるように：大きさは口の近くで一気に縮め、溶けるのは最後の 3 割だけ
+    //   （前は最初から縮んで溶けていたので、4 割ほど引いた所で見えなくなっていた）
+    float shrink = 1.0f - 0.85f * t * t * t;
     float centerHeight = ( bodyBottom_ + bodyTop_ ) * 0.5f; // 足元→体の中心
     footPos_ = { position_.x, position_.y - centerHeight * shrink, position_.z };
-    const float threshold = 0.02f + 0.9f * t; // 吸い込まれながら溶けていく
+    const float melt = std::clamp(( t - 0.7f ) / 0.3f, 0.0f, 1.0f);
+    const float threshold = melt > 0.0f ? 0.02f + 0.9f * melt : 0.0f;
     if ( skinnedObj_ ) {
         skinnedObj_->SetTranslation(footPos_); // 足元原点ぶん下げる
         skinnedObj_->SetScale({ scale_ * shrink, scale_ * shrink, scale_ * shrink });

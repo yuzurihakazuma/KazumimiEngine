@@ -525,7 +525,7 @@ def piece_with_shadow(img, shadow=(10, 12)):
 # ---------------- ステージ開始カード ----------------
 INTRO_DIR = os.path.join(PROJECT, "resources", "stage_intro")  # ステージごとの中身（名前・色・敵・カメラ）
 CUTOUT_DIR = os.path.join(HERE, "cutouts")                       # render_cutouts.py が Blender で描き出した切り絵
-INTRO_BANNER_SIZE = (1240, 250)  # 名前の帯（布）の大きさ
+INTRO_BANNER_SIZE = (1240, 300)  # 名前の帯（布）の大きさ。ふりがなが上の縫い目にかからない高さ
 INTRO_ROLL_HEIGHT = 278          # 巻いた布の高さ（帯より少し高い）
 INTRO_ROLL_PERIOD = 120          # 巻いた布の模様の1周期(px)。ゲームはこの幅ずつ模様をずらして転がって見せる
 INTRO_LOADING_X, INTRO_LOADING_Y = 1380, 960  # 「ロードちゅう」の左上（カードの座標）
@@ -601,15 +601,24 @@ def make_intro_name(stem, data):
     render_intro_name(data["name"], data.get("ruby", [])).save(os.path.join(OUT, "intro_name_%s.png" % stem))
 
 
+RUBY_RISE = 58  # ふりがなを名前の上へ上げる量(px)
+
+
 def render_intro_name(title, ruby):
     """名前＋ふりがなの画像（白い丸い太字、ふちは濃い緑）。ruby＝[(ふりがな, 何文字目から, 何文字)]"""
     font = ImageFont.truetype(FONT, 112)
     ruby_font = ImageFont.truetype(FONT, 38)
     probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     width = int(probe.textlength(title, font=font)) + 80
-    img = Image.new("RGBA", (width, 230), (0, 0, 0, 0))
+    height = 230
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    tx, ty = 40, 78
+    # 名前（ふりがながあれば、ふりがなも入れたかたまり）が画像の真ん中に来るように置く。帯の真ん中に合わせやすい
+    tx = 40
+    top, bottom = probe.textbbox((0, 0), title, font=font, stroke_width=12)[1::2]
+    if ruby:  # ふりがなの上のふちまでを、かたまりに入れる
+        top = min(top, probe.textbbox((0, -RUBY_RISE), ruby[0][0], font=ruby_font, stroke_width=6)[1])
+    ty = int(round(height / 2 - (top + bottom) / 2))
     d.text((tx + 5, ty + 7), title, font=font, fill=(40, 70, 10, 255), stroke_width=12, stroke_fill=(40, 70, 10, 255))  # 影
     d.text((tx, ty), title, font=font, fill=(255, 255, 250, 255), stroke_width=12, stroke_fill=(70, 110, 20, 255))
     d.text((tx, ty), title, font=font, fill=(255, 255, 250, 255))
@@ -617,7 +626,7 @@ def render_intro_name(title, ruby):
         left = tx + probe.textlength(title[:start], font=font)
         span = probe.textlength(title[start:start + count], font=font)
         rx = left + span / 2 - probe.textlength(text, font=ruby_font) / 2
-        d.text((rx, ty - 58), text, font=ruby_font, fill=(255, 255, 250, 255), stroke_width=6, stroke_fill=(70, 110, 20, 255))
+        d.text((rx, ty - RUBY_RISE), text, font=ruby_font, fill=(255, 255, 250, 255), stroke_width=6, stroke_fill=(70, 110, 20, 255))
     return img
 
 
@@ -804,7 +813,7 @@ def make_intro_layout():
                 color=star_colors[i % len(star_colors)])
     element("banner", [{"file": "intro_banner_shadow.png"}, {"file": "intro_banner.png", "tinted": True},
                        {"file": "intro_banner_stitch.png"}], 960, CARD_BANNER_Y, sway=0.5, speed=1.1, color=banner_color)
-    element("name", [{"file": "intro_name_stage1.png"}], 960, CARD_BANNER_Y - 8, angle=-2.0, sway=1.0, speed=1.4, phase=0.5)
+    element("name", [{"file": "intro_name_stage1.png"}], 960, CARD_BANNER_Y, angle=-2.0, sway=1.0, speed=1.4, phase=0.5)  # 名前の画像は中身が真ん中
     element("egg", [{"file": "intro_char_egg.png"}], 560, 665, angle=6.0, sway=4.0, speed=2.4, phase=0.3)
     element("dino", [{"file": "intro_char_dino.png"}], 300, 580, angle=-4.0, sway=1.5, speed=1.9, phase=1.7)
     element("enemy", [{"file": "@enemy"}], 1735, 255, angle=4.0, sway=1.0, speed=2.0, phase=2.4, stamp=True)

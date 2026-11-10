@@ -21,6 +21,7 @@ void BlockRenderer::Initialize(uint32_t){}
 void BlockRenderer::Rebuild(const std::vector<PlacedBlock>&, const BlockGrid&){}
 void BlockRenderer::Update(const std::vector<PlacedBlock>&, const std::vector<SplineRail>&){}
 void BlockRenderer::Draw(const Camera*){}
+void BlockRenderer::BounceSpring(int){}
 
 bool BlockWorldShapes::MakeBox(const std::vector<SplineRail>&, const PlacedBlock&, Box&){ return false; }
 void BlockWorldShapes::DrawWire(const Box&, const Vector4&, float){}

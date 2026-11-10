@@ -26,10 +26,9 @@ using namespace VectorMath;
 namespace {
     // ※ベロの見た目はプレイヤーモデルの TongueOut アニメ（予備動作→射出→保持→収納）。
     //   ここの秒数はそのアニメの進行に合わせてある（変える時はアニメ再生速度も合わせること）
-    const float kShootDuration     = 0.22f; // 舌が伸びきるまでの秒数（敵に触れた瞬間に打ち切る）
     const float kRetractDuration   = 0.25f; // 捕獲時の戻り秒数（回収自体は即時。これは見た目の戻り）
     const float kMissRetractDuration = 0.25f; // 空振り時の引っ込み秒数
-    const float kTongueHalfWidth   = 0.09f; // 舌の太さ(半幅)
+    // 舌の太さ(半幅)は SwallowAbility::kTongueHalfWidth（当たり判定も同じ太さ）
     const Vector4 kTongueColor     = { 1.0f, 0.42f, 0.5f, 1.0f }; // ヨッシー舌のピンク
     const float kAutoLayDelay      = 0.3f;  // 食べてから自動で産むまで(秒)。その間に F を押せば吐き出せる
     const Vector4 kCatchableColor  = { 1.0f, 0.55f, 0.7f, 0.9f };  // 「今なら捕まえられる」ハイライト（舌と同系色）
@@ -52,7 +51,6 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
                             Camera* camera, float dt){
     Input* input = Input::GetInstance();
     Vector3 playerPos = player.GetPosition();
-    Vector3 mouth = { playerPos.x, playerPos.y + 0.5f, playerPos.z }; // Enemy::TickSwallow と同じ口位置
 
     // クールタイムの経過（成功した時だけ充填される）
     if ( cooldownTimer_ > 0.0f ) { cooldownTimer_ -= dt; }
@@ -61,44 +59,77 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     float yaw = player.GetRotation().y;
     Vector3 facing = { std::sin(yaw), 0.0f, std::cos(yaw) };
 
-    // 舌が届く範囲＆前方にいる敵を探す（E押下時の判定と、Idle中のプレビュー表示の両方で使う）
+    // ベロ：付け根（鼻先の口）から、太さ kTongueHalfWidth・長さ swallowReach_ の棒が、いつも正面へまっすぐ伸びる。
+    //   敵の方へは向けない（届かない敵・高さの合わない敵がいても、まっすぐ出て空振りする）。坂の上では坂に沿った正面。
+    //   見た目のベロの骨も同じ向き・同じ長さにする（PlayerAvatar）。
+    //   当たり判定はこの棒と敵の体（縦カプセル）が触れたか。捕まえた敵は、ベロの先にくっついたまま口へ戻る
+    const Vector3 root = { playerPos.x + facing.x * kTongueRootForward, playerPos.y + kTongueRootHeight, playerPos.z + facing.z * kTongueRootForward };
+    const Vector3 straight = Normalize(player.GetFacingAlongGround());
+    aimDir_ = straight; // 伸ばしている間・戻している間も、今の正面（振り向けば一緒に向く）
+    // 付け根から dir へ length までの棒に、敵の体が触れるか。触れる時は、付け根から触れる所までの長さ（-1＝触れない）
+    auto touchAlong = [&](const Enemy& enemy, const Vector3& dir, float length) -> float {
+        const float step = kTongueHalfWidth;
+        for ( float s = 0.0f; s <= length + 1e-4f; s += step ) {
+            const float along = ( std::min )( s, length );
+            if ( enemy.HitsSphere(Add(root, Multiply(along, dir)), kTongueHalfWidth) ) { return along; }
+        }
+        return -1.0f;
+    };
+    // 付け根から dir へ length までに壁（ブロック）があるか（壁の向こうの敵は食べられない）
+    auto blockedBefore = [&](const Vector3& dir, float length, Vector3* hitOut) -> bool {
+        if ( !wallQuery_ || length <= 1e-3f ) { return false; }
+        Vector3 hit;
+        if ( !wallQuery_(root, Add(root, Multiply(length, dir)), hit) ) { return false; }
+        if ( hitOut ) { *hitOut = hit; }
+        return true;
+    };
+
+    // 正面へまっすぐ伸ばしたベロが触れる敵のうち、一番近い敵（Idle中の「食べられる印」に使う）
     auto findCatchable = [&]() -> Enemy* {
         Enemy* found = nullptr;
-        float bestDist = swallowReach_; // 舌の届く範囲（ノードエディタから調整可）
+        float best = 1e9f;
         for ( auto& enemy : enemies.GetEnemies() ) {
-            if ( !enemy->IsAlive() ) continue;
-            Vector3 toEnemy = enemy->GetPosition() - playerPos;
-            // 高さが合っていない敵は食べられない（上下の別レールの敵へベロが届いてしまう問題の対策）
-            if ( std::abs(toEnemy.y) > 0.9f ) continue;
-            float distance = Length(toEnemy);
-            if ( distance >= bestDist ) continue;
-
-            // ベロは細いビーム扱い：正面方向の直線から横に外れた敵は捕れない
-            //   （隣のレールや壁の向こうの敵をレール越しに貫通して食べてしまう問題の対策）
-            float alongDist = toEnemy.x * facing.x + toEnemy.z * facing.z; // 正面方向の距離
-            if ( alongDist < 0.0f ) continue;                              // 後ろは不可
-            float latX = toEnemy.x - facing.x * alongDist;
-            float latZ = toEnemy.z - facing.z * alongDist;
-            if ( std::sqrt(latX * latX + latZ * latZ) > 0.8f ) continue;   // ベロの線から0.8m以上横は不可
-            // 口から敵までの間に壁（ブロック）があれば届かない（前は壁越しに食べられていた）。
-            //   敵のふちの手前までを調べる（壁に体がくっついている敵を、壁の内側と見間違えない）
-            if ( wallQuery_ && distance > 1e-3f ) {
-                const Vector3 toEnemyDir = Multiply(1.0f / distance, toEnemy);
-                const float reach = ( std::max )( distance - enemy->GetRadius() * 0.8f, 0.0f );
-                Vector3 hit;
-                const Vector3 enemyEdge = Add(mouth, Multiply(reach, toEnemyDir));
-                if ( wallQuery_(mouth, enemyEdge, hit) ) continue;
-            }
-
-            bestDist = distance; found = enemy.get();
+            if ( !enemy->IsAlive() || enemy->IsSwallowing() ) continue;
+            const float along = touchAlong(*enemy, straight, swallowReach_);
+            if ( along < 0.0f || along >= best ) continue;
+            if ( blockedBefore(straight, along, nullptr) ) continue; // 間に壁
+            best = along; found = enemy.get();
         }
         return found;
         };
+    // 今の長さ length のベロの棒に触れている敵のうち、付け根に一番近い敵を捕まえる（捕まえたら true）。
+    //   敵はベロの先にくっついたまま口へ引き込まれ、縮みながら溶ける（Enemy::TickSwallow）。
+    //   敵のポインタは持ち続けない（EnemyManager が食べ終わった時に消すため）
+    auto tryCatch = [&](float length) -> bool {
+        Enemy* caught = nullptr;
+        float bestAlong = 1e9f;
+        for ( auto& enemy : enemies.GetEnemies() ) {
+            if ( !enemy->IsAlive() || enemy->IsSwallowing() ) continue;
+            const float along = touchAlong(*enemy, aimDir_, length);
+            if ( along >= 0.0f && along < bestAlong ) { bestAlong = along; caught = enemy.get(); }
+        }
+        if ( !caught || blockedBefore(aimDir_, bestAlong, nullptr) ) { return false; } // 触れていない・間に壁
+        grabPos_ = caught->GetPosition();                                // ベロの先にくっつける（敵の真ん中）
+        caught->SetSwallowMouthOffset(Subtract(root, playerPos));        // ベロの付け根（口）へ
+        caught->StartSwallow();
+        AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.5f); // 捕獲音（流用）
+        hitFeel.Trigger(0.03f, 0.12f); // 捕まえた手応え
+        retractDuration_ = kRetractDuration;
+        retractCaught_   = true;
+        return true;
+    };
+    if ( debugVisible_ && state_ == State::Idle ) {
+        // 当たり判定を表示：正面へ伸ばした時の棒（付け根 → 先）
+        const Vector3 end = Add(root, Multiply(swallowReach_, straight));
+        DebugDraw::GetInstance()->Line(root, end, kCatchableColor);
+        DebugDraw::GetInstance()->Sphere(end, kTongueHalfWidth, kCatchableColor, 8);
+    }
 
     // --- E：舌を伸ばす（Idle中のみ受け付ける。どこでも出せる＝対象がいなくても必ず伸びる）---
     //   届く範囲＆前方に敵がいれば、その位置へホーミングして捕まえる。
     //   いなければ正面へ届く距離ぶん伸びて、そのまま空振りで引っ込む。
     //   （以前は全方位の最近傍だったため、背後の敵まで吸えて違和感があった）
+    if ( state_ != State::Idle ) { markVisible_ = false; } // ベロを出している間は、食べられる印を出さない（前の場所に残っていた）
     if ( state_ == State::Idle ) {
         // 「今Eを押したら捕まえられる敵」を毎フレーム可視化する（脈動するリング。分かりづらさ対策）。
         //   クールタイム中は実際には捕まえられないので出さない
@@ -135,9 +166,11 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
         }
 
         if ( input->Triggerkey(DIK_E) && cooldownTimer_ <= 0.0f && !actionBlocked_ ) {
-            target_ = findCatchable(); // 見つからなければ nullptr のまま＝空振りとして続行
+            target_ = nullptr;         // 狙いは付けない：正面へまっすぐ伸ばして、触れた敵を捕まえる
             state_  = State::Shooting;
             phaseT_ = 0.0f;
+            shootLength_ = kTongueRestLength;
+            holdT_ = 0.0f;
             // 移動はロックしない：ヨッシー同様、走りながらでも舌を出せる
             // （口の位置は毎フレーム player.GetPosition() から取り直すので動いていても破綻しない）
             cooldownTimer_ = swallowCooldown_;
@@ -153,40 +186,31 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             // 敵が別要因で消えた（踏まれた等）→ 以後は空振り扱いで続行
             target_ = nullptr;
         }
-        Vector3 aimTip = target_ ? target_->GetPosition() : ( mouth + facing * swallowReach_ );
-        if ( wallQuery_ ) {
-            Vector3 hit;
-            if ( wallQuery_(mouth, aimTip, hit) ) {
-                target_ = nullptr; // 敵が壁の向こうへ動いた：空振り
-                aimTip = hit;      // 舌は壁に当たった所まで
-            }
-        }
-
+        // ベロは正面へまっすぐ速く伸びる。伸びきったら少しだけ止まってから戻す。壁に当たったらそこで止まる
         phaseT_ += dt;
-        float t = ( std::min )( phaseT_ / kShootDuration, 1.0f );
-        Vector3 tip = mouth + ( aimTip - mouth ) * t;
-        UpdateTongueMesh(mouth, tip, camera);
-
-        // 先端が敵に触れた瞬間に捕獲へ移行（伸びきりを待たない＝当たったら即ベロを戻す）
-        bool hitNow = false;
-        if ( target_ ) {
-            Vector3 tipToEnemy = target_->GetPosition() - tip;
-            hitNow = Length(tipToEnemy) <= target_->GetRadius() + 0.15f;
+        shootLength_ = ( std::min )( shootLength_ + kTongueSpeed * dt, swallowReach_ );
+        float length = shootLength_;
+        if ( length >= swallowReach_ - 1e-4f ) { holdT_ += dt; }
+        float t = ( holdT_ >= kTongueHoldTime ) ? 1.0f : 0.0f; // 伸びきって少し止まったら戻す
+        Vector3 wallHit;
+        bool blocked = false;
+        if ( blockedBefore(aimDir_, length, &wallHit) ) {
+            length = Length(Subtract(wallHit, root));
+            blocked = true;
         }
+        Vector3 tip = Add(root, Multiply(length, aimDir_));
+        UpdateTongueMesh(root, tip, camera);
+
+        // 今のベロの棒に触れた敵がいたら、その瞬間に捕まえる（伸びきりを待たない＝当たったら即ベロを戻す）。
+        //   ベロは体と一緒に動くので、出している途中でジャンプして敵の高さに重なった時も捕まえる
+        const bool hitNow = tryCatch(length);
+        if ( blocked && !hitNow ) { t = 1.0f; } // 壁で止まった：空振りで戻す
         if ( hitNow || t >= 1.0f ) {
-            if ( target_ ) {
-                // 掴んだ瞬間：敵は舌の先にくっついたまま口へ引き込まれ、縮みながら溶ける（Enemy::TickSwallow）。
-                // target_ はここで手放す（EnemyManager が完了時に消すため、以後ダングリングになりうる）
-                grabPos_   = target_->GetPosition();
-                target_->StartSwallow();
-                AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.5f); // 捕獲音（流用）
-                hitFeel.Trigger(0.03f, 0.12f); // 捕まえた手応え
-                retractDuration_ = kRetractDuration;
-                retractCaught_   = true;
-            } else {
-                // 空振り：掴めなかったのでそのまま引っ込めるだけ
+            if ( !hitNow ) {
+                // 空振り：掴めなかったので引っ込める（伸びた長さから戻す。戻している間も、触れた敵は捕まえる）
                 retractDuration_ = kMissRetractDuration;
                 retractCaught_   = false;
+                missLength_      = length;
             }
             state_  = State::Retracting;
             phaseT_ = 0.0f;
@@ -200,10 +224,15 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     else {
         phaseT_ += dt;
         float t = ( std::min )( phaseT_ / retractDuration_, 1.0f );
+        if ( !retractCaught_ ) {
+            // 空振りで戻している間も、ベロの棒に敵が重なったら捕まえる（ジャンプして高さが合った時など）
+            const float length = kTongueRestLength + ( missLength_ - kTongueRestLength ) * ( 1.0f - t );
+            if ( tryCatch(length) ) { phaseT_ = 0.0f; t = 0.0f; } // そこから捕まえた時の戻し方へ
+        }
         Vector3 tip = retractCaught_
-            ? grabPos_ + ( mouth - grabPos_ ) * t
-            : mouth + facing * ( swallowReach_ * ( 1.0f - t ) );
-        UpdateTongueMesh(mouth, tip, camera);
+            ? grabPos_ + ( root - grabPos_ ) * t
+            : Add(root, Multiply(kTongueRestLength + ( missLength_ - kTongueRestLength ) * ( 1.0f - t ), aimDir_));
+        UpdateTongueMesh(root, tip, camera);
 
         if ( t >= 1.0f ) {
             state_ = State::Idle;
@@ -225,8 +254,7 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
 
     // --- 左Ctrl（しゃがみ）・食べた後の自動：お腹の敵を1匹、後ろに卵として産む ---
     if ( ( input->Triggerkey(DIK_LCONTROL) || autoLay ) && !actionBlocked_ ) {
-        float yaw = player.GetRotation().y;
-        Vector3 behind = { playerPos.x - std::sin(yaw) * 0.8f, playerPos.y + EggSystem::kHeldEggHeight, playerPos.z - std::cos(yaw) * 0.8f };
+        const Vector3 behind = eggs.FollowSlot(eggs.HeldCount()); // 後ろの卵の列の最後（通って来た所。壁の中にならない）
         if ( eggs.LayEgg(behind) ) {
             eggs.SpawnLayFx(behind);        // 産まれた合図（白＆緑がぽわっと）
             hitFeel.Trigger(0.03f, 0.08f);
@@ -249,6 +277,7 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
 //   ワールド座標へ直接焼く動的メッシュ（RoadMesh/RailField と同じ方式）。
 void SwallowAbility::UpdateTongueMesh(const Vector3& mouth, const Vector3& tip, Camera* camera){
     tongueLength_ = Length(tip - mouth); // モデルの Tongue ボーンの伸び制御に使う実距離
+    tongueTip_ = tip;                    // 見た目のベロの骨をここへ向ける
     // 遅延生成：初めて必要になった時に固定容量の動的メッシュを1回だけ確保する
     if ( !tongueModel_ ) {
         tongueModel_ = std::make_unique<Model>();

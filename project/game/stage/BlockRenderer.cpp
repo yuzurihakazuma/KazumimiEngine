@@ -18,7 +18,7 @@ namespace {
         "craftSlope26",  // 3: ゆるい斜面26.6°
         "craftSpring",   // 4: ジャンプ台（工作のばね。上に飛び乗ると跳ねる。跳ねた時は縮んでびよんと戻る）
         "craftHatena",   // 5: ？ブロック（金色。下から頭突きでコイン）
-        "craftCloud",    // 6: すり抜け床（白。上にだけ乗れる薄い板）
+        "craftCloud",    // 6: すり抜け床（あみあみの床。上にだけ乗れる）
         "craftWide",     // 7: 横長ブロック（進行方向2m×1m。スポンジ側面）
         "craftPedestal", // 8: 台座ブロック（2×2m×高さ1m。段ボール層側面）
     };
@@ -114,17 +114,15 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
             const PlacedBlock& block = blocks[idx];
             Vector3 pos {}; float yaw = 0.0f; float pitch = 0.0f;
             if ( !BlockShape::PoseOnRail(rails, block, pos, yaw, &pitch) ) continue;
-            if ( block.type == BlockShape::kTypeCloud ) {
-                // すり抜け床：セル上端に薄い板として置く（当たりの支持面＝セル上端と一致）
-                pos.y += 0.7f;
-                obj->SetScale({ 1.0f, 0.3f, 1.0f });
-            } else if ( block.type == BlockShape::kTypeSpring && springTimers_.count(idx) ) {
+            // すり抜け床（あみあみ）は、モデル自体がマスの上の端にだけある網（前は段ボール層のブロックを薄く縮めて置いていた）
+            if ( block.type == BlockShape::kTypeSpring && springTimers_.count(idx) ) {
                 // 跳ねたばね：縦に縮めて戻す（縮んだ分だけ少し横へふくらむ）
                 const float squash = SpringSquash(springTimers_[idx]);
                 const float bulge = 1.0f + ( 1.0f - squash ) * 0.25f;
                 obj->SetScale({ bulge, squash, bulge });
             } else {
-                obj->SetScale({ 1.0f, 1.0f, 1.0f }); // プール使い回しなので毎回戻す
+                // 道幅いっぱいの種類（斜面・台座。モデルの幅 2m）は、道の幅に合わせて横だけ縮める（道からはみ出さない）
+                obj->SetScale({ BlockShape::SideHalf(rails, block) / ( BlockShape::IsRoadWide(block.type) ? 1.0f : BlockShape::kHalf ), 1.0f, 1.0f });
             }
             if ( BlockShape::IsSlope(block.type) ) {
                 // 斜面モデルは「高い側の縁が原点」なので、走行方向へ半分ずらしてセル中央に合わせ、
@@ -135,6 +133,7 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
                 pos.x += std::sin(yaw) * forward;
                 pos.z += std::cos(yaw) * forward;
                 pos.y += -std::tan(pitch) * forward; // 原点も勾配に沿って上下（レール相対の高さを保つ）
+                pos.y -= BlockShape::SlopeVisualDrop(block.type); // 筒の上の線を、歩く面（当たり判定）の高さに合わせる
                 if ( block.ascend < 0 ) { yaw += kPi; pitch = -pitch; } // 180°回すと勾配の向きも反転
             }
             // 裏から見ている間、恐竜よりカメラ側のブロックは隠す（画面をふさがないように）

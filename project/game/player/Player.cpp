@@ -146,8 +146,25 @@ void Player::Update(const std::vector<SplineRail>& allRails){
     // 6. ジャンプ＋着地。穴の上で降りてきて空中になったら終了
     if ( UpdateJumpAndLand(rail, allRails, dt) ) return;
 
+    // 6.5 体がブロックの壁の範囲に入っている（端から落ちた直後・とどかずに落ちてきた時）：ブロックの外へ横にずらす
+    {
+        const float kWallSlideSpeed = 4.0f; // m/秒
+        const float slid = blockContact_.SlideOutOfWall(currentRailIndex_, currentDistance_, jump_.height, kWallSlideSpeed * dt, jump_.grounded);
+        if ( slid != currentDistance_ && !rail.isLoop ) { currentDistance_ = std::clamp(slid, 0.0f, rail.GetLength()); }
+    }
+
     // 7. 座標・向きを確定（乗り移りの平滑化つき）
     FinalizePosition(rail, worldBefore, transitioned, dt);
+}
+
+// 今いる所の真下の地面（道の上面・ブロックの上面）の高さ。空中状態・穴の上は false
+bool Player::GetGroundBelow(const std::vector<SplineRail>& rails, float& outY) const{
+    if ( inAir_ || fellOut_ || currentRailIndex_ < 0 || currentRailIndex_ >= ( int ) rails.size() ) { return false; }
+    const float ground = blockContact_.ClearHeight(currentRailIndex_, currentDistance_, jump_.height);
+    const Vector3 foot = FootOnRail(rails);
+    if ( ground <= 0.0f && PlayerRailQuery::IsOverHole(rails, foot) ) { return false; }
+    outY = foot.y + ground + posSmooth_.y;
+    return true;
 }
 
 Vector3 Player::FootOnRail(const std::vector<SplineRail>& rails) const{
@@ -189,6 +206,8 @@ void Player::DebugPlaceAt(int rail, float dist){
 //   間は符号を保持する → 円状レールの頂点・急カーブで接線が反転しても止まらない/逆走しない。
 void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float moveInput, float dt){
     if ( moveInput == 0.0f ) {
+        wallPressed_ = false; // 離した：次に壁へ歩いたら、またぶつかる
+        runTime_ = 0.0f;
         dsSign_ = 0.0f; // 離したら次に押した時に向きを決め直す
         atJunction_ = false;
         prevMoveInput_ = moveInput;
@@ -229,7 +248,17 @@ void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float mo
         jump_.height += oldFootY - rail.GetPositionByDistance(currentDistance_).y;
     }
     // ブロックの横当たり（壁）
+    const float wanted = currentDistance_;
     currentDistance_ = blockContact_.ResolveWalk(currentRailIndex_, prevDistance, currentDistance_, jump_.height, jump_.grounded);
+    // 歩いて壁にぶつかった瞬間（押し続けている間は 1 回だけ）：見た目のぶつかった動きの合図だけ出す（操作は止めない）。
+    //   少し走ってきた時だけ（壁の前で歩き出しただけ・壁の中から出る途中ではぶつからない）
+    const bool pressing = std::abs(currentDistance_ - wanted) > 1e-4f && std::abs(wanted - prevDistance) > 1e-4f;
+    if ( pressing && !wallPressed_ && jump_.grounded && inputScale > 0.5f
+        && runTime_ >= kBumpRunTime && !blockContact_.IsBodyBlocked(currentRailIndex_, prevDistance, jump_.height) ) {
+        wallBumped_ = true;
+    }
+    wallPressed_ = pressing;
+    runTime_ = pressing ? 0.0f : runTime_ + dt;
 }
 
 // 敵にぶつかったノックバック：弾かれる方向に近いレールの向きへ押し戻す（壁は越えない）

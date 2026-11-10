@@ -661,7 +661,7 @@
             "anchor": 5,
             "anchorOff": 1.6857643127441406,
             "dist": 35.0,
-            "level": 1,
+            "level": 2,
             "rail": 14,
             "side": 0.0,
             "type": 5
@@ -677,8 +677,8 @@
         },
         {
             "anchor": 2,
-            "anchorOff": 0.6666641235351562,
-            "dist": 14.0,
+            "anchorOff": -0.3333358764648438,
+            "dist": 13.0,
             "level": 0,
             "rail": 16,
             "side": 0.0,
@@ -697,7 +697,7 @@
             "anchor": 2,
             "anchorOff": 4.666664123535156,
             "dist": 18.0,
-            "level": 1,
+            "level": 2,
             "rail": 16,
             "side": 0.0,
             "type": 5

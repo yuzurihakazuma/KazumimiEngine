@@ -45,6 +45,15 @@ public:
 
     // 構え中フラグ：後ろに並ぶ保持卵の先頭1個を描かない（手に持っている扱い。キャンセルで自動復帰）
     void SetAimHolding(bool holding){ aimHolding_ = holding; }
+    // 後ろの卵を地面に置くための情報（Update の前に呼ぶ）：恐竜が着地しているか・真下に地面があるか・その高さ
+    void SetFollowGround(bool playerGrounded, bool hasGround, float groundY){
+        followGrounded_ = playerGrounded; followHasGround_ = hasGround; followGroundY_ = groundY;
+    }
+    // カメラから見て奥の向き（水平・長さ1）。重ねた卵を少しずつ奥へずらす・後ろに場所が無い時に奥へよける向き
+    void SetFollowAway(const Vector3& away){ followAway_ = away; }
+    // index 番目（0＝一番近い）の卵が並ぶ所。卵を産む場所にも使う。
+    //   動いている時は足あとを一列に付いてくる・止まったら恐竜の後ろにまとまる（並び方が変わると近い卵から 1 個ずつ動く）
+    Vector3 FollowSlot(int index) const;
 
     // 保持中の卵を1個、指定方向へ投げる（Held → Flying）。speed=初速。投げられたら true。
     bool TryThrow(const Vector3& playerPos, const Vector3& dir, float speed = 12.0f);
@@ -108,6 +117,29 @@ private:
     float birthTimer_ = -1.0f;                 // 経過秒。負=演出していない
     int   birthWarmupDraws_ = 0;               // WarmupBirthFx：画面の外で描く残りフレーム
     bool  aimHolding_ = false;                 // 構え中（列の先頭の卵を手に持っている扱いで非表示）
+    // 後ろの卵は、恐竜が通った所（足あと）を少し遅れて付いてくる。
+    //   前は「今の向きの真後ろ・恐竜と同じ高さ」に並べていたので、壁を背にした時・階段を降りる時に卵がブロックの中に入っていた
+    struct TrailPoint { Vector3 pos; float groundY; bool hasGround; };
+    std::vector<TrailPoint> trail_;            // 新しい順（[0] が一番新しい）
+    Vector3 trailHead_ { 0.0f, 0.0f, 0.0f };   // 今の恐竜の足元
+    Vector3 trailFacing_ { 0.0f, 0.0f, 1.0f };
+    bool  trailReady_ = false;
+    bool  followGrounded_ = false, followHasGround_ = false;
+    float followGroundY_ = 0.0f;
+    void UpdateTrail(const Vector3& playerPos, const Vector3& facing, float dt);
+    void TrailPointAt(float along, Vector3& outPos, Vector3& outDir, TrailPoint* outGround) const;
+    Vector3 followAway_ { 0.0f, 0.0f, 1.0f };  // カメラから見て奥の向き
+    float FlatLengthBehind() const;
+    bool  StandingPointBehind(float fromAlong, float maxAlong, Vector3& outPos) const;
+    bool  followStopped_ = true;               // 恐竜が止まっている（卵は後ろにまとまる）
+    float stillTime_ = 0.0f;                   // 横に動いていない秒
+    float modeTime_ = 0.0f;                    // 並び方（一列／まとまる）が変わってからの秒
+    float lastGroundFootY_ = 0.0f;             // 恐竜が最後に立っていた足の高さ
+    struct FootSample { float time; float y; };
+    std::vector<FootSample> footHistory_;      // 恐竜の足の高さ（古い順。kHistoryTime 秒ぶん）
+    float clock_ = 0.0f;
+    float walkedTotal_ = 0.0f;                 // 恐竜が歩いた道のり（卵がぴょこぴょこ跳ねる拍子）
+    float FootYAgo(float delay) const;
 
     // --- 飛行中の卵が残す「煙パフ」---
     //   加算パーティクルは明るい背景で見えないので、実体(Obj3d)の小球で表示する（縮んで消える）。

@@ -103,11 +103,17 @@ public:
 	const std::string& GetCurrentClip() const{ return currentClip_; }
 	// 再生位置を直接指定（秒）。再生速度0と組み合わせると「クリップ内の好きなポーズで静止」できる
 	void SetAnimationTime(float time){ animationTime_ = time; }
-	// アニメ適用後に特定ボーンのスケールへ乗算する（ベロの長さを実距離に合わせる等）
-	void SetBoneScaleOverride(const std::string& boneName, const Vector3& scale){
-		overrideBoneName_ = boneName; overrideBoneScale_ = scale; hasBoneOverride_ = true;
+	// アニメ適用後に特定ボーンのスケールへ乗算する（ベロの長さを実距離に合わせる等）。
+	//   replace=true はアニメのスケールを使わずに置き換える（アニメの伸びと関係なく、長さをゲーム側で決める）
+	void SetBoneScaleOverride(const std::string& boneName, const Vector3& scale, bool replace = false){
+		overrideBoneName_ = boneName; overrideBoneScale_ = scale; hasBoneOverride_ = true; overrideReplace_ = replace;
 	}
 	void ClearBoneScaleOverride(){ hasBoneOverride_ = false; }
+	// アニメ適用後に特定ボーンの向きを置き換えて、骨の +Y（伸びる向き）をワールドの target へ向ける（ベロを敵へまっすぐ伸ばす等）
+	void SetBoneAimOverride(const std::string& boneName, const Vector3& worldTarget){
+		aimBoneName_ = boneName; aimTarget_ = worldTarget; hasBoneAim_ = true;
+	}
+	void ClearBoneAimOverride(){ hasBoneAim_ = false; }
 	// 一部の骨だけ別のクリップの time の形にする（例：構えたまま歩く＝体は構えのまま、足だけ歩き）。
 	//   bones の骨（の名前）だけを上書きする。ClearLayer で解除
 	void SetLayer(const std::string& clip, float time, const std::vector<std::string>& bones){
@@ -166,6 +172,11 @@ private:
     std::string overrideBoneName_;           // アニメ後スケール上書きの対象ボーン
     Vector3     overrideBoneScale_ { 1.0f, 1.0f, 1.0f };
     bool        hasBoneOverride_ = false;
+    bool overrideReplace_ = false; // true＝アニメのスケールを置き換える（false＝掛ける）
+	std::string aimBoneName_;          // 目標へ向ける骨
+	Vector3     aimTarget_ { 0.0f, 0.0f, 0.0f };
+	bool        hasBoneAim_ = false;
+	void ApplyBoneAim();               // aimBoneName_ の骨を aimTarget_ へ向けて、行列を作り直す
 	// 重ねがけ（SetLayer）
 	bool        hasLayer_ = false;
 	std::string layerClip_;

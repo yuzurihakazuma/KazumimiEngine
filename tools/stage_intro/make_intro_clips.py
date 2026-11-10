@@ -10,8 +10,9 @@
   ・ボーンの回す向きは既存のクリップ（Walk の弾み、Throw の腕上げ、Idle の頭）から読み取った軸を使う
 
   IntroWave（約1.2秒）：うなずく → 小さく跳ねる → 右手を振る
-  IntroPush（約1.0秒）：前かがみで両手を前へ → ぷるぷる力む → 押し切る
+  IntroPush（約1.0秒）：一歩前へ出て両手を前へ → ぷるぷる力む → 押し切って一歩下がる
   IntroJump（約1.1秒）：ため → 両手を開いて 0.9m 跳ぶ → 着地でつぶれる
+  WallBump（約0.85秒）：ブロックにぶつかって顔がぺしゃんとつぶれ、ぼよよんと戻り、両手で顔を押さえてうつむく（ゲーム中の動き）
 """
 import json
 import math
@@ -92,7 +93,7 @@ def bump(t, start, peak, end):
     return 1.0 - smooth((t - peak) / (end - peak))
 
 
-def pose(rot=None, body_up=0.0, body_scale=(1.0, 1.0, 1.0), root_up=0.0, parent_rot=None):
+def pose(rot=None, body_up=0.0, body_scale=(1.0, 1.0, 1.0), root_up=0.0, parent_rot=None, root_forward=0.0, scales=None):
     """基準の姿勢に、ボーンごとの回転と、体の上下・つぶれ、全身の上下を足した姿勢。
     rot＝ボーン自身の軸で回す / parent_rot＝親（体）の軸で回す（上げた腕を横へ振るなど）。
     root_up＝全身（足も）の上下。足は Body ではなく Root の子なので、跳ぶ高さは Root で出す"""
@@ -114,11 +115,20 @@ def pose(rot=None, body_up=0.0, body_scale=(1.0, 1.0, 1.0), root_up=0.0, parent_
             t[2] += body_up  # 体の上下（Root の中で z が上）
             s = s * np.array(body_scale)
         if name == "Root":
-            t[1] += root_up  # 全身の上下（Rig の中で y が上）
+            t[1] += root_up       # 全身の上下（Rig の中で y が上）
+            t[2] += root_forward  # 全身の前後（Rig の中で z が前）
+        if scales and name in scales:
+            s = s * np.array(scales[name])  # 骨ごとの伸び縮み（頭は x＝横・y＝上・z＝前）
         out[(joint, "rotation")] = r
         out[(joint, "translation")] = t
         out[(joint, "scale")] = s
     return out
+
+
+PUSH_STEP = float(os.environ.get("PUSH_STEP", "0.17"))   # 押す時に前へ出る一歩(m)。手がロールに届くように（stage_intro/stage1.json の introRoll.ahead と合わせる）
+PUSH_LEAN = float(os.environ.get("PUSH_LEAN", "20"))     # 前かがみ(°)。腕が前へ届くように
+PUSH_ARMS = float(os.environ.get("PUSH_ARMS", "78"))     # 腕を前へ上げる角度(°)
+PUSH_HEAD = float(os.environ.get("PUSH_HEAD", "48"))     # 頭を起こす角度(°)。前かがみでも鼻先がロールにめり込まないよう、上へ逃がす（顔を上げて踏ん張る）
 
 
 def intro_push(t):
@@ -126,13 +136,17 @@ def intro_push(t):
     strain = bump(t, 0.2, 0.3, 0.78)                               # 力んでいる間
     shake = math.sin(t * 2 * math.pi * 14) * strain                # ぷるぷる
     push = bump(t, 0.74, 0.82, 0.95)                               # 押し切る
-    arms = lean * 78.0 + push * 14.0
-    return pose({"Body": [(LEAN, lean * 20.0 + push * 8.0 + shake * 1.6)],
-                 "Head": [(LEAN, -lean * 10.0 + shake * 2.0)],
+    # 一歩前へ出てロールに手を当て、押し切ったら一歩下がる（手を振る間はロールから離れて立っている）
+    step = smooth(t / 0.22) * (1.0 - smooth((t - 0.86) / 0.14)) * PUSH_STEP
+    step_l = bump(t, 0.02, 0.08, 0.15) + bump(t, 0.87, 0.92, 0.98)  # 足を上げる（左・右と交互に）
+    step_r = bump(t, 0.09, 0.15, 0.22) + bump(t, 0.9, 0.95, 1.0)
+    arms = lean * PUSH_ARMS + push * 10.0
+    return pose({"Body": [(LEAN, lean * PUSH_LEAN + push * 5.0 + shake * 1.6)],
+                 "Head": [(LEAN, -lean * PUSH_HEAD + shake * 2.0)],  # 頭は起こして前を見る（鼻先を上へ逃がす）
                  "Arm_L": [(ARM_RAISE["Arm_L"], arms)], "Arm_R": [(ARM_RAISE["Arm_R"], arms)],
                  "Tail": [(TILT, shake * 6.0)],
-                 "Foot_L": [(FOOT, lean * 12.0)], "Foot_R": [(FOOT, -lean * 8.0)]},
-                body_up=-0.04 * lean,
+                 "Foot_L": [(FOOT, lean * 12.0 - step_l * 30.0)], "Foot_R": [(FOOT, -lean * 8.0 - step_r * 30.0)]},
+                body_up=-0.04 * lean + 0.02 * (step_l + step_r), root_forward=step,
                 body_scale=(1.0 + 0.03 * strain + 0.015 * shake, 1.0 - 0.05 * strain, 1.0 + 0.03 * strain))
 
 
@@ -180,7 +194,35 @@ def intro_wave(t):
                 parent_rot={"Arm_R": [((0.0, 0.0, 1.0), side)]})
 
 
-CLIPS = [("IntroWave", 1.2, intro_wave), ("IntroPush", 1.0, intro_push), ("IntroJump", 1.1, intro_jump)]
+BUMP_ARMS = float(os.environ.get("BUMP_ARMS", "140"))   # 顔を押さえる時に腕を前へ上げる角度(°)
+BUMP_SWING = float(os.environ.get("BUMP_SWING", "30"))  # 腕を内側（顔の前）へ寄せる角度(°)
+BUMP_NOD = float(os.environ.get("BUMP_NOD", "18"))      # 顔を押さえながらうつむく角度(°)
+
+
+def wall_bump(t):
+    """ブロックにぶつかった：顔が前からぺしゃんとつぶれ → ぼよよんと戻る → 両手で顔を押さえてうつむく → 立ち姿へ"""
+    hit = bump(t, 0.0, 0.05, 0.16)                                  # ぶつかった瞬間のつぶれ
+    wobble = math.sin(max(t - 0.12, 0.0) * 2 * math.pi * 5.5) * math.exp(-max(t - 0.12, 0.0) * 9.0) * (t > 0.12)  # 戻る時のぼよよん
+    squash = 0.42 * hit - 0.14 * wobble                             # 頭の前後のつぶれ（+＝つぶれる）
+    recoil = bump(t, 0.0, 0.07, 0.3)                                # 体が後ろへのけぞる
+    hold = smooth((t - 0.14) / 0.14) * (1.0 - smooth((t - 0.66) / 0.16))  # 両手で顔を押さえている間
+    rub = math.sin(t * 2 * math.pi * 6.0) * hold * bump(t, 0.3, 0.45, 0.66)  # 痛くてさする
+    arms = hold * BUMP_ARMS
+    swing = hold * BUMP_SWING
+    return pose({"Head": [(LEAN, -recoil * 9.0 + hold * BUMP_NOD + rub * 2.0), (TILT, rub * 3.0)],
+                 "Body": [(LEAN, -recoil * 6.0 + hold * 6.0)],
+                 "Arm_L": [(ARM_RAISE["Arm_L"], arms)], "Arm_R": [(ARM_RAISE["Arm_R"], arms)],
+                 "Tail": [(LEAN, recoil * 25.0), (TILT, rub * 8.0)],
+                 "Foot_L": [(FOOT, -recoil * 12.0)], "Foot_R": [(FOOT, -recoil * 6.0)]},
+                body_up=-0.03 * hit,
+                body_scale=(1.0 + 0.05 * hit, 1.0 - 0.07 * hit, 1.0 + 0.05 * hit),
+                root_forward=-0.07 * recoil,
+                parent_rot={"Arm_L": [(ARM_SWING["Arm_L"], -swing + rub * 4.0)], "Arm_R": [(ARM_SWING["Arm_R"], -swing - rub * 4.0)]},
+                scales={"Head": (1.0 + 0.22 * squash, 1.0 + 0.14 * squash, 1.0 - squash)})
+
+
+CLIPS = [("IntroWave", 1.2, intro_wave), ("IntroPush", 1.0, intro_push), ("IntroJump", 1.1, intro_jump),
+         ("WallBump", 0.85, wall_bump)]
 
 
 def append(data, gl_type, count, comp_type, minmax=False):

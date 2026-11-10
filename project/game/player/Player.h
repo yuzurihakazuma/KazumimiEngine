@@ -35,6 +35,11 @@ public:
 
     // 接地状態（空中判定、および踏みつけ判定に使用）
     bool IsGrounded() const{ return jump_.grounded; }
+    // 歩いて壁（ブロック）にぶつかった瞬間か。読むと消える（見た目のぶつかった動き・音に使う）
+    bool ConsumeWallBump(){ const bool bumped = wallBumped_; wallBumped_ = false; return bumped; }
+    static constexpr float kBumpRunTime  = 0.15f; // これだけ走ってから壁に当たった時だけ、ぶつかる
+    // 今いる所の真下の地面（道の上面・ブロックの上面）の高さ。空中状態・穴の上は false（後ろの卵を地面に置くのに使う）
+    bool GetGroundBelow(const std::vector<SplineRail>& rails, float& outY) const;
     // ふんばり中（足バタバタアニメの切り替え用）
     bool IsFluttering() const{ return jump_.fluttering; }
     // 今乗っているレール番号（「乗ったら動き出すレール」の発動判定に使用）
@@ -204,6 +209,9 @@ private:
 
     // ---- 空中状態（レール外）：穴の飛び越え・落下用 ----
     bool    inAir_ = false;                     // レールから離れて空中にいるか
+    bool    wallPressed_ = false;               // 前のフレームも壁へ歩いて止められていた（押し続けている間は 1 回だけぶつかる）
+    bool    wallBumped_ = false;                // 壁にぶつかった（見た目が読むまで残す）
+    float   runTime_ = 0.0f;                    // 壁に止められずに歩き続けている秒
     Vector3 airVelocity_ { 0.0f, 0.0f, 0.0f };  // 空中の速度 (m/s)
     float   airLandCooldown_ = 0.0f;            // 飛び出した直後に "元のレール" へ即着地しない猶予 (秒)
     int     airFromRail_ = -1;                  // 飛び出した元のレール番号

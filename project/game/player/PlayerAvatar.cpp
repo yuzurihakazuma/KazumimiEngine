@@ -61,6 +61,7 @@ void PlayerAvatar::Update(const Context& context){
 		}
 	}
 	frameSeconds_ = Time::GetInstance()->GetDeltaTime();
+	if ( context.player && !context.player->IsGrounded() ) { bumpTimer_ = 0.0f; } // 跳んだら、ぶつかった動きはやめる
 	prevPos_ = pos;
 	prevPosValid_ = true;
 	const float kWalkBaseSpeed = 5.0f; // プレイヤーの通常移動速度(m/s)で Walk を等速再生
@@ -108,7 +109,7 @@ bool PlayerAvatar::GetJointWorldPosition(const std::string& joint, Vector3& out)
 }
 
 void PlayerAvatar::ResetTongueAndHeldEgg(){
-	model_->ClearBoneScaleOverride();
+	model_->ClearBoneScaleOverride(); model_->ClearBoneAimOverride();
 	model_->ClearLayer();
 	tongueSeeked_ = false;
 	heldEggVisible_ = false;
@@ -135,9 +136,12 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		bool wasRetracting = ( model_->GetCurrentClip() == "TongueOut" );
 		model_->SetClip("TongueOut", false); // 予備動作→射出→収納（1回きり）
 		model_->SetPlaybackSpeed(2.8f);      // 1.33秒のクリップを高速化したベロ動作(約0.5秒)に合わせる
-		// ベロの長さを実距離に同期（Tongueボーンの伸びを上書き）＝目の前の敵でも貫通しない
-		float stretch = std::clamp(context.swallow->GetTongueLength() / 1.2f, 0.10f, 1.0f);
-		model_->SetBoneScaleOverride("Tongue", { 1.0f, stretch, 1.0f });
+		// ベロの長さを当たり判定と同じ長さにする（Tongue の骨のスケールをアニメの伸びの代わりに置き換える）。
+		//   骨のスケール 1＝口の中にしまってある長さ（SwallowAbility::kTongueRestLength）
+		const float length = ( std::max )( context.swallow->GetTongueLength(), SwallowAbility::kTongueRestLength );
+		const float thick = 1.0f + 0.1f * std::clamp(( length - SwallowAbility::kTongueRestLength ) / 1.2f, 0.0f, 1.0f);
+		model_->SetBoneScaleOverride("Tongue", { thick, length / SwallowAbility::kTongueRestLength, thick }, true);
+		model_->SetBoneAimOverride("Tongue", context.swallow->GetTongueTip()); // 判定のベロと同じ向き（敵へまっすぐ）
 		model_->ClearLayer();
 		// 捕獲成立で戻しに入った瞬間、クリップを収納パートへ飛ばす（伸ばす絵をスキップ）
 		if ( wasRetracting && context.swallow->IsRetracting() && !tongueSeeked_ ) {
@@ -146,7 +150,7 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		}
 	} else if ( playing && aiming ) {
 		// 卵投げの構え：Throw クリップの「溜め」ポーズで静止（両手で頭上に構える）
-		model_->ClearBoneScaleOverride();
+		model_->ClearBoneScaleOverride(); model_->ClearBoneAimOverride();
 		tongueSeeked_ = false;
 		model_->SetClip("Throw", false);
 		model_->SetPlaybackSpeed(0.0f);
@@ -185,6 +189,17 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		model_->ClearLayer();
 		model_->SetClip("EggLay", false);
 		model_->SetPlaybackSpeed(2.5f);
+	} else if ( playing && bumpTimer_ > 0.0f && speedRatio > 0.2f && kBumpTime - bumpTimer_ > 0.05f ) {
+		bumpTimer_ = 0.0f; // 歩き出した：ぶつかった動きはやめて、下の歩きへ（このフレームは歩きの判定まで進めるため、もう一度選ぶ）
+		SelectClip(context, speedRatio);
+	} else if ( playing && bumpTimer_ > 0.0f && ( !context.player || context.player->IsGrounded() ) ) {
+		// 壁にぶつかった：顔がぺしゃんとつぶれ → ぼよよんと戻り → 両手で顔を押さえる（1回きり）。
+		//   操作は止めない。歩き出したら（ぶつかった直後の 0.05 秒は除く）・跳んだら、すぐやめて歩き・ジャンプの動きへ
+		ResetTongueAndHeldEgg();
+		model_->SetClip("WallBump", false);
+		model_->SetPlaybackSpeed(1.0f);
+		if ( bumpRestart_ ) { model_->SetAnimationTime(0.0f); bumpRestart_ = false; }
+		bumpTimer_ -= frameSeconds_;
 	} else if ( playing && context.player && !context.player->IsGrounded() ) {
 		ResetTongueAndHeldEgg();
 		if ( context.player->IsFluttering() ) {

@@ -155,12 +155,13 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
         BackdropItem item;
         item.model = kBlockModels[block.type];
         item.scale = { 1.0f, 1.0f, 1.0f };
-        if ( block.type == BlockShape::kTypeCloud ) { pos.y += 0.7f; item.scale.y = 0.3f; }
+        if ( BlockShape::IsRoadWide(block.type) ) { item.scale.x = BlockShape::SideHalf(full, block); } // 道の幅に合わせる
         if ( BlockShape::IsSlope(block.type) ) {
             const float forward = ( float ) block.ascend * BlockShape::FootprintHalf(block.type);
             pos.x += std::sin(yaw) * forward;
             pos.z += std::cos(yaw) * forward;
             pos.y += -std::tan(pitch) * forward;
+            pos.y -= BlockShape::SlopeVisualDrop(block.type);
             if ( block.ascend < 0 ) { yaw += kPi; pitch = -pitch; }
         }
         item.pos = pos;

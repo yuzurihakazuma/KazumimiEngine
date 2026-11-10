@@ -150,6 +150,7 @@ private:
 	float startCueTime_ = -1.0f;   // 合図を出してからの秒数（-1=出していない）
 	Vector2 startPopSize_ { 0.0f, 0.0f };
 	void UpdateStartCue(float deltaTime);
+	void UpdateEggFollowGround();                  // 後ろの卵を地面に置くための情報（恐竜の真下の地面）を卵へ渡す
 	void DrawStartCue();
 	int   lastMapLoadVersion_ = -1;        // マップ読込を検知して敵配置を復元するため
 	bool  railErasedPending_ = false;      // レール番号が変わった直後（敵の距離の張り直しを1回見送る）

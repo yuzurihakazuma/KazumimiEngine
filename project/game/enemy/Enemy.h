@@ -95,6 +95,8 @@ public:
 
     // --- 飲み込み（ヨッシー）：その場から縮みながらプレイヤーへ吸い込まれる ---
     void StartSwallow();                                  // 吸い込み開始
+    // 吸い込まれる先（プレイヤーの足元からのずれ）。ベロの付け根＝鼻先の口へ（既定は足元から 0.5m 上）
+    void SetSwallowMouthOffset(const Vector3& offset){ swallowMouthOffset_ = offset; }
     void TickSwallow(const Vector3& playerPos, float dt); // 吸い込み中の更新（縮小＋移動）
     bool IsSwallowing() const{ return swallowing_; }
     bool IsConsumed()  const{ return consumed_; }         // 吸い込み完了（消してお腹+1）
@@ -157,6 +159,7 @@ private:
     bool      consumed_   = false;        // 吸い込み完了（シーンが消してお腹を増やす）
     float     swallowT_   = 0.0f;         // 吸い込み経過(秒)
     Vector3   swallowStart_ { 0.0f, 0.0f, 0.0f }; // 吸い込み開始位置
+    Vector3   swallowMouthOffset_ { 0.0f, 0.5f, 0.0f }; // 吸い込まれる先（プレイヤーの足元から）
     bool      visualHidden_ = false;      // true の間は Draw をスキップ
     // 溶けて消える（倒された時）。-1＝溶けていない / 0以上＝溶けはじめてからの秒 / 溶け終わったら -2
     float     meltT_ = -1.0f;

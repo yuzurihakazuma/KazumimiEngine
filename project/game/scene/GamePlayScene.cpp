@@ -170,6 +170,15 @@ void GamePlayScene::OnTransitionCue(const std::string& cue){
 }
 
 // 操作開始の合図：遷移が終わってキーが効くようになった瞬間に「スタート！」と音（演出の後だけ）
+// 後ろの卵を地面に置くための情報：恐竜が着地しているか・真下に地面（道・ブロックの上面）があるか・その高さ
+void GamePlayScene::UpdateEggFollowGround(){
+	float groundY = 0.0f;
+	const bool hasGround = player_->GetGroundBelow(railField_.GetRails(), groundY);
+	eggSystem_.SetFollowGround(player_->IsGrounded(), hasGround, groundY);
+	const float cameraYaw = GetCamera()->GetRotation().y; // カメラの向いている方＝奥
+	eggSystem_.SetFollowAway({ std::sin(cameraYaw), 0.0f, std::cos(cameraYaw) });
+}
+
 void GamePlayScene::UpdateStartCue(float deltaTime){
 	if ( startCuePending_ && !Input::GetInstance()->IsLocked() ) {
 		startCuePending_ = false;
@@ -523,6 +532,7 @@ void GamePlayScene::UpdatePlayMode(){
 		intro_.UpdateInput(context, deltaTime);    // キーの代わり（何も押さない）と、演技の途中の向き・土ぼこり
 		player_->Update(railField_.GetRails());
 		const float yaw = player_->GetRotation().y;
+		UpdateEggFollowGround();
 		eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・土ぼこり
 		intro_.UpdateCamera(GetCamera(), context, deltaTime);
 		hitFeel_.NotifyCameraOverridden();
@@ -567,6 +577,12 @@ void GamePlayScene::UpdatePlayMode(){
 	swallow_.SetActionBlocked(aimThrow_.IsAiming());
 	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
 	player_->Update(railField_.GetRails());
+	// 歩いて壁にぶつかった：顔がつぶれる動き・ぺたんの音・小さな手ごたえ
+	if ( player_->ConsumeWallBump() ) {
+		avatar_.PlayWallBump();
+		AudioManager::GetInstance()->PlayWave("resources/kamishibai/se_patan.wav", false, 0.45f);
+		hitFeel_.Trigger(0.04f, 0.05f);
+	}
 	// ジャンプ台で跳ねた：足元のばねを縮めてびよんと戻し、音を鳴らす
 	{
 		int springRail = -1; float springDist = 0.0f, springFoot = 0.0f;
@@ -591,6 +607,7 @@ void GamePlayScene::UpdatePlayMode(){
 
 	// 卵の追従・飛行・割れの更新
 	float yaw = player_->GetRotation().y;
+	UpdateEggFollowGround();
 	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime);
 	eggCombo_.Update(player_->GetPosition(), GetCamera(), deltaTime); // 奥へ投げた卵：当たった物がはじけ飛んでコンボ
 
@@ -860,6 +877,8 @@ void GamePlayScene::DrawHitShapes(){
 	if ( !showHitShapes_ ) return;
 	for ( auto& enemy : enemyMgr_.GetEnemies() ) { enemy->DrawHitShape({ 1.0f, 0.3f, 0.3f, 1.0f }); }
 	combat_.DrawPlayerHitShape(*player_, { 0.3f, 1.0f, 0.4f, 1.0f });
+	coinSystem_.DrawHitShapes({ 1.0f, 0.85f, 0.2f, 1.0f });                              // コインの球
+	CoinSystem::DrawPickupBody(player_->GetPosition(), { 1.0f, 0.85f, 0.2f, 0.6f });    // コインを取る体の筒
 	blockSystem_.DrawHitShapes({ 0.3f, 0.85f, 1.0f, 0.8f });
 	eggSystem_.DrawHitShapes({ 1.0f, 0.9f, 0.2f, 1.0f });
 }
@@ -881,7 +900,7 @@ void GamePlayScene::OnDrawInspector(){
 	// ステージ開始の演技のクリップを、その場で流して確かめる（「止める」で元の動きへ）
 	gameOver_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
 	if ( ImGui::CollapsingHeader("ステージ開始の演技") ) {
-		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump" } ) {
+		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump", "WallBump" } ) {
 			if ( ImGui::Button(clip) ) { avatar_.PlayIntroClip(clip); }
 			ImGui::SameLine();
 		}

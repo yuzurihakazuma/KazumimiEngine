@@ -6,6 +6,7 @@
 #include "engine/graphics/DebugDraw.h"
 #include "engine/sdf/SDFVolumeObject.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 EggSystem::~EggSystem() = default; // unique_ptr<Obj3d> のため cpp 側で定義
@@ -29,6 +30,21 @@ namespace {
     //   敵には当てやすく大きめの半径を使うが、壁にも同じ大きさを使うと
     //   壁際や足場の上から投げた瞬間に自分の足元へ引っかかって割れてしまう
     const float kObstacleRadiusScale = 0.6f;
+
+    // 後ろの卵の並び（恐竜が通った道のりに沿った距離）
+    const float kFollowFirst   = 0.8f;  // 一番近い卵まで(m)
+    const float kFollowGap     = 0.6f;  // 卵どうしの間(m)
+    const float kTrailStep     = 0.08f; // 足あとを残す間隔(m)
+    const float kTrailWarp     = 3.0f;  // 1フレームにこれより動いたら、足あとを捨てる（リスポーン・乗り換えの飛び）
+    const float kGatherFirst   = 0.65f; // 止まった時：卵をまとめる所までの道のり(m)（しっぽの後ろ）
+    const float kGatherStack   = 0.05f; // 止まった時：重ねた卵を 1 個ごとに奥へずらす量(m)（ぴったり同じ所だと面がちらつく）
+    const float kFollowStagger = 0.07f; // 並び方が変わった時、1 個ずつ遅れて動き出す秒
+    const float kStillSpeed    = 0.6f;  // 横の速さがこれより小さいと「止まっている」(m/秒)
+    const float kStillDelay    = 0.15f; // 止まってから、まとまり始めるまで(秒)
+    const float kHopDelay      = 0.09f; // 止まっている時：恐竜が跳ぶと、卵が 1 個ずつこれだけ遅れて同じように跳ぶ(秒)
+    const float kWalkHop       = 0.14f; // 歩いている時：卵がぴょこぴょこ跳ねる高さ(m)
+    const float kWalkHopStride = 0.7f;  // 歩いている時：1 回跳ねる間に進む道のり(m)
+    const float kHistoryTime   = 1.2f;  // 恐竜の足の高さを覚えておく秒
 }
 
 void EggSystem::Initialize(){
@@ -45,6 +61,12 @@ void EggSystem::Initialize(){
     spits_.clear();
     stomach_    = 0;
     trailTimer_ = 0.0f;
+    trail_.clear();
+    trailReady_ = false;
+    followStopped_ = true;
+    stillTime_ = modeTime_ = 0.0f;
+    footHistory_.clear();
+    clock_ = walkedTotal_ = 0.0f;
     // 産卵演出の状態もリセット（birthFx_ 本体は読み込み済みのまま使い回す）
     birthEgg_   = nullptr;
     birthTimer_ = -1.0f;
@@ -176,18 +198,177 @@ bool EggSystem::LayEgg(const Vector3& birthPos){
     return true;
 }
 
+// 恐竜の足あとを残す（少し動くたびに 1 点）。古い分は、卵が並ぶ長さより先を捨てる
+void EggSystem::UpdateTrail(const Vector3& playerPos, const Vector3& facing, float dt){
+    if ( trailReady_ ) {
+        const Vector3 jump { playerPos.x - trailHead_.x, playerPos.y - trailHead_.y, playerPos.z - trailHead_.z };
+        if ( jump.x * jump.x + jump.y * jump.y + jump.z * jump.z > kTrailWarp * kTrailWarp ) { trail_.clear(); } // 飛んだ：並び直す
+        // 止まっているか：横の速さが小さいまま少し続いたら「止まった」（跳んでいても、横へ動いていなければ止まった扱い）
+        const float hx = playerPos.x - trailHead_.x, hz = playerPos.z - trailHead_.z;
+        const float speed = dt > 1e-5f ? std::sqrt(hx * hx + hz * hz) / dt : 0.0f;
+        stillTime_ = ( speed < kStillSpeed ) ? stillTime_ + dt : 0.0f;
+    }
+    const bool stopped = stillTime_ >= kStillDelay;
+    if ( stopped != followStopped_ ) { followStopped_ = stopped; modeTime_ = 0.0f; } // 並び方が変わった：近い卵から 1 個ずつ動く
+    modeTime_ += dt;
+    if ( followGrounded_ ) { lastGroundFootY_ = playerPos.y; } // 恐竜が最後に立っていた高さ（止まった時の卵の高さ）
+    // 恐竜の足の高さを時間で覚えておく（止まっている時に跳ぶと、卵が 1 個ずつ遅れて同じ高さを跳ぶ）
+    clock_ += dt;
+    footHistory_.push_back({ clock_, playerPos.y });
+    while ( footHistory_.size() > 2 && footHistory_[1].time < clock_ - kHistoryTime ) { footHistory_.erase(footHistory_.begin()); }
+    if ( trailReady_ ) {
+        const float hx = playerPos.x - trailHead_.x, hz = playerPos.z - trailHead_.z;
+        walkedTotal_ += std::sqrt(hx * hx + hz * hz); // 歩いた道のり（卵がぴょこぴょこ跳ねる拍子）
+    }
+    trailHead_ = playerPos;
+    trailFacing_ = facing;
+    trailReady_ = true;
+    const TrailPoint now { playerPos, followGroundY_, followHasGround_ };
+    if ( trail_.empty() ) { trail_.push_back(now); return; }
+    // 道のりは横の動きで数える（その場で跳ぶ・落ちるだけでは足あとを増やさない＝卵が足元へ寄ってこない）
+    const float dx = playerPos.x - trail_[0].pos.x, dz = playerPos.z - trail_[0].pos.z;
+    if ( dx * dx + dz * dz < kTrailStep * kTrailStep ) {
+        trail_[0] = now; // 止まっている・真上へ跳んでいる間：一番新しい足あとを今の所にする
+        return;
+    }
+    trail_.insert(trail_.begin(), now);
+    // 一番遠い卵の所より先の足あとは捨てる
+    const float keep = kFollowFirst + kFollowGap * ( kMaxEggs + 1 );
+    float length = 0.0f;
+    for ( size_t i = 1; i < trail_.size(); ++i ) {
+        const float sx = trail_[i].pos.x - trail_[i - 1].pos.x, sz = trail_[i].pos.z - trail_[i - 1].pos.z;
+        length += std::sqrt(sx * sx + sz * sz);
+        if ( length > keep ) { trail_.resize(i + 1); break; }
+    }
+}
+
+// 足あとを、恐竜から道のり along だけ戻った点（足の高さ。跳んで通った所は跳んだ高さ）と、そこでの進む向き（横の向き）。
+//   足あとが足りない時は、一番古い足あとから、向きの真後ろへ延ばす
+void EggSystem::TrailPointAt(float along, Vector3& outPos, Vector3& outDir, TrailPoint* outGround) const{
+    Vector3 prev = trailHead_;
+    TrailPoint last { trailHead_, followGroundY_, followHasGround_ };
+    outDir = trailFacing_;
+    float walked = 0.0f;
+    for ( const TrailPoint& point : trail_ ) {
+        const Vector3 s { point.pos.x - prev.x, point.pos.y - prev.y, point.pos.z - prev.z };
+        const float step = std::sqrt(s.x * s.x + s.z * s.z);
+        if ( step > 1e-5f ) { outDir = { -s.x / step, 0.0f, -s.z / step }; } // 恐竜が進んだ向き
+        if ( walked + step >= along && step > 1e-5f ) {
+            const float k = ( along - walked ) / step;
+            outPos = { prev.x + s.x * k, prev.y + s.y * k, prev.z + s.z * k };
+            if ( outGround ) { *outGround = ( k >= 0.5f ) ? point : last; } // 近い方の足あとの地面
+            return;
+        }
+        walked += step;
+        prev = point.pos;
+        last = point;
+    }
+    const float rest = along - walked;
+    outPos = { prev.x - trailFacing_.x * rest, prev.y, prev.z - trailFacing_.z * rest };
+    if ( outGround ) { *outGround = last; outGround->hasGround = false; } // 足あとの先（通っていない所）：地面は分からない
+}
+
+// 足あとを fromAlong〜maxAlong 戻る間で、恐竜が今より高い面に立っていた（足が地面に着いていた）最初の所
+bool EggSystem::StandingPointBehind(float fromAlong, float maxAlong, Vector3& outPos) const{
+    Vector3 prev = trailHead_;
+    float walked = 0.0f;
+    for ( const TrailPoint& point : trail_ ) {
+        const float sx = point.pos.x - prev.x, sz = point.pos.z - prev.z;
+        walked += std::sqrt(sx * sx + sz * sz);
+        prev = point.pos;
+        if ( walked > maxAlong ) { break; }
+        if ( walked < fromAlong ) { continue; }
+        if ( point.hasGround && std::abs(point.pos.y - point.groundY) < 0.08f && point.groundY > lastGroundFootY_ + 0.3f ) {
+            outPos = { point.pos.x, point.groundY, point.pos.z };
+            return true;
+        }
+    }
+    return false;
+}
+
+// delay 秒前の恐竜の足の高さ
+float EggSystem::FootYAgo(float delay) const{
+    if ( footHistory_.empty() ) { return lastGroundFootY_; }
+    const float t = clock_ - delay;
+    if ( t <= footHistory_.front().time ) { return footHistory_.front().y; }
+    for ( size_t i = 1; i < footHistory_.size(); ++i ) {
+        const FootSample& a = footHistory_[i - 1];
+        const FootSample& b = footHistory_[i];
+        if ( t <= b.time ) {
+            const float span = b.time - a.time;
+            return span > 1e-6f ? a.y + ( b.y - a.y ) * ( t - a.time ) / span : b.y;
+        }
+    }
+    return footHistory_.back().y;
+}
+
+// 止まった時に卵を並べられる長さ：恐竜が今立っている面の上（足あとの高さが、立っている高さから 0.3m 以内）を、どこまで戻れるか。
+//   段を跳び上がってすぐ止まった時に、下の道や跳んだ途中の宙へ卵を置かない
+float EggSystem::FlatLengthBehind() const{
+    Vector3 prev = trailHead_;
+    float walked = 0.0f;
+    for ( const TrailPoint& point : trail_ ) {
+        if ( std::abs(point.pos.y - lastGroundFootY_) > 0.3f ) { return walked; }
+        const float sx = point.pos.x - prev.x, sz = point.pos.z - prev.z;
+        walked += std::sqrt(sx * sx + sz * sz);
+        prev = point.pos;
+    }
+    return walked; // 足あとの先（通っていない所）は数えない
+}
+
+// index 番目の卵が並ぶ所。
+//   動いている時：足あとを一列に付いてくる（恐竜から 0.8m・0.6m おき）。高さは恐竜が通った高さ（跳んで越えた所は卵も跳ねて越える）。
+//   止まった時：恐竜のすぐ後ろの 1 か所に、全部の卵が重なってまとまる（宙や下の道に残らない・ブロックの中に入らない）。
+//   並び方が変わったら、近い卵から 1 個ずつ（0.07 秒ずつ遅れて）動き出す
+Vector3 EggSystem::FollowSlot(int index) const{
+    if ( !trailReady_ ) { return { 0.0f, kHeldEggHeight, 0.0f }; }
+    const bool stopped = ( modeTime_ >= kFollowStagger * index ) ? followStopped_ : !followStopped_;
+    if ( !stopped ) {
+        const float along = kFollowFirst + kFollowGap * ( float ) index;
+        Vector3 at, dir;
+        TrailPointAt(along, at, dir, nullptr);
+        // ぴょこぴょこ：同じ所で跳ねる（前の卵が跳ねた所へ来ると、後ろの卵も跳ねる＝1 個ずつ順に跳ねて付いてくる）
+        const float hop = kWalkHop * std::abs(std::sin(( walkedTotal_ - along ) * 3.14159265f / kWalkHopStride));
+        return { at.x, at.y + kHeldEggHeight + hop, at.z };
+    }
+    // まとまる：全部の卵を、恐竜のすぐ後ろの 1 か所に重ねる（1 個ごとに少しだけ奥へずらす）。
+    //   置く所は、恐竜が通って来た道を kGatherFirst 戻った所。そこが
+    //     ・今立っている面と同じ高さ → そこ（地面の上）
+    //     ・高い所（段から降りて来た） → もう少し戻って、恐竜が段の上に立っていた所（段の上に置く。下へ下ろすとブロックの中になる）
+    //     ・低い所・地面が無い（段へ跳び上がった・穴を越えた）→ 立っている面の上を戻れる所まで戻り、足りない分は奥へずらす
+    //   どれも恐竜が立てた所か、その真横なので、ブロックの中にならない
+    Vector3 at, dir;
+    TrailPoint ground {};
+    TrailPointAt(kGatherFirst, at, dir, &ground);
+    float baseY = lastGroundFootY_;
+    Vector3 standing;
+    if ( ground.hasGround && std::abs(ground.groundY - lastGroundFootY_) <= 0.3f ) {
+        // 同じ高さ：そのまま地面の上
+    } else if ( ground.hasGround && ground.groundY > lastGroundFootY_ && StandingPointBehind(kGatherFirst, kGatherFirst + 1.5f, standing) ) {
+        at = standing;         // 段の上で恐竜が立っていた所
+        baseY = standing.y;
+    } else {
+        const float along = ( std::min )( kGatherFirst, FlatLengthBehind() );
+        TrailPointAt(along, at, dir, nullptr);
+        const float push = std::sqrt(( std::max )( kGatherFirst * kGatherFirst - along * along, 0.0f ));
+        at.x += followAway_.x * push;
+        at.z += followAway_.z * push;
+    }
+    at.x += followAway_.x * kGatherStack * ( float ) index;
+    at.z += followAway_.z * kGatherStack * ( float ) index;
+    // 高さ：少し前の恐竜の足の高さ（恐竜が跳ぶと、近い卵から 1 個ずつ遅れて同じように跳ぶ）。置く面より下へは行かない
+    const float y = ( std::max )( FootYAgo(kHopDelay * ( index + 1 )), baseY );
+    return { at.x, y + kHeldEggHeight, at.z };
+}
+
 void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt){
-    // 保持中の卵に「後ろのスロット」を割り当てる（増えるほど後ろへ一列に並ぶ）。
-    //   後ろ = facing の逆方向。i 番目ほど遠くに置く → 各卵が自分でそこへ寄っていく（整列＆追従）。
+    // 保持中の卵は、恐竜が通った所（足あと）を少し遅れて付いてくる（増えるほど後ろへ一列に並ぶ）。
+    //   各卵が自分でそこへ寄っていく（整列＆追従）
+    UpdateTrail(playerPos, facing, dt);
     int held = 0;
     for ( auto& egg : eggs_ ) {
         if ( !egg->IsHeld() ) continue;
-        Vector3 slot = {
-            playerPos.x - facing.x * ( 0.8f + held * 0.6f ),
-            playerPos.y + kHeldEggHeight,
-            playerPos.z - facing.z * ( 0.8f + held * 0.6f )
-        };
-        egg->SetTarget(slot);
+        egg->SetTarget(FollowSlot(held));
         ++held;
     }
 

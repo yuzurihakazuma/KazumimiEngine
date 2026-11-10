@@ -124,7 +124,8 @@ namespace {
         modelManager->LoadModel("craftSpring", "resources/block/craft", "spring_1x1x1.obj", true);
         loadTintedBlock("craftHatena",     "block_1x1x1_layer.obj",  { 1.0f, 0.8f, 0.15f, 1.0f }); // ？ブロック（金）
         loadTintedBlock("craftHatenaUsed", "block_1x1x1_layer.obj",  { 0.45f, 0.42f, 0.4f, 1.0f }); // 使用済み（灰）
-        loadTintedBlock("craftCloud",      "block_1x1x1_layer.obj",  { 0.9f, 0.97f, 1.0f, 1.0f }); // すり抜け床（白）
+        // すり抜け床：あみあみの床（黄色い枠に白い紙の帯を編んだ網。マスの上の端にだけある。tools/craftkit/make_net_block.py）
+        modelManager->LoadModel("craftCloud", "resources/block/craft", "net_1x1x1.obj", true);
         // 大型ブロック（road_system_4）：横長2m（進行方向）と2×2m台座
         modelManager->LoadModel("craftWide",     "resources/block/craft", "block_2x1x1_sponge.obj", true);
         modelManager->LoadModel("craftPedestal", "resources/block/craft", "block_2x2x1_layer.obj", true);

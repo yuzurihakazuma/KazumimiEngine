@@ -198,7 +198,7 @@ int main(int argc, char** argv){
     scenarios.push_back({ "F: ブロックの端で止まって、ゆっくり降りる（歩き出しを刻む）", { B(4, 0) }, 3.9f, 240,
         [](int f, const Frame&, bool& r, bool&, bool& j){ j = ( f == 0 ); r = ( f > 60 ) && ( f % 6 == 0 ); } });
     scenarios.push_back({ "G: 小ジャンプで1段ブロックの角に飛びつく（押しっぱなし）", { B(10, 0) }, 2.0f, 200,
-        [](int, const Frame& s, bool& r, bool&, bool& j){ r = true; j = ( s.dist > 9.0f && s.footY < 0.3f ); } });
+        [](int, const Frame& s, bool& r, bool&, bool& j){ r = true; j = ( s.dist > 8.8f && s.footY < 0.3f ); } }); // 壁は面から 0.55m 手前（x=8.94）
     scenarios.push_back({ "H: 階段（1段→2段）を歩きジャンプで登る", { B(8, 0), B(9, 0), B(9, 1) }, 2.0f, 240,
         [](int, const Frame& s, bool& r, bool&, bool& j){ r = true; j = ( s.grounded && ( s.dist > 6.9f ) ); } });
     scenarios.push_back({ "I: 頭上の2段目ブロックの下をくぐる（床は道）", { B(10, 1) }, 2.0f, 200, holdRight });
@@ -228,6 +228,12 @@ int main(int argc, char** argv){
     scenarios.push_back({ "T: 階段で長押しジャンプ（埋まりの再現）", { B(6, 0), B(7, 1), B(8, 2), B(9, 3), B(10, 4) }, 2.0f, 200,
         [](int f, const Frame& s, bool& r, bool&, bool& j){ r = true; j = ( s.dist > 3.0f ) && !( s.grounded && s.dist > 4.5f ); ( void ) f; } });
     scenarios.push_back({ "S: 2段の壁に歩いて当たる（壁で止まる＝正常）", { B(10, 0), B(10, 1) }, 2.0f, 150, holdRight });
+    // 斜面だけを置いた時の高い側（裏の面）：壁として止まるのが正しい（中を通り抜けない）
+    scenarios.push_back({ "U: 斜面45°の高い側の面に歩いて当たる（壁で止まる＝正常）", { B(10, 0, 2) }, 14.0f, 150,
+        [](int, const Frame&, bool&, bool& l, bool&){ l = true; } });
+    scenarios.push_back({ "V: 斜面26°の高い側の面に歩いて当たる（壁で止まる＝正常）", { B(10, 0, 3) }, 14.0f, 150,
+        [](int, const Frame&, bool&, bool& l, bool&){ l = true; } });
+    scenarios.push_back({ "W: 斜面45°だけを登って、高い側の端から降りる", { B(10, 0, 2) }, 2.0f, 200, holdRight });
 
     const char* only =( argc > 2 ) ? argv[2] : nullptr;
     for ( const auto& sc : scenarios ) {

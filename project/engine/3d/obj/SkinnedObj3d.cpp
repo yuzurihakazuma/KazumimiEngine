@@ -10,6 +10,7 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 #include "engine/math/QuaternionMath.h"
+#include "engine/math/VectorMath.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/TimeManager.h"
 #include "engine/utils/RenderStats.h"
@@ -181,9 +182,13 @@ void SkinnedObj3d::Update(){
 	if ( hasBoneOverride_ ) {
 		for ( auto& joint : skeleton_.joints ) {
 			if ( joint.name == overrideBoneName_ ) {
-				joint.transform.scale.x *= overrideBoneScale_.x;
-				joint.transform.scale.y *= overrideBoneScale_.y;
-				joint.transform.scale.z *= overrideBoneScale_.z;
+				if ( overrideReplace_ ) {
+					joint.transform.scale = overrideBoneScale_;
+				} else {
+					joint.transform.scale.x *= overrideBoneScale_.x;
+					joint.transform.scale.y *= overrideBoneScale_.y;
+					joint.transform.scale.z *= overrideBoneScale_.z;
+				}
 			}
 		}
 		rebuild = true;
@@ -195,6 +200,9 @@ void SkinnedObj3d::Update(){
 			else { joint.skeletonSpaceMatrix = joint.localMatrix; }
 		}
 	}
+
+	// --- 骨を目標へ向ける（アニメ・上書きの後。親の行列が決まってから）---
+	if ( hasBoneAim_ ) { ApplyBoneAim(); }
 
 	// --- MatrixPalette を計算して GPU バッファに書き込む ---
 	UpdateSkinCluster(skinCluster_, skeleton_, model_->GetBoneOrder());
@@ -216,6 +224,45 @@ void SkinnedObj3d::Update(){
 	transformationMatrixData_->World = worldMatrix;
 	transformationMatrixData_->WVP = worldViewProjectionMatrix;
 	transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
+}
+
+// 骨の +Y（伸びる向き）がワールドの aimTarget_ を向くように、その骨の回転を置き換える。
+//   親の空間で「+Y → 目標の向き」の最短の回転にする（ベロのように軸まわりに形が同じ物向け）
+void SkinnedObj3d::ApplyBoneAim(){
+	Joint* joint = nullptr;
+	for ( auto& candidate : skeleton_.joints ) { if ( candidate.name == aimBoneName_ ) { joint = &candidate; break; } }
+	if ( !joint ) { return; }
+	const Matrix4x4 world = MakeAffine(scale_, rotation_, translate_);
+	const Matrix4x4 parentWorld = joint->parent ? Multiply(skeleton_.joints[*joint->parent].skeletonSpaceMatrix, world) : world;
+	// 骨の付け根（ワールド）から目標への向きを、親の空間の向きへ直す。
+	//   親の行列の 3 本の軸（行）へ映して、軸の長さ（スケール）で割る（逆行列を使わない。向きだけなので平行移動は要らない）
+	const Vector3 jointWorld = Transforms(joint->transform.translate, parentWorld);
+	const Vector3 toTarget = VectorMath::Subtract(aimTarget_, jointWorld);
+	if ( VectorMath::Length(toTarget) < 1e-5f ) { return; }
+	Vector3 dir {};
+	float* components[3] = { &dir.x, &dir.y, &dir.z };
+	for ( int row = 0; row < 3; ++row ) {
+		const Vector3 axis { parentWorld.m[row][0], parentWorld.m[row][1], parentWorld.m[row][2] };
+		const float lengthSq = VectorMath::Dot(axis, axis);
+		*components[row] = lengthSq > 1e-10f ? VectorMath::Dot(toTarget, axis) / lengthSq : 0.0f;
+	}
+	if ( VectorMath::Length(dir) < 1e-5f ) { return; }
+	dir = VectorMath::Normalize(dir);
+	const Vector3 yAxis { 0.0f, 1.0f, 0.0f };
+	Vector3 axis = VectorMath::Cross(yAxis, dir);
+	const float dot = std::clamp(VectorMath::Dot(yAxis, dir), -1.0f, 1.0f);
+	if ( VectorMath::Length(axis) < 1e-5f ) { axis = { 1.0f, 0.0f, 0.0f }; } // 真上・真下
+	Quaternion rotate = QuaternionMath::MakeRotateAxisAngleQuaternion(VectorMath::Normalize(axis), std::acos(dot));
+	// 回す向きの約束（行ベクトル×行列）がどちらでも合うように、+Y が本当に dir へ向く方を選ぶ
+	const Matrix4x4 check = QuaternionMath::MakeRotateMatrix(rotate);
+	const Vector3 rotatedY { check.m[1][0], check.m[1][1], check.m[1][2] };
+	if ( VectorMath::Dot(rotatedY, dir) < 0.999f ) { rotate = QuaternionMath::Conjugate(rotate); }
+	joint->transform.rotate = rotate;
+	for ( auto& each : skeleton_.joints ) { // 親→子の順に行列を作り直す
+		each.localMatrix = MakeAffineMatrix(each.transform.scale, each.transform.rotate, each.transform.translate);
+		if ( each.parent ) { each.skeletonSpaceMatrix = Multiply(each.localMatrix, skeleton_.joints[*each.parent].skeletonSpaceMatrix); }
+		else { each.skeletonSpaceMatrix = each.localMatrix; }
+	}
 }
 
 // --------------------------------------------------

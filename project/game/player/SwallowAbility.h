@@ -84,6 +84,15 @@ public:
     bool IsRetracting() const{ return state_ == State::Retracting; }
     // 今フレームのベロの実距離(m)。モデルの Tongue ボーンの伸びをこれに合わせると貫通しない
     float GetTongueLength() const{ return tongueLength_; }
+    // ベロの先（ワールド）。見た目のベロの骨をここへ向ける
+    const Vector3& GetTongueTip() const{ return tongueTip_; }
+    // ベロの形（見た目と同じ）。player.gltf の TongueOut で伸びきった時の、付け根の位置と伸びる向き（足元・向きからの相対）
+    static constexpr float kTongueRootForward = 0.37f; // 付け根：足元から前へ(m)
+    static constexpr float kTongueRootHeight  = 0.84f; // 付け根：足元から上へ(m)
+    static constexpr float kTongueSpeed       = 13.0f;  // ベロの先が伸びる速さ(m/秒)。1.76m を約 0.12 秒
+    static constexpr float kTongueHoldTime    = 0.06f;  // 伸びきってから戻し始めるまで止まる秒
+    static constexpr float kTongueRestLength  = 0.27f; // Tongue の骨のスケールが 1 の時の長さ(m)（口の中にしまってある長さ）
+    static constexpr float kTongueHalfWidth   = 0.09f; // ベロの太さの半分(m)
 
     // 新規アクションの禁止（卵の構え中など）。ベロ(E)と産卵(左Ctrl)の発動を止める
     void SetActionBlocked(bool blocked){ actionBlocked_ = blocked; }
@@ -99,6 +108,11 @@ private:
     Vector3 grabPos_  { 0.0f, 0.0f, 0.0f }; // 捕獲時：掴んだ瞬間の敵位置（Retractingの起点）
     float   retractDuration_ = 0.0f;        // Retracting の秒数（捕獲=0.35秒固定 / 空振り=短め）
     bool    retractCaught_   = false;       // Retracting が捕獲後か空振りかの区別
+    float   missLength_      = 0.0f;        // 空振りで戻し始めた時のベロの長さ
+    float   shootLength_     = 0.0f;        // 伸ばしている間の今の長さ
+    float   holdT_           = 0.0f;        // 伸びきってからの秒
+    Vector3 aimDir_ { 0.0f, 0.0f, 1.0f };   // ベロを伸ばす向き（いつも今の正面。敵の方へは向けない）
+    Vector3 tongueTip_ { 0.0f, 0.0f, 0.0f }; // 今のベロの先
     int     lastBelly_       = 0;           // 前のフレームのお腹の数（増えた＝食べた）
     float   autoLayTimer_    = -1.0f;       // 食べてから自動で産むまでの残り秒（-1＝待っていない）
     float   highlightPulseT_ = 0.0f;        // 「捕まえられる」プレビューリングの脈動タイマー
@@ -107,7 +121,8 @@ private:
     WallQuery wallQuery_;
     bool  markVisible_ = false;
     std::unique_ptr<class Sprite> markSprite_;
-    float swallowReach_    = 2.0f;  // 飲み込みの届く距離 (m)
+    float swallowReach_    = 1.76f; // ベロの長さ（付け根から先まで, m）。最初の見た目（TongueOut のアニメが伸びきった長さ）と同じ。
+                                    //   resources/nodes/graph01.json のノード（→「飲み込みの届く距離」）が起動時に上書きする
     float swallowCooldown_ = 0.35f; // 飲み込み成功後の再使用間隔 (秒)。連打での連発を防ぐ
     float cooldownTimer_   = 0.0f;  // 残りクールタイム
 
