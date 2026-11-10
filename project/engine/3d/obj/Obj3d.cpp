@@ -248,9 +248,32 @@ void Obj3d::Draw(){
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {
-		model_->Draw();
+		model_->Draw(1, PrepareMaterialOverride());
 	}
 }
+
+void Obj3d::SetMaterialOverride(bool enabled, float brighten, float emissive){
+	materialOverrideOn_ = enabled;
+	materialBrighten_ = brighten;
+	materialEmissive_ = emissive;
+	if ( enabled && !materialOverrideResource_ ) {
+		materialOverrideResource_ = obj3dCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Model::Material));
+		materialOverrideResource_->Map(0, nullptr, &materialOverrideData_);
+	}
+}
+
+// 描く直前：モデルのマテリアルを写して、この物の分だけ変える（GPU が読むのはこのフレームのコマンドが流れた時）
+D3D12_GPU_VIRTUAL_ADDRESS Obj3d::PrepareMaterialOverride(){
+	if ( !materialOverrideOn_ || !materialOverrideData_ || !model_ || !model_->GetMaterial() ) { return 0; }
+	Model::Material material = *model_->GetMaterial();
+	material.color.x *= materialBrighten_;
+	material.color.y *= materialBrighten_;
+	material.color.z *= materialBrighten_;
+	material.emissive = materialEmissive_;
+	*static_cast< Model::Material* >( materialOverrideData_ ) = material;
+	return materialOverrideResource_->GetGPUVirtualAddress();
+}
+
 
 void Obj3d::SetDissolveThreshold(float threshold) {
 	if (dissolveData_) {

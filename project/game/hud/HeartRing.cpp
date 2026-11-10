@@ -66,6 +66,15 @@ void HeartRing::Refill(){
     Show();
 }
 
+void HeartRing::Heal(int amount){
+    for ( int i = 0; i < amount && count_ < max_; ++i ) {
+        hearts_[count_].broken = false;
+        hearts_[count_].breakTime = 0.0f;
+        ++count_;
+    }
+    Show();
+}
+
 void HeartRing::HideNow(){
     showTime_ = -1.0f;
 }

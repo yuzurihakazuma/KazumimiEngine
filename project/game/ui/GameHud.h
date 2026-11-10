@@ -31,6 +31,7 @@ public:
     // 奥投げコンボ（画面の上の真ん中に「コンボ ×n」）と、かくれ花の数（札の中）
     void SetCombo(int combo, float alpha, float pop){ combo_ = combo; comboAlpha_ = alpha; comboPop_ = pop; }
     void SetFlowers(int found, int total, float pop){ flowers_ = found; flowerTotal_ = total; flowerPop_ = pop; }
+    void SetComboFlowers(int found, int total, float pop){ comboFlowers_ = found; comboFlowerTotal_ = total; comboFlowerPop_ = pop; }
 
     // スプライト描画の準備（SpriteCommon::PreDraw）の後に呼ぶ
     void Draw(ID3D12GraphicsCommandList* commandList);
@@ -40,10 +41,16 @@ private:
     float DrawNumber(const std::string& text, float x, float y, float height);
     void Place(Sprite* sprite, float x, float y, float width, float height, float alpha = 1.0f);
 
-    std::unique_ptr<Sprite> board_;
+    std::unique_ptr<Sprite> board_;      // 札の上（ふちと点線）
+    std::unique_ptr<Sprite> boardMid_;   // 札の真ん中（ここだけ縦に伸ばす）
+    std::unique_ptr<Sprite> boardBottom_; // 札の下（点線とふち）
+    void DrawBoard(float x, float y, float width, float height);
     std::unique_ptr<Sprite> coin_;
     std::unique_ptr<Sprite> comboLabel_;
     std::unique_ptr<Sprite> flower_;
+    std::unique_ptr<Sprite> comboFlower_;
+    int   comboFlowers_ = 0, comboFlowerTotal_ = 0;
+    float comboFlowerPop_ = 0.0f;
     int   combo_ = 0;
     float comboAlpha_ = 0.0f, comboPop_ = 0.0f;
     int   flowers_ = 0, flowerTotal_ = 0;

@@ -214,6 +214,9 @@ void DirectXCommon::PostDraw(){
 	// これから表示するバックバッファのインデックスを取得
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
 
+	// 撮影：画面そのまま（エディタの窓も入る）を写す時の写し取り（まだ RENDER_TARGET のうちに積む）
+	if ( frameEndHook_ ) { frameEndHook_(commandList_.Get(), backBuffers_[backBufferIndex].Get()); }
+
 	// バックバッファを「描画用 → 表示用(PRESENT)」に戻すバリア
 	D3D12_RESOURCE_BARRIER barrier {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -227,9 +230,6 @@ void DirectXCommon::PostDraw(){
 	
 	// コマンドリストのクローズ
 	ExecuteCommand();
-
-	// 撮影：このフレームの絵を写す（写す側が同じキューに読み出しを積んで待つので、描き終わった絵が取れる）
-	if ( beforePresentHook_ ) { beforePresentHook_(backBuffers_[backBufferIndex].Get()); }
 
 	// 画面の表示
 	hr_ = swapChain_->Present(0, 0);

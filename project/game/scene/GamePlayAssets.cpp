@@ -18,6 +18,7 @@ namespace {
         audio->LoadWave("resources/se/eggBreak.wav");
         audio->LoadWave("resources/se/se_spring.wav"); // ジャンプ台で跳ねた音
         audio->LoadWave("resources/kamishibai/se_pon.wav"); // かくれ花が飛び出した音
+        audio->LoadWave("resources/kamishibai/se_snip.wav"); // 背景の物がはじける音
     }
 
     void LoadCharacterModels(ModelManager* modelManager){

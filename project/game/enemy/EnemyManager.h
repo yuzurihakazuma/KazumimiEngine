@@ -30,6 +30,8 @@ public:
     void Draw();
     // 裏から見ている間、カメラ側（minZ より +z）の敵は描かない（画面をふさがないように。動き・当たりはそのまま）
     void SetViewCut(bool active, float minZ){ cutActive_ = active; cutMinZ_ = minZ; }
+    // 狙われている敵を光らせる（1匹だけ。nullptr で消す）。pulse＝0〜1 の脈打ち
+    void SetHighlight(const Enemy* target, float pulse);
     void Clear(){ enemies_.clear(); }
 
     // 各システム（踏みつけ・飲み込み・ロックオン・卵命中）が走査に使う

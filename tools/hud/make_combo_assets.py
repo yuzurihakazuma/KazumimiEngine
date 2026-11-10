@@ -6,6 +6,7 @@
 
   project/resources/ui/hud_combo.png    「コンボ」の札（オレンジのフェルトのリボンに、白い字・茶色のふち）
   project/resources/ui/hud_flower.png   かくれ花（ピンクのフェルトの花びら・黄色の真ん中・にっこり顔）
+  project/resources/ui/hud_combo_flower.png  コンボ花（金色のフェルトの花びら8枚・オレンジの真ん中に星）
 """
 import math
 import os
@@ -106,6 +107,41 @@ def save_flower():
     img.save(os.path.join(OUT, "hud_flower.png"))
 
 
+def save_combo_flower():
+    """コンボ花：金色の花びら8枚（茶色のふち）・オレンジの真ん中に白い星"""
+    size = 128
+    sc = 4
+    S = size * sc
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    c = S / 2
+    petal_r, petal_d = S * 0.15, S * 0.29
+    rim = Image.new("L", (S, S), 0)
+    face = Image.new("L", (S, S), 0)
+    for k in range(8):
+        a = -math.pi / 2 + k * 2 * math.pi / 8
+        px, py = c + math.cos(a) * petal_d, c + math.sin(a) * petal_d
+        ImageDraw.Draw(rim).ellipse([px - petal_r, py - petal_r, px + petal_r, py + petal_r], fill=255)
+        ImageDraw.Draw(face).ellipse([px - petal_r + 5 * sc, py - petal_r + 5 * sc, px + petal_r - 5 * sc, py + petal_r - 5 * sc], fill=255)
+    img.paste(BROWN + (255,), (0, 0), rim)
+    img.alpha_composite(felt(face, (250, 200, 50), 21))
+    r = S * 0.19
+    mid = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(mid).ellipse([c - r - 4 * sc, c - r - 4 * sc, c + r + 4 * sc, c + r + 4 * sc], fill=255)
+    img.paste(BROWN + (255,), (0, 0), mid)
+    inner = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(inner).ellipse([c - r, c - r, c + r, c + r], fill=255)
+    img.alpha_composite(felt(inner, ORANGE, 23))
+    star = []
+    for k in range(10):
+        a = -math.pi / 2 + k * math.pi / 5
+        rr = r * (0.72 if k % 2 == 0 else 0.32)
+        star.append((c + math.cos(a) * rr, c + math.sin(a) * rr))
+    ImageDraw.Draw(img).polygon(star, fill=(255, 252, 235, 255), outline=BROWN + (255,), width=2 * sc)
+    img = img.resize((size, size), Image.LANCZOS)
+    img.save(os.path.join(OUT, "hud_combo_flower.png"))
+
+
 save_combo()
 save_flower()
+save_combo_flower()
 print("wrote", os.path.join(OUT, "hud_combo.png"), os.path.join(OUT, "hud_flower.png"))

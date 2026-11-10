@@ -12,6 +12,11 @@
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/DebugDraw.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/2d/Sprite.h"
+#include "engine/base/WindowProc.h"
+#include "engine/math/Matrix4x4.h"
+#include "engine/camera/Camera.h"
 
 #include <cmath>
 #include <algorithm>
@@ -75,6 +80,15 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             float latX = toEnemy.x - facing.x * alongDist;
             float latZ = toEnemy.z - facing.z * alongDist;
             if ( std::sqrt(latX * latX + latZ * latZ) > 0.8f ) continue;   // ベロの線から0.8m以上横は不可
+            // 口から敵までの間に壁（ブロック）があれば届かない（前は壁越しに食べられていた）。
+            //   敵のふちの手前までを調べる（壁に体がくっついている敵を、壁の内側と見間違えない）
+            if ( wallQuery_ && distance > 1e-3f ) {
+                const Vector3 toEnemyDir = Multiply(1.0f / distance, toEnemy);
+                const float reach = ( std::max )( distance - enemy->GetRadius() * 0.8f, 0.0f );
+                Vector3 hit;
+                const Vector3 enemyEdge = Add(mouth, Multiply(reach, toEnemyDir));
+                if ( wallQuery_(mouth, enemyEdge, hit) ) continue;
+            }
 
             bestDist = distance; found = enemy.get();
         }
@@ -88,13 +102,33 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     if ( state_ == State::Idle ) {
         // 「今Eを押したら捕まえられる敵」を毎フレーム可視化する（脈動するリング。分かりづらさ対策）。
         //   クールタイム中は実際には捕まえられないので出さない
+        markVisible_ = false;
         if ( cooldownTimer_ <= 0.0f ) {
             Enemy* preview = findCatchable();
             if ( preview ) {
                 highlightPulseT_ += dt;
                 float pulse = 1.0f + 0.12f * std::sin(highlightPulseT_ * 8.0f);
-                DebugDraw::GetInstance()->Sphere(preview->GetPosition(),
-                    ( preview->GetRadius() + 0.18f ) * pulse, kCatchableColor, 16);
+                if ( debugVisible_ ) {
+                    DebugDraw::GetInstance()->Sphere(preview->GetPosition(),
+                        ( preview->GetRadius() + 0.18f ) * pulse, kCatchableColor, 16);
+                }
+                // 頭の上に、小さなベロの印がぴょこぴょこ揺れる
+                if ( markSprite_ && camera ) {
+                    const float bob = std::abs(std::sin(highlightPulseT_ * 6.0f));
+                    const Vector3 head { preview->GetPosition().x, preview->GetPosition().y + preview->GetRadius() + 0.55f + 0.18f * bob, preview->GetPosition().z };
+                    Vector2 ndc;
+                    if ( MatrixMath::WorldToNdc(head, camera->GetViewProjectionMatrix(), ndc) ) {
+                        const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
+                        const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
+                        const float size = 64.0f * height / 1080.0f * ( 1.0f + 0.08f * bob );
+                        markSprite_->SetPosition({ ( ndc.x * 0.5f + 0.5f ) * width, ( 1.0f - ( ndc.y * 0.5f + 0.5f ) ) * height });
+                        markSprite_->SetSize({ size, size });
+                        markSprite_->SetRotation(0.25f * std::sin(highlightPulseT_ * 6.0f));
+                        markSprite_->SetColor({ 1.0f, 0.55f, 0.66f, 1.0f });
+                        markSprite_->Update();
+                        markVisible_ = true;
+                    }
+                }
             } else {
                 highlightPulseT_ = 0.0f; // 次に出た時パッと大きくならないようリセット
             }
@@ -120,6 +154,13 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             target_ = nullptr;
         }
         Vector3 aimTip = target_ ? target_->GetPosition() : ( mouth + facing * swallowReach_ );
+        if ( wallQuery_ ) {
+            Vector3 hit;
+            if ( wallQuery_(mouth, aimTip, hit) ) {
+                target_ = nullptr; // 敵が壁の向こうへ動いた：空振り
+                aimTip = hit;      // 舌は壁に当たった所まで
+            }
+        }
 
         phaseT_ += dt;
         float t = ( std::min )( phaseT_ / kShootDuration, 1.0f );
@@ -270,4 +311,12 @@ void SwallowAbility::UpdateTongueMesh(const Vector3& mouth, const Vector3& tip, 
 void SwallowAbility::Draw() const{
     // ベロの見た目はプレイヤーモデルの TongueOut アニメに一本化した（二重表示防止のためリボンは描かない）。
     // 捕獲判定・敵の引き込み・SDF消滅・食べられる敵のプレビューリング等の仕様はそのまま生きている
+}
+
+void SwallowAbility::InitializeMark(){
+    markSprite_ = Sprite::Create(TextureManager::GetInstance()->Load("resources/ui/tongue_mark.png").srvIndex, { 0.0f, 0.0f });
+}
+
+void SwallowAbility::DrawSprite(){
+    if ( markVisible_ && markSprite_ ) { markSprite_->Draw(); }
 }

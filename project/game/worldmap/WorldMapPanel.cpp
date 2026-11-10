@@ -47,11 +47,12 @@ void WorldMapPanel::Finalize(){
     digits_.clear();
 }
 
-void WorldMapPanel::SetContent(const std::string& stage, bool unlocked, int coinTotal, int coinGot){
+void WorldMapPanel::SetContent(const std::string& stage, bool unlocked, int coins, int comboFound, int comboTotal){
     stage_ = stage;
     unlocked_ = unlocked;
-    coinTotal_ = coinTotal;
-    coinGot_ = coinGot;
+    coins_ = coins;
+    comboFound_ = comboFound;
+    comboTotal_ = comboTotal;
     // 名前の画像（ステージ開始カードと同じ物）。無ければ名前なし
     if ( unlocked && !stage.empty() && !names_.contains(stage) ) {
         const std::string path = "resources/kamishibai/intro_name_" + stage + ".png";
@@ -118,7 +119,8 @@ void WorldMapPanel::Draw(){
         sprite->Update();
         sprite->Draw();
     }
-    // コイン：とった数 / 全部の数。ベストはまだ記録が無いので「--」
-    DrawNumber(std::to_string(coinGot_) + "/" + std::to_string(coinTotal_), left + kNumberX * k, top + kCoinY * k, kNumberH * k);
-    DrawNumber("--", left + kNumberX * k, top + kBestY * k, kNumberH * k);
+    // コイン：いちばんためた数。コンボ花：見つけた数 / 全体（コンボの的が無いステージは「--」）
+    DrawNumber(std::to_string(coins_), left + kNumberX * k, top + kCoinY * k, kNumberH * k);
+    DrawNumber(comboTotal_ > 0 ? std::to_string(comboFound_) + "/" + std::to_string(comboTotal_) : std::string("--"),
+               left + kNumberX * k, top + kBestY * k, kNumberH * k);
 }

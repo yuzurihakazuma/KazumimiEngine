@@ -58,6 +58,8 @@ public:
     // 見た目（恐竜の見た目の更新の前に呼ぶ）：やられポーズと、♡の輪の位置
     void UpdateVisuals(bool playing, const Vector3& playerPos);
 
+    // ♡を戻す（卵のコンボで ×8 を出した時など）。演出中は戻さない
+    void Heal(int amount){ if ( !IsActive() ) { hearts_.Heal(amount); } }
     bool IsActive() const{ return sequence_.IsActive(); } // 演出中（とどめのスロー・着地待ちの間はまだ false。ゲームは進む）
     bool HidesScene() const{ return sequence_.HidesScene(); } // 紙に貼り替えている間（3D のステージを描かない）
 

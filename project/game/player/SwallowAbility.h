@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/math/struct.h"
+#include <functional>
 #include <memory>
 #include <d3d12.h>
 
@@ -56,6 +57,15 @@ public:
 
     // 舌の描画（Shooting/Retracting中だけ描く。不透明パスで他のObj3dと一緒に呼ぶ）
     void Draw() const;
+    // ベロの印（食べられる敵の頭の上でぴょこぴょこ）のスプライトを作る（シーンの初期化で）
+    void InitializeMark();
+    // ベロの印を描く（SpriteCommon::PreDraw の後）
+    void DrawSprite();
+    // 壁（ブロック）の判定：from→to の間に壁があれば true と当たった所。ベロは壁を通り抜けない
+    using WallQuery = std::function<bool(const Vector3& from, const Vector3& to, Vector3& outHit)>;
+    void SetWallQuery(WallQuery query){ wallQuery_ = std::move(query); }
+    // 調べる時の球（DebugDraw）を出すか（エディタの「当たり判定を表示」）
+    void SetDebugVisible(bool visible){ debugVisible_ = visible; }
 
     // モード切替時などに強制的にIdleへ戻す（対象への参照も破棄する）。
     //   敵がマップ再同期で作り直される瞬間（Edit→Play）に必ず呼ぶこと
@@ -93,6 +103,10 @@ private:
     float   autoLayTimer_    = -1.0f;       // 食べてから自動で産むまでの残り秒（-1＝待っていない）
     float   highlightPulseT_ = 0.0f;        // 「捕まえられる」プレビューリングの脈動タイマー
 
+    bool  debugVisible_ = false;
+    WallQuery wallQuery_;
+    bool  markVisible_ = false;
+    std::unique_ptr<class Sprite> markSprite_;
     float swallowReach_    = 2.0f;  // 飲み込みの届く距離 (m)
     float swallowCooldown_ = 0.35f; // 飲み込み成功後の再使用間隔 (秒)。連打での連発を防ぐ
     float cooldownTimer_   = 0.0f;  // 残りクールタイム

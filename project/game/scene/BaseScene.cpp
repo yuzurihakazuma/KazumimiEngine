@@ -126,7 +126,7 @@ void BaseScene::Finalize(){
     // エディタが保持している外部ポインタ（カメラ・ギズモ対象など）をリセット（ダングリングポインタ防止）
     editorManager->ResetSceneReferences();
     ScreenCapture::GetInstance()->SetCamera(nullptr);
-    ScreenCapture::GetInstance()->SetSource(nullptr);
+
     // ノードエディタに登録したゲーム値（シーンの変数へのポインタ）も解除する
     editorManager->ClearNodeGameValues();
     GPUParticleManager::GetInstance()->Finalize();
@@ -258,7 +258,7 @@ void BaseScene::ComposeFrame(ID3D12GraphicsCommandList* commandList){
     if ( transition && transition->IsActive() ) { transition->DrawInto(commandList, finalTarget); }
 
     // 撮影：ImGui を重ねる前の最終画像を写す（画面に出す直前に読み出す。状態は PIXEL_SHADER_RESOURCE のまま）
-    ScreenCapture::GetInstance()->SetSource(finalTarget);
+    ScreenCapture::GetInstance()->OnFinalImage(commandList, finalTarget);
     // エディタに最終的なゲーム画面のSRVを渡す（Game View 表示用）
     EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
     // 最終結果をバックバッファへ（エディタアクティブ時はRTVのセットのみ行い描画はスキップ）

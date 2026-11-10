@@ -32,6 +32,7 @@ public:
     }
     // 背景エディタのパレットの絵を読む（シーンの読み込み時に）
     void LoadBackdropThumbnails() { backdropTool_.LoadThumbnails(); }
+    const BackdropEditTool& BackdropTool() const { return backdropTool_; }
     // 右クリックメニューの「ここからテストプレイ」の要求（あれば true）
     bool ConsumeTestPlayRequest(int& outRail, float& outDist) {
         return contextMenu_.ConsumeTestPlayRequest(outRail, outDist);

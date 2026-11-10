@@ -69,6 +69,7 @@ public:
 
     // エディタがアクティブかどうか
     bool IsActive() const{ return isEditorActive_; }
+    void SetActive(bool active){ isEditorActive_ = active; } // F1 と同じ（撮影がエディタを隠す時など）
 
     // ===== UIシェル（F2で切替）=====
     //   Dock : 従来どおりの全パネルドッキング表示（挙動・見た目は完全に従来のまま）

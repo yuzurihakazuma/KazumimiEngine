@@ -99,6 +99,10 @@ void Enemy::ApplySpawn(const EnemySpawnData& spawn){
     swallowT_     = 0.0f;
     visualHidden_ = false;
     meltT_        = -1.0f;
+    highlighted_  = false;
+    highlightPop_ = 0.0f;
+    if ( skinnedObj_ ) { skinnedObj_->SetMaterialOverride(false); }
+    if ( obj_ )        { obj_->SetMaterialOverride(false); }
     if ( skinnedObj_ ) { skinnedObj_->SetDissolveThreshold(0.0f); } // 使い回した個体の溶け具合を戻す
     if ( obj_ )        { obj_->SetDissolveThreshold(0.0f); }
     moving_       = false;
@@ -306,8 +310,20 @@ void Enemy::Update(const std::vector<SplineRail>& rails, const Vector3& playerPo
 }
 
 // 見た目の行列と溶け具合。squash＝縦の大きさ（溶ける時につぶれる）、melt＝溶け具合（穴があいていく）
+void Enemy::SetHighlight(bool on, float pulse){
+    if ( on && !highlighted_ ) { highlightPop_ = 1.0f; }
+    highlighted_ = on;
+    const float brighten = 1.45f + 0.15f * pulse, emissive = 5.0f + 2.0f * pulse; // 背景の物と同じ光り方（EggCombo）
+    if ( skinnedObj_ ) { skinnedObj_->SetMaterialOverride(on, brighten, emissive); }
+    if ( obj_ )        { obj_->SetMaterialOverride(on, brighten, emissive); }
+}
+
 void Enemy::ApplyLook(float squash, float melt){
-    const float spread = 1.0f + ( 1.0f - squash ) * 0.45f; // つぶれた分だけ横へ広がる
+    // 狙われた瞬間の「ぽん」（0.2 秒で 1 → 1.12 → 1）
+    highlightPop_ = ( std::max )( 0.0f, highlightPop_ - 1.0f / 60.0f / 0.2f );
+    const float pop = 1.0f + 0.12f * std::sin(( 1.0f - highlightPop_ ) * 3.14159265f) * ( highlightPop_ > 0.0f ? 1.0f : 0.0f );
+    squash *= pop;
+    const float spread = ( 1.0f + ( 1.0f - squash / pop ) * 0.45f ) * pop; // つぶれた分だけ横へ広がる
     const float threshold = melt > 0.0f ? 0.02f + 0.98f * melt : 0.0f;
     if ( skinnedObj_ ) {
         skinnedObj_->SetTranslation(footPos_);

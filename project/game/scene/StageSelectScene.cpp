@@ -30,6 +30,8 @@
 #endif
 
 #include <algorithm>
+#include "game/stage/StageRecords.h"
+
 #include <cmath>
 #include <fstream>
 #include <string>
@@ -321,7 +323,9 @@ void StageSelectScene::OnUpdate(){
 			const WorldStage& stage = data_.stages[standing];
 			StageDiorama* diorama = nodes_[standing].diorama.get();
 			if ( diorama ) { diorama->SetSelected(true); }
-			panel_.SetContent(stage.stage, stage.unlocked && diorama, diorama ? diorama->CoinCount() : 0, 0);
+			StageRecords* records = StageRecords::GetInstance();
+			panel_.SetContent(stage.stage, stage.unlocked && diorama, records->Get(stage.stage).bestCoins,
+			                  records->ComboFlowersFound(stage.stage), StageRecords::CountComboTargets(stage.stage));
 			orbitAngle_ = 0.0f;
 			if ( diorama ) { fx_.Confetti({ nodes_[standing].center.x, nodes_[standing].center.y + 0.2f, nodes_[standing].center.z }, 14, 2.4f, 0.07f); }
 			AudioManager::GetInstance()->PlayWave(kSplashSe, false, 0.5f);

@@ -24,7 +24,8 @@ public:
     void Finalize();
 
     // 出すマスの内容。stage が空＝まだ遊べない
-    void SetContent(const std::string& stage, bool unlocked, int coinTotal, int coinGot);
+    // coins＝いちばんためたコイン、comboFound / comboTotal＝見つけたコンボ花 / 全体（StageRecords）
+    void SetContent(const std::string& stage, bool unlocked, int coins, int comboFound, int comboTotal);
     // shown＝出す（左からすべり込む）／隠す
     void Update(float deltaTime, bool shown);
     void Draw();
@@ -41,8 +42,9 @@ private:
 
     std::string stage_;
     bool  unlocked_ = false;
-    int   coinTotal_ = 0;
-    int   coinGot_ = 0;
+    int   coins_ = 0;
+    int   comboFound_ = 0;
+    int   comboTotal_ = 0;
     float slide_ = 0.0f;     // 0＝隠れている 1＝出ている
     float slideTime_ = 0.0f; // 出始めてからの秒数（行き過ぎて戻る動き）
     bool  shown_ = false;
