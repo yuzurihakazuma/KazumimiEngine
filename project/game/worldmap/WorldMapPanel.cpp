@@ -1,4 +1,5 @@
 #include "game/worldmap/WorldMapPanel.h"
+#include "game/ui/UiScale.h"
 
 #include "engine/2d/Sprite.h"
 #include "engine/base/WindowProc.h"
@@ -6,7 +7,6 @@
 #include "engine/utils/Easing.h"
 
 #include <algorithm>
-#include <cstring>
 #include <filesystem>
 
 namespace {
@@ -15,12 +15,16 @@ namespace {
     constexpr const char* kDigitsTexture = "resources/worldmap/digits.png";
     constexpr const char* kDigitChars = "0123456789/-";
     constexpr float kDigitCellW = 64.0f, kDigitCellH = 96.0f;
-    constexpr int   kMaxDigits = 12;
+    constexpr int   kMaxDigits = 24;
     // パネルの中の置き場所（panel.png の画素。make_worldmap_assets.py の panel() と同じ）
     constexpr float kPanelScale = 0.9f;  // 1080p での大きさ
     constexpr float kMargin = 48.0f;     // 画面の左からの余白(1080p)
-    constexpr float kNameY = 104.0f, kNameWidth = 560.0f;
-    constexpr float kCoinY = 228.0f, kBestY = 304.0f, kNumberX = 300.0f, kNumberH = 64.0f;
+    constexpr Vector2 kPanelSize { 636.0f, 556.0f }; // 絵の大きさ（板 620×540＋影）
+    constexpr Vector2 kNameSize { 864.0f, 230.0f };  // 名前の絵の大きさ（intro_name_<stage>.png）
+    constexpr float kNameX = 318.0f, kNameY = 104.0f, kNameWidth = 560.0f;
+    constexpr float kCoinY = 228.0f, kBestY = 304.0f, kStampY = 380.0f, kNumberX = 300.0f, kNumberH = 64.0f;
+    constexpr float kTopRatio = 0.62f;   // 画面の真ん中から、パネルの高さのこの割合だけ上に置く
+    constexpr float kHiddenGap = 20.0f;  // 隠れている時、画面の左の外へ余分に出す量(画素)
     constexpr float kSlideInTime = 0.45f, kSlideOutSpeed = 5.0f;
 }
 
@@ -31,11 +35,7 @@ void WorldMapPanel::Initialize(){
     TextureManager* textures = TextureManager::GetInstance();
     panel_ = Sprite::Create(textures->Load(kPanelTexture).srvIndex, { 0.0f, 0.0f }, { 1, 1, 1, 1 }, { 0.0f, 0.0f });
     panelLocked_ = Sprite::Create(textures->Load(kLockedTexture).srvIndex, { 0.0f, 0.0f }, { 1, 1, 1, 1 }, { 0.0f, 0.0f });
-    digitsTexture_ = textures->Load(kDigitsTexture).srvIndex;
-    digits_.clear();
-    for ( int i = 0; i < kMaxDigits; ++i ) {
-        digits_.push_back(Sprite::Create(digitsTexture_, { 0.0f, 0.0f }, { 1, 1, 1, 1 }, { 0.0f, 0.5f }));
-    }
+    digits_.Initialize(kDigitsTexture, kDigitChars, kDigitCellW, kDigitCellH, kMaxDigits);
     slide_ = 0.0f;
     shown_ = false;
 }
@@ -44,15 +44,13 @@ void WorldMapPanel::Finalize(){
     panel_.reset();
     panelLocked_.reset();
     names_.clear();
-    digits_.clear();
+    digits_.Finalize();
 }
 
-void WorldMapPanel::SetContent(const std::string& stage, bool unlocked, int coins, int comboFound, int comboTotal){
+void WorldMapPanel::SetContent(const std::string& stage, bool unlocked, const Counts& counts){
     stage_ = stage;
     unlocked_ = unlocked;
-    coins_ = coins;
-    comboFound_ = comboFound;
-    comboTotal_ = comboTotal;
+    counts_ = counts;
     // 名前の画像（ステージ開始カードと同じ物）。無ければ名前なし
     if ( unlocked && !stage.empty() && !names_.contains(stage) ) {
         const std::string path = "resources/kamishibai/intro_name_" + stage + ".png";
@@ -75,34 +73,16 @@ void WorldMapPanel::Update(float deltaTime, bool shown){
     }
 }
 
-void WorldMapPanel::DrawNumber(const std::string& text, float x, float y, float height){
-    const float width = height * kDigitCellW / kDigitCellH;
-    const float step = width * 0.78f; // 字のふちが重なるくらいに詰める
-    // 1枚のスプライトを1フレームに2回描くと、後の位置で上書きされるので、数字ごとに別の物を使う
-    for ( char c : text ) {
-        if ( nextDigit_ >= ( int ) digits_.size() ) { break; }
-        const char* found = std::strchr(kDigitChars, c);
-        if ( c == ' ' || !found ) { x += step * 0.5f; continue; }
-        Sprite* sprite = digits_[nextDigit_++].get();
-        sprite->SetTextureRect(( float ) ( found - kDigitChars ) * kDigitCellW, 0.0f, kDigitCellW, kDigitCellH);
-        sprite->SetPosition({ x, y });
-        sprite->SetSize({ width, height });
-        sprite->Update();
-        sprite->Draw();
-        x += step;
-    }
-}
-
 void WorldMapPanel::Draw(){
     if ( slide_ <= 0.001f || !panel_ ) { return; }
-    nextDigit_ = 0;
+    digits_.BeginFrame();
     const float screenH = ( float ) WindowProc::GetInstance()->GetClientHeight();
-    const float k = screenH / 1080.0f * kPanelScale;
+    const float k = UiScale::FromHeight(screenH) * kPanelScale;
     Sprite* board = unlocked_ ? panel_.get() : panelLocked_.get();
-    const Vector2 size { 636.0f * k, 486.0f * k };
+    const Vector2 size { kPanelSize.x * k, kPanelSize.y * k };
     // 左の外（隠れている）→ 余白の位置（出ている）
-    const float left = -size.x - 20.0f + ( size.x + 20.0f + kMargin * k / kPanelScale ) * slide_;
-    const float top = screenH * 0.5f - size.y * 0.62f;
+    const float left = -size.x - kHiddenGap + ( size.x + kHiddenGap + kMargin * k / kPanelScale ) * slide_;
+    const float top = screenH * 0.5f - size.y * kTopRatio;
     board->SetPosition({ left, top });
     board->SetSize(size);
     board->Update();
@@ -113,14 +93,19 @@ void WorldMapPanel::Draw(){
     auto name = names_.find(stage_);
     if ( name != names_.end() && name->second ) {
         Sprite* sprite = name->second.get();
-        const float scale = kNameWidth / 864.0f * k;
-        sprite->SetPosition({ left + 318.0f * k, top + kNameY * k });
-        sprite->SetSize({ 864.0f * scale, 230.0f * scale });
+        const float scale = kNameWidth / kNameSize.x * k;
+        sprite->SetPosition({ left + kNameX * k, top + kNameY * k });
+        sprite->SetSize({ kNameSize.x * scale, kNameSize.y * scale });
         sprite->Update();
         sprite->Draw();
     }
     // コイン：いちばんためた数。コンボ花：見つけた数 / 全体（コンボの的が無いステージは「--」）
-    DrawNumber(std::to_string(coins_), left + kNumberX * k, top + kCoinY * k, kNumberH * k);
-    DrawNumber(comboTotal_ > 0 ? std::to_string(comboFound_) + "/" + std::to_string(comboTotal_) : std::string("--"),
-               left + kNumberX * k, top + kBestY * k, kNumberH * k);
+    //   卵スタンプ：取った数 / 全体（まだクリアしていないステージは「--」）
+    auto fraction = [](int found, int total){
+        return total > 0 ? std::to_string(found) + "/" + std::to_string(total) : std::string("--");
+    };
+    const float numberX = left + kNumberX * k, numberHeight = kNumberH * k;
+    digits_.Draw(std::to_string(counts_.coins), numberX, top + kCoinY * k, numberHeight);
+    digits_.Draw(fraction(counts_.comboFound, counts_.comboTotal), numberX, top + kBestY * k, numberHeight);
+    digits_.Draw(fraction(counts_.stamps, counts_.stampTotal), numberX, top + kStampY * k, numberHeight);
 }

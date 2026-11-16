@@ -1,4 +1,6 @@
 #include "game/worldmap/DiveSequence.h"
+#include "engine/math/VectorMath.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/utils/Easing.h"
 
@@ -6,17 +8,14 @@
 #include <cmath>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr float kBodyCenter = 0.55f;   // 回る軸の高さ（足元から。恐竜の体の真ん中）
     constexpr float kFlipTurns = 2.0f;     // 前転の回数（着地で立った向きに戻る）
     constexpr float kApexAlong = 0.7f;     // 頂点は、立っている所から着地する所までのどこか（0〜1）
     constexpr float kLandSquash = 0.25f;   // 着地でつぶれる時間(秒)
     constexpr float kIrisDelay = 0.12f;    // 着地してから円を閉じ始めるまで(秒)
 
-    Vector3 Lerp(const Vector3& a, const Vector3& b, float t){
-        return { a.x + ( b.x - a.x ) * t, a.y + ( b.y - a.y ) * t, a.z + ( b.z - a.z ) * t };
-    }
-    Vector3 Add(const Vector3& a, const Vector3& b){ return { a.x + b.x, a.y + b.y, a.z + b.z }; }
+    using VectorMath::Add;
 }
 
 void DiveSequence::Start(const DiveTiming& timing, const Vector3& from, float yaw, const Vector3& target, float endScale,
@@ -65,7 +64,7 @@ DiveSequence::Pose DiveSequence::DinoPose() const{
     const float t4 = LandTime();
     const float t = time_;
     // 頂点：着地する所の手前の上
-    const Vector3 flat = Lerp(from_, target_, kApexAlong);
+    const Vector3 flat = Math::Lerp(from_, target_, kApexAlong);
     const Vector3 apex { flat.x, target_.y + timing_.apexHeight, flat.z };
 
     Vector3 feet = from_;                 // 立った向きの時の足元
@@ -78,7 +77,7 @@ DiveSequence::Pose DiveSequence::DinoPose() const{
     } else if ( t < t2 ) {
         // ジャンプ：上がるほど遅く。跳んだ直後は縦に伸びる
         const float u = ( t - t1 ) / timing_.jump;
-        const Vector3 along = Lerp(from_, apex, Easing::EaseOutSine(u));
+        const Vector3 along = Math::Lerp(from_, apex, Easing::EaseOutSine(u));
         feet = { along.x, from_.y + ( apex.y - from_.y ) * Easing::EaseOutQuad(u), along.z };
         const float s = 0.2f * ( 1.0f - Easing::Clamp01(u * 2.0f) );
         stretch = { 1.0f - s * 0.5f, 1.0f + s, 1.0f - s * 0.5f };
@@ -89,7 +88,7 @@ DiveSequence::Pose DiveSequence::DinoPose() const{
     } else if ( t < t4 ) {
         // 飛び込み：回りながら落ちて、箱庭と同じ大きさまで縮む
         const float u = ( t - t3 ) / timing_.dive;
-        const Vector3 along = Lerp(apex, target_, Easing::EaseInOutSine(u));
+        const Vector3 along = Math::Lerp(apex, target_, Easing::EaseInOutSine(u));
         feet = { along.x, apex.y + ( target_.y - apex.y ) * Easing::EaseInQuad(u), along.z };
         size = 1.0f + ( endScale_ - 1.0f ) * Easing::EaseInOutSine(u);
     } else {
@@ -128,16 +127,16 @@ void DiveSequence::CameraPose(Vector3& outPosition, Vector3& outLook) const{
     // 跳ぶ弧の全体と箱庭が入る、斜め前の位置 → 着地する所へ寄る
     const Vector3 wide = Add(target_, timing_.cameraApex);
     const Vector3 close = Add(target_, timing_.cameraDive);
-    const Vector3 wideLook = Add(Lerp(from_, target_, 0.6f), { 0.0f, timing_.apexHeight * 0.8f, 0.0f });
+    const Vector3 wideLook = Add(Math::Lerp(from_, target_, 0.6f), { 0.0f, timing_.apexHeight * 0.8f, 0.0f });
     if ( t < t3 ) {
         // 恐竜のすぐ後ろから始まるので、跳ぶ前に急いで下がる
         const float u = Easing::EaseInOutSine(Easing::Clamp01(t / ( t1 + timing_.jump * 0.5f )));
-        outPosition = Lerp(cameraStart_, wide, u);
-        outLook = Lerp(lookStart_, wideLook, u);
+        outPosition = Math::Lerp(cameraStart_, wide, u);
+        outLook = Math::Lerp(lookStart_, wideLook, u);
     } else {
         const float u = Easing::EaseInOutSine(Easing::Clamp01(( t - t3 ) / ( t4 - t3 + timing_.absorb * 0.5f )));
-        outPosition = Lerp(wide, close, u);
-        outLook = Lerp(wideLook, target_, u);
+        outPosition = Math::Lerp(wide, close, u);
+        outLook = Math::Lerp(wideLook, target_, u);
     }
 }
 

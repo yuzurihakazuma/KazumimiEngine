@@ -2,6 +2,7 @@
 #include "engine/math/struct.h"
 #include "game/rail/road/RoadMeshBuilder.h"
 #include "game/rail/road/RoadRenderSlots.h"
+#include <array>
 #include <vector>
 
 class Camera;
@@ -95,6 +96,7 @@ private:
     RoadRenderSlots clothSlots_;
     std::vector<int>   clothSlotOfRail_;   // レール → 布のスロット（-1=布なし）
     std::vector<float> clothLift_;         // レールごとの重なりの高さ（つなぎ目で隣と同じ高さにならないように）
+    std::vector<std::array<float, 2>> endExtensions_; // 坂の付け根の角：土台の端を先へ伸ばす長さ [始点側, 終点側]
     std::vector<std::vector<float>> clothShown_; // 今のスロットの中身の範囲（変わった時だけ作り直す）
     std::vector<float> pathFront_, pathBack_;    // 展開の起点から、各レールの始点・終点までの道のりの距離
     int   unrollRail_ = -1;

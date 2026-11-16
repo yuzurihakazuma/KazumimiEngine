@@ -1,4 +1,6 @@
 #include "GamePlayScene.h"
+#include "game/ui/UiScale.h"
+#include "engine/math/MathUtil.h"
 // --- ゲーム固有のファイル ---
 #include "TitleScene.h"
 #include "game/player/Player.h"
@@ -130,6 +132,7 @@ void GamePlayScene::OnInitialize(){
 	flipContext.eggs      = &eggSystem_;
 	flipContext.camera    = GetCamera();
 	flip_.Initialize(flipContext, kStageName);
+	SetupClear();
 	// 操作開始の「スタート！」
 	startPop_ = Sprite::Create(TextureManager::GetInstance()->Load("resources/ui/start_pop.png").srvIndex, { 0.0f, 0.0f },
 	                           { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.5f });
@@ -137,6 +140,49 @@ void GamePlayScene::OnInitialize(){
 	AudioManager::GetInstance()->LoadWave(kStartCueSe);
 	// 遠くの見える限界を広げる（ステージの奥の丘・空は 80m ほど先。斜めに見るイントロのカメラでも切れないように）
 	GetCamera()->SetFarClip(kFarClip);
+}
+
+// ゴールとクリア演出（輪・集計・「ゴール！」・リザルト）の用意。集計係へ、プレイの出来事の知らせをつなぐ
+void GamePlayScene::SetupClear(){
+	ClearFlow::Context clearContext;
+	clearContext.player    = player_.get();
+	clearContext.avatar    = &avatar_;
+	clearContext.railField = &railField_;
+	clearContext.camera    = GetCamera();
+	clearContext.eggSystem = &eggSystem_;
+	clearContext.eggCombo  = &eggCombo_;
+	clearContext.health    = &gameOver_;
+	clearContext.onGoal    = [this]{ OnGoalReached(); };
+	clear_.Initialize(clearContext, kStageName, textures_["uvChecker"].srvIndex);
+	// 集計係は、出来事を受け取って数えるだけ（卵・体力・敵の処理と、クリア演出を直接つながない）
+	eggCombo_.OnComboChanged().Connect([this](int combo){ clear_.Tally().NoteCombo(combo); });
+	gameOver_.OnDamaged().Connect([this]{ clear_.Tally().NoteDamage(); });
+	enemyMgr_.OnEnemyDefeated().Connect([this]{ clear_.Tally().NoteEnemyDefeated(); });
+}
+
+// ゴールの輪をくぐった瞬間：構えの途中・ベロを出している途中でも破綻しないよう、やめさせる
+void GamePlayScene::OnGoalReached(){
+	aimThrow_.Reset();
+	swallow_.Reset();
+	eggSystem_.SetAimHolding(false);
+	player_->SetTurnLocked(false);
+	player_->SetMoveSpeedScale(1.0f);
+	gameOver_.HideHearts();
+}
+
+// クリア演出の間：ゲームの時間（敵・動くレール・当たり判定）は止め、恐竜（自動操縦と演技）・卵・演出だけ進める。
+//   演出は、ゲームの時間（ヒットストップなどで止まる）とは別の、止まらない時間で進める
+void GamePlayScene::UpdateClearStaging(float deltaTime){
+	const float stagingDelta = Time::GetInstance()->GetUnscaledDeltaTime();
+	clear_.UpdateBeforePlayer(stagingDelta);   // キーの代わり（着地する所へ歩く）と演技
+	player_->Update(railField_.GetRails());
+	const float yaw = player_->GetRotation().y;
+	UpdateEggFollowGround();
+	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・飛んでいる卵
+	eggCombo_.Update(player_->GetPosition(), GetCamera(), deltaTime); // はじけている途中の物を、空中で止めない
+	clear_.UpdateAfterPlayer(stagingDelta);    // 場面を進める（カメラ・小道具・リザルト）
+	hitFeel_.NotifyCameraOverridden();
+	combat_.UpdateEffects(deltaTime);
 }
 
 // ステージ全体にクラフトの背景を置く（resources/map/<stage>_backdrop.json。tools/stage_intro/make_stage_backdrop.py がマップから作る）
@@ -199,9 +245,9 @@ void GamePlayScene::DrawStartCue(){
 	// ポンと出て（少し行き過ぎて戻る）、少し止まってから、上へ浮きながら消える
 	const float pop = Easing::EaseOutBack(Easing::Clamp01(t / 0.25f));
 	const float fade = Easing::Clamp01(( t - ( kStartCueDuration - 0.3f ) ) / 0.3f);
-	const float scale = height / 1080.0f * 0.75f * pop;
+	const float scale = UiScale::FromHeight(height) * 0.75f * pop;
 	const Vector2 size = startPopSize_;
-	startPop_->SetPosition({ width * 0.5f, height * 0.4f - fade * 40.0f * height / 1080.0f });
+	startPop_->SetPosition({ width * 0.5f, height * 0.4f - fade * 40.0f * height / UiScale::kBaseHeight });
 	startPop_->SetSize({ size.x * scale, size.y * scale });
 	startPop_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f - fade });
 	startPop_->Update();
@@ -235,6 +281,7 @@ void GamePlayScene::SetupGameplay(){
 	combat_.Prewarm(GetCamera(), 4);
 	eggSystem_.PrewarmPuffPool("fxSphere", 32);
 	eggSystem_.PrewarmPuffPool("eggShell", 28);
+	eggSystem_.PrewarmPuffPool("eggShellGreen", 12);
 
 	// ノードエディタの「→ ゲーム値」に調整値を登録する（ノードからプレイ中の挙動をリアルタイムに動かせる）。
 	//   ※ポインタ登録なので、シーン終了時（Finalize）に必ず解除する
@@ -289,7 +336,7 @@ void GamePlayScene::SyncRailsLive(){
 	EditorManager* editorManager = EditorManager::GetInstance();
 	const bool dragging = editorManager->IsRailDragging();
 	const bool changed = ( editorManager->GetRailEditVersion() != railField_.Version() );
-	railSyncTimer_ += 1.0f / 60.0f;
+	railSyncTimer_ += Time::kFixedDeltaTime;
 	if ( changed && dragging ) {
 		railFullSyncPending_ = true; // ドラッグが終わったら本生成する
 		if ( railSyncTimer_ >= 0.1f ) { // 10Hz
@@ -407,7 +454,7 @@ void GamePlayScene::SyncRailsFromEditor(bool simple){
 
 	// マップのスタート地点をプレイヤーへ（Initialize/リスポーンで使われる）
 	if ( player_ ) { player_->SetSpawn(railField_.GetStartRail(), railField_.GetStartDistance()); }
-	stageFlow_.Reset(); // マップが変わったらゴール状態はリセット
+	clear_.OnRailsSynced(); // ゴールの輪を置き直す
 
 	// カメラ演出ゾーン・コイン・ブロックもエディタの配置から作り直す
 	camCtrl_.Sync(editorManager->GetEditorCameraZones(), railField_.GetRails());
@@ -440,7 +487,7 @@ void GamePlayScene::OnUpdate(){
 	screenFx_.UpdateWarmup(combat_, eggSystem_, currentMode == EngineMode::Play);
 
 	// タイトルへ戻る（読み込み中のカードで切り替える）
-	if ( Input::GetInstance()->Triggerkey(DIK_T) ) {
+	if ( Input::GetInstance()->TriggerKey(DIK_T) ) {
 		KamishibaiTransition::ChangeSceneWithCard("TITLE");
 	}
 }
@@ -493,6 +540,7 @@ void GamePlayScene::OnPlayStart(){
 	coinSystem_.ResetPlay(); // コインを全部復活させる
 	blockSystem_.ResetPlay(); // ？ブロックを未使用に戻す
 	eggCombo_.Reset();       // コンボ・かくれ花を戻す
+	clear_.OnPlayStart(enemyMgr_.SpawnedCount()); // 集計を最初から・ゴールの輪を閉じる
 }
 
 // プレイ → エディット：動くレールを基準位置に戻す（編集と表示を一致させる）
@@ -500,6 +548,7 @@ void GamePlayScene::OnEditStart(){
 	// ステージ開始の演出の途中でエディタに切り替えた：演出をやめて、プレイヤーを元に戻す
 	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
 	gameOver_.OnEditStart(); // ゲームオーバー演出をやめて、体力を満タンに
+	clear_.OnEditStart();    // クリア演出をやめて、ゴールの輪を閉じる
 	flip_.OnEditStart();     // 表へ（全部のレールを出す）
 	screenFx_.DisablePlayLook();
 	railField_.ResetMotion();
@@ -520,6 +569,12 @@ void GamePlayScene::UpdatePlayMode(){
 	// ゲームオーバー演出の間は、ゲームの時間を止めて演出だけ進める
 	if ( gameOver_.UpdateBeforeGame(intro_.IsActive()) ) {
 		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
+
+	// クリア演出の間は、ゲームの時間を止めて、恐竜と演出だけ進める
+	if ( clear_.IsActive() ) {
+		UpdateClearStaging(deltaTime);
 		return;
 	}
 
@@ -611,8 +666,11 @@ void GamePlayScene::UpdatePlayMode(){
 	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime);
 	eggCombo_.Update(player_->GetPosition(), GetCamera(), deltaTime); // 奥へ投げた卵：当たった物がはじけ飛んでコンボ
 
-	// ゴール判定＋ゴールマーカー
-	stageFlow_.Update(player_->GetPosition(), railField_, hitFeel_);
+	// ゴールの輪をくぐったら、クリア演出へ（とどめを受けてゲームオーバーへ向かっている途中は、クリアにしない）
+	if ( !gameOver_.IsDying() && clear_.CheckGoal() ) {
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
 
 	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
 	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true); } // 撮影のテイクの始め：補間せずに置く
@@ -646,7 +704,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	//   dt=0 で呼ぶのでパトロール等の移動は起きない
 	//   ゲームの時間を止めている間（ステージ開始の演技・ゲームオーバー）も同じ。止めたまま更新しないと、
 	//   カメラが動いても敵だけ止めた瞬間の画面の位置に貼り付く（再開の絵にも死んだ時の位置で写っていた）
-	if ( !playing || intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() ) {
+	if ( !playing || intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() || clear_.IsActive() ) {
 		enemyMgr_.Update(railField_.GetRails(), playerPos, 0.0f, nullptr, &blockSystem_);
 	}
 
@@ -663,10 +721,10 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	                    ( playing && intro_.IsUnrolling() ) ? intro_.UnrollFront() : -1.0f);
 	roadMesh_.UpdateCloth(railField_.GetRails());
 	roadMesh_.Update(railField_.GetRails());              // 道メッシュ（動くレール追従＋カメラ追従）
-	dissolveRoad_.Update(playerPos, 1.0f / 60.0f);        // SDF溶け道の現れ/溶け（エディタ中も動きが見える）
+	dissolveRoad_.Update(playerPos, Time::kFixedDeltaTime);        // SDF溶け道の現れ/溶け（エディタ中も動きが見える）
 
 	// コイン（回転・浮遊はエディタ中も見せる。取得判定はプレイ中のみ）とブロック
-	coinSystem_.Update(playerPos, playing, 1.0f / 60.0f);
+	coinSystem_.Update(playerPos, playing, Time::kFixedDeltaTime);
 	// 裏から見ている間：恐竜よりカメラ側のブロック・敵を隠す（表の道の物が画面をふさがないように）
 	{
 		Vector3 cutPivot {}; float cutGap = 0.0f;
@@ -692,7 +750,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	while ( blockSystem_.ConsumeBumpCoin(bumpCoinPos) ) {
 		coinSystem_.AddBonus(1);
 		for ( int i = 0; i < 6; ++i ) {
-			float angle = ( float ) i / 6.0f * 6.2831853f;
+			float angle = ( float ) i / 6.0f * Math::kTwoPi;
 			Vector3 vel = { std::cos(angle) * 1.5f, 3.5f + ( float ) ( i % 3 ) * 0.6f, std::sin(angle) * 1.5f };
 			eggSystem_.SpawnPuff(bumpCoinPos, vel, { 1.0f, 0.85f, 0.2f, 1.0f }, 0.12f, 0.5f, "fxSphere");
 		}
@@ -706,6 +764,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	avatarContext.swallow   = &swallow_;
 	avatarContext.aimThrow  = &aimThrow_;
 	avatarContext.eggSystem = &eggSystem_;
+	clear_.UpdateVisuals(Time::GetInstance()->GetUnscaledDeltaTime()); // ゴールの輪・紙吹雪
 	flip_.UpdateVisuals(playing);                          // カメラ反転：スイッチ・裏から見る時に隠す背景
 	gameOver_.UpdateVisuals(playing, playerPos); // やられポーズと♡の輪（恐竜の見た目の更新の前）
 	avatar_.Update(avatarContext);
@@ -735,6 +794,7 @@ void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 	flip_.Draw();                              // 「？」スイッチ（裏の間は奥の岩肌も）
 	swallow_.Draw();                           // 舌（伸ばす/引き込む動作中だけ）
 	intro_.Draw();                             // ステージ開始の演技のロール
+	clear_.DrawOpaque();                       // ゴールの輪（卵の殻。Edit でも見える）
 	roadMesh_.Draw();                          // 道メッシュ（Edit/Play どちらでも見える本番の見た目）
 	// レール経路の緑線マーカーは「エディット中だけ」（Play中・リリース版では道メッシュだけが残る）
 	if ( !playing ) { railField_.DrawMarkers(); }
@@ -745,12 +805,14 @@ void GamePlayScene::OnDrawInstanced(){
 	blockSystem_.Draw(GetCamera()); // 配置ブロック（見た目グループごとに1ドローコール）
 	backdrop_.Draw(GetCamera());    // ステージのクラフトの背景（モデルごとに1ドローコール）
 	eggCombo_.Draw();               // 狙って光っている物・はじけ飛んでいる物（背景の代役）
+	clear_.DrawInstanced(GetCamera()); // クリア演出の紙吹雪
 }
 
 void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/){
 	if ( gameOver_.HidesScene() ) { return; }
 	gameOver_.DrawTransparent(); // やられの演技の星
 	combat_.Draw(); // 踏みつけ/命中の立体エフェクト
+	clear_.DrawTransparent(); // クリア演出の切り文字・棒付きの星（透明な所のある板）
 }
 
 void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
@@ -762,6 +824,7 @@ void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
 // スプライト・HUD（画面出力の後）
 void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
 	const bool playing = EditorManager::GetInstance()->GetMode() == EngineMode::Play;
+	if ( clear_.DrawUI() ) { return; }           // クリア演出の間は、HUD・♡・照準の代わりにリザルト画面
 	if ( gameOver_.DrawUI(playing) ) { return; } // ゲームオーバー演出の間は HUD の代わりにゲームオーバーの画面（それ以外は♡）
 	aimThrow_.DrawSprite(); // 構え中だけ紙の照準（投げた直後はぱっと開いて消える）
 	if ( playing ) { swallow_.DrawSprite(); } // 食べられる敵の頭の上のベロの印
@@ -783,7 +846,7 @@ void GamePlayScene::SetupCaptureTakes(){
 	hooks.scene = "GAMEPLAY";
 	hooks.capture = [this](nlohmann::json& start, std::string& error){
 		if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play ) { error = "Play 中に押す"; return false; }
-		if ( intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() ) { error = "演出の間は始められない"; return false; }
+		if ( intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() || clear_.IsActive() ) { error = "演出の間は始められない"; return false; }
 		if ( !player_->IsGrounded() ) { error = "地面に立っている時に押す"; return false; }
 		start["rail"] = player_->GetCurrentRail();
 		start["dist"] = player_->GetDebugStep().dist;
@@ -819,6 +882,7 @@ void GamePlayScene::ResetStageForRetry(){
 	eggCombo_.Reset();
 	swallow_.Reset();
 	SpawnEnemies();        // 敵は置き直し（倒した敵も戻る）
+	clear_.OnPlayStart(enemyMgr_.SpawnedCount()); // 集計も最初から
 	combat_.ClearEffects();
 	eggSystem_.Initialize();
 	coinSystem_.ResetPlay();
@@ -831,7 +895,6 @@ void GamePlayScene::ResetStageForRetry(){
 // =====================================================================
 void GamePlayScene::OnDebugUI(){
 #ifdef USE_IMGUI
-	stageFlow_.DrawDebugUI(); // ゴール到達表示
 	DrawHitShapes();
 
 	SceneEditContext editContext = MakeEditContext();
@@ -899,6 +962,7 @@ void GamePlayScene::OnDrawInspector(){
 #ifdef USE_IMGUI
 	// ステージ開始の演技のクリップを、その場で流して確かめる（「止める」で元の動きへ）
 	gameOver_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
+	clear_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
 	if ( ImGui::CollapsingHeader("ステージ開始の演技") ) {
 		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump", "WallBump" } ) {
 			if ( ImGui::Button(clip) ) { avatar_.PlayIntroClip(clip); }
@@ -924,6 +988,7 @@ void GamePlayScene::OnFinalize(){
 	SDFManager::GetInstance()->SetExtraPanelUI(nullptr);
 	ScreenCapture::GetInstance()->ClearTakeHooks(); // this をキャプチャしている
 	gameOver_.Finalize();
+	clear_.Finalize();
 	flip_.Finalize();
 	textures_.clear();
 }

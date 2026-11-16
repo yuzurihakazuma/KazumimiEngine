@@ -1,4 +1,5 @@
 #include "game/worldmap/DioramaTrain.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -10,7 +11,7 @@
 #include <string>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr const char* kFeltTexture = "resources/road/cloth/cloth_felt_plain.png";
     constexpr float kFeltBrightness = 0.46f; // フェルトの画像の平均の明るさ（linear）
 

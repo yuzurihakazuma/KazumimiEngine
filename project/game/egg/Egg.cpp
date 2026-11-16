@@ -33,6 +33,10 @@ void Egg::Update(float dt){
             break;
         }
         prevPos_ = pos_;
+        {   // 飛んでいる向きを覚えておく（壁で止まると速さは 0 になるので、その前に）
+            const float speed = std::sqrt(vel_.x * vel_.x + vel_.y * vel_.y + vel_.z * vel_.z);
+            if ( speed > 1e-4f ) { flightDir_ = { vel_.x / speed, vel_.y / speed, vel_.z / speed }; }
+        }
         pos_.x += vel_.x * dt;
         pos_.y += vel_.y * dt;
         pos_.z += vel_.z * dt;
@@ -67,7 +71,9 @@ void Egg::Update(float dt){
 }
 
 void Egg::Draw() const{
-    if ( obj_ && !IsDead() && !visualHidden_ ) { obj_->Draw(); }
+    // 割れたら本体は描かない（殻のかけらに入れ替わる）。
+    //   前は割れた後も 0.3 秒、丸ごとの卵がその場に浮いたまま回っていて、かけらが飛んだ後にぱっと消えていた
+    if ( obj_ && state_ != EggState::Broken && !visualHidden_ ) { obj_->Draw(); }
 }
 
 // 壁や地面に当たった位置で止める（見た目もその場へ。割れるのは次の判定）

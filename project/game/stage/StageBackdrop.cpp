@@ -1,4 +1,7 @@
 #include "game/stage/StageBackdrop.h"
+#include "engine/math/VectorMath.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -18,7 +21,7 @@ using json = nlohmann::json;
 
 namespace {
     constexpr const char* kKitModelDir = "resources/craft/models";
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr const char* kGroundModel = "ground_block_step";
     constexpr const char* kPathModel   = "ground_block_path"; // ground_block_step の上の面を紙の道に
     constexpr const char* kDirtModel   = "ground_block_dirt"; // ground_block_step の上の面を段ボール（土）に
@@ -28,10 +31,10 @@ namespace {
     bool IsGroundModel(const std::string& model){ return model == kGroundModel || model == kPathModel || model == kDirtModel; }
     constexpr float kMatchDistance = 0.3f; // 手直しを自動配置へ当てる時、元の位置がこれだけ近ければ同じ物
 
+    // [x, y, z] の並び。数 1 つなら、3 つとも同じ値（"scale": 1.5 のような書き方）
     Vector3 ReadVector(const json& value, const Vector3& fallback){
         if ( value.is_number() ) { const float v = value.get<float>(); return { v, v, v }; }
-        if ( !value.is_array() || value.size() < 3 ) { return fallback; }
-        return { value[0].get<float>(), value[1].get<float>(), value[2].get<float>() };
+        return JsonFile::ToVector3(value, fallback);
     }
     json WriteVector(const Vector3& v){
         auto round3 = [](float f){ return std::round(( double ) f * 1000.0) / 1000.0; }; // 保存は mm まで（float のままだと桁が長くなる）
@@ -40,10 +43,7 @@ namespace {
     bool Near(const Vector3& a, const Vector3& b, float eps){
         return std::abs(a.x - b.x) <= eps && std::abs(a.y - b.y) <= eps && std::abs(a.z - b.z) <= eps;
     }
-    float Distance(const Vector3& a, const Vector3& b){
-        const float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
-        return std::sqrt(dx * dx + dy * dy + dz * dz);
-    }
+    using VectorMath::Distance;
     bool SameTransform(const BackdropItem& a, const BackdropItem& b){
         return Near(a.pos, b.pos, 0.001f) && Near(a.rot, b.rot, 0.01f) && Near(a.scale, b.scale, 0.001f);
     }
@@ -160,11 +160,8 @@ std::string StageBackdrop::EditPath(const std::string& stage){ return "resources
 
 namespace {
     json ReadJsonFile(const std::string& path){
-        std::ifstream file(path);
-        json content = json::object(); // 無い・読めない時は空
-        if ( file.is_open() ) {
-            try { file >> content; } catch ( ... ) { content = json::object(); }
-        }
+        json content;
+        JsonFile::Load(path, content); // 無い・読めない時は空
         return content.is_object() ? content : json::object();
     }
 }
@@ -521,8 +518,7 @@ void StageBackdrop::EraseCell(int column, int row){
 
 // ===== 行列 =====
 Matrix4x4 StageBackdrop::MakeWorld(const BackdropItem& item){
-    const float k = kPi / 180.0f;
-    return MatrixMath::MakeAffine(item.scale, { item.rot.x * k, item.rot.y * k, item.rot.z * k }, item.pos); // Obj3d::Update と同じ作り方
+    return MatrixMath::MakeAffine(item.scale, item.rot * Math::kDegToRad, item.pos); // Obj3d::Update と同じ作り方
 }
 
 void StageBackdrop::UpdateCache(int index){

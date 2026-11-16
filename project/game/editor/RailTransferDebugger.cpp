@@ -1,4 +1,5 @@
 #include "game/editor/RailTransferDebugger.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/base/TimeManager.h"
 #include "engine/camera/Camera.h"
@@ -21,7 +22,7 @@
 using namespace VectorMath;
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr size_t kSampleCount = 600;     // 約10秒（60fps）
     constexpr size_t kLogLimit = 1000;
     constexpr float kTrailSeconds = 3.0f;
@@ -40,12 +41,8 @@ namespace {
         const float la = Length(a), lb = Length(b);
         if ( la < 1e-6f || lb < 1e-6f ) return 0.0f;
         const float c = std::clamp(Dot(a, b) / ( la * lb ), -1.0f, 1.0f);
-        return std::acos(c) * 180.0f / kPi;
+        return Math::ToDegrees(std::acos(c));
     }
-    Vector3 Scale(const Vector3& v, float s){ return { v.x * s, v.y * s, v.z * s }; }
-    Vector3 Plus(const Vector3& a, const Vector3& b){ return { a.x + b.x, a.y + b.y, a.z + b.z }; }
-    Vector3 Minus(const Vector3& a, const Vector3& b){ return { a.x - b.x, a.y - b.y, a.z - b.z }; }
-    float Dist3(const Vector3& a, const Vector3& b){ return Length(Minus(a, b)); }
 
     const char* KindName(Player::TransferKind kind){
         switch ( kind ) {
@@ -81,8 +78,8 @@ std::vector<RailTransferDebugger::Connection> RailTransferDebugger::MeasureConne
             // A の端から出て行く向き（front から出る時は接線の逆）と、その時の「進む向きの右」
             const SplineRail::RailFrame frameA = railA.GetFrameAtDistance(aDist);
             const float signA = aFront ? -1.0f : 1.0f;
-            const Vector3 dirA = Scale(railA.GetTangentByDistance(aDist), signA);
-            const Vector3 rightA = Scale(frameA.right, signA);
+            const Vector3 dirA = Multiply(railA.GetTangentByDistance(aDist), signA);
+            const Vector3 rightA = Multiply(frameA.right, signA);
 
             if ( b >= 0 && b < count && IsUsable(rails[b]) ) {
                 // 端どうし：同じ組は1回だけ（a<b、または相手が別の端を指している片思い）
@@ -94,13 +91,13 @@ std::vector<RailTransferDebugger::Connection> RailTransferDebugger::MeasureConne
                 const Vector3 posB = railB.GetPositionByDistance(bDist);
                 const SplineRail::RailFrame frameB = railB.GetFrameAtDistance(bDist);
                 const float signB = bFront ? 1.0f : -1.0f; // B へ入って進む向き
-                const Vector3 dirB = Scale(railB.GetTangentByDistance(bDist), signB);
-                const Vector3 rightB = Scale(frameB.right, signB);
+                const Vector3 dirB = Multiply(railB.GetTangentByDistance(bDist), signB);
+                const Vector3 rightB = Multiply(frameB.right, signB);
                 Connection c;
                 c.railA = a; c.aFront = aFront; c.aDist = aDist;
                 c.railB = b; c.bFront = bFront; c.bDist = bDist;
                 c.pos = posA;
-                c.gap = Dist3(posA, posB);
+                c.gap = Distance(posA, posB);
                 c.tangentDeg = AngleDeg(dirA, dirB);
                 c.upDeg = AngleDeg(frameA.up, frameB.up);
                 c.rightDeg = AngleDeg(rightA, rightB);
@@ -116,7 +113,7 @@ std::vector<RailTransferDebugger::Connection> RailTransferDebugger::MeasureConne
                 const float s = rails[j].GetClosestDistance(posA);
                 const Vector3 p = rails[j].GetPositionByDistance(s);
                 const Vector3 toTarget { p.x - posA.x, 0.0f, p.z - posA.z };
-                const float d = Dist3(p, posA);
+                const float d = Distance(p, posA);
                 if ( d >= bestDist ) continue;
                 const float lh = std::sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
                 if ( lh > 1e-3f && ( toTarget.x * dirA.x + toTarget.z * dirA.z ) / lh < 0.1f
@@ -203,7 +200,7 @@ void RailTransferDebugger::Record(const Player& player, const std::vector<Spline
     sample.transfer = step.transferCount > 0;
     sample.clamped = step.clampedAtEnd;
     if ( hasLast_ ) {
-        sample.move = Dist3(sample.position, last_.position);
+        sample.move = Distance(sample.position, last_.position);
         sample.speed = sample.move / dt;
     }
     if ( !step.inAir && step.rail >= 0 && step.rail < ( int ) rails.size() && IsUsable(rails[step.rail]) ) {
@@ -216,9 +213,7 @@ void RailTransferDebugger::Record(const Player& player, const std::vector<Spline
     }
     if ( camera ) {
         const float yaw = camera->GetRotation().y;
-        float turn = ( yaw - lastCameraYaw_ ) * 180.0f / kPi;
-        while ( turn > 180.0f ) turn -= 360.0f;
-        while ( turn < -180.0f ) turn += 360.0f;
+        const float turn = Math::WrapDegrees(Math::ToDegrees(yaw - lastCameraYaw_));
         sample.cameraTurn = hasLast_ ? std::abs(turn) : 0.0f;
         lastCameraYaw_ = yaw;
     }
@@ -254,7 +249,7 @@ void RailTransferDebugger::Record(const Player& player, const std::vector<Spline
         row.toRail = t.toRail;     row.toDist = t.toDist;
         row.overshoot = t.overshoot;
         row.carried = t.carried;
-        row.warp = ( std::max )( 0.0f, Dist3(t.fromPos, t.toPos) - t.carried );
+        row.warp = ( std::max )( 0.0f, Distance(t.fromPos, t.toPos) - t.carried );
         row.visibleOffset = Length(step.smooth);
         row.before = hasLast_ ? last_.position : t.fromPos;
         row.after = step.position;
@@ -309,19 +304,19 @@ void RailTransferDebugger::DrawOverlay(const std::vector<SplineRail>& rails, con
             const Vector3 center = rail.GetPositionByDistance(d);
             const SplineRail::RailFrame frame = rail.GetFrameAtDistance(d);
             const Vector3 lift { 0.0f, 0.03f, 0.0f };
-            const Vector3 left = Plus(Plus(center, Scale(frame.right, -halfWidth_)), lift);
-            const Vector3 right = Plus(Plus(center, Scale(frame.right, halfWidth_)), lift);
+            const Vector3 left = Add(Add(center, Multiply(frame.right, -halfWidth_)), lift);
+            const Vector3 right = Add(Add(center, Multiply(frame.right, halfWidth_)), lift);
             if ( s > 0.0f ) {
-                draw->Line(Plus(prevCenter, lift), Plus(center, lift), lineColor);
+                draw->Line(Add(prevCenter, lift), Add(center, lift), lineColor);
                 if ( showBounds_ && rail.visible && rail.roadMode == 0 ) {
                     draw->Line(prevLeft, left, { 1.0f, 1.0f, 1.0f, 0.5f });
                     draw->Line(prevRight, right, { 1.0f, 1.0f, 1.0f, 0.5f });
                 }
             }
-            if ( showFrames_ && Dist3(center, focus) < nearRange && std::fmod(s, 1.0f) < 0.01f ) {
-                draw->Line(center, Plus(center, Scale(frame.tangent, 0.4f)), { 1.0f, 0.3f, 0.3f, 1.0f }); // 接線（赤）
-                draw->Line(center, Plus(center, Scale(frame.right, 0.4f)), { 0.3f, 1.0f, 0.3f, 1.0f });   // 横（緑）
-                draw->Line(center, Plus(center, Scale(frame.up, 0.4f)), { 0.3f, 0.5f, 1.0f, 1.0f });      // 上（青）
+            if ( showFrames_ && Distance(center, focus) < nearRange && std::fmod(s, 1.0f) < 0.01f ) {
+                draw->Line(center, Add(center, Multiply(frame.tangent, 0.4f)), { 1.0f, 0.3f, 0.3f, 1.0f }); // 接線（赤）
+                draw->Line(center, Add(center, Multiply(frame.right, 0.4f)), { 0.3f, 1.0f, 0.3f, 1.0f });   // 横（緑）
+                draw->Line(center, Add(center, Multiply(frame.up, 0.4f)), { 0.3f, 0.5f, 1.0f, 1.0f });      // 上（青）
             }
             prevCenter = center; prevLeft = left; prevRight = right;
             if ( d >= length ) break;
@@ -331,7 +326,7 @@ void RailTransferDebugger::DrawOverlay(const std::vector<SplineRail>& rails, con
     for ( const Connection& c : MeasureConnections(rails) ) {
         if ( showOnlyBad_ && c.status == 0 ) continue;
         const Vector4 color = c.status == 0 ? kGreen : c.status == 1 ? kYellow : c.status == 2 ? kRed : Vector4 { 0.4f, 0.7f, 1.0f, 1.0f };
-        draw->Sphere(Plus(c.pos, { 0.0f, 0.1f, 0.0f }), c.status == 0 ? 0.12f : 0.22f, color, 10);
+        draw->Sphere(Add(c.pos, { 0.0f, 0.1f, 0.0f }), c.status == 0 ? 0.12f : 0.22f, color, 10);
         if ( c.gap > 0.001f && c.railB >= 0 ) {
             draw->Line(c.pos, rails[c.railB].GetPositionByDistance(c.bDist), color);
         }
@@ -352,7 +347,7 @@ void RailTransferDebugger::DrawOverlay(const std::vector<SplineRail>& rails, con
             const size_t index = ( sampleHead_ + count - 1 - k ) % count;
             const Sample& sample = samples_[index];
             const Vector4 color = sample.transfer ? kRed : sample.clamped ? kYellow : Vector4 { 1.0f, 1.0f, 1.0f, 0.8f };
-            draw->Sphere(Plus(sample.position, { 0.0f, 0.05f, 0.0f }), sample.transfer ? 0.1f : 0.035f, color, 6);
+            draw->Sphere(Add(sample.position, { 0.0f, 0.05f, 0.0f }), sample.transfer ? 0.1f : 0.035f, color, 6);
         }
     }
 }
@@ -497,18 +492,18 @@ void RailTransferDebugger::FixTangent(const Connection& c, const std::vector<Spl
     // A の端の向き（データの折れ線の最後の区間＝Catmull-Rom の端の接線と同じ向き）
     const Vector3 endA = c.aFront ? lineA[0] : lineA.back();
     const Vector3 nextA = c.aFront ? lineA[1] : lineA[lineA.size() - 2];
-    Vector3 dir = Normalize(Minus(endA, nextA)); // A から出て行く向き
+    Vector3 dir = Normalize(Subtract(endA, nextA)); // A から出て行く向き
     const int endIndexB = c.bFront ? 0 : ( int ) lineB.size() - 1;
     const int nextIndexB = c.bFront ? 1 : ( int ) lineB.size() - 2;
     const Vector3 endB = lineB[endIndexB];
-    const float span = Dist3(lineB[nextIndexB], endB);
+    const float span = Distance(lineB[nextIndexB], endB);
     ( void ) rails;
     if ( span > 1.5f ) {
         // 遠い：端から 0.6m の所に点を足して、そこまでを A の向きにそろえる（形は大きく変えない）
-        const Vector3 added = Plus(endB, Scale(dir, 0.6f));
+        const Vector3 added = Add(endB, Multiply(dir, 0.6f));
         railEditor->InsertNodeOf(c.railB, c.bFront ? 1 : ( int ) lineB.size() - 1, added);
     } else {
-        railEditor->SetNodePosOf(c.railB, nextIndexB, Plus(endB, Scale(dir, span)));
+        railEditor->SetNodePosOf(c.railB, nextIndexB, Add(endB, Multiply(dir, span)));
     }
     status_ = "R" + std::to_string(c.railB) + " の端の向きを R" + std::to_string(c.railA) + " にそろえた（元に戻す：Ctrl+Z）";
 }
@@ -568,7 +563,7 @@ void RailTransferDebugger::WriteCsv(){
              << row.warp << "," << row.visibleOffset << ","
              << row.before.x << "," << row.before.y << "," << row.before.z << ","
              << row.after.x << "," << row.after.y << "," << row.after.z << ","
-             << Dist3(row.before, row.after) << "," << row.speedBefore << "," << row.speedAfter << ","
+             << Distance(row.before, row.after) << "," << row.speedBefore << "," << row.speedAfter << ","
              << row.lateralBefore << "," << row.lateralAfter << "\n";
     }
     status_ = std::string("書き出した: project/") + name;

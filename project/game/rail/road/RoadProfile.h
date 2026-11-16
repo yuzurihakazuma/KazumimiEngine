@@ -1,5 +1,6 @@
 #pragma once
 #include "engine/math/struct.h"
+#include "engine/math/MathUtil.h"
 #include <cmath>
 
 // =====================================================================
@@ -56,7 +57,7 @@ inline constexpr float kTopOffset  = -0.25f;           // 断面高さへの加�
                                                        // （レール線＝歩行面＝ブロックの底面基準。ズレ補正が要らなくなる）
 inline constexpr float kUvPerMeter = 1.0f / 2.0f;      // u = 距離 / 2m（ピースとテクスチャ周期を共有）
 inline constexpr float kDarkV      = 0.465f;           // アトラスの黒帯の中央（穴の奈落フタ用）
-inline constexpr float kPi         = 3.14159265f;
+inline constexpr float kPi         = Math::kPi;
 
 // 水平（XZ）へ射影して正規化。ほぼ真上/真下なら false
 inline bool ToHorizontal(const Vector3& v, Vector3& out){

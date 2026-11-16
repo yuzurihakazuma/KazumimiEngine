@@ -1,4 +1,7 @@
 #include "game/transition/KamishibaiTransition.h"
+#include "game/ui/UiScale.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/2d/Sprite.h"
 #include "engine/2d/SpriteCommon.h"
@@ -23,11 +26,11 @@
 using json = nlohmann::json;
 
 namespace {
-	constexpr float kPi = 3.14159265358979323846f;
+	constexpr float kPi = Math::kPi;
 
 	// 枠の画像（1920x1080）の窓の位置。tools/kamishibai/make_kamishibai_assets.py の FRAME_WINDOW と同じ
-	constexpr float kImageWidth = 1920.0f;
-	constexpr float kImageHeight = 1080.0f;
+	constexpr float kImageWidth = UiScale::kBaseWidth;
+	constexpr float kImageHeight = UiScale::kBaseHeight;
 	constexpr float kWindowLeft = 250.0f, kWindowTop = 175.0f, kWindowRight = 1670.0f, kWindowBottom = 935.0f;
 
 	constexpr float kBannerWidth = 1000.0f, kBannerHeight = 210.0f; // hajimari.png
@@ -45,7 +48,8 @@ namespace {
 	constexpr const char* kCurtainPath = "resources/kamishibai/curtain.png";
 	constexpr const char* kValancePath = "resources/kamishibai/valance.png";
 	constexpr float kCurtainHalf = 0.53f;    // 閉じた時の幕1枚の幅（画面幅=1。真ん中で少し重ねる）
-	constexpr float kCurtainHemRatio = 1080.0f / 1032.0f; // 裾のギザギザ（画像の下 48px）を画面の下の外へ出す（閉じた時にすき間を作らない）
+	constexpr float kCurtainHemPixels = 48.0f; // 幕の絵の下の、裾のギザギザの高さ
+	constexpr float kCurtainHemRatio = kImageHeight / ( kImageHeight - kCurtainHemPixels ); // 裾のギザギザ（画像の下 48px）を画面の下の外へ出す（閉じた時にすき間を作らない）
 	constexpr float kValanceHeight = 200.0f; // valance.png の高さ（1920 幅のとき）
 	constexpr const char* kWhitePath = "resources/block/white1x1.png";
 	const char* kSounds[] = {
@@ -79,10 +83,8 @@ namespace {
 	}
 }
 
-KamishibaiTransition* KamishibaiTransition::GetInstance(){
-	static KamishibaiTransition instance;
-	return &instance;
-}
+KamishibaiTransition::KamishibaiTransition() = default;
+KamishibaiTransition::~KamishibaiTransition() = default;
 
 void KamishibaiTransition::Load(){
 	if ( loaded_ ) { return; }
@@ -130,10 +132,8 @@ void KamishibaiTransition::Finalize(){
 }
 
 bool KamishibaiTransition::LoadDefinition(const std::string& definitionName){
-	std::ifstream file(kDefinitionDir + definitionName + ".json");
-	if ( !file.is_open() ) { return false; }
 	json definition;
-	try { file >> definition; } catch ( ... ) { return false; }
+	if ( !JsonFile::Load(kDefinitionDir + definitionName + ".json", definition) ) { return false; }
 	timeline_.Load(definition.value("parts", json::array()));
 	toScene_ = definition.value("to", std::string("STAGESELECT"));
 	definitionName_ = definitionName;
@@ -147,14 +147,9 @@ bool KamishibaiTransition::LoadDefinition(const std::string& definitionName){
 bool KamishibaiTransition::SaveDefinition() const{
 	if ( definitionName_.empty() ) { return false; }
 	// 部品の並び以外（ステージ開始カードの置き場所など）は、今のファイルの中身をそのまま残す
-	json definition = json::object();
-	{
-		std::ifstream current(kDefinitionDir + definitionName_ + ".json");
-		if ( current.is_open() ) {
-			try { current >> definition; } catch ( ... ) { definition = json::object(); }
-		}
-		if ( !definition.is_object() ) { definition = json::object(); }
-	}
+	json definition;
+	JsonFile::Load(kDefinitionDir + definitionName_ + ".json", definition);
+	if ( !definition.is_object() ) { definition = json::object(); }
 	definition["to"] = toScene_;
 	definition["parts"] = timeline_.Save();
 	std::ofstream file(kDefinitionDir + definitionName_ + ".json");
@@ -258,7 +253,7 @@ void KamishibaiTransition::ApplyParts(float step){
 			}
 			// 一瞬こらえて（EaseInBack で逆へ少し戻る）から、横へ吹き飛ぶ
 			const float direction = params.value("direction", -1.0f);
-			const float rotate = params.value("rotate", 14.0f) * kPi / 180.0f;
+			const float rotate = Math::ToRadians(params.value("rotate", 14.0f));
 			pictureOffset_ = direction * 1.35f * Easing::EaseInBack(p);
 			pictureAngle_ = direction * rotate * Easing::EaseInQuad(p);
 			pictureLift_ = -0.06f * Easing::EaseInQuad(p);
@@ -289,8 +284,8 @@ void KamishibaiTransition::ApplyParts(float step){
 				eggVisible_ = true;
 				eggAlpha_ = 1.0f;
 				const float fromX = 0.5f + params.value("fromX", -0.12f);
-				eggX_ = Easing::Lerp(fromX, 0.5f, p);
-				eggY_ = Easing::Lerp(1.15f, 0.5f, p) - params.value("arc", 0.3f) * 4.0f * p * ( 1.0f - p );
+				eggX_ = Math::Lerp(fromX, 0.5f, p);
+				eggY_ = Math::Lerp(1.15f, 0.5f, p) - params.value("arc", 0.3f) * 4.0f * p * ( 1.0f - p );
 				eggAngle_ = p * 3.0f * kPi;
 			}
 			if ( part.justFinished ) {

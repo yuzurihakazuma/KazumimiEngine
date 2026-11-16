@@ -1,4 +1,7 @@
 #include "StageSelectScene.h"
+#include "engine/base/TimeManager.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 // --- ゲーム固有のファイル ---
 #include "GamePlayAssets.h"
 #include "game/rail/RailConnections.h"
@@ -33,12 +36,11 @@
 #include "game/stage/StageRecords.h"
 
 #include <cmath>
-#include <fstream>
 #include <string>
 
 namespace {
-	constexpr float kDeltaTime = 1.0f / 60.0f;
-	constexpr float kPi = 3.14159265358979323846f;
+	constexpr float kDeltaTime = Time::kFixedDeltaTime;
+	constexpr float kPi = Math::kPi;
 	constexpr const char* kMapFile = "resources/worldmap/worldmap.json";
 	constexpr const char* kDiveFile = "resources/worldmap/dive.json";
 	constexpr const char* kBackdropFile = "resources/worldmap/worldmap_backdrop.json";
@@ -54,6 +56,16 @@ namespace {
 	constexpr float kPreviewSway = 0.38f;   // プレビューのカメラが左右に振れる角度(rad)
 	constexpr float kLabelSize = 0.5f;      // 台座の番号の紙(m)
 	constexpr float kSmokeInterval = 0.2f;  // 汽車のけむりの間(秒)
+	// 布の道が次のマスへ伸びる（クリアして戻って来た時）
+	constexpr const char* kRoadSe = "resources/clear/se_road.wav";
+	constexpr const char* kRollModel = "introRoll"; // 巻いた布のロール（X が筒の軸）
+	constexpr float kRoadPastNode = 1.8f;     // 布の道は、行けるマスの立つ所から、これだけ先まで敷く(m)
+	constexpr float kRoadOpenTime = 1.5f;     // 伸びる時間(秒)
+	constexpr float kRoadOpenWait = 0.35f;    // 円が開いてから、伸び始めるまで(秒)
+	constexpr float kRollRadius = 0.36f;      // ロールの太さ（半径 m）
+	constexpr float kRollShrink = 0.45f;      // 伸び切るまでに、ロールが細くなる割合
+	constexpr float kRoadPanAmount = 0.55f;   // カメラを、伸びる先のマスの方へ寄せる割合
+	constexpr float kRoadPanSpeed = 2.2f;     // 寄せる・戻す速さ(1/秒)
 
 	const char* kGuideMessage = "T : タイトルへ";
 	const char* kFontAtlas = "jpdot";
@@ -66,22 +78,6 @@ namespace {
 #else
 		return false;
 #endif
-	}
-	Vector3 Lerp(const Vector3& a, const Vector3& b, float t){
-		return { a.x + ( b.x - a.x ) * t, a.y + ( b.y - a.y ) * t, a.z + ( b.z - a.z ) * t };
-	}
-	float WrapAngle(float angle){
-		while ( angle > kPi ) { angle -= 2.0f * kPi; }
-		while ( angle < -kPi ) { angle += 2.0f * kPi; }
-		return angle;
-	}
-	// カメラを position から target を見る向きへ（PlayCameraController と同じ規約）
-	void LookAt(Camera* camera, const Vector3& position, const Vector3& target){
-		camera->SetTranslation(position);
-		const Vector3 look { target.x - position.x, target.y - position.y, target.z - position.z };
-		const float horizontal = std::sqrt(look.x * look.x + look.z * look.z);
-		if ( horizontal < 1e-4f && std::abs(look.y) < 1e-4f ) { return; }
-		camera->SetRotation({ std::atan2(-look.y, horizontal), std::atan2(look.x, look.z), 0.0f });
 	}
 	// 板（平面モデル）を、画像を貼った別名で作る
 	void CreateCardModel(const std::string& name, const std::string& texture, float size){
@@ -110,6 +106,12 @@ void StageSelectScene::OnLoadResources(){
 	audio->LoadWave(kJumpSe);
 	audio->LoadWave(kSplashSe);
 	audio->LoadWave(kStepSe);
+	audio->LoadWave(kRoadSe);
+	// 道が伸びる演出の、巻いた布のロール
+	ModelManager::GetInstance()->LoadModel(kRollModel, "resources/stage_intro/roll", "Roll_Felt.obj", true);
+	if ( Model* roll = ModelManager::GetInstance()->FindModel(kRollModel) ) {
+		if ( roll->GetMaterial() ) { roll->GetMaterial()->matte = 1.0f; }
+	}
 }
 
 void StageSelectScene::OnInitialize(){
@@ -136,7 +138,9 @@ void StageSelectScene::OnInitialize(){
 		dino_->SetClip("Idle", true);
 		dinoClip_ = "Idle";
 	}
-	targetNode_ = std::clamp(lastNode_, 0, ( std::max )( ( int ) nodes_.size() - 1, 0 ));
+	roadRoll_ = Obj3d::Create(kRollModel);
+	SetupProgress();
+	targetNode_ = std::clamp(lastNode_, 0, ( std::max )( reachable_ - 1, 0 ));
 	dinoDistance_ = nodes_.empty() ? 0.0f : nodes_[targetNode_].roadDistance;
 	dinoYaw_ = 0.0f;
 	previewNode_ = -1;
@@ -150,6 +154,83 @@ void StageSelectScene::OnInitialize(){
 	phaseTime_ = 0.0f;
 	PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
 	PostEffect::GetInstance()->SetIrisParams(0.0f, 0.5f, 0.5f);
+}
+
+// 行けるマスの数：最初のマスと、クリアしたステージの次のマス（左から続いている分だけ）
+int StageSelectScene::CountReachable(const std::string& ignoreClear) const{
+	const StageRecords* records = StageRecords::GetInstance();
+	int reachable = nodes_.empty() ? 0 : 1;
+	for ( int i = 0; i + 1 < ( int ) data_.stages.size(); ++i ) {
+		const std::string& stage = data_.stages[i].stage;
+		if ( stage.empty() || stage == ignoreClear || !records->IsCleared(stage) ) { break; }
+		reachable = i + 2;
+	}
+	return reachable;
+}
+
+// 布の道を敷く長さ：行けるいちばん先のマスの、少し先まで（全部行ける時は、道の終わりまで）
+float StageSelectScene::RoadFrontFor(int reachable) const{
+	if ( road_.empty() || nodes_.empty() ) { return 0.0f; }
+	const float length = road_[0].GetLength();
+	if ( reachable >= ( int ) nodes_.size() ) { return length; }
+	return ( std::min )( nodes_[( std::max )( reachable, 1 ) - 1].roadDistance + kRoadPastNode, length );
+}
+
+void StageSelectScene::SetupProgress(){
+	StageRecords* records = StageRecords::GetInstance();
+	const std::string justCleared = records->ConsumeJustCleared();
+	reachable_ = CountReachable("");
+	roadOpenPending_ = false;
+	// 初めてクリアして戻って来た：そのステージをクリアする前の所まで敷いておき、円が開いたら次のマスへ伸ばす
+	if ( !justCleared.empty() && records->ClearCount(justCleared) == 1 ) {
+		const int before = CountReachable(justCleared);
+		if ( before < reachable_ ) {
+			roadOpenTo_ = reachable_;
+			reachable_ = before;
+			roadOpenPending_ = true;
+		}
+	}
+	roadFront_ = RoadFrontFor(reachable_);
+	roadPan_ = 0.0f;
+	UpdateRoadCloth();
+}
+
+void StageSelectScene::UpdateRoadCloth(){
+	if ( road_.empty() ) { return; }
+	// 道の始めから roadFront_ までだけ敷く（全部敷く時は、切らない）
+	const bool whole = roadFront_ >= road_[0].GetLength() - 0.01f;
+	roadMesh_.SetUnroll(0, 0.0f, whole ? -1.0f : roadFront_);
+	roadMesh_.UpdateCloth(road_);
+}
+
+// 布の道が、次のマスへ転がって伸びる。伸び切ったら、次のマスへ歩けるようになる
+void StageSelectScene::UpdateRoadOpen(float deltaTime){
+	roadOpenTime_ += deltaTime;
+	const float t = Easing::Clamp01(( roadOpenTime_ - kRoadOpenWait ) / kRoadOpenTime);
+	roadFront_ = Math::Lerp(roadOpenFrom_, roadOpenTarget_, Easing::EaseInOutSine(t));
+	UpdateRoadCloth();
+	// ロール：布の先で転がる（進んだ分だけ回り、だんだん細くなる）
+	if ( roadRoll_ && !road_.empty() ) {
+		const float radius = kRollRadius * ( 1.0f - kRollShrink * t );
+		const Vector3 at = road_[0].GetPositionByDistance(roadFront_);
+		const Vector3 tangent = road_[0].GetTangentByDistance(roadFront_);
+		roadRollAngle_ = ( roadFront_ - roadOpenFrom_ ) / ( std::max )( radius, 0.05f );
+		roadRoll_->SetTranslation({ at.x, at.y + radius, at.z });
+		roadRoll_->SetRotation({ roadRollAngle_, std::atan2(tangent.x, tangent.z), 0.0f });
+		roadRoll_->SetScale({ data_.roadWidth / 1.8f, radius, radius });
+		roadRoll_->Update();
+	}
+	if ( t < 1.0f ) { return; }
+	// 伸び切った：ロールはぽんと消えて、綿のけむりと紙吹雪。次のマスへ行ける
+	reachable_ = roadOpenTo_;
+	phase_ = Phase::Map;
+	phaseTime_ = 0.0f;
+	if ( !road_.empty() ) {
+		const Vector3 end = road_[0].GetPositionByDistance(roadFront_);
+		fx_.PuffRing({ end.x, end.y + 0.1f, end.z }, 8, 1.2f, 0.4f, PaperFx::PuffColor::White);
+		fx_.Confetti({ end.x, end.y + 0.3f, end.z }, 24, 2.8f, 0.08f);
+	}
+	AudioManager::GetInstance()->PlayWave(kSplashSe, false, 0.7f);
 }
 
 void StageSelectScene::BuildMap(){
@@ -169,11 +250,8 @@ void StageSelectScene::BuildMap(){
 
 	// まわりの地面・木・丘・空
 	const uint32_t noise = TextureManager::GetInstance()->Load("resources/uvChecker.png").srvIndex;
-	std::ifstream file(kBackdropFile);
-	nlohmann::json backdrop = nlohmann::json::object();
-	if ( file.is_open() ) {
-		try { file >> backdrop; } catch ( ... ) { backdrop = nlohmann::json::object(); }
-	}
+	nlohmann::json backdrop;
+	JsonFile::Load(kBackdropFile, backdrop); // 無い・読めない時は空
 	backdrop_.Build(backdrop.value("objects", nlohmann::json::array()), { 0.0f, 0.0f, 0.0f }, noise);
 
 	// マス：台座・番号の紙・（まだ遊べなければ）蓋・箱庭
@@ -228,6 +306,7 @@ void StageSelectScene::OnFinalize(){
 	backdrop_.Clear();
 	panel_.Finalize();
 	fx_.Clear();
+	roadRoll_.reset();
 	dino_.reset();
 	guideText_.reset();
 }
@@ -302,11 +381,24 @@ void StageSelectScene::OnUpdate(){
 		if ( phaseTime_ >= kOpenTime ) {
 			phase_ = Phase::Map;
 			PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, false);
+			if ( roadOpenPending_ ) {
+				// クリアして戻って来た：次のマスへ、布の道が転がって伸びる
+				roadOpenPending_ = false;
+				phase_ = Phase::RoadOpen;
+				roadOpenTime_ = 0.0f;
+				roadOpenFrom_ = roadFront_;
+				roadOpenTarget_ = RoadFrontFor(roadOpenTo_);
+				AudioManager::GetInstance()->PlayWave(kRoadSe, false, 0.8f);
+			}
 		}
 		UpdateWalk(dt);
 		break;
 	case Phase::Map:
 		UpdateWalk(dt);
+		break;
+	case Phase::RoadOpen:
+		UpdateRoadOpen(dt);
+		UpdateWalk(dt); // 立ったまま待つ（キーは Map の間だけ受け付ける）
 		break;
 	case Phase::Dive:
 	case Phase::Leaving:
@@ -324,8 +416,13 @@ void StageSelectScene::OnUpdate(){
 			StageDiorama* diorama = nodes_[standing].diorama.get();
 			if ( diorama ) { diorama->SetSelected(true); }
 			StageRecords* records = StageRecords::GetInstance();
-			panel_.SetContent(stage.stage, stage.unlocked && diorama, records->Get(stage.stage).bestCoins,
-			                  records->ComboFlowersFound(stage.stage), StageRecords::CountComboTargets(stage.stage));
+			WorldMapPanel::Counts counts;
+			counts.coins = records->Get(stage.stage).bestCoins;
+			counts.comboFound = records->ComboFlowersFound(stage.stage);
+			counts.comboTotal = StageRecords::CountComboTargets(stage.stage);
+			counts.stamps = records->StampCount(stage.stage);
+			counts.stampTotal = records->StampTotal(stage.stage);
+			panel_.SetContent(stage.stage, stage.unlocked && diorama, counts);
 			orbitAngle_ = 0.0f;
 			if ( diorama ) { fx_.Confetti({ nodes_[standing].center.x, nodes_[standing].center.y + 0.2f, nodes_[standing].center.z }, 14, 2.4f, 0.07f); }
 			AudioManager::GetInstance()->PlayWave(kSplashSe, false, 0.5f);
@@ -363,6 +460,9 @@ void StageSelectScene::OnUpdate(){
 			if ( obj ) { obj->Update(); }
 		}
 	}
+	// 伸びる先を見せるカメラの寄せ：伸びている間だけ寄せて、終わったら戻す
+	const float panWanted = ( phase_ == Phase::RoadOpen ) ? 1.0f : 0.0f;
+	roadPan_ += std::clamp(panWanted - roadPan_, -kRoadPanSpeed * dt, kRoadPanSpeed * dt);
 	roadMesh_.Update(road_);
 	backdrop_.Update(GetCamera());
 	fx_.Update(dt, GetCamera());
@@ -387,13 +487,14 @@ void StageSelectScene::OnUpdate(){
 void StageSelectScene::UpdateWalk(float deltaTime){
 	if ( phase_ == Phase::Map && !IsTypingInEditor() && !nodes_.empty() ) {
 		Input* input = Input::GetInstance();
-		if ( input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT) ) { targetNode_ = ( std::max )( targetNode_ - 1, 0 ); }
-		if ( input->Triggerkey(DIK_D) || input->Triggerkey(DIK_RIGHT) ) { targetNode_ = ( std::min )( targetNode_ + 1, ( int ) nodes_.size() - 1 ); }
-		if ( input->Triggerkey(DIK_SPACE) && StandingNode() >= 0 && data_.stages[targetNode_].unlocked && nodes_[targetNode_].diorama ) {
+		if ( input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) ) { targetNode_ = ( std::max )( targetNode_ - 1, 0 ); }
+		// 右へは、布の道が敷いてあるマスまで
+		if ( input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) ) { targetNode_ = ( std::min )( targetNode_ + 1, ( std::max )( reachable_ - 1, 0 ) ); }
+		if ( input->TriggerKey(DIK_SPACE) && StandingNode() >= 0 && data_.stages[targetNode_].unlocked && nodes_[targetNode_].diorama ) {
 			StartDive();
 			return;
 		}
-		if ( input->Triggerkey(DIK_T) ) {
+		if ( input->TriggerKey(DIK_T) ) {
 			phase_ = Phase::Leaving;
 			phaseTime_ = 0.0f;
 			KamishibaiTransition::ChangeSceneWithCard("TITLE");
@@ -486,7 +587,7 @@ void StageSelectScene::UpdateDino(float deltaTime){
 		const Vector3 center = nodes_[previewNode_].center;
 		wantedYaw = std::atan2(center.x - position.x, center.z - position.z);
 	}
-	dinoYaw_ += WrapAngle(wantedYaw - dinoYaw_) * ( std::min )( deltaTime * kTurnRate, 1.0f );
+	dinoYaw_ += Math::AngleDelta(dinoYaw_, wantedYaw) * ( std::min )( deltaTime * kTurnRate, 1.0f );
 	const std::string clip = walking ? "Walk" : "Idle";
 	if ( clip != dinoClip_ ) {
 		dino_->SetClip(clip, true);
@@ -517,6 +618,14 @@ void StageSelectScene::MapCamera(Vector3& outPosition, Vector3& outLook) const{
 	const Vector3 dino = road_.empty() ? Vector3 {} : road_[0].GetPositionByDistance(dinoDistance_);
 	outPosition = { dino.x + data_.cameraOffset.x, dino.y + data_.cameraOffset.y, dino.z + data_.cameraOffset.z };
 	outLook = { dino.x + data_.cameraLook.x, dino.y + data_.cameraLook.y, dino.z + data_.cameraLook.z };
+	// 布の道が伸びている間：伸びた先の方へ、カメラごと寄せる
+	if ( roadPan_ > 0.0f && !road_.empty() ) {
+		const Vector3 front = road_[0].GetPositionByDistance(roadFront_);
+		const float pan = Easing::EaseInOutSine(roadPan_) * kRoadPanAmount;
+		const Vector3 shift { ( front.x - dino.x ) * pan, 0.0f, ( front.z - dino.z ) * pan };
+		outPosition = { outPosition.x + shift.x, outPosition.y, outPosition.z + shift.z };
+		outLook = { outLook.x + shift.x, outLook.y, outLook.z + shift.z };
+	}
 }
 
 // プレビュー：箱庭に寄り、布の道をなぞる所を追って左から右へ流れながら、左右にゆっくり振れる
@@ -545,11 +654,11 @@ void StageSelectScene::UpdateCamera(){
 		MapCamera(mapPosition, mapLook);
 		PreviewCamera(previewPosition, previewLook);
 		const float t = Easing::EaseInOutSine(previewBlend_);
-		cameraPosition_ = Lerp(mapPosition, previewPosition, t);
-		cameraLook_ = Lerp(mapLook, previewLook, t);
+		cameraPosition_ = Math::Lerp(mapPosition, previewPosition, t);
+		cameraLook_ = Math::Lerp(mapLook, previewLook, t);
 	}
 	camera->SetFovY(data_.fovY);
-	LookAt(camera, cameraPosition_, cameraLook_);
+	camera->LookAt(cameraPosition_, cameraLook_);
 	camera->Update();
 }
 
@@ -565,6 +674,7 @@ void StageSelectScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 		if ( node.diorama ) { node.diorama->DrawOpaque(); }
 	}
 	if ( dino_ ) { dino_->Draw(); }
+	if ( phase_ == Phase::RoadOpen && roadRoll_ ) { roadRoll_->Draw(); } // 伸びている布の先のロール
 }
 
 void StageSelectScene::OnDrawInstanced(){

@@ -1,4 +1,5 @@
 #include "game/gameover/GameOverFlow.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/base/Input.h"
 #include "engine/base/TimeManager.h"
@@ -100,6 +101,7 @@ bool GameOverFlow::UpdateBeforeGame(bool introActive){
 }
 
 void GameOverFlow::Damage(bool fellOut){
+    onDamaged_.Emit();
     if ( !hearts_.Damage(sequence_.DamagePerHit()) ) { return; }
     if ( fellOut ) { StartGameOver(); } // 穴に落ちた：着地は無いのですぐ
     else { BeginDying(); }
@@ -194,7 +196,7 @@ void GameOverFlow::RestoreCheckpoint(){
     resumeCamera_->SetAspectRatio(( float ) WindowProc::GetInstance()->GetClientWidth() / ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientHeight() ));
     resumeCamera_->SetFarClip(context_.farClip);
     for ( int i = 0; i < 120; ++i ) {
-        context_.camCtrl->Update(resumeCamera_.get(), start, true, rails, false, 1.0f / 60.0f);
+        context_.camCtrl->Update(resumeCamera_.get(), start, true, rails, false, Time::kFixedDeltaTime);
     }
     resumeCamera_->Update();
     sequence_.SetResumeCamera(resumeCamera_->GetWorldPosition(), resumeCamera_->GetRotation(), resumeCamera_->GetProjectionMatrix());
@@ -216,11 +218,7 @@ void GameOverFlow::UpdateVisuals(bool playing, const Vector3& playerPos){
             if ( acting && context_.camera ) {
                 const Vector3 cam = context_.camera->GetWorldPosition();
                 const float toCamera = std::atan2(cam.x - playerPos.x, cam.z - playerPos.z);
-                auto wrap = [](float angle){
-                    while ( angle > 3.14159265f ) { angle -= 6.2831853f; }
-                    while ( angle < -3.14159265f ) { angle += 6.2831853f; }
-                    return angle;
-                };
+                auto wrap = [](float angle){ return Math::WrapAngle(angle); };
                 const float left = wrap(toCamera + 1.5707963f - yaw);
                 const float right = wrap(toCamera - 1.5707963f - yaw);
                 const float diff = std::fabs(left) < std::fabs(right) ? left : right;

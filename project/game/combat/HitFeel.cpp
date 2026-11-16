@@ -1,4 +1,5 @@
 #include "game/combat/HitFeel.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/base/TimeManager.h"
 #include "engine/base/WindowProc.h"
@@ -23,7 +24,7 @@ void HitFeel::TriggerImpactFx(const Vector3& worldPos){
 // ヒットストップ（リアルなフレームで数える。タイムスケールを 0→1 と戻す）
 void HitFeel::UpdateHitStop(){
     if ( hitStopTimer_ > 0.0f ) {
-        hitStopTimer_ -= 1.0f / 60.0f;
+        hitStopTimer_ -= Time::kFixedDeltaTime;
         Time::GetInstance()->SetTimeScale(0.0f);
         if ( hitStopTimer_ <= 0.0f ) { Time::GetInstance()->SetTimeScale(1.0f); }
     }
@@ -34,7 +35,7 @@ void HitFeel::ApplyCameraShake(Camera* camera){
     if ( !camera ) return;
     Vector3 shake { 0.0f, 0.0f, 0.0f };
     if ( camShakeTimer_ > 0.0f ) {
-        camShakeTimer_ -= 1.0f / 60.0f;
+        camShakeTimer_ -= Time::kFixedDeltaTime;
         if ( camShakeTimer_ < 0.0f ) camShakeTimer_ = 0.0f;
         float m = camShakeMag_ * ( camShakeTimer_ / 0.22f ); // だんだん弱まる
         shake.x = std::sin(camShakeTimer_ * 95.0f) * m;
@@ -62,7 +63,7 @@ void HitFeel::UpdateImpactPostEffect(Camera* camera){
     if ( fxTimer_ <= 0.0f || !camera ) { disableFx(); return; }
 
     const float kDuration = 0.4f;
-    fxTimer_ -= 1.0f / 60.0f; // リアル時間で進める（ヒットストップ中も波は走る）
+    fxTimer_ -= Time::kFixedDeltaTime; // リアル時間で進める（ヒットストップ中も波は走る）
     float progress = 1.0f - ( fxTimer_ / kDuration );
     progress = std::clamp(progress, 0.0f, 1.0f);
 
@@ -76,7 +77,7 @@ void HitFeel::UpdateImpactPostEffect(Camera* camera){
     float t = 1.0f - progress;
     float easeOut = 1.0f - t * t;
     float distRadius = 0.06f + ( 0.55f - 0.06f ) * easeOut;
-    float glowRadius = 0.45f * std::sin(progress * 3.14159265f);
+    float glowRadius = 0.45f * std::sin(progress * Math::kPi);
 
     // アスペクト比（正円補正）
     float aspect = 16.0f / 9.0f;

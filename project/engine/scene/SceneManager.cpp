@@ -16,12 +16,9 @@
 
 
 
-// シングルトンクラスの実装
-SceneManager* SceneManager::GetInstance(){
-	static SceneManager instance;
-	return &instance;
-}
 // デストラクタ
+SceneManager::SceneManager() = default;
+
 SceneManager::~SceneManager(){
 	// 現在のシーンを終了
 	if ( currentScene_ ) {
@@ -36,7 +33,7 @@ SceneManager::~SceneManager(){
 void SceneManager::Update(){
 
 #ifdef _DEBUG
-	if ( Input::GetInstance()->Triggerkey(DIK_R) ) {
+	if ( Input::GetInstance()->TriggerKey(DIK_R) ) {
 		if ( currentScene_ ) {
 			currentScene_->Reload(); // 現在のシーンが何であれリロードを叩く！
 		}

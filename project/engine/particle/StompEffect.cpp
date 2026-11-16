@@ -1,4 +1,5 @@
 #include "StompEffect.h"
+#include "engine/math/MathUtil.h"
 #include <random>
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -38,7 +39,7 @@ void StompEffect::Initialize(const Vector3& position, Camera* camera, uint32_t t
     }
     
     // ランダム生成器の設定
-    std::uniform_real_distribution<float> rotDist(0.0f, 3.141592f * 2.0f);
+    std::uniform_real_distribution<float> rotDist(0.0f, Math::kTwoPi);
     std::uniform_real_distribution<float> velXDist(-3.0f, 3.0f);
     std::uniform_real_distribution<float> velYDist(6.0f, 11.0f);   // 画面上で適度に弾む速度
     std::uniform_real_distribution<float> velZDist(-1.5f, 1.5f);   // Z軸（奥行き）移動をマイルドに適用
@@ -155,7 +156,7 @@ void StompEffect::Initialize(const Vector3& position, Camera* camera, uint32_t t
     for (int i = 0; i < (int)starRings_.size(); ++i) {
         StarRing& star = starRings_[i];
         // 放射状の方向ベクトル (X-Y平面)
-        float angle = i * (2.0f * 3.14159265f / 8.0f);
+        float angle = i * (Math::kTwoPi / 8.0f);
         star.direction = { std::sin(angle), std::cos(angle), 0.0f };
         star.rotation = { 0.0f, 0.0f, rotDist(engine) };
         star.rotationSpeed = { 0.0f, 0.0f, rotSpeedDist(engine) };
@@ -352,10 +353,6 @@ void StompEffect::Update(float dt) {
             float progress = star.currentTime / star.lifeTime;
             if (progress > 1.0f) progress = 1.0f;
 
-            // イージングアウトで広げる半径
-            float t = 1.0f - progress;
-            float easeOut = 1.0f - t * t;
-            float curRadius = star.startRadius + (star.endRadius - star.startRadius) * easeOut;
 
             // 中心からの位置を設定
             // Y軸に少し浮かせる

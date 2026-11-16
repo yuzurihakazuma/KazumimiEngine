@@ -23,6 +23,10 @@ namespace MatrixMath {
 
 	Matrix4x4 MakeDirectionRotation(const Vector3& forward, const Vector3& up = { 0.0f, 1.0f, 0.0f });
 
+	// 回転行列 → X・Y・Z の角度（MakeAffine と同じ順番：X → Y → Z）。
+	//   「置いた向きのまま、世界の決めた向きへ倒す・回す」時に、行列で回してから角度へ戻すのに使う
+	Vector3 ToEulerXYZ(const Matrix4x4& rotation);
+
 	Matrix4x4 MakeAffine(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
 
 	// Quaternion を使ったアフィン変換行列（スキニング・アニメーション用）

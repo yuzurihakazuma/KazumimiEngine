@@ -55,8 +55,12 @@ namespace VectorMath {
 		return v / len;
 	}
 
-	Vector3 Lerp(const Vector3& a, const Vector3& b, float t) {
-		return a + (b - a) * t;
+	float Distance(const Vector3& a, const Vector3& b) {
+		return Length(a - b);
+	}
+
+	float DistanceSq(const Vector3& a, const Vector3& b) {
+		return LengthSq(a - b);
 	}
 
 	Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t){

@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d12.h>
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <vector>
 #include <string>
@@ -44,12 +45,14 @@ struct GPUParticleMaterial{
     Matrix4x4 uvTransform;
 };
 
-class GPUParticleManager{
+// =====================================================================
+//  GPUParticleManager：GPU で動かすパーティクル。
+//   粒の発生と動きをコンピュートシェーダーで計算するので、数が多くても CPU の仕事が増えない。
+//   出す場所・量は GPUParticleEmitter が決める
+// =====================================================================
+class GPUParticleManager : public Singleton<GPUParticleManager> {
+	friend class Singleton<GPUParticleManager>; // 土台（Singleton）だけが作れる
 public:
-    static GPUParticleManager* GetInstance(){
-        static GPUParticleManager instance;
-        return &instance;
-    }
 
     // 初期化 (テクスチャパスを受け取る)
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager,
@@ -83,8 +86,6 @@ public:
 private:
     GPUParticleManager() = default;
     ~GPUParticleManager() = default;
-    GPUParticleManager(const GPUParticleManager&) = delete;
-    GPUParticleManager& operator=(const GPUParticleManager&) = delete;
 
     void CreateParticleBuffer();   // UAVバッファ作成
     void CreateFreeListBuffers();  // FreeList（空きスロット管理）バッファ作成

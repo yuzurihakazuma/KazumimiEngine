@@ -9,6 +9,8 @@
 //  素材は tools/hud/make_hud_assets.py → resources/ui/hud_*.png
 //  表示するだけ。数はそれぞれのシステム（EggSystem / CoinSystem）が持つ
 // =====================================================================
+#include "game/ui/DigitStrip.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -56,8 +58,7 @@ private:
     int   flowers_ = 0, flowerTotal_ = 0;
     float flowerPop_ = 0.0f;
     std::vector<std::unique_ptr<Sprite>> eggs_, emptyEggs_, belly_;
-    std::vector<std::unique_ptr<Sprite>> digits_;
-    int nextDigit_ = 0;
+    DigitStrip digits_;                  // 数字の絵を並べる（ワールドマップのパネル・リザルト画面と同じ部品）
 
     int held_ = 0, belly_count_ = 0, coins_ = 0, coinTotal_ = 0;
     float scale_ = 1.0f; // 1080p に対する画面の大きさ

@@ -521,7 +521,7 @@ void PipelineManager::CreateGPUParticleComputePipeline(){
 	psoDesc.pRootSignature = gpuParticleComputeRootSignature_.Get();
 	psoDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
 		&psoDesc, IID_PPV_ARGS(&gpuParticleComputePipelineState_));
 	assert(SUCCEEDED(hr));
 }
@@ -547,7 +547,7 @@ void PipelineManager::CreateGPUParticleEmitPipeline(){
 	psoDesc.pRootSignature = gpuParticleEmitRootSignature_.Get();
 	psoDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
 		&psoDesc, IID_PPV_ARGS(&gpuParticleEmitPipelineState_));
 	assert(SUCCEEDED(hr));
 }
@@ -704,7 +704,7 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 
 	// 結果を保存
 	pipelineState = nullptr;
-	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)); // PSO生成
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)); // PSO生成
 	assert(SUCCEEDED(hr));
 	SetD3DDebugName(pipelineState.Get(), L"PSO", where);
 }

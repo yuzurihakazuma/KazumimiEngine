@@ -5,11 +5,6 @@
 // --- エンジン側のファイル ---
 #include "engine/base/DirectXCommon.h"
 
-SrvManager* SrvManager::GetInstance() {
-	static SrvManager instance;
-	return &instance;
-}
-
 
 void SrvManager::Initialize(DirectXCommon* dxCommon){
 

@@ -1,4 +1,6 @@
 ﻿#include "game/flip/WorldFlip.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -31,7 +33,7 @@
 #include <fstream>
 
 namespace {
-    constexpr float kPi = 3.14159265f;
+    constexpr float kPi = Math::kPi;
     constexpr const char* kHitSe  = "resources/kamishibai/se_pon.wav";  // スイッチに当たった
     constexpr const char* kFlipSe = "resources/gameover/se_basa.wav";   // カメラが回り込む
     constexpr float kBobAmp = 0.15f;      // スイッチが上下に揺れる幅(m)
@@ -65,11 +67,7 @@ namespace {
         return p.x * p.x + p.y * p.y + p.z * p.z <= radius * radius;
     }
 
-    nlohmann::json ToJson(const Vector3& v){ return nlohmann::json::array({ v.x, v.y, v.z }); }
-    Vector3 Vec3From(const nlohmann::json& j, const Vector3& fallback){
-        if ( !j.is_array() || j.size() < 3 ) { return fallback; }
-        return { j[0].get<float>(), j[1].get<float>(), j[2].get<float>() };
-    }
+    using JsonFile::ToJson; // Vector3 → [x, y, z]
 }
 
 WorldFlip::WorldFlip() = default;
@@ -133,7 +131,7 @@ bool WorldFlip::Load(){
         const auto& evening = root["evening"];
         eveningOnBack_ = evening.value("enabled", eveningOnBack_);
         eveningStrength_ = evening.value("strength", eveningStrength_);
-        eveningLight_ = Vec3From(evening.value("light", nlohmann::json()), eveningLight_);
+        eveningLight_ = JsonFile::ToVector3(evening.value("light", nlohmann::json()), eveningLight_);
         eveningTint_ = evening.value("tint", eveningTint_);
     }
     for ( const auto& entry : root.value("points", nlohmann::json::array()) ) {
@@ -146,7 +144,7 @@ bool WorldFlip::Load(){
     }
     for ( const auto& entry : root.value("switches", nlohmann::json::array()) ) {
         Switch sw;
-        sw.pos = Vec3From(entry.value("pos", nlohmann::json()), {});
+        sw.pos = JsonFile::ToVector3(entry.value("pos", nlohmann::json()), {});
         sw.rail = entry.value("rail", -1);
         sw.dist = entry.value("dist", 0.0f);
         sw.height = entry.value("height", sw.height);
@@ -196,9 +194,7 @@ nlohmann::json WorldFlip::SaveData() const{
 
 bool WorldFlip::Save(){
     const nlohmann::json root = SaveData();
-    std::ofstream file(FlipPath(stage_));
-    if ( !file ) { return false; }
-    file << root.dump(2);
+    if ( !JsonFile::Save(FlipPath(stage_), root) ) { return false; }
     savedJson_ = root.dump();
     return true;
 }

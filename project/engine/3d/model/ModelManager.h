@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準ライブラリ ---
 #include <cstddef>
+#include "engine/base/Singleton.h"
 #include <map>
 #include <string>
 #include <memory>
@@ -10,7 +11,8 @@ class ModelCommon;
 class DirectXCommon;
 
 // モデルマネージャークラス
-class ModelManager{
+class ModelManager : public Singleton<ModelManager> {
+	friend class Singleton<ModelManager>; // 土台（Singleton）だけが作れる
 public:
 	// / 初期化
 	void Initialize(DirectXCommon* dxCommon);
@@ -31,8 +33,6 @@ public:
 	// 卵の殻の破片モデルの作成（歪んだ五角形をドーム状に湾曲させた薄い欠片。割れ演出用）
 	void CreateEggShellModel(const std::string& modelName, float size = 0.3f);
 
-	// シングルストーンのインスタンスを取得
-	static ModelManager* GetInstance();
 
 	// インスタンスの破棄
 	void Finalize();
@@ -54,12 +54,6 @@ private:
 
 	// デストラクタ
 	~ModelManager();
-	// コピーコンストラクタ（禁止）
-	ModelManager(const ModelManager&) = delete;
-	// コピー代入演算子（禁止）
-	ModelManager& operator=(const ModelManager&) = delete;
-	// 静的メンバ変数の定義
-	static ModelManager* instance_;
 
 
 private:

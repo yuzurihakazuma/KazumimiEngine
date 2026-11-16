@@ -22,7 +22,7 @@
 #include "game/player/SwallowAbility.h"
 #include "game/player/AimThrowController.h"
 #include "game/player/PlayerAvatar.h"
-#include "game/stage/StageFlow.h"
+#include "game/clear/ClearFlow.h"
 #include "game/stage/CoinSystem.h"
 #include "game/stage/BlockSystem.h"
 #include "game/stage/StageObstacles.h"
@@ -120,7 +120,7 @@ private:
 	RailField      railField_;    // 実行時レール（本体・緑線・動くレール）
 	RoadMesh       roadMesh_;     // レール下の道メッシュ
 	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
-	StageFlow      stageFlow_;    // ゴール判定
+	ClearFlow      clear_;        // ゴールの輪・集計・クリア演出（中身は game/clear/。ここは決まった所で呼ぶだけ）
 	StageIntroSequence intro_;    // ステージ開始の演技（遷移の合図で動く）
 	StageBackdrop  backdrop_;     // ステージ全体のクラフトの背景（地面・空・丘・雲・木・柵・草花）
 	CoinSystem     coinSystem_;   // 収集物（コイン）
@@ -169,4 +169,7 @@ private:
 	void RestartForTake(int rail, float dist);
 	bool snapCameraOnce_ = false; // 次のプレイの更新で、カメラを補間せずに追従の位置へ置く
 	void ResetStageForRetry(); // やりなおし：敵・コイン・？ブロック・卵・構え・舌をプレイ開始の時と同じに戻す
+	void SetupClear();         // ゴールとクリア演出の用意・集計係へプレイの出来事をつなぐ
+	void OnGoalReached();      // ゴールの輪をくぐった瞬間の後始末（構え・ベロをやめる、♡を隠す）
+	void UpdateClearStaging(float deltaTime); // クリア演出の間の更新（ゲームの時間は止め、恐竜と演出だけ進める）
 };

@@ -1,4 +1,5 @@
 #include "SplineRail.h"
+#include "engine/math/MathUtil.h"
 #include "engine/math/VectorMath.h"
 #include <cmath>
 #include <algorithm>
@@ -71,8 +72,15 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
         if ( length > limit && length > 1e-6f ) { const float k = limit / length; m = { m.x * k, m.y * k, m.z * k }; }
         return m;
     };
-    const Vector3 m1 = clampTangent({ ( p2.x - p0.x ) * 0.5f, ( p2.y - p0.y ) * 0.5f, ( p2.z - p0.z ) * 0.5f });
-    const Vector3 m2 = clampTangent({ ( p3.x - p1.x ) * 0.5f, ( p3.y - p1.y ) * 0.5f, ( p3.z - p1.z ) * 0.5f });
+    Vector3 m1 = clampTangent({ ( p2.x - p0.x ) * 0.5f, ( p2.y - p0.y ) * 0.5f, ( p2.z - p0.z ) * 0.5f });
+    Vector3 m2 = clampTangent({ ( p3.x - p1.x ) * 0.5f, ( p3.y - p1.y ) * 0.5f, ( p3.z - p1.z ) * 0.5f });
+    // 端どうしでつながった端：つながった相手と共通の向きにする（長さはこの区間の長さ＝折り返しで作る時と同じ）
+    if ( !isLoop && p1_index == 0 && hasFrontTangent ) {
+        m1 = { frontTangent.x * segmentLength, frontTangent.y * segmentLength, frontTangent.z * segmentLength };
+    }
+    if ( !isLoop && p1_index + 1 >= maxIndex && hasBackTangent ) {
+        m2 = { backTangent.x * segmentLength, backTangent.y * segmentLength, backTangent.z * segmentLength };
+    }
     const float t2 = localT * localT, t3 = t2 * localT;
     const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f, h10 = t3 - 2.0f * t2 + localT;
     const float h01 = -2.0f * t3 + 3.0f * t2,       h11 = t3 - t2;
@@ -182,6 +190,12 @@ void SplineRail::BuildFrameCache(){
                 if ( Dot(chordDir, frame.tangent) < 0.95f ) { frame.tangent = chordDir; }
             }
         }
+        // 端どうしでつながった端：相手と共通の向きをそのまま使う。
+        //   前後 0.1m から測る向きは、端では片側しか見られず、曲がっている所で相手と 2° ほど食い違う
+        const bool jointFront = !isLoop && hasFrontTangent && frameDistance <= 1e-5f;
+        const bool jointBack  = !isLoop && hasBackTangent && frameDistance >= totalLength_ - 1e-5f;
+        if ( jointFront ) { frame.tangent = frontTangent; }
+        if ( jointBack )  { frame.tangent = backTangent; }
         const Vector3& T = frame.tangent;
 
         Vector3 right;
@@ -206,8 +220,19 @@ void SplineRail::BuildFrameCache(){
                 if ( Dot(ideal, ideal) > 1e-8f ) {
                     ideal = NormalizeSafe(ideal, { 1.0f, 0.0f, 0.0f });
                     if ( Dot(ideal, right) < 0.0f ) { ideal = { -ideal.x, -ideal.y, -ideal.z }; } // 反転側へ回復しない
-                    right = NormalizeSafe(Lerp(right, ideal, 0.15f), { 1.0f, 0.0f, 0.0f });
+                    right = NormalizeSafe(Math::Lerp(right, ideal, 0.15f), { 1.0f, 0.0f, 0.0f });
                 }
+            }
+        }
+        // つながった終点：横の向きを、始点と同じ決め方（水平）にそろえる。
+        //   つながった相手の始点は水平の横向きから始まるので、ここに少しでも傾きが残っていると、
+        //   つなぎ目で 2 本の道の断面が食い違う（幅の端で 1cm ほどの段になる）
+        if ( jointBack && i > 0 ) {
+            Vector3 level = Cross(worldUp, T);
+            if ( Dot(level, level) > 1e-6f ) {
+                level = NormalizeSafe(level, right);
+                if ( Dot(level, right) < 0.0f ) { level = { -level.x, -level.y, -level.z }; }
+                right = level;
             }
         }
         prevRight = right;
@@ -240,9 +265,9 @@ SplineRail::RailFrame SplineRail::GetFrameAtDistance(float distance) const{
     const RailFrame& frameA = frameCache_[baseIndex];
     const RailFrame& frameB = frameCache_[baseIndex + 1];
     RailFrame frame;
-    frame.position = Lerp(frameA.position, frameB.position, t);
-    frame.tangent  = NormalizeSafe(Lerp(frameA.tangent, frameB.tangent, t), { 1.0f, 0.0f, 0.0f });
-    frame.right    = NormalizeSafe(Lerp(frameA.right, frameB.right, t), { 1.0f, 0.0f, 0.0f });
+    frame.position = Math::Lerp(frameA.position, frameB.position, t);
+    frame.tangent  = NormalizeSafe(Math::Lerp(frameA.tangent, frameB.tangent, t), { 1.0f, 0.0f, 0.0f });
+    frame.right    = NormalizeSafe(Math::Lerp(frameA.right, frameB.right, t), { 1.0f, 0.0f, 0.0f });
     frame.up       = NormalizeSafe(Cross(frame.tangent, frame.right), { 1.0f, 0.0f, 0.0f }); // 補間後も直交を保証
     return frame;
 }

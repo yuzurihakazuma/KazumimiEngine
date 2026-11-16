@@ -2,17 +2,15 @@
 
 // --- エンジン側のファイル ---
 #include "engine/utils/Level/LevelData.h"
+#include "engine/base/Singleton.h"
 #include <string>
 
 
 
 // レベルマネージャー（シングルトン）
-class LevelManager{
+class LevelManager : public Singleton<LevelManager> {
+	friend class Singleton<LevelManager>; // 土台（Singleton）だけが作れる
 public:
-    static LevelManager* GetInstance(){
-        static LevelManager instance;
-        return &instance;
-    }
 
     // セーブ機能（現在のデータをJSONファイルに書き出す）
     void Save(const std::string& fileName, const LevelData& levelData);
@@ -23,6 +21,4 @@ public:
 private:
 	LevelManager() = default;// コンストラクタはprivateにしてシングルトンを実現
 	~LevelManager() = default; // デストラクタもデフォルトでOK
-	LevelManager(const LevelManager&) = delete; // コピーコンストラクタを削除
-	LevelManager& operator=(const LevelManager&) = delete; // コピー代入演算子を削除
 };

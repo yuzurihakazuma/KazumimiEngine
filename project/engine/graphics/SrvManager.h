@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <cstdint>
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <dxgiformat.h>
 #include <wrl.h>
@@ -11,9 +12,9 @@
 class DirectXCommon;
 
 // SRVマネージャー
-class SrvManager{
+class SrvManager : public Singleton<SrvManager> {
+	friend class Singleton<SrvManager>; // 土台（Singleton）だけが作れる
 public:
-	static SrvManager* GetInstance();
 
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon);
@@ -76,8 +77,6 @@ private:
 	// コンストラクタを private にして外部からの new を禁止
 	SrvManager() = default;
 	~SrvManager() = default;
-	SrvManager(const SrvManager&) = delete;
-	SrvManager& operator=(const SrvManager&) = delete;
 
 };
 

@@ -3,6 +3,7 @@
 
 // --- 標準ライブラリ ---
 #include <string>
+#include "engine/base/Singleton.h"
 #include <map>
 #include <cstdint>
 #include <vector>
@@ -68,10 +69,14 @@ private:
 };
 
 
-class AudioManager{
-public: // シングルトンパターン
-    static AudioManager* GetInstance();
-
+// =====================================================================
+//  AudioManager：音（効果音・BGM）の読み込みと再生。
+//   同じファイルは 1 回だけ読む（LoadWave）。PlayWave は鳴らすだけ、Play は AudioHandle を返すので、
+//   後から止める・音量を変える・フェードさせる事ができる
+// =====================================================================
+class AudioManager : public Singleton<AudioManager> {
+	friend class Singleton<AudioManager>; // 土台（Singleton）だけが作れる
+public:
 public: // メンバ関数
 
     // 初期化
@@ -139,8 +144,6 @@ private: // 内部構造体（WAV読み込み用）
 private:
     AudioManager() = default;
     ~AudioManager() = default;
-    AudioManager(const AudioManager&) = delete;
-    AudioManager& operator=(const AudioManager&) = delete;
 
 private:
 

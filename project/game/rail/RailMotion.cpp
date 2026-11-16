@@ -1,11 +1,12 @@
 #include "game/rail/RailMotion.h"
+#include "engine/math/MathUtil.h"
 #include "engine/rail/SplineRail.h"
 
 #include <algorithm>
 #include <cmath>
 
 namespace {
-    const float kPi    = 3.14159265f;
+    const float kPi    = Math::kPi;
     const float kTwoPi = 2.0f * kPi;
 
     Vector3 Scaled(const Vector3& amp, float w){ return { amp.x * w, amp.y * w, amp.z * w }; }
@@ -82,10 +83,7 @@ namespace {
         if ( horizLen <= 0.15f ) return;
         float targetYaw = std::atan2(guideTan.x, guideTan.z) - rail.restYaw;
         // 最短角で連続に追従（±180°の境目でクルッと一回転しない）
-        float deltaYaw = targetYaw - rail.animYaw;
-        while ( deltaYaw >  kPi ) { deltaYaw -= kTwoPi; }
-        while ( deltaYaw < -kPi ) { deltaYaw += kTwoPi; }
-        rail.animYaw += deltaYaw;
+        rail.animYaw += Math::AngleDelta(rail.animYaw, targetYaw);
     }
 }
 

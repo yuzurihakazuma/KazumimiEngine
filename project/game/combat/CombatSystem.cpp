@@ -1,4 +1,5 @@
 #include "game/combat/CombatSystem.h"
+#include "engine/math/MathUtil.h"
 
 #include "game/player/Player.h"
 #include "game/enemy/EnemyManager.h"
@@ -175,7 +176,7 @@ void CombatSystem::DrawPlayerHitShape(const Player& player, const Vector4& color
     Vector3 foot = player.GetPosition();
     DebugDraw* debugDraw = DebugDraw::GetInstance();
     const int kSegments = 16;
-    const float kTwoPi = 6.2831853f;
+    const float kTwoPi = Math::kTwoPi;
     Vector3 prevLow {}, prevHigh {};
     for ( int i = 0; i <= kSegments; ++i ) {
         float angle = kTwoPi * ( float ) i / ( float ) kSegments;

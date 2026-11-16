@@ -10,8 +10,9 @@
 //  ステージの物（敵・コイン・ブロック・卵など）を戻す中身は、シーンが Context::resetStage で渡す
 // =====================================================================
 #include "engine/math/struct.h"
+#include "engine/utils/Signal.h"
 #include "game/gameover/GameOverSequence.h"
-#include "game/hud/HeartRing.h"
+#include "game/ui/HeartRing.h"
 
 #include <d3d12.h>
 #include <functional>
@@ -61,6 +62,15 @@ public:
     // ♡を戻す（卵のコンボで ×8 を出した時など）。演出中は戻さない
     void Heal(int amount){ if ( !IsActive() ) { hearts_.Heal(amount); } }
     bool IsActive() const{ return sequence_.IsActive(); } // 演出中（とどめのスロー・着地待ちの間はまだ false。ゲームは進む）
+    // 今の♡の数・満タンの数（リザルト画面の「たいりょく」）
+    int Hearts() const{ return hearts_.Count(); }
+    int MaxHearts() const{ return hearts_.Max(); }
+    // ダメージを受けた知らせ（ぶつかった・落ちた）。集計係（StageTally）が受け取る
+    Signal<>& OnDamaged(){ return onDamaged_; }
+    // ♡の輪をすぐ隠す（クリア演出の間など）
+    void HideHearts(){ hearts_.HideNow(); }
+    // とどめのスローの途中か（この間にゴールしても、クリアにはしない）
+    bool IsDying() const{ return dying_; }
     bool HidesScene() const{ return sequence_.HidesScene(); } // 紙に貼り替えている間（3D のステージを描かない）
 
     void DrawOpaque(){ sequence_.DrawOpaque(); }
@@ -83,6 +93,7 @@ private:
     GameOverSequence sequence_;
     std::unique_ptr<Camera> resumeCamera_; // 再開する所のカメラを求める（画面には出さない）
     bool defeatPoseApplied_ = false;
+    Signal<> onDamaged_;
     bool  dying_ = false;     // とどめを受けてからゲームオーバー演出までの間（スロー → 着地待ち）
     float dyingTime_ = 0.0f;  // その経過(実時間の秒)
     static inline int gameOverCount_ = 0;   // このステージでのゲームオーバーの回数（2回目から短縮版）

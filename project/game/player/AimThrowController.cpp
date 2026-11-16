@@ -1,4 +1,5 @@
 #include "game/player/AimThrowController.h"
+#include "game/ui/UiScale.h"
 
 #include "game/player/Player.h"
 #include "game/enemy/EnemyManager.h"
@@ -121,7 +122,7 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
 
     if ( state_ == State::Idle ) {
         // Q を押し始めた＆卵を持っている → 構えに入る（地上/ジャンプ/踏ん張り中どこでもOK）
-        if ( input->Pushkey(DIK_Q) && eggs.HeldCount() > 0 ) {
+        if ( input->PushKey(DIK_Q) && eggs.HeldCount() > 0 ) {
             state_ = State::Aiming;
             aimAxisYaw_ = player.GetRotation().y; // レール軸の基準は構え開始時の向きで固定
                                                   // （狙いでプレイヤーが振り向いても軸はブレない）
@@ -153,10 +154,10 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
     // --- 構え中（Aiming）---
     // 矢印キーで「画面上のカーソル」を動かす（直感的：上=上 / 右=右 / 等速）。
     const float kCursorSpeed = 620.0f; // px/s
-    if ( input->Pushkey(DIK_UP) )    cursorY_ -= kCursorSpeed * dt;
-    if ( input->Pushkey(DIK_DOWN) )  cursorY_ += kCursorSpeed * dt;
-    if ( input->Pushkey(DIK_LEFT) )  cursorX_ -= kCursorSpeed * dt;
-    if ( input->Pushkey(DIK_RIGHT) ) cursorX_ += kCursorSpeed * dt;
+    if ( input->PushKey(DIK_UP) )    cursorY_ -= kCursorSpeed * dt;
+    if ( input->PushKey(DIK_DOWN) )  cursorY_ += kCursorSpeed * dt;
+    if ( input->PushKey(DIK_LEFT) )  cursorX_ -= kCursorSpeed * dt;
+    if ( input->PushKey(DIK_RIGHT) ) cursorX_ += kCursorSpeed * dt;
     cursorX_ = std::clamp(cursorX_, 0.0f, screenWidth);
     cursorY_ = std::clamp(cursorY_, 0.0f, screenHeight);
 
@@ -242,7 +243,7 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
     aimYaw_ = std::atan2(throwDir.x, throwDir.z);
 
     pulseT_ += dt;
-    const float uiScale = screenHeight / 1080.0f;
+    const float uiScale = UiScale::FromHeight(screenHeight);
 
     // 狙っている物を光らせる（1つだけ：背景の物か敵。同じ光り方）
     if ( combo_ ) { combo_->SetAimHighlight(depthLocked_ ? depthTarget_ : -1); }
@@ -303,13 +304,13 @@ void AimThrowController::Update(Player& player, EnemyManager& enemies, EggSystem
     // Q を離した瞬間 → 投げる（ロック中=敵へ速く / 未ロック=カーソルの奥へ）。
     //   ※「投げずにキャンセル」したい時用のコマンドは別途キーで足せる（今は常に投げる）。
     // Xでキャンセル：投げずに構え解除。上にのせていた卵は消費されず後ろ（ストック）へ戻る
-    if ( input->Triggerkey(DIK_X) ) {
+    if ( input->TriggerKey(DIK_X) ) {
         canceled_ = true;
         Reset();
         return;
     }
 
-    if ( !input->Pushkey(DIK_Q) ) {
+    if ( !input->PushKey(DIK_Q) ) {
         // 投げる方向へプレイヤーの向きも合わせる（水平成分のyaw）
         if ( std::abs(throwDir.x) > 1e-4f || std::abs(throwDir.z) > 1e-4f ) {
             float yaw = std::atan2(throwDir.x, throwDir.z);

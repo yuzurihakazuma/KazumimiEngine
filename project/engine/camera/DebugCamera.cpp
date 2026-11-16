@@ -100,16 +100,16 @@ void DebugCamera::Update(Camera* camera) {
     Vector3 up      = Transforms({ 0.0f, 1.0f, 0.0f }, rotateMatrix);
 
     float moveSpeed = 12.0f * frameSeconds; // 毎秒 12m（以前の 60fps で 0.2m/フレームと同じ）
-    if (input->Pushkey(DIK_LSHIFT)) { moveSpeed *= 3.0f; } // Shiftで高速
+    if (input->PushKey(DIK_LSHIFT)) { moveSpeed *= 3.0f; } // Shiftで高速
 
     // WASD / Q,E で移動（右ドラッグ中のみ。視点を回しながら飛び回る用）
     if (rotating) {
-        if (input->Pushkey(DIK_W)) translation = Add(translation, Multiply( moveSpeed, forward));
-        if (input->Pushkey(DIK_S)) translation = Add(translation, Multiply(-moveSpeed, forward));
-        if (input->Pushkey(DIK_D)) translation = Add(translation, Multiply( moveSpeed, right));
-        if (input->Pushkey(DIK_A)) translation = Add(translation, Multiply(-moveSpeed, right));
-        if (input->Pushkey(DIK_E)) translation = Add(translation, Multiply( moveSpeed, up));
-        if (input->Pushkey(DIK_Q)) translation = Add(translation, Multiply(-moveSpeed, up));
+        if (input->PushKey(DIK_W)) translation = Add(translation, Multiply( moveSpeed, forward));
+        if (input->PushKey(DIK_S)) translation = Add(translation, Multiply(-moveSpeed, forward));
+        if (input->PushKey(DIK_D)) translation = Add(translation, Multiply( moveSpeed, right));
+        if (input->PushKey(DIK_A)) translation = Add(translation, Multiply(-moveSpeed, right));
+        if (input->PushKey(DIK_E)) translation = Add(translation, Multiply( moveSpeed, up));
+        if (input->PushKey(DIK_Q)) translation = Add(translation, Multiply(-moveSpeed, up));
     }
 
     // ★ホイール：前後ズーム（Game View にマウスが乗っている時だけ効く）。

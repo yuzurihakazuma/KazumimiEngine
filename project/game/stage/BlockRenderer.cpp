@@ -1,4 +1,5 @@
 #include "game/stage/BlockRenderer.h"
+#include "engine/math/MathUtil.h"
 #include "game/stage/BlockGrid.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/graphics/InstancedGroup.h"
@@ -127,7 +128,7 @@ void BlockRenderer::UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& 
             if ( BlockShape::IsSlope(block.type) ) {
                 // 斜面モデルは「高い側の縁が原点」なので、走行方向へ半分ずらしてセル中央に合わせ、
                 // 登り方向が -側 なら180°回して高い側を隣のブロックへ向ける
-                const float kPi = 3.14159265f;
+                const float kPi = Math::kPi;
                 float run = BlockShape::FootprintHalf(block.type) * 2.0f;
                 float forward = ( float ) block.ascend * run * 0.5f;
                 pos.x += std::sin(yaw) * forward;
@@ -163,7 +164,7 @@ void BlockRenderer::BounceSpring(int blockIndex){ springTimers_[blockIndex] = 0.
 
 // ばねの縦の大きさ（跳ねてからの秒 t）。ぎゅっと縮んで、伸びすぎて、ゆれながら戻る
 float BlockRenderer::SpringSquash(float t){
-    const float kPi = 3.14159265f;
+    const float kPi = Math::kPi;
     return 1.0f - 0.45f * std::exp(-6.0f * t) * std::cos(2.0f * kPi * t / 0.32f);
 }
 

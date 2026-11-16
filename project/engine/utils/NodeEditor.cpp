@@ -1,4 +1,5 @@
 #include "NodeEditor.h"
+#include "engine/utils/JsonFile.h"
 
 #include <algorithm>
 #include <cmath>
@@ -315,15 +316,12 @@ void NodeEditor::Save(const std::string& path) const {
         std::error_code ec;
         std::filesystem::create_directories(p.parent_path(), ec);
     }
-    std::ofstream f(path);
-    if ( f ) { f << j.dump(4); }
+    JsonFile::Save(path, j, 4);
 }
 
 void NodeEditor::Load(const std::string& path) {
-    std::ifstream f(path);
-    if ( !f ) return;
     json j;
-    f >> j;
+    if ( !JsonFile::Load(path, j) ) return;
 
     nodes_.clear();
     links_.clear();
@@ -473,7 +471,7 @@ void NodeEditor::ApplyShaderToTarget(const Node& outputNode) {
         + "  (" + path + ")";
 }
 
-void NodeEditor::DrawDebugUI(bool* openFlag) {
+void NodeEditor::DrawDebugUI([[maybe_unused]] bool* openFlag) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(860, 520), ImGuiCond_FirstUseEver);
     if ( !ImGui::Begin("ノードエディタ", openFlag) ) { ImGui::End(); return; }

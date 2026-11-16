@@ -20,6 +20,7 @@
 //   次のフレームの頭（GPU が描き終わった後）に取り出す。PNG の書き出しは別スレッド。GIF・mp4 は tools/capture/make_gif.py
 // =====================================================================
 #include "externals/nlohmann/json.hpp"
+#include "engine/base/Singleton.h"
 
 #include <d3d12.h>
 #include <wrl.h>
@@ -39,9 +40,9 @@
 class RenderTexture;
 class Camera;
 
-class ScreenCapture {
+class ScreenCapture : public Singleton<ScreenCapture> {
+	friend class Singleton<ScreenCapture>; // 土台（Singleton）だけが作れる
 public:
-    static ScreenCapture* GetInstance();
 
     void Initialize();   // Framework の初期化の最後（DirectXCommon にフックを付ける）
     void Finalize();     // 保存待ちを書き切って、スレッドを止める
@@ -84,8 +85,6 @@ public:
 private:
     ScreenCapture();
     ~ScreenCapture(); // Job が cpp の中にあるため
-    ScreenCapture(const ScreenCapture&) = delete;
-    ScreenCapture& operator=(const ScreenCapture&) = delete;
 
     enum Source { kGame = 0, kGameHud = 1, kScreen = 2 };
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "game/enemy/Enemy.h"
+#include "engine/utils/Signal.h"
 #include <vector>
 #include <memory>
 #include <functional>
@@ -32,14 +33,25 @@ public:
     void SetViewCut(bool active, float minZ){ cutActive_ = active; cutMinZ_ = minZ; }
     // 狙われている敵を光らせる（1匹だけ。nullptr で消す）。pulse＝0〜1 の脈打ち
     void SetHighlight(const Enemy* target, float pulse);
-    void Clear(){ enemies_.clear(); }
+    void Clear(){ enemies_.clear(); spawnedCount_ = 0; remainingCount_ = 0; }
+
+    // 敵を倒した知らせ（踏んだ・卵を当てた・食べ終えた。1 匹につき 1 回）。集計係（StageTally）が受け取る
+    Signal<>& OnEnemyDefeated(){ return onEnemyDefeated_; }
+    // 置いた敵の数（Spawn した時の数）
+    int SpawnedCount() const{ return spawnedCount_; }
 
     // 各システム（踏みつけ・飲み込み・ロックオン・卵命中）が走査に使う
     std::vector<std::unique_ptr<Enemy>>& GetEnemies(){ return enemies_; }
     const std::vector<std::unique_ptr<Enemy>>& GetEnemies() const{ return enemies_; }
 
 private:
+    // まだ倒していない敵の数（食べている途中の敵は、食べ終えるまで数に入れる）
+    int CountRemaining() const;
+
     std::vector<std::unique_ptr<Enemy>> enemies_;
+    Signal<> onEnemyDefeated_;
+    int   spawnedCount_ = 0;   // Spawn で置いた数
+    int   remainingCount_ = 0; // 前のフレームの、まだ倒していない数（減った分を知らせる）
     bool  cutActive_ = false; // SetViewCut
     float cutMinZ_ = 0.0f;
 };

@@ -1,4 +1,5 @@
 #include "CustomAnimation.h"
+#include "engine/utils/JsonFile.h"
 #include <algorithm>
 #include "engine/math/VectorMath.h"
 #include <fstream>
@@ -146,23 +147,15 @@ void CustomAnimationTrack::SaveToJson(const std::string& filepath) const {
     }
     j["keyframes"] = keyframesJson;
 
-    std::ofstream file(filepath);
-    if(file.is_open()) {
-        file << j.dump(4);
-        file.close();
-    }
+    JsonFile::Save(filepath, j, 4);
 }
 
 // --------------------------------------------------
 // JSON ファイルから読み込み
 // --------------------------------------------------
 void CustomAnimationTrack::LoadFromJson(const std::string& filepath) {
-    std::ifstream file(filepath);
-    if (!file.is_open()) return;
-
     nlohmann::json j;
-    file >> j;
-    file.close();
+    if ( !JsonFile::Load(filepath, j) ) return;
 
     keyframes.clear();
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "engine/math/struct.h"
+#include "engine/math/MathUtil.h"
 #include "game/rail/road/RoadProfile.h"
 #include <cmath>
 #include <vector>
@@ -53,7 +54,7 @@ inline float WedgeAngleDeg(const Vector3& di, const Vector3& dj){
     float angJ = std::atan2(dj.z, dj.x);
     float phi = angJ - angI;
     while ( phi <= 0.0f ) { phi += 2.0f * RoadProfile::kPi; }
-    return phi * 180.0f / RoadProfile::kPi;
+    return Math::ToDegrees(phi);
 }
 
 } // namespace RoadJunctionGeom

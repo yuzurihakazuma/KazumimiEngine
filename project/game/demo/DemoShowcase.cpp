@@ -1,4 +1,6 @@
 #include "game/demo/DemoShowcase.h"
+#include "engine/base/TimeManager.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/model/Model.h"
@@ -80,7 +82,7 @@ void DemoShowcase::Initialize(ID3D12GraphicsCommandList* commandList,
         skinnedHuman_->SetEnvironmentMap(textures["skybox"].srvIndex);
         skinnedHuman_->SetTranslation({ 0.0f, 0.0f, 5.0f });
         skinnedHuman_->SetScale({ 1.0f, 1.0f, 1.0f });
-        skinnedHuman_->SetRotation({ 0.0f, 3.14159f, 0.0f });
+        skinnedHuman_->SetRotation({ 0.0f, Math::kPi, 0.0f });
         EditorManager::GetInstance()->SetTargetSkinnedObj(skinnedHuman_.get()); // エディタのアニメ操作対象
     }
 
@@ -107,7 +109,7 @@ void DemoShowcase::UpdatePlay(Input* input, Camera* camera,
                               std::unordered_map<std::string, TextureData>& textures,
                               const std::string& bgmFile){
     // スペースキー：エフェクト発生＋BGM再生
-    if ( input->Triggerkey(DIK_SPACE) ) {
+    if ( input->TriggerKey(DIK_SPACE) ) {
         AudioManager::GetInstance()->PlayWave(bgmFile);
         auto newEffect = std::make_unique<HitEffect>();
         newEffect->Initialize({ 5.0f, 0.0f, 5.0f }, camera,
@@ -115,7 +117,7 @@ void DemoShowcase::UpdatePlay(Input* input, Camera* camera,
         hitEffects_.push_back(std::move(newEffect));
     }
     // パーティクル発生
-    if ( input->Triggerkey(DIK_P) ) {
+    if ( input->TriggerKey(DIK_P) ) {
         ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
     }
 
@@ -131,7 +133,7 @@ void DemoShowcase::UpdateVisuals(Input* input, Camera* camera){
 
     // 円柱オーラ（UVスクロール）
     if ( auraCylinder_ ) {
-        auraCylinderScroll_ += 1.0f * ( 1.0f / 60.0f );
+        auraCylinderScroll_ += 1.0f * Time::kFixedDeltaTime;
         if ( auraCylinderScroll_ > 1.0f ) { auraCylinderScroll_ -= 1.0f; }
         auraCylinder_->GetModel()->GetMaterial()->uvTransform = MakeTranslate({ 0.0f, auraCylinderScroll_, 0.0f });
         auraCylinder_->Update();
@@ -139,7 +141,7 @@ void DemoShowcase::UpdateVisuals(Input* input, Camera* camera){
 
     // リングオーラ（UVスクロール）
     if ( auraRing_ ) {
-        auraRingScroll_ += 1.0f * ( 1.0f / 60.0f );
+        auraRingScroll_ += 1.0f * Time::kFixedDeltaTime;
         if ( auraRingScroll_ > 1.0f ) { auraRingScroll_ -= 1.0f; }
         auraRing_->GetModel()->GetMaterial()->uvTransform = MakeTranslate({ 0.0f, auraRingScroll_, 0.0f });
         auraRing_->Update();
@@ -155,7 +157,7 @@ void DemoShowcase::UpdateVisuals(Input* input, Camera* camera){
     if ( sdfEgg_ ) {
         if ( sdfErodeAuto_ ) {
             // 溶けて消える(erode→1.0) ⇔ 芯から生える(→0.0) をゆっくり繰り返す
-            sdfErodeTime_ += 1.0f / 60.0f;
+            sdfErodeTime_ += Time::kFixedDeltaTime;
             float wave = 0.5f * ( 1.0f - std::cos(sdfErodeTime_ * 1.2f) ); // 0→1→0
             sdfEgg_->SetErode(wave);
         }
@@ -163,10 +165,10 @@ void DemoShowcase::UpdateVisuals(Input* input, Camera* camera){
     }
 
     // GPUパーティクル
-    if ( input->Triggerkey(DIK_G) ) {
-        GPUParticleManager::GetInstance()->Update(1.0f / 60.0f, camera);
+    if ( input->TriggerKey(DIK_G) ) {
+        GPUParticleManager::GetInstance()->Update(Time::kFixedDeltaTime, camera);
     }
-    particleEmitter_.Update(1.0f / 60.0f);
+    particleEmitter_.Update(Time::kFixedDeltaTime);
 }
 
 void DemoShowcase::OnPlayStart(){

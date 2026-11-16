@@ -23,16 +23,17 @@ public:
 
     // レール1本ぶんの掃引メッシュを out へ追加する（cuts の区間は張らない）。
     //   capFront/capBack: 自由端に平らな暗色フタを張る（丸い road_end の代わり）
+    // extendFront / extendBack＝端の先へ水平に伸ばす長さ(m)（坂の付け根の角の踊り場。伸ばした先にはフタを付ける）
     void Build(const SplineRail& rail, const std::vector<RoadCut>& cuts, bool simple,
-               bool capFront, bool capBack, RoadMeshBuilder& out) const;
+               bool capFront, bool capBack, RoadMeshBuilder& out, float extendFront = 0.0f, float extendBack = 0.0f) const;
 
-    // ゆるい溶接の掃引コネクタ：5点（助走/入口/ノード/出口/助走）から小さなレール（Catmull-Rom）を
-    // 合成し、同じ断面で掃引する。助走区間は本線と重なるので張らない
-    void BuildConnector(const std::array<Vector3, 5>& nodes, RoadMeshBuilder& out) const;
+    // nodes＝つなぎ目をはさんでレールの上から取った点。keepFrom〜keepTo 番目の間だけ面を張る
+    void BuildConnector(const std::vector<Vector3>& nodes, int keepFrom, int keepTo, RoadMeshBuilder& out) const;
 
 private:
     // 断面を置く位置（リング）。slope=坂UV / danger=危険帯UV
-    struct Ring { float s; bool slope; bool danger; };
+    // beyond＝レールの端の先へ水平に出た距離(m)（始点側は負。0＝レールの上）
+    struct Ring { float s; bool slope; bool danger; float beyond = 0.0f; };
     // リング間の区間の分類：描く / 穴 / ジャンクションの切り詰め / 二重リング
     enum class Seg { Draw, Hole, Cut, Degen };
     using Holes = std::vector<SplineRail::HoleInterval>;

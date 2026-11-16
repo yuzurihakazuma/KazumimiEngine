@@ -2,11 +2,12 @@
 // =====================================================================
 //  WorldMapPanel：ワールドマップの左の情報パネル（ステージ選択・飛び込み演出 企画書）。
 //   マスに立つと左からすべり込み、離れると戻る。段ボールの板（resources/worldmap/panel.png）に
-//   ステージの名前（ステージ開始カードと同じ intro_name_<stage>.png）とコインの数・ベストを重ねる。
+//   ステージの名前（ステージ開始カードと同じ intro_name_<stage>.png）とコインの数・コンボ花・卵スタンプを重ねる。
 //   まだ遊べないマスは panel_locked.png（？？？）だけ
-//   数字は digits.png（0〜9・/・-）を切り出して並べる（スプライトなので SDF 文字より手前に出せる）
+//   数字は digits.png（0〜9・/・-）を切り出して並べる（DigitStrip。スプライトなので SDF 文字より手前に出せる）
 // =====================================================================
 #include "engine/math/struct.h"
+#include "game/ui/DigitStrip.h"
 
 #include <map>
 #include <memory>
@@ -24,27 +25,26 @@ public:
     void Finalize();
 
     // 出すマスの内容。stage が空＝まだ遊べない
-    // coins＝いちばんためたコイン、comboFound / comboTotal＝見つけたコンボ花 / 全体（StageRecords）
-    void SetContent(const std::string& stage, bool unlocked, int coins, int comboFound, int comboTotal);
+    // 出す数（StageRecords から）
+    struct Counts {
+        int coins = 0;                       // いちばんためたコイン
+        int comboFound = 0, comboTotal = 0;  // 見つけたコンボ花 / 全体
+        int stamps = 0, stampTotal = 0;      // 取った卵スタンプ / 全体（全体が 0＝まだクリアしていない）
+    };
+    void SetContent(const std::string& stage, bool unlocked, const Counts& counts);
     // shown＝出す（左からすべり込む）／隠す
     void Update(float deltaTime, bool shown);
     void Draw();
 
 private:
-    void DrawNumber(const std::string& text, float x, float y, float height);
-
     std::unique_ptr<Sprite> panel_;
     std::unique_ptr<Sprite> panelLocked_;
     std::map<std::string, std::unique_ptr<Sprite>> names_; // ステージごとの名前（必要になった時に読む）
-    std::vector<std::unique_ptr<Sprite>> digits_;          // 数字を並べる分
-    uint32_t digitsTexture_ = 0;
-    int      nextDigit_ = 0; // このフレームで次に使う数字のスプライト
+    DigitStrip digits_;                                    // 数字を並べる
 
     std::string stage_;
-    bool  unlocked_ = false;
-    int   coins_ = 0;
-    int   comboFound_ = 0;
-    int   comboTotal_ = 0;
+    bool   unlocked_ = false;
+    Counts counts_;
     float slide_ = 0.0f;     // 0＝隠れている 1＝出ている
     float slideTime_ = 0.0f; // 出始めてからの秒数（行き過ぎて戻る動き）
     bool  shown_ = false;

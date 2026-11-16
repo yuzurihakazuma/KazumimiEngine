@@ -7,13 +7,11 @@
 //  - エディタの性能モニタで表示する
 // =============================================================
 #include <cstdint>
+#include "engine/base/Singleton.h"
 
-class RenderStats {
+class RenderStats : public Singleton<RenderStats> {
+	friend class Singleton<RenderStats>; // 土台（Singleton）だけが作れる
 public:
-	static RenderStats* GetInstance() {
-		static RenderStats instance;
-		return &instance;
-	}
 
 	// フレーム開始時にカウンタをリセット
 	void BeginFrame() {
@@ -32,8 +30,6 @@ public:
 
 private:
 	RenderStats() = default;
-	RenderStats(const RenderStats&) = delete;
-	RenderStats& operator=(const RenderStats&) = delete;
 
 	uint32_t drawCalls_ = 0;
 	uint32_t triangles_ = 0;

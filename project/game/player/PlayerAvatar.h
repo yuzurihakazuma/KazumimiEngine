@@ -48,7 +48,8 @@ public:
 
     // ステージ開始演出のクリップ（IntroWave / IntroPush / IntroJump）。指定している間は、状態（空中・歩き・待機）から
     //   選ぶより先にこれを1回だけ再生し、最後の形で止まる。同じクリップでも頭から流し直す
-    void PlayIntroClip(const std::string& clip);
+    //   loop＝true ならくり返す（クリア演出の喜びの踊りなど）
+    void PlayIntroClip(const std::string& clip, bool loop = false);
     // 壁にぶつかった：顔がつぶれて戻り、両手で顔を押さえる（WallBump クリップ。tools/stage_intro/make_intro_clips.py）
     void PlayWallBump(){ bumpTimer_ = kBumpTime; bumpRestart_ = true; }
     void ClearIntroClip();
@@ -92,6 +93,7 @@ private:
     float   bumpTimer_ = 0.0f;          // ぶつかった動きの残り秒
     bool    bumpRestart_ = false;       // 頭から流し直す
     bool    introRestart_ = false;      // 次の更新で、演出のクリップを頭から流す
+    bool    introLoop_ = false;         // 演出のクリップをくり返す
     float   dropLift_ = 0.0f;           // 上から落ちてくる演出の高さ
     float   dropSquash_ = 1.0f;         // 着地のつぶれ
     float   defeatTilt_ = 0.0f;         // やられポーズの傾き（あおむけ）

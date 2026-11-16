@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "engine/base/Singleton.h"
 #include <vector>
 #include <memory>
 #include <functional>
@@ -30,12 +31,9 @@
 //     GamePlayScene::Draw(MRT内)→ DrawVolumes(commandList) ※3Dボリュームは深度あり
 //     EditorManager::Finalize   → Finalize()
 // =====================================================================
-class SDFManager {
+class SDFManager : public Singleton<SDFManager> {
+	friend class Singleton<SDFManager>; // 土台（Singleton）だけが作れる
 public:
-    static SDFManager* GetInstance() {
-        static SDFManager instance;
-        return &instance;
-    }
 
     void Initialize();
 
@@ -88,8 +86,6 @@ public:
 private:
     SDFManager() = default;
     ~SDFManager() = default;
-    SDFManager(const SDFManager&) = delete;
-    SDFManager& operator=(const SDFManager&) = delete;
 
     // パネル最下部へ差し込むゲーム側UI（SetExtraPanelUI で登録。未登録なら何もしない）
     std::function<void()> extraPanelUI_;

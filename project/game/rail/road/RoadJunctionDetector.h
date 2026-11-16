@@ -19,7 +19,11 @@ class RoadJunctionDetector {
 public:
     // ゆるい2本溶接：掃引コネクタの5点と、中央に置くジョイント用の2本腕ジャンクション
     struct Connector {
-        std::array<Vector3, 5> nodes {}; // 助走/入口/ノード/出口/助走（RoadSweepBuilder::BuildConnector へ）
+        // つなぎ目をはさんで、2 本のレールの上から細かく取った点（RoadSweepBuilder::BuildConnector へ）。
+        //   keepFrom〜keepTo 番目の間だけ面を張る（その外は助走。本線の掃引と重なる）
+        std::vector<Vector3> nodes;
+        int keepFrom = 0;
+        int keepTo = 0;
         RoadJunction joint;              // ジョイント配置用（followRail はコネクタメッシュの追従先も兼ねる）
     };
 
@@ -33,6 +37,11 @@ public:
     const std::vector<RoadJunction>& Plazas() const{ return plazas_; }
     const std::vector<Connector>&    Connectors() const{ return connectors_; }
     const std::vector<RoadJunction>& Junctions() const{ return junctions_; } // t_cut 決定済み
+    // 坂の付け根にある角で、平らな側の端を角の先へ伸ばす長さ(m)（四角い踊り場。0＝伸ばさない）
+    float EndExtension(int rail, bool front) const{
+        if ( rail < 0 || rail >= ( int ) extensions_.size() ) return 0.0f;
+        return front ? extensions_[rail][0] : extensions_[rail][1];
+    }
 
 private:
     // 端の丸広場（エディタ指定）
@@ -51,4 +60,5 @@ private:
     std::vector<RoadJunction> plazas_;
     std::vector<Connector>    connectors_;
     std::vector<RoadJunction> junctions_;
+    std::vector<std::array<float, 2>> extensions_; // レールごとの [始点側, 終点側] の伸ばす長さ
 };

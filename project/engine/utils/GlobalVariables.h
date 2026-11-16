@@ -17,13 +17,14 @@
 //   ・保存先: resources/GlobalVariables/<group>.json
 // =====================================================================
 #include <string>
+#include "engine/base/Singleton.h"
 #include <map>
 #include <variant>
 #include "engine/math/struct.h"
 
-class GlobalVariables{
+class GlobalVariables : public Singleton<GlobalVariables> {
+	friend class Singleton<GlobalVariables>; // 土台（Singleton）だけが作れる
 public:
-    static GlobalVariables* GetInstance();
 
     // 値1つ分（対応型: int / float / bool / Vector3）
     using Item = std::variant<int32_t, float, bool, Vector3>;
@@ -60,12 +61,10 @@ public:
 private:
     GlobalVariables() = default;
     ~GlobalVariables() = default;
-    GlobalVariables(const GlobalVariables&) = delete;
-    GlobalVariables& operator=(const GlobalVariables&) = delete;
 
     // グループ = 項目名 → 値
     using Group = std::map<std::string, Item>;
     std::map<std::string, Group> datas_;
 
-    const std::string kDirectoryPath = "resources/GlobalVariables/";
+    static inline const std::string kDirectoryPath = "resources/GlobalVariables/";
 };

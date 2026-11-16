@@ -6,13 +6,14 @@
 //   ・DrawDebug() で DebugDraw に形状を積む（可視化）
 // =====================================================================
 #include <vector>
+#include "engine/base/Singleton.h"
 #include "engine/math/struct.h"
 
 class Collider;
 
-class CollisionManager{
+class CollisionManager : public Singleton<CollisionManager> {
+	friend class Singleton<CollisionManager>; // 土台（Singleton）だけが作れる
 public:
-    static CollisionManager* GetInstance();
 
     void Register(Collider* collider);   // 判定対象に追加
     void Unregister(Collider* collider); // 判定対象から外す
@@ -27,8 +28,6 @@ public:
 private:
     CollisionManager() = default;
     ~CollisionManager() = default;
-    CollisionManager(const CollisionManager&) = delete;
-    CollisionManager& operator=(const CollisionManager&) = delete;
 
     // 2つのコライダーが（属性/マスクOKの上で）重なっているか
     bool IsHit(Collider* a, Collider* b) const;

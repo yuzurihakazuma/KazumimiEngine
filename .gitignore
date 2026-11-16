@@ -347,3 +347,9 @@ project/Dumps/
 *.ipch
 # 撮影機能（ScreenCapture）が保存するスクショ・連番録画・テイク・プリセット
 project/capture/
+
+# tools：確かめ用の道具（blocksim / railsim など）のビルドの出力と、絵の確認用の画像（どれも作り直せる）
+tools/*/obj/
+tools/*/*.exe
+tools/*/build.txt
+tools/*/preview_*.png

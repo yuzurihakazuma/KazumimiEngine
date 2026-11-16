@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準ライブラリ ---
 #include <memory>
+#include "engine/base/Singleton.h"
 #include <string>
 #include <chrono>
 // 前方宣言
@@ -10,10 +11,9 @@ class Sprite;
 class ISceneTransition;
 
 // シーンマネージャークラス
-class SceneManager{
+class SceneManager : public Singleton<SceneManager> {
+	friend class Singleton<SceneManager>; // 土台（Singleton）だけが作れる
 public:
-	// シングルトンインスタンスの取得
-	static SceneManager* GetInstance();
 	// シーンマネージャーの初期化
 	void Update();
 	// シーンマネージャーの描画
@@ -48,10 +48,8 @@ public:
 
 private:
 	// コンストラクタを private にして外部からの生成を禁止
-	SceneManager() = default;
+	SceneManager();  // cpp 側で定義（前方宣言だけの型を unique_ptr で持つため）
 	~SceneManager();
-	SceneManager(const SceneManager&) = delete;
-	SceneManager& operator=(const SceneManager&) = delete;
 
 	std::unique_ptr<IScene> currentScene_ = nullptr;
 	std::unique_ptr<IScene> nextScene_ = nullptr;

@@ -1,6 +1,7 @@
 #include "Matrix4x4.h"
 #include "engine/math/QuaternionMath.h"
 #include "engine/math/VectorMath.h"
+#include <algorithm>
 #include <cmath>
 #include <cassert>
 
@@ -195,6 +196,15 @@ namespace MatrixMath {
     }
 
 	// Quaternion を使ったアフィン変換行列
+    // 回転行列 → X・Y・Z の角度（MakeAffine は X → Y → Z の順に回す。行ベクトル）
+    Vector3 ToEulerXYZ(const Matrix4x4& rotation) {
+        Vector3 result;
+        result.y = std::asin(std::clamp(-rotation.m[0][2], -1.0f, 1.0f));
+        result.x = std::atan2(rotation.m[1][2], rotation.m[2][2]);
+        result.z = std::atan2(rotation.m[0][1], rotation.m[0][0]);
+        return result;
+    }
+
     Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
         Matrix4x4 scaleMatrix = MakeScale(scale);
         Matrix4x4 rotateMatrix = QuaternionMath::MakeRotateMatrix(rotate); // Quaternion → 回転行列

@@ -1,4 +1,6 @@
-#include "game/hud/HeartRing.h"
+#include "game/ui/HeartRing.h"
+#include "game/ui/UiScale.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/2d/Sprite.h"
 #include "engine/base/WindowProc.h"
@@ -12,7 +14,7 @@
 
 namespace {
     constexpr const char* kTexture = "resources/gameover/heart.png";
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr float kShowSeconds = 1.8f;   // 出しておく時間
     constexpr float kFadeSeconds = 0.3f;   // 消えるまで
     constexpr float kOpenTime = 0.3f;      // 輪がぱっと広がる時間
@@ -98,7 +100,7 @@ void HeartRing::Update(float deltaTime, const Vector3& feet, float height, const
         const Vector2 a = toScreen(feetNdc), b = toScreen(headNdc);
         center_ = { ( a.x + b.x ) * 0.5f, ( a.y + b.y ) * 0.5f };
         const float projected = std::sqrt(( a.x - b.x ) * ( a.x - b.x ) + ( a.y - b.y ) * ( a.y - b.y ));
-        radius_ = std::clamp(projected * kRingScale, 50.0f * screenHeight / 1080.0f, 260.0f * screenHeight / 1080.0f);
+        radius_ = std::clamp(projected * kRingScale, 50.0f * screenHeight / UiScale::kBaseHeight, 260.0f * screenHeight / UiScale::kBaseHeight);
     }
 }
 

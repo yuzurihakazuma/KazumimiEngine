@@ -1,4 +1,5 @@
 #include "ModelManager.h"
+#include "engine/math/MathUtil.h"
 // 基盤システムのヘッダー
 #include "Model.h"
 #include "ModelCommon.h"
@@ -7,18 +8,10 @@
 #include <algorithm>
 
 
-ModelManager* ModelManager::instance_ = nullptr;
-
 ModelManager::ModelManager(){}
 
 ModelManager::~ModelManager(){}
 
-
-ModelManager* ModelManager::GetInstance() {
-	// 関数内で static 変数を宣言すると、プログラム終了まで生き残り、
-	static ModelManager instance;
-	return &instance;
-}
 
 void ModelManager::Finalize() {
 	models_.clear();
@@ -114,7 +107,7 @@ void ModelManager::CreateStarModel(const std::string& modelName, float outerRadi
 	// 外周5個、内周5個の計10点の星型頂点を生成
 	// 前面10点(Index 2..11) と 後面10点(Index 12..21)
 	for (int i = 0; i < 10; ++i) {
-		float angle = i * (3.14159265f / 5.0f);
+		float angle = i * (Math::kPi / 5.0f);
 		float r = (i % 2 == 0) ? outerRadius : innerRadius;
 		float x = std::sin(angle) * r;
 		float y = std::cos(angle) * r;
@@ -196,7 +189,7 @@ void ModelManager::CreateEggShellModel(const std::string& modelName, float size)
 	const float thickness = size * 0.05f;   // 殻の薄さ
 	const float thetaMax  = 0.52f;          // キャップの開き角(rad)＝カケラの大きさ
 	const float Ri        = R - thickness;  // 内側（背面）の半径
-	const float PI        = 3.14159265f;
+	const float PI        = Math::kPi;
 
 	// キャップ中央の高さぶん下げて、原点付近を中心に回るようにする
 	const float zShift = R * std::cos(thetaMax * 0.5f);

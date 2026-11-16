@@ -1,5 +1,6 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <wrl.h>
 #include <string>
@@ -29,19 +30,19 @@ struct TextureData{
 
 };
 
-class TextureManager{
-
+// =====================================================================
+//  TextureManager：テクスチャの読み込み。
+//   画像ファイルを読んで GPU へ送り、シェーダーから見るための番号（SRV）を作る。
+//   同じファイルは 1 回だけ読み、2 回目からは同じ番号を返す（Load）
+// =====================================================================
+class TextureManager : public Singleton<TextureManager> {
+	friend class Singleton<TextureManager>; // 土台（Singleton）だけが作れる
 public:
 
 	/// <summary>
 	/// 初期化
 	// </summary>
     void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device,DirectXCommon* dxCommon,SrvManager* srvManager);
-
-   static  TextureManager* GetInstance(){
-        static TextureManager instance;
-        return &instance;
-	}
 
    // 終了処理
    void Finalize();
@@ -140,11 +141,14 @@ public:
     }*/
 
 private:
+    // 外からは作れない（GetInstance で取り出す）
+    TextureManager() = default;
+    ~TextureManager() = default;
 
     // -------------------- 内部リソース --------------------
 
     Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;   // DX12 デバイス
-    logs::LogManager logManager;                    // ログ出力用
+    logs::LogManager logManager_;                    // ログ出力用
     ResourceFactory* resourceBuffer_ = nullptr; // バッファ生成の補助クラス
 
     DirectXCommon* dxCommon_ = nullptr;
@@ -155,9 +159,9 @@ private:
 
 
 
-    std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureMap;
+    std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureMap_;
 
-    std::unordered_map<std::string, TextureData> textureDatas;
+    std::unordered_map<std::string, TextureData> textureDatas_;
 
     std::vector< Microsoft::WRL::ComPtr<ID3D12Resource>> intermediateResources_;
 

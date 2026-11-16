@@ -24,8 +24,11 @@ namespace VectorMath {
 	// 正規化（長さがほぼ0なら fallback を返す。方向が必須の計算で NaN を出さないため）
 	Vector3 NormalizeSafe(const Vector3& v, const Vector3& fallback);
 
-	// 線形補間（t=0 で a、t=1 で b）
-	Vector3 Lerp(const Vector3& a, const Vector3& b, float t);
+	// 2 点の距離／距離の2乗
+	float Distance(const Vector3& a, const Vector3& b);
+	float DistanceSq(const Vector3& a, const Vector3& b);
+
+	// ※ 線形補間は Math::Lerp（engine/math/MathUtil.h の関数テンプレート。float も Vector も同じ名前）
 
 	Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);
 

@@ -124,7 +124,7 @@ private:
 	bool isBillboardY_ = false; // Y軸ビルボード
 
 	// 行列計算用（計算を楽にするために保持）
-	Transform transform { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
+	Transform transform_ { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
 
 	// 外部参照
 	Obj3dCommon* obj3dCommon_ = nullptr; // 所有しない参照

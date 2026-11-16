@@ -2,6 +2,7 @@
 
 // ---標準ライブラリ---
 #include <string>
+#include "engine/base/Singleton.h"
 #include <unordered_map>
 #include <memory> // スマートポインタ用
 
@@ -24,13 +25,9 @@ struct TextData{
 };
 
 // テキストデータを管理するクラス
-class TextManager{
+class TextManager : public Singleton<TextManager> {
+	friend class Singleton<TextManager>; // 土台（Singleton）だけが作れる
 public:
-	// シングルトンインスタンスの取得
-	static TextManager* GetInstance(){
-		static TextManager instance;
-		return &instance;
-	}
 
 	// 初期化
 	void Initialize();
@@ -54,8 +51,6 @@ private:
 	// 外部からのインスタンス生成を禁止
 	TextManager() = default;
 	~TextManager() = default;
-	TextManager(const TextManager&) = delete;
-	TextManager& operator=(const TextManager&) = delete;
 
 private:
 	// テキストデータをキーとセットで管理するマップ

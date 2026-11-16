@@ -1,4 +1,5 @@
 #include "LevelManager.h"
+#include "engine/utils/JsonFile.h"
 #include "externals/nlohmann/json.hpp"
 #include <fstream>
 #include <cassert>
@@ -238,12 +239,7 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
     rootJson["objects"] = objectsArray;
 
     // ファイルに書き込み
-    std::ofstream file(fileName);
-    if ( file.is_open() ) {
-        // dump(4) は見やすくするためにインデント（空白）を4つ入れる設定です
-        file << rootJson.dump(4);
-        file.close();
-    }
+    JsonFile::Save(fileName, rootJson, 4); // 字下げ 4 で、人が読める形に
 }
 
 LevelData LevelManager::Load(const std::string& fileName){

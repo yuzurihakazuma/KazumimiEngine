@@ -19,6 +19,7 @@
 //   その物を StageBackdrop::SetComboHidden で隠し、同じモデルの Obj3d（代役）を同じ姿勢で出して動かす。代役は先に作って使い回す
 // =====================================================================
 #include "engine/math/struct.h"
+#include "engine/utils/Signal.h"
 
 #include <functional>
 #include <memory>
@@ -43,6 +44,8 @@ public:
     void SetStage(const std::string& stage){ stage_ = stage; } // コンボ花の記録（StageRecords）に使う
     // ×8 を出した時（♡を戻すなど）
     void SetOnMaxCombo(std::function<void()> callback){ onMaxCombo_ = std::move(callback); }
+    // コンボが伸びた知らせ（引数＝今のコンボ数）。集計係（StageTally）が受け取る
+    Signal<int>& OnComboChanged(){ return onComboChanged_; }
     // 代役を先に作っておく（初めてのコンボで止まらないように。シーンの読み込みで呼ぶ）
     void Prewarm(uint32_t noiseSrv);
 
@@ -165,6 +168,7 @@ private:
     float flowerPop_ = 0.0f;
     std::string stage_ = "stage1";
     std::function<void()> onMaxCombo_;
+    Signal<int> onComboChanged_;
     int   comboFlowerTotal_ = 0;   // コンボの的の数
     float comboFlowerPop_ = 0.0f;
 };

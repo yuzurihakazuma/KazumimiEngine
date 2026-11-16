@@ -1,4 +1,5 @@
 #include "game/flip/FlipDial.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -7,7 +8,7 @@
 #include <cmath>
 
 namespace {
-    constexpr float kPi = 3.14159265f;
+    constexpr float kPi = Math::kPi;
     // 部品のモデル（材質の色はモデルごとなので、色ごとに別の名前）
     constexpr const char* kPaper     = "flipDialPaper";     // 黄色い紙皿
     constexpr const char* kPaperCool = "flipDialPaperCool"; // 使えない間の紙皿（灰色）

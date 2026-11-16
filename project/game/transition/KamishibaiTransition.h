@@ -12,6 +12,7 @@
 //   遷移中はゲーム側のキー操作を止める（Input::SetLocked）。早送り・飛ばしは無い
 // =====================================================================
 #include "engine/scene/ISceneTransition.h"
+#include "engine/base/Singleton.h"
 #include "game/transition/StageIntroCard.h"
 #include "game/transition/TransitionTimeline.h"
 
@@ -23,9 +24,9 @@
 class Sprite;
 class RenderTexture;
 
-class KamishibaiTransition : public ISceneTransition {
+class KamishibaiTransition : public ISceneTransition, public Singleton<KamishibaiTransition> {
+	friend class Singleton<KamishibaiTransition>; // 土台（Singleton）だけが作れる
 public:
-	static KamishibaiTransition* GetInstance();
 
 	// 画像・音を先に読む（実行中の読み込みは D3D12 のデバッグレイヤーが嫌うので、起動時に）
 	void Load();
@@ -62,7 +63,8 @@ public:
 	void Finalize() override;
 
 private:
-	KamishibaiTransition() = default;
+	KamishibaiTransition();           // cpp 側で定義（前方宣言だけの型を unique_ptr で持つため）
+	~KamishibaiTransition() override;
 
 	// definitionName の遷移で sceneName へ切り替える（遷移中は何もしない。定義が無ければそのまま切り替える）
 	static void ChangeSceneWith(const std::string& definitionName, const std::string& sceneName);

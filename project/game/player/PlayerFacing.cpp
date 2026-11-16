@@ -1,4 +1,5 @@
 #include "game/player/PlayerFacing.h"
+#include "engine/math/MathUtil.h"
 #include "engine/math/VectorMath.h"
 
 #include <algorithm>
@@ -19,13 +20,9 @@ void PlayerFacing::UpdateOnRail(const Vector3& tangent, float moveSign, float dt
     } else if ( Length(tangent) > 0.001f && moveSign != 0.0f && !turnLocked_ ) {
         targetYaw_ = std::atan2(tangent.x * moveSign, tangent.z * moveSign);
     }
-    const float kPi = 3.14159265f;
-    float yawDiff = targetYaw_ - yaw;
-    while ( yawDiff >  kPi ) yawDiff -= 2.0f * kPi; // 最短弧（+350°回らず -10° で済ませる）
-    while ( yawDiff < -kPi ) yawDiff += 2.0f * kPi;
-    yaw += yawDiff * ( std::min )( turnRate_ * dt, 1.0f ); // 反転(180°)も素早く向き切る（演出中は SetTurnRate でゆっくり）
-    while ( yaw >  kPi ) yaw -= 2.0f * kPi; // 値が無限に育たないよう正規化
-    while ( yaw < -kPi ) yaw += 2.0f * kPi;
+    const float yawDiff = Math::AngleDelta(yaw, targetYaw_); // 最短弧（+350°回らず -10° で済ませる）
+    yaw += yawDiff * ( std::min )( turnRate_ * dt, 1.0f );   // 反転(180°)も素早く向き切る（演出中は SetTurnRate でゆっくり）
+    yaw = Math::WrapAngle(yaw);                              // 値が無限に育たないよう正規化
 }
 
 void PlayerFacing::FaceVelocity(const Vector3& velocity, float& yaw) const{

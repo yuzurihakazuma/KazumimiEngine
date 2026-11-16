@@ -1,4 +1,5 @@
 #include "game/egg/EggCombo.h"
+#include "engine/math/MathUtil.h"
 
 #include "game/egg/Egg.h"
 #include "game/egg/EggSystem.h"
@@ -39,7 +40,7 @@ namespace {
     constexpr float kComboShowTime = 1.6f;   // 最後に当ててから札を出しておく秒
     constexpr float kConeDeg       = 60.0f;  // はじける向きから、次の物を探す角度（この外の物へは飛ばない＝そこでコンボが終わる）
     constexpr float kAimSpread     = 0.8f;   // 狙える所：物の真ん中から、大きさのこの割合まで
-    constexpr float kPi            = 3.14159265f;
+    constexpr float kPi            = Math::kPi;
 
     uint32_t Hash(uint32_t x){ x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return x; }
     float Rand01(uint32_t& seed){ seed = Hash(seed + 0x9e3779b9u); return ( seed & 0xffffff ) / float(0xffffff); }
@@ -123,7 +124,7 @@ int EggCombo::AcquireProxy(int target){
         proxies_[p].obj->SetMaterialOverride(false);
         proxies_[p].obj->SetDissolveThreshold(0.0f);
         backdrop_->SetComboHidden(targets_[target].item, true);
-        PlaceProxy(p, targets_[target], targets_[target].mid, { item.rot.x * kPi / 180.0f, item.rot.y * kPi / 180.0f, item.rot.z * kPi / 180.0f }, 1.0f);
+        PlaceProxy(p, targets_[target], targets_[target].mid, Math::ToRadians(item.rot), 1.0f);
         return p;
     }
     return -1;
@@ -292,7 +293,7 @@ int EggCombo::PickNext(int from, const Vector3& outDir, const std::vector<int>& 
     const Vector3& fromPos = targets_[from].center;
     const float fromDepth = DepthOf(fromPos);
     const float reach = kChainReach * Momentum(( int ) visited.size());
-    const float cone = kConeDeg * kPi / 180.0f;
+    const float cone = Math::ToRadians(kConeDeg);
     int best = -1;
     float bestScore = 1e9f;
     for ( int k = 0; k < ( int ) targets_.size(); ++k ) {
@@ -402,6 +403,7 @@ void EggCombo::Burst(int targetIndex, int chainIndex, const Vector3& at, const V
     chain.count++;
     chain.visited.push_back(targetIndex);
     shownCombo_ = chain.count;
+    onComboChanged_.Emit(chain.count);
     comboTimer_ = 0.0f;
     comboPop_ = 1.0f;
 
@@ -454,7 +456,7 @@ void EggCombo::Burst(int targetIndex, int chainIndex, const Vector3& at, const V
     flyer.chain = chainIndex;
     flyer.pos = flyer.prev = target.mid;
     const BackdropItem& item = backdrop_->Items()[target.item];
-    flyer.rot = { item.rot.x * kPi / 180.0f, item.rot.y * kPi / 180.0f, item.rot.z * kPi / 180.0f };
+    flyer.rot = Math::ToRadians(item.rot);
     uint32_t seed = ( uint32_t ) targetIndex * 2654435761u + ( uint32_t ) chain.count;
     const float side = Rand01(seed) < 0.5f ? -1.0f : 1.0f;
     const int next = chain.count < kMaxCombo ? PickNext(targetIndex, outDir, chain.visited, true) : -1;
@@ -584,7 +586,7 @@ void EggCombo::Update(const Vector3& playerPos, const Camera* camera, float dt){
             const BackdropItem& item = backdrop_->Items()[target.item];
             const Vector3 base { target.mid.x, target.mid.y - target.halfHeight, target.mid.z };
             PlaceProxy(target.proxy, target, { base.x, base.y + target.halfHeight * grow, base.z },
-                       { item.rot.x * kPi / 180.0f, item.rot.y * kPi / 180.0f, item.rot.z * kPi / 180.0f }, ( std::max )( grow, 0.01f ));
+                       Math::ToRadians(item.rot), ( std::max )( grow, 0.01f ));
         }
     }
 
@@ -597,7 +599,7 @@ void EggCombo::Update(const Vector3& playerPos, const Camera* camera, float dt){
         const Target& target = targets_[highlightTarget_];
         const BackdropItem& item = backdrop_->Items()[target.item];
         const float pop = 1.0f + 0.12f * std::sin(( 1.0f - lockPop_ ) * kPi) * ( lockPop_ > 0.0f ? 1.0f : 0.0f );
-        PlaceProxy(highlightProxy_, target, target.mid, { item.rot.x * kPi / 180.0f, item.rot.y * kPi / 180.0f, item.rot.z * kPi / 180.0f }, pop);
+        PlaceProxy(highlightProxy_, target, target.mid, Math::ToRadians(item.rot), pop);
     }
 
     if ( shownCombo_ > 0 ) {

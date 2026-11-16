@@ -74,7 +74,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
@@ -83,7 +83,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -105,7 +105,7 @@ exit 0</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -115,7 +115,7 @@ exit 0</Command>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
@@ -140,7 +140,7 @@ exit 0</Command>
     <!-- Development：Release と同じ速さ（最適化あり・D3D12 デバッグレイヤーなし）で、Debug と同じエディタ（ImGui）を使う。
          _DEBUG は付けない（デバッグレイヤー・リソースリーク検査・R キーのリロードは Debug だけ）。DEVELOPMENT_BUILD で見分けられる -->
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -152,7 +152,7 @@ exit 0</Command>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\io;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -180,6 +180,7 @@ exit 0</Command>
     <ClCompile Include="engine\utils\EditorManager.cpp" />
     <ClCompile Include="engine\utils\PerformanceMonitor.cpp" />
     <ClCompile Include="engine\utils\ScreenCapture.cpp" />
+    <ClCompile Include="engine\utils\JsonFile.cpp" />
     <ClCompile Include="engine\utils\FileEditor.cpp" />
     <ClCompile Include="engine\utils\NodeEditor.cpp" />
     <ClCompile Include="game\camera\PlayCameraController.cpp" />
@@ -188,7 +189,15 @@ exit 0</Command>
     <ClCompile Include="game\combat\CombatSystem.cpp" />
     <ClCompile Include="game\player\SwallowAbility.cpp" />
     <ClCompile Include="game\player\AimThrowController.cpp" />
-    <ClCompile Include="game\stage\StageFlow.cpp" />
+    <ClCompile Include="game\clear\ClearCamera.cpp" />
+    <ClCompile Include="game\clear\ClearFlow.cpp" />
+    <ClCompile Include="game\clear\ClearSequence.cpp" />
+    <ClCompile Include="game\clear\ClearSettings.cpp" />
+    <ClCompile Include="game\clear\GoalProps.cpp" />
+    <ClCompile Include="game\clear\GoalRing.cpp" />
+    <ClCompile Include="game\clear\ResultScreen.cpp" />
+    <ClCompile Include="game\clear\StageTally.cpp" />
+    <ClCompile Include="game\ui\DigitStrip.cpp" />
     <ClCompile Include="game\stage\CoinSystem.cpp" />
     <ClCompile Include="game\stage\BlockSystem.cpp" />
     <ClCompile Include="engine\postEffect\Bloom.cpp" />
@@ -212,20 +221,35 @@ exit 0</Command>
     <ClCompile Include="engine\graphics\TextureManager.cpp" />
     <ClCompile Include="engine\graphics\BlendMode.cpp" />
     <ClCompile Include="engine\base\DirectXCommon.cpp" />
-    <ClCompile Include="engine\particle\ParticleCommon.cpp" />
     <ClCompile Include="engine\particle\ParticleManager.cpp" />
     <ClCompile Include="engine\utils\CrashDumper.cpp" />
     <ClCompile Include="engine\utils\ImGuiManager.cpp" />
     <ClCompile Include="engine\utils\LogManager.cpp" />
     <ClCompile Include="engine\utils\GlobalVariables.cpp" />
-    <ClCompile Include="externals\imgui\imgui.cpp" />
-    <ClCompile Include="externals\imgui\imgui_demo.cpp" />
-    <ClCompile Include="externals\imgui\imgui_draw.cpp" />
-    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp" />
-    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp" />
-    <ClCompile Include="externals\imgui\imgui_tables.cpp" />
-    <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="externals\ImGuizmo\ImGuizmo.cpp" />
+    <ClCompile Include="externals\imgui\imgui.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_demo.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_draw.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_tables.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="externals\ImGuizmo\ImGuizmo.cpp">
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
     <ClCompile Include="engine\math\Matrix4x4.cpp" />
     <ClCompile Include="engine\base\WindowProc.cpp" />
     <ClCompile Include="engine\2d\SpriteCommon.cpp" />
@@ -267,10 +291,10 @@ exit 0</Command>
     <ClCompile Include="game\flip\FlipDial.cpp" />
     <ClCompile Include="game\gameover\GameOverFlow.cpp" />
     <ClCompile Include="game\gameover\GameOverScreen.cpp" />
-    <ClCompile Include="game\hud\HeartRing.cpp" />
+    <ClCompile Include="game\ui\HeartRing.cpp" />
     <ClCompile Include="game\gameover\GameOverSequence.cpp" />
     <ClCompile Include="game\gameover\PaperSheet.cpp" />
-    <ClCompile Include="game\worldmap\PaperFx.cpp" />
+    <ClCompile Include="game\effect\PaperFx.cpp" />
     <ClCompile Include="game\worldmap\DioramaTrain.cpp" />
     <ClCompile Include="game\worldmap\DiveSequence.cpp" />
     <ClCompile Include="game\worldmap\WorldMapPanel.cpp" />
@@ -354,34 +378,6 @@ exit 0</Command>
     <ClCompile Include="engine\rail\SplineRail.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="engine\base\resources\shaders\Object3d.PS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="engine\base\resources\shaders\Object3d.VS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Development|x64'">Vertex</ShaderType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="engine\base\resources\shaders\Particle.PS.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="engine\base\resources\shaders\Particle.VS.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="engine\particle\GPUParticleEmitterData.h" />
     <ClInclude Include="engine\particle\HitEffect.h" />
     <ClInclude Include="engine\particle\StompEffect.h" />
@@ -399,7 +395,19 @@ exit 0</Command>
     <ClInclude Include="game\combat\CombatSystem.h" />
     <ClInclude Include="game\player\SwallowAbility.h" />
     <ClInclude Include="game\player\AimThrowController.h" />
-    <ClInclude Include="game\stage\StageFlow.h" />
+    <ClInclude Include="engine\utils\JsonFile.h" />
+    <ClInclude Include="engine\utils\Signal.h" />
+    <ClInclude Include="engine\utils\StepSequence.h" />
+    <ClInclude Include="game\clear\ClearCamera.h" />
+    <ClInclude Include="game\clear\ClearContext.h" />
+    <ClInclude Include="game\clear\ClearFlow.h" />
+    <ClInclude Include="game\clear\ClearSequence.h" />
+    <ClInclude Include="game\clear\ClearSettings.h" />
+    <ClInclude Include="game\clear\GoalProps.h" />
+    <ClInclude Include="game\clear\GoalRing.h" />
+    <ClInclude Include="game\clear\ResultScreen.h" />
+    <ClInclude Include="game\clear\StageTally.h" />
+    <ClInclude Include="game\ui\DigitStrip.h" />
     <ClInclude Include="game\stage\CoinSystem.h" />
     <ClInclude Include="game\stage\StageRecords.h" />
     <ClInclude Include="game\stage\BlockSystem.h" />
@@ -424,7 +432,6 @@ exit 0</Command>
     <ClInclude Include="engine\graphics\SrvManager.h" />
     <ClInclude Include="engine\graphics\TextureManager.h" />
     <ClInclude Include="engine\math\struct.h" />
-    <ClInclude Include="engine\particle\ParticleCommon.h" />
     <ClInclude Include="engine\particle\ParticleManager.h" />
     <ClInclude Include="engine\scene\AbstractSceneFactory.h" />
     <ClInclude Include="engine\audio\AudioManager.h" />
@@ -500,10 +507,10 @@ exit 0</Command>
     <ClInclude Include="game\flip\FlipDial.h" />
     <ClInclude Include="game\gameover\GameOverFlow.h" />
     <ClInclude Include="game\gameover\GameOverScreen.h" />
-    <ClInclude Include="game\hud\HeartRing.h" />
+    <ClInclude Include="game\ui\HeartRing.h" />
     <ClInclude Include="game\gameover\GameOverSequence.h" />
     <ClInclude Include="game\gameover\PaperSheet.h" />
-    <ClInclude Include="game\worldmap\PaperFx.h" />
+    <ClInclude Include="game\effect\PaperFx.h" />
     <ClInclude Include="game\worldmap\DioramaTrain.h" />
     <ClInclude Include="game\worldmap\DiveSequence.h" />
     <ClInclude Include="game\worldmap\WorldMapPanel.h" />
@@ -585,15 +592,70 @@ exit 0</Command>
     <ClInclude Include="engine\particle\GPUParticleEditor.h" />
     <ClInclude Include="engine\3d\Skybox.h" />
     <ClInclude Include="engine\rail\SplineRail.h" />
+    <ClInclude Include="engine\base\Singleton.h" />
+    <ClInclude Include="engine\base\TimeManager.h" />
+    <ClInclude Include="engine\graphics\D3DDebugName.h" />
+    <ClInclude Include="engine\math\MathUtil.h" />
+    <ClInclude Include="engine\rail\RailSkin.h" />
+    <ClInclude Include="engine\utils\RenderStats.h" />
+    <ClInclude Include="game\ui\UiScale.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj" />
-    <None Include="engine\base\resources\shaders\Object3d.hlsli" />
-    <None Include="engine\base\resources\shaders\Particle.hlsli" />
     <None Include="packages.config" />
+    <None Include="resources\shaders\Debug\DebugLine.PS.hlsl" />
+    <None Include="resources\shaders\Debug\DebugLine.VS.hlsl" />
+    <None Include="resources\shaders\Object3d\InstancedObject.VS.hlsl" />
+    <None Include="resources\shaders\Object3d\Object3d.hlsli" />
+    <None Include="resources\shaders\Object3d\Object3d.PS.hlsl" />
+    <None Include="resources\shaders\Object3d\Object3d.VS.hlsl" />
+    <None Include="resources\shaders\Object3d\SkinningObject3d.VS.hlsl" />
+    <None Include="resources\shaders\Particle\GPUParticle.VS.hlsl" />
+    <None Include="resources\shaders\Particle\Particle.hlsli" />
+    <None Include="resources\shaders\Particle\Particle.PS.hlsl" />
+    <None Include="resources\shaders\Particle\Particle.VS.hlsl" />
+    <None Include="resources\shaders\Particle\ParticleEmit.CS.hlsl" />
+    <None Include="resources\shaders\Particle\ParticleUpdate.CS.hlsl" />
+    <None Include="resources\shaders\PostEffect\bloom\BloomCombine.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\bloom\BloomExtract.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\bloom\GaussianBlur.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\BoxFilter.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\BoxFilter5x5.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\ColorTint.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\CopyImage.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\Fullscreen.hlsli" />
+    <None Include="resources\shaders\PostEffect\Fullscreen.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\Fullscreen.VS.hlsl" />
+    <None Include="resources\shaders\PostEffect\GaussianFilter.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\Grayscale.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\IrisWipe.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\LuminanceBasedOutline.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\MaskedDistortion.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\MaskedGlow.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\MaskedSepia.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\PaperGrain.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\PictureBook.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\RadialBlur.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\RandomNoise.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\Sepia.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\TiltShift.PS.hlsl" />
+    <None Include="resources\shaders\PostEffect\Vignetting.PS.hlsl" />
+    <None Include="resources\shaders\SDF\MeltRoad.PS.hlsl" />
+    <None Include="resources\shaders\SDF\MeltRoad.VS.hlsl" />
+    <None Include="resources\shaders\SDF\SDFSprite.PS.hlsl" />
+    <None Include="resources\shaders\SDF\SDFText.PS.hlsl" />
+    <None Include="resources\shaders\SDF\SDFText.VS.hlsl" />
+    <None Include="resources\shaders\SDF\SDFVolume.PS.hlsl" />
+    <None Include="resources\shaders\SDF\SDFVolume.VS.hlsl" />
+    <None Include="resources\shaders\skyBox\SkyBox.hlsli" />
+    <None Include="resources\shaders\skyBox\SkyBox.PS.hlsl" />
+    <None Include="resources\shaders\skyBox\SkyBox.VS.hlsl" />
+    <None Include="resources\shaders\Sprite\Sprite2d.hlsli" />
+    <None Include="resources\shaders\Sprite\Sprite2d.PS.hlsl" />
+    <None Include="resources\shaders\Sprite\Sprite2d.VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

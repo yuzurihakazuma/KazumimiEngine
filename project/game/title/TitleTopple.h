@@ -9,6 +9,7 @@
 //   背景（TitleAmbience）・ロゴの看板・メニューの的で同じ動きを使う
 // =====================================================================
 #include "engine/math/Matrix4x4.h"
+#include "engine/math/MathUtil.h"
 #include "engine/math/struct.h"
 
 #include <algorithm>
@@ -21,7 +22,7 @@ namespace TitleTopple {
 	inline constexpr float kSpread        = 6.0f;   // 中心から横にこれだけ離れた物は、一番外向きに倒れる(m)
 	inline constexpr float kMaxSide       = 0.9f;   // 一番外向きに倒れる時の向き（真後ろから何 rad 横へ）
 	inline constexpr float kSettleTime    = 0.45f;  // 地面に着いてから、跳ね返りが収まるまで(秒)
-	inline constexpr float kPi            = 3.14159265358979323846f;
+	inline constexpr float kPi            = Math::kPi;
 
 	// 倒れ方（重さ）
 	struct Weight {
@@ -71,12 +72,6 @@ namespace TitleTopple {
 		const Matrix4x4 placed = Multiply(Multiply(MakeRotateX(rotation.x), MakeRotateY(rotation.y)), MakeRotateZ(rotation.z));
 		// 世界で倒す：倒す向きを奥(+Z)へ回してから X で倒し、元の向きへ戻す
 		const Matrix4x4 tilt = Multiply(Multiply(MakeRotateY(-direction), MakeRotateX(angle)), MakeRotateY(direction));
-		const Matrix4x4 m = Multiply(placed, tilt);
-		// 回転行列 → X・Y・Z の角度（MakeAffine と同じ順番）
-		Vector3 result;
-		result.y = std::asin(std::clamp(-m.m[0][2], -1.0f, 1.0f));
-		result.x = std::atan2(m.m[1][2], m.m[2][2]);
-		result.z = std::atan2(m.m[0][1], m.m[0][0]);
-		return result;
+		return ToEulerXYZ(Multiply(placed, tilt)); // 回転行列 → X・Y・Z の角度（MakeAffine と同じ順番）
 	}
 }

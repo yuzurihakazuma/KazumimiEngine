@@ -1,4 +1,5 @@
 #include "DissolveRoad.h"
+#include "engine/utils/JsonFile.h"
 #include "engine/rail/SplineRail.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
@@ -12,7 +13,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <fstream>
 
 namespace {
     // --- 敷設 ---
@@ -323,24 +323,18 @@ void DissolveRoad::SaveConfig() const{
     j["blendK"]    = blendK_;
     j["halfWidth"] = halfWidth_;
     j["halfThick"] = halfThick_;
-    std::ofstream file(kConfigPath);
-    if ( file ) file << j.dump(2);
+    JsonFile::Save(kConfigPath, j);
 }
 
 void DissolveRoad::LoadConfig(){
-    std::ifstream file(kConfigPath);
-    if ( !file ) return; // まだ保存していなければ既定値のまま
-    try {
-        nlohmann::json j;
-        file >> j;
-        nearDist_  = j.value("nearDist",  nearDist_);
-        farDist_   = j.value("farDist",   farDist_);
-        easeSpeed_ = j.value("easeSpeed", easeSpeed_);
-        noiseFreq_ = j.value("noiseFreq", noiseFreq_);
-        blendK_    = j.value("blendK",    blendK_);
-        halfWidth_ = j.value("halfWidth", halfWidth_);
-        halfThick_ = j.value("halfThick", halfThick_);
-    } catch ( ... ) {
-        // 壊れた設定ファイルは無視して既定値で続行
-    }
+    nlohmann::json j;
+    if ( !JsonFile::Load(kConfigPath, j) ) return; // まだ保存していない・壊れている時は、既定値のまま
+    // 1 項目ずつ：キーがあり型が合う物だけ読む（無い物は今の値のまま）
+    JsonFile::Read(j, "nearDist", nearDist_);
+    JsonFile::Read(j, "farDist", farDist_);
+    JsonFile::Read(j, "easeSpeed", easeSpeed_);
+    JsonFile::Read(j, "noiseFreq", noiseFreq_);
+    JsonFile::Read(j, "blendK", blendK_);
+    JsonFile::Read(j, "halfWidth", halfWidth_);
+    JsonFile::Read(j, "halfThick", halfThick_);
 }

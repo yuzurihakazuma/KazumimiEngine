@@ -100,14 +100,13 @@ void Obj3d::Initialize(Model* model){
 void Obj3d::Update(){
 
 	// Transform変数から行列計算用の構造体へコピー
-	transform.translate = translate_;
-	transform.rotate = rotation_;
-	transform.scale = scale_;
+	transform_.translate = translate_;
+	transform_.rotate = rotation_;
+	transform_.scale = scale_;
 
-	auto dxCommon = obj3dCommon_->GetDxCommon();
 
 	// ワールド行列の計算 (SRT)
-	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 	if ( currentAnimation_ && !currentAnimation_->nodeAnimations.empty() ) {
 		// 1. 時間を進める（デルタタイム基準。ポーズ中(timeScale=0)は止まる）
 		animationTime_ += Time::GetInstance()->GetDeltaTime();
@@ -143,24 +142,24 @@ void Obj3d::Update(){
 		// =======================================================
 		// アニメーションが無い場合は、今まで通りの変形を使う
 		// =======================================================
-		transform.translate = translate_;
-		transform.rotate = rotation_;
-		transform.scale = scale_;
+		transform_.translate = translate_;
+		transform_.rotate = rotation_;
+		transform_.scale = scale_;
 		if ( isBillboard_ && camera_ ) {
 			// 全方位ビルボード
-			Matrix4x4 scaleMat = MakeScale(transform.scale);
-			Matrix4x4 billboardMat = MakeBillboardMatrix(camera_->GetWorldPosition(), transform.translate);
-			Matrix4x4 transMat = MakeTranslate(transform.translate);
+			Matrix4x4 scaleMat = MakeScale(transform_.scale);
+			Matrix4x4 billboardMat = MakeBillboardMatrix(camera_->GetWorldPosition(), transform_.translate);
+			Matrix4x4 transMat = MakeTranslate(transform_.translate);
 			worldMatrix = Multiply(Multiply(scaleMat, billboardMat), transMat);
 		} else if ( isBillboardY_ && camera_ ) {
 			// Y軸ビルボード
-			Matrix4x4 scaleMat = MakeScale(transform.scale);
-			Matrix4x4 billboardMat = MakeBillboardYMatrix(camera_->GetWorldPosition(), transform.translate);
-			Matrix4x4 transMat = MakeTranslate(transform.translate);
+			Matrix4x4 scaleMat = MakeScale(transform_.scale);
+			Matrix4x4 billboardMat = MakeBillboardYMatrix(camera_->GetWorldPosition(), transform_.translate);
+			Matrix4x4 transMat = MakeTranslate(transform_.translate);
 			worldMatrix = Multiply(Multiply(scaleMat, billboardMat), transMat);
 		} else {
 			// 通常の計算
-			worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+			worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 		}
 	}
 

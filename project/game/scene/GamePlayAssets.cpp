@@ -1,4 +1,5 @@
 #include "game/scene/GamePlayAssets.h"
+#include "engine/utils/JsonFile.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/3d/model/ModelManager.h"
 #include "engine/3d/model/Model.h"
@@ -6,7 +7,6 @@
 #include "game/stage/StageBackdrop.h"
 #include "externals/nlohmann/json.hpp"
 
-#include <fstream>
 
 namespace {
     void LoadSounds(const std::string& bgmFile){
@@ -57,10 +57,7 @@ namespace {
         sparkle.endScale = 0.0f;
         sparkle.isBillboard = true;
         nlohmann::json settings;
-        std::ifstream file("resources/ParticleSettings.json");
-        if ( file.is_open() ) {
-            try { file >> settings; } catch ( ... ) { settings = nlohmann::json::object(); }
-        }
+        JsonFile::Load("resources/ParticleSettings.json", settings); // 無い・読めない時は空
         for ( const char* name : { "IntroSparkleY", "IntroSparkleP" } ) {
             ParticleSetting setting = sparkle;
             if ( settings.contains(name) ) {
@@ -86,6 +83,11 @@ namespace {
 
     void LoadEffectModels(ModelManager* modelManager){
         modelManager->CreateEggShellModel("eggShell", 0.3f); // 卵の殻の欠片（割れ演出用）
+        // 緑の殻（卵の水玉の色）。白と混ぜて出すと、割れたのがあの卵だと分かる
+        modelManager->CreateEggShellModel("eggShellGreen", 0.3f);
+        if ( auto* shell = modelManager->FindModel("eggShellGreen") ) {
+            if ( shell->GetMaterial() ) { shell->GetMaterial()->color = { 0.08f, 0.43f, 0.05f, 1.0f } /* 卵のテクスチャの緑（sRGB 80,175,60）をリニアにした値 */; }
+        }
         // 汎用パーティクル用の粒（"sphere" は敵と共有＋モンスターボール柄がデフォルトなので、
         //   色を付けるだけの粒には専用の白い球を使う）
         modelManager->CreateSphereModel("fxSphere", 8);
@@ -101,6 +103,18 @@ namespace {
         // レール可視化用モデル（通常=緑 / 穴=赤 の2モデル。マテリアルはモデル単位で共有のため別モデルが必要）
         modelManager->CreateCubeModel("railLineCube", 1.0f);
         modelManager->CreateCubeModel("railLineCubeHole", 1.0f);
+    }
+
+    // クリア演出：卵の殻のゴールの輪（上のふた・下のうつわ。tools/clear/make_clear_assets.py）。
+    //   切り文字・星の板は GoalProps が、リザルト画面の絵は ResultScreen が自分で用意する
+    void LoadClearModels(ModelManager* modelManager){
+        modelManager->LoadModel("goalRingTop", "resources/clear", "goal_ring_top.obj", true);
+        modelManager->LoadModel("goalRingBottom", "resources/clear", "goal_ring_bottom.obj", true);
+        for ( const char* name : { "goalRingTop", "goalRingBottom" } ) {
+            if ( Model* ring = modelManager->FindModel(name) ) {
+                if ( ring->GetMaterial() ) { ring->GetMaterial()->matte = 1.0f; } // 紙なので照り返しなし
+            }
+        }
     }
 
     void LoadBlockModels(ModelManager* modelManager){
@@ -169,6 +183,7 @@ void GamePlayAssets::Load(const std::string& bgmFile, std::unordered_map<std::st
     LoadCharacterModels(modelManager);
     LoadEffectModels(modelManager);
     LoadStageIntroAssets(modelManager);
+    LoadClearModels(modelManager);
     LoadBlockModels(modelManager);
     // パーティクルグループ
     //   ※ 卵の煙／殻の飛び散りは加算パーティクルだと明るい背景で見えないため、

@@ -44,6 +44,10 @@ public:
     bool IsFluttering() const{ return jump_.fluttering; }
     // 今乗っているレール番号（「乗ったら動き出すレール」の発動判定に使用）
     int  GetCurrentRail() const{ return currentRailIndex_; }
+    // 今乗っているレールの上の距離(m)。演出で「レールのこの場所まで歩かせる」時などに使う
+    float GetRailDistance() const{ return currentDistance_; }
+    // 歩く速さ(m/秒。調整値の倍率は入れない)
+    float GetMoveSpeed() const{ return moveSpeed_; }
 
     // 向いている方向に、足元の道の坂を足した向き（長さ1）。坂道で前へ物を出す時に使う
     //   （水平の向きのまま出すと、上り坂では出した直後に道へぶつかってしまう）

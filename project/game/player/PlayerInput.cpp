@@ -24,7 +24,7 @@ PlayerInput::WorldKeys PlayerInput::GetWorldKeys() const{
         // 移動キーを押しっぱなしの間は、前の割り当てのまま（カメラが回っても、押している向きへ進み続ける。
         //   すぐ切り替えると、例えば奥へ歩いている途中でカメラが反転した時に W が手前の意味になって引き返していた）
         Input* input = Input::GetInstance();
-        const bool holding = input->Pushkey(DIK_W) || input->Pushkey(DIK_A) || input->Pushkey(DIK_S) || input->Pushkey(DIK_D);
+        const bool holding = input->PushKey(DIK_W) || input->PushKey(DIK_A) || input->PushKey(DIK_S) || input->PushKey(DIK_D);
         if ( quadrant != lastKeyQuad_ && holding ) { quadrant = lastKeyQuad_; }
         lastKeyQuad_ = quadrant;
     } else {
@@ -56,10 +56,10 @@ PlayerInput::RailInput PlayerInput::ReadRail(bool horizontalRail) const{
     const int switchMinus = horizontalRail ? keys.minusZ : keys.minusX;
 
     RailInput result;
-    if ( input->Pushkey(( BYTE ) movePlus) )      result.move      += 1.0f;
-    if ( input->Pushkey(( BYTE ) moveMinus) )     result.move      -= 1.0f;
-    if ( input->Triggerkey(( BYTE ) switchPlus) )  result.switchDir += 1; // 横レールなら奥(+Z)、縦レールなら右(+X)へ
-    if ( input->Triggerkey(( BYTE ) switchMinus) ) result.switchDir -= 1;
+    if ( input->PushKey(( BYTE ) movePlus) )      result.move      += 1.0f;
+    if ( input->PushKey(( BYTE ) moveMinus) )     result.move      -= 1.0f;
+    if ( input->TriggerKey(( BYTE ) switchPlus) )  result.switchDir += 1; // 横レールなら奥(+Z)、縦レールなら右(+X)へ
+    if ( input->TriggerKey(( BYTE ) switchMinus) ) result.switchDir -= 1;
     return result;
 }
 
@@ -70,10 +70,10 @@ float PlayerInput::ReadAirForward(const Vector3& forwardDir) const{
     Input* input = Input::GetInstance();
     const WorldKeys keys = GetWorldKeys();
     float inputX = 0.0f, inputZ = 0.0f;
-    if ( input->Pushkey(( BYTE ) keys.plusX) )  inputX += 1.0f;
-    if ( input->Pushkey(( BYTE ) keys.minusX) ) inputX -= 1.0f;
-    if ( input->Pushkey(( BYTE ) keys.plusZ) )  inputZ += 1.0f;
-    if ( input->Pushkey(( BYTE ) keys.minusZ) ) inputZ -= 1.0f;
+    if ( input->PushKey(( BYTE ) keys.plusX) )  inputX += 1.0f;
+    if ( input->PushKey(( BYTE ) keys.minusX) ) inputX -= 1.0f;
+    if ( input->PushKey(( BYTE ) keys.plusZ) )  inputZ += 1.0f;
+    if ( input->PushKey(( BYTE ) keys.minusZ) ) inputZ -= 1.0f;
     return inputX * forwardDir.x + inputZ * forwardDir.z;
 }
 
@@ -82,18 +82,18 @@ PlayerInput::AutoPilot PlayerInput::CaptureIntent() const{
     Input* input = Input::GetInstance();
     const WorldKeys keys = GetWorldKeys();
     AutoPilot intent;
-    intent.moveX = ( input->Pushkey(( BYTE ) keys.plusX) ? 1.0f : 0.0f ) - ( input->Pushkey(( BYTE ) keys.minusX) ? 1.0f : 0.0f );
-    intent.moveZ = ( input->Pushkey(( BYTE ) keys.plusZ) ? 1.0f : 0.0f ) - ( input->Pushkey(( BYTE ) keys.minusZ) ? 1.0f : 0.0f );
-    intent.switchX = ( input->Triggerkey(( BYTE ) keys.plusX) ? 1 : 0 ) - ( input->Triggerkey(( BYTE ) keys.minusX) ? 1 : 0 );
-    intent.switchZ = ( input->Triggerkey(( BYTE ) keys.plusZ) ? 1 : 0 ) - ( input->Triggerkey(( BYTE ) keys.minusZ) ? 1 : 0 );
-    intent.jumpPressed = input->Triggerkey(DIK_SPACE);
-    intent.jumpHeld = input->Pushkey(DIK_SPACE);
+    intent.moveX = ( input->PushKey(( BYTE ) keys.plusX) ? 1.0f : 0.0f ) - ( input->PushKey(( BYTE ) keys.minusX) ? 1.0f : 0.0f );
+    intent.moveZ = ( input->PushKey(( BYTE ) keys.plusZ) ? 1.0f : 0.0f ) - ( input->PushKey(( BYTE ) keys.minusZ) ? 1.0f : 0.0f );
+    intent.switchX = ( input->TriggerKey(( BYTE ) keys.plusX) ? 1 : 0 ) - ( input->TriggerKey(( BYTE ) keys.minusX) ? 1 : 0 );
+    intent.switchZ = ( input->TriggerKey(( BYTE ) keys.plusZ) ? 1 : 0 ) - ( input->TriggerKey(( BYTE ) keys.minusZ) ? 1 : 0 );
+    intent.jumpPressed = input->TriggerKey(DIK_SPACE);
+    intent.jumpHeld = input->PushKey(DIK_SPACE);
     return intent;
 }
 
 bool PlayerInput::JumpPressed() const{
-    return autoPilotActive_ ? autoPilot_.jumpPressed : Input::GetInstance()->Triggerkey(DIK_SPACE);
+    return autoPilotActive_ ? autoPilot_.jumpPressed : Input::GetInstance()->TriggerKey(DIK_SPACE);
 }
 bool PlayerInput::JumpHeld() const{
-    return autoPilotActive_ ? autoPilot_.jumpHeld : Input::GetInstance()->Pushkey(DIK_SPACE);
+    return autoPilotActive_ ? autoPilot_.jumpHeld : Input::GetInstance()->PushKey(DIK_SPACE);
 }

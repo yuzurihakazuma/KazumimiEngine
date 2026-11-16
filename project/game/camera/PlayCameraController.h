@@ -1,5 +1,6 @@
 #pragma once
 #include "engine/math/struct.h"
+#include "engine/math/MathUtil.h"
 #include "engine/utils/Level/LevelData.h" // LevelCameraZone
 #include <vector>
 
@@ -74,7 +75,7 @@ private:
         int   rail = 0; float dist = 0.0f; float radius = 4.0f;
         int   mode = 1;                          // 0=固定カメラ / 1=向き切替
         Vector3 offset { 0.0f, 3.0f, -6.0f };    // mode0: アンカーからのカメラ位置
-        float yawRad = 3.14159f; float camDist = 10.0f; float camHeight = 3.5f; // mode1
+        float yawRad = Math::kPi; float camDist = 10.0f; float camHeight = 3.5f; // mode1
         bool  revert = false;                    // mode1: 半径から出たら通常の向きへ戻る
         bool  freeze = false;                    // mode1: 回転が終わるまで時間を止める
         float fovRad = 0.785f;

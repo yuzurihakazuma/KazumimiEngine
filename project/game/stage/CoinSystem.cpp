@@ -1,4 +1,5 @@
 #include "CoinSystem.h"
+#include "engine/math/MathUtil.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/rail/SplineRail.h"
 #include "engine/graphics/DebugDraw.h"
@@ -85,7 +86,7 @@ void CoinSystem::DrawPickupBody(const Vector3& foot, const Vector4& color){
     const int kSegments = 16;
     Vector3 prevLow {}, prevHigh {};
     for ( int i = 0; i <= kSegments; ++i ) {
-        const float angle = 6.2831853f * i / kSegments;
+        const float angle = Math::kTwoPi * i / kSegments;
         const Vector3 low { foot.x + std::cos(angle) * kBodyRadius, foot.y, foot.z + std::sin(angle) * kBodyRadius };
         const Vector3 high { low.x, foot.y + kBodyHeight, low.z };
         if ( i > 0 ) { draw->Line(prevLow, low, color); draw->Line(prevHigh, high, color); }

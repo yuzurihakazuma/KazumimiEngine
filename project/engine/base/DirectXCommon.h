@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準ライブラリ・外部ライブラリ ---
 #include <windows.h>
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -24,13 +25,14 @@ class WindowProc;
 class ResourceFactory;
 class SrvManager;
 
-class DirectXCommon{
+// =====================================================================
+//  DirectXCommon：DirectX12 の土台。
+//   デバイス・コマンドリスト・スワップチェーン・深度バッファを作り、
+//   1 フレームの描画の始めと終わり（PreDraw / PostDraw）と、60fps への固定を受け持つ
+// =====================================================================
+class DirectXCommon : public Singleton<DirectXCommon> {
+	friend class Singleton<DirectXCommon>; // 土台（Singleton）だけが作れる
 public:
-	// シングルトンインスタンス取得
-	static DirectXCommon* GetInstance(){
-		static DirectXCommon instance;
-		return &instance;
-	}
 
 	/// <summary>初期化
 	void Initialize(WindowProc* windowProc);
@@ -225,7 +227,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;  // ステンシルリソース
 
 	// -------------------- その他リソース --------------------
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource; // 汎用リソース（用途によって変更可）
 
 	// -------------------- システム関連 --------------------
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_; // フェンス
@@ -258,7 +259,5 @@ private:
 private:
 	DirectXCommon() = default;
 	~DirectXCommon() = default;
-	DirectXCommon(const DirectXCommon&) = delete;
-	DirectXCommon& operator=(const DirectXCommon&) = delete;
 };
 

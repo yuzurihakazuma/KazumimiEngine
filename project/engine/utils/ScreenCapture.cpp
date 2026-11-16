@@ -90,11 +90,6 @@ struct ScreenCapture::Job {
 ScreenCapture::ScreenCapture() = default;
 ScreenCapture::~ScreenCapture() = default;
 
-ScreenCapture* ScreenCapture::GetInstance(){
-    static ScreenCapture instance;
-    return &instance;
-}
-
 // =====================================================================
 //  初期化・終了
 // =====================================================================
@@ -174,8 +169,8 @@ void ScreenCapture::OnInputUpdated(){
     const float dt = Time::GetInstance()->GetUnscaledDeltaTime();
 
     // 撮影のキー（遷移の演出中・文字入力中でも効く）
-    if ( input->TriggerkeyRaw(DIK_F12) ) { RequestShot(); }
-    if ( input->TriggerkeyRaw(DIK_F9) ) { // F11 はフルスクリーンの切り替え（WindowProc）なので F9
+    if ( input->TriggerKeyRaw(DIK_F12) ) { RequestShot(); }
+    if ( input->TriggerKeyRaw(DIK_F9) ) { // F11 はフルスクリーンの切り替え（WindowProc）なので F9
         if ( recording_ ) { StopRecording(); }
         else if ( countdown_ >= 0.0f ) { countdown_ = -1.0f; status_ = "録画をやめた"; }
         else { BeginCountdownOrRecord(); }
@@ -955,7 +950,7 @@ void ScreenCapture::DrawOverlay(){
 #endif
 }
 
-void ScreenCapture::DrawPanel(const char* windowTitle){
+void ScreenCapture::DrawPanel([[maybe_unused]] const char* windowTitle){
 #ifdef USE_IMGUI
     if ( !ImGui::Begin(windowTitle) ) { ImGui::End(); return; }
     if ( !presetsLoaded_ ) { LoadPresets(); }

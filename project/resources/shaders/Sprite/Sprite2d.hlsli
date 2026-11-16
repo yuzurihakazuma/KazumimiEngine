@@ -14,4 +14,6 @@ struct Material
     int32_t enableLighting;
     float4x4 uvTransform;
     float shininess;
+    // Reveal threshold for "stroke order" images (Sprite::SetReveal). Negative = off.
+    float reveal;
 };

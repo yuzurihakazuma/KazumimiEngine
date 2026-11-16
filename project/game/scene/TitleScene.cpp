@@ -1,4 +1,6 @@
 #include "TitleScene.h"
+#include "engine/base/TimeManager.h"
+#include "engine/math/MathUtil.h"
 #include "game/transition/KamishibaiTransition.h"
 #include "game/title/TitleTopple.h"
 // --- ゲーム固有のファイル ---
@@ -35,8 +37,8 @@
 using namespace TitleLayout;
 
 namespace {
-	constexpr float kDeltaTime = 1.0f / 60.0f;
-	constexpr float kPi = 3.14159265358979323846f;
+	constexpr float kDeltaTime = Time::kFixedDeltaTime;
+	constexpr float kPi = Math::kPi;
 
 	// --- 登場（自動操縦）---
 	constexpr float kIntroMoveSpeed  = 6.0f;   // 登場中の走る速さ(m/s)
@@ -98,7 +100,7 @@ namespace {
 	bool DecidePressed(){
 		if ( IsTypingInEditor() ) { return false; }
 		Input* input = Input::GetInstance();
-		return input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN) || input->Triggerkey(DIK_E);
+		return input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) || input->TriggerKey(DIK_E);
 	}
 
 	// -π〜π に収めた角度の差
@@ -462,7 +464,7 @@ PlayerInput::AutoPilot TitleScene::SteerAutoPilot(const Vector3* waypoints, int 
 // 登場：走る → 奥のレールの途中でロゴを投げる → 刺さったらメニューが出る → 手前の中央に着いたら操作開始
 void TitleScene::UpdateIntro(){
 	Input* input = Input::GetInstance();
-	if ( DecidePressed() || ( !IsTypingInEditor() && input->Triggerkey(DIK_SPACE) ) ) {
+	if ( DecidePressed() || ( !IsTypingInEditor() && input->TriggerKey(DIK_SPACE) ) ) {
 		SkipIntro(); // 待たずに始めたい人向け
 		return;
 	}
@@ -513,8 +515,8 @@ void TitleScene::UpdateMenu(){
 	//   端から先は奥の道でつながっている（つづきで A → 奥を回って せってい / せっていで D → つづき）
 	if ( !IsTypingInEditor() ) {
 		Input* input = Input::GetInstance();
-		if ( input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT) )  { selected = PickMenuTarget(selected, -1.0f); }
-		if ( input->Triggerkey(DIK_D) || input->Triggerkey(DIK_RIGHT) ) { selected = PickMenuTarget(selected, +1.0f); }
+		if ( input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) )  { selected = PickMenuTarget(selected, -1.0f); }
+		if ( input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) ) { selected = PickMenuTarget(selected, +1.0f); }
 	}
 	menuTarget_ = selected;
 
@@ -743,9 +745,9 @@ void TitleScene::UpdateEgg(float deltaTime){
 	} else {
 		eggTime_ += deltaTime;
 		const float t = Easing::Clamp01(eggTime_ / kEggFlightTime);
-		position = VectorMath::Lerp(eggFrom_, eggTo_, t);
+		position = Math::Lerp(eggFrom_, eggTo_, t);
 		position.y += 1.0f * 4.0f * t * ( 1.0f - t );
-		size = Easing::Lerp(size, 0.55f, t);
+		size = Math::Lerp(size, 0.55f, t);
 		if ( phase_ == Phase::EggFlight && t >= 1.0f ) {
 			// 画面（タイトルの絵）に当たった：絵ごと横へ吹き飛ばして、紙芝居を始める（resources/transition/title_open.json）。
 			//   卵は絵に当たって消える（このフレームの画面が「吹き飛ぶ絵」になるので、写る前に隠す）

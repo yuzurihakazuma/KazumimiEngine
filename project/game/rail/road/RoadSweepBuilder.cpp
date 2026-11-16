@@ -1,4 +1,5 @@
 #include "game/rail/road/RoadSweepBuilder.h"
+#include "engine/math/MathUtil.h"
 
 #include "game/rail/road/RoadMeshBuilder.h"
 #include "game/rail/road/RoadProfile.h"
@@ -16,7 +17,7 @@ namespace {
 const float kWalkStep   = 0.05f;                            // サンプリング歩幅(m)
 const float kMinRingGap = 0.06f;                            // リング最小間隔(m)
 const float kMaxRingGap = 1.00f;                            // リング最大間隔(m)
-const float kCurveAngle = 3.0f * kPi / 180.0f;              // リングを置く累積角(3°)
+const float kCurveAngle = Math::ToRadians(3.0f);            // リングを置く累積角(3°)
 const float kSlopeIn    = 0.45f;                            // 坂UVに入る |tangent.y|（ヒステリシス上側）
 const float kSlopeOut   = 0.35f;                            // 坂UVから抜ける（下側）
 const float kSimpleStep = 1.0f;                             // 簡易ビルド（ドラッグ中）のリング間隔(m)
@@ -125,6 +126,7 @@ std::vector<RoadSweepBuilder::Seg> RoadSweepBuilder::ClassifySegments(const std:
     std::vector<Seg> segs(rings.size() - 1);
     for ( size_t i = 0; i + 1 < rings.size(); ++i ) {
         float mid = ( rings[i].s + rings[i + 1].s ) * 0.5f;
+        if ( rings[i].beyond != rings[i + 1].beyond ) { segs[i] = Seg::Draw; continue; } // 端の先へ伸ばした踊り場
         if ( rings[i + 1].s - rings[i].s < 1e-4f ) { segs[i] = Seg::Degen; continue; }
         bool inCut = false;
         for ( const RoadCut& c : cuts ) {
@@ -161,7 +163,7 @@ void RoadSweepBuilder::EmitDarkCap(const SplineRail& rail, float s, const std::a
 
 // レール1本ぶんの掃引メッシュを生成する
 void RoadSweepBuilder::Build(const SplineRail& rail, const std::vector<RoadCut>& cuts, bool simple,
-                             bool capFront, bool capBack, RoadMeshBuilder& out) const{
+                             bool capFront, bool capBack, RoadMeshBuilder& out, float extendFront, float extendBack) const{
     const float len = rail.GetLength();
     const Holes holes = simple ? Holes {} : rail.GetHoleIntervals();
 
@@ -172,6 +174,17 @@ void RoadSweepBuilder::Build(const SplineRail& rail, const std::vector<RoadCut>&
     } else {
         rings = PlaceAdaptiveRings(rail, len, holes);
         InsertBoundaryRings(rings, len, cuts, holes);
+        // 端の先へ水平に伸ばす輪（坂の付け根の角の踊り場）。伸ばした先はフタで閉じる
+        if ( extendFront > 0.0f ) {
+            Ring ring = rings.front(); ring.beyond = -extendFront;
+            rings.insert(rings.begin(), ring);
+            capFront = true;
+        }
+        if ( extendBack > 0.0f ) {
+            Ring ring = rings.back(); ring.beyond = extendBack;
+            rings.push_back(ring);
+            capBack = true;
+        }
     }
 
     // --- 2. 頂点生成（フレーム×断面プロファイル。内側折返しは前リングへ溶接）---
@@ -184,6 +197,19 @@ void RoadSweepBuilder::Build(const SplineRail& rail, const std::vector<RoadCut>&
     for ( size_t ri = 0; ri < rings.size(); ++ri ) {
         const Ring& ring = rings[ri];
         SplineRail::RailFrame f = rail.GetFrameAtDistance(ring.s);
+        if ( ring.beyond != 0.0f ) {
+            // 端の先：端の向きを水平にして、その向きへ進めた所（平らな断面）
+            const Vector3 flat { f.tangent.x, 0.0f, f.tangent.z };
+            if ( Length(flat) > 0.2f ) {
+                const Vector3 dir = Normalize(flat);
+                Vector3 right = Normalize(Cross({ 0.0f, 1.0f, 0.0f }, dir));
+                if ( Dot(right, f.right) < 0.0f ) { right = Multiply(right, -1.0f); }
+                f.tangent = dir;
+                f.right = right;
+                f.up = { 0.0f, 1.0f, 0.0f };
+            }
+            f.position = Add(f.position, Multiply(f.tangent, ring.beyond));
+        }
         for ( int k = 0; k < 12; ++k ) {
             const ProfileV& pv = kProfile[k];
             Vector3 pos = Add(f.position,
@@ -205,7 +231,7 @@ void RoadSweepBuilder::Build(const SplineRail& rail, const std::vector<RoadCut>&
             }
 
             out.AddVertex(pos, Normalize(Add(Multiply(f.right, pv.nr), Multiply(f.up, pv.nu))),
-                          ring.s * kUvPerMeter, v);
+                          ( ring.s + ring.beyond ) * kUvPerMeter, v);
         }
         hasPrev = true;
     }
@@ -251,15 +277,16 @@ void RoadSweepBuilder::Build(const SplineRail& rail, const std::vector<RoadCut>&
 }
 
 // ゆるい溶接の掃引コネクタ
-void RoadSweepBuilder::BuildConnector(const std::array<Vector3, 5>& nodes, RoadMeshBuilder& out) const{
+void RoadSweepBuilder::BuildConnector(const std::vector<Vector3>& nodes, int keepFrom, int keepTo, RoadMeshBuilder& out) const{
+    if ( nodes.size() < 3 || keepTo <= keepFrom ) return;
     // その場で小さなレール（Catmull-Rom）を合成して同じ断面で掃引する
     SplineRail connector;
-    connector.nodes.assign(nodes.begin(), nodes.end());
+    connector.nodes = nodes;
     connector.BuildDistanceTable(); // FrameCache もここで自動構築される
 
-    // 助走区間（pPre〜p0 と p1〜pPost）は本線の掃引と重なるので張らない
-    float s0 = connector.GetDistanceFromT(1.0f);
-    float s1 = connector.GetDistanceFromT(3.0f);
+    // 助走区間（keepFrom より手前と keepTo より先）は本線の掃引と重なるので張らない
+    float s0 = connector.GetDistanceFromT(( float ) keepFrom);
+    float s1 = connector.GetDistanceFromT(( float ) keepTo);
     std::vector<RoadCut> connCuts = { { 0.0f, s0 }, { s1, connector.GetLength() } };
     Build(connector, connCuts, false, false, false, out);
 }

@@ -11,6 +11,7 @@
 //   5. 再現の補助             … スロー・コマ送り・乗り換えで一時停止・入力の記録と再生
 // =====================================================================
 #include "engine/math/struct.h"
+#include "engine/base/TimeManager.h"
 #include "game/player/Player.h"
 
 #include <cstdint>
@@ -107,7 +108,7 @@ private:
     Sample last_ {};
     bool hasLast_ = false;
     float lastCameraYaw_ = 0.0f;
-    float lastDt_ = 1.0f / 60.0f;
+    float lastDt_ = Time::kFixedDeltaTime;
     std::string status_;
 
     // 時間

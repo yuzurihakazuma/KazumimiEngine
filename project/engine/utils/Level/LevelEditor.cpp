@@ -274,8 +274,8 @@ void LevelEditor::Draw(){
 }
 
 
-void LevelEditor::DrawDebugUI(bool showHierarchy, bool showInspector, bool showAssets,
-                              bool showRail, bool showCamera, bool showItems){
+void LevelEditor::DrawDebugUI([[maybe_unused]] bool showHierarchy, [[maybe_unused]] bool showInspector, [[maybe_unused]] bool showAssets,
+                              [[maybe_unused]] bool showRail, [[maybe_unused]] bool showCamera, [[maybe_unused]] bool showItems){
 #ifdef USE_IMGUI
 	// レール編集の毎フレーム処理（Undo確定・Ctrl+Z/Y・配列同期）はウィンドウ表示と無関係に動かす
 	railEditor_->TickEditing();

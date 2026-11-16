@@ -1,4 +1,6 @@
 #include "game/stage/StageIntroSequence.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/camera/Camera.h"
@@ -13,7 +15,6 @@
 #include "game/rail/RailField.h"
 
 #include <cmath>
-#include <fstream>
 
 namespace {
     constexpr float kReturnTime = 0.6f;       // カメラが後ろへ戻る時間(秒)
@@ -36,15 +37,6 @@ namespace {
     constexpr const char* kRollModel = "introRoll";
     constexpr const char* kSparkleYellow = "IntroSparkleY";
     constexpr const char* kSparklePink = "IntroSparkleP";
-
-    // カメラを position から target を見る向きへ（PlayCameraController と同じ規約）
-    void LookAt(Camera* camera, const Vector3& position, const Vector3& target){
-        camera->SetTranslation(position);
-        const Vector3 look { target.x - position.x, target.y - position.y, target.z - position.z };
-        const float horizontal = std::sqrt(look.x * look.x + look.z * look.z);
-        if ( horizontal < 1e-4f && std::abs(look.y) < 1e-4f ) { return; }
-        camera->SetRotation({ std::atan2(-look.y, horizontal), std::atan2(look.x, look.z), 0.0f });
-    }
 }
 
 StageIntroSequence::StageIntroSequence() = default;
@@ -55,10 +47,8 @@ void StageIntroSequence::Initialize(){
 }
 
 void StageIntroSequence::LoadSettings(const std::string& stage){
-    std::ifstream file("resources/stage_intro/" + stage + ".json");
-    if ( !file.is_open() ) { return; }
     nlohmann::json content;
-    try { file >> content; } catch ( ... ) { return; }
+    if ( !JsonFile::Load("resources/stage_intro/" + stage + ".json", content) ) { return; }
     const nlohmann::json camera = content.value("introCamera", nlohmann::json::object());
     distance_ = camera.value("distance", distance_);
     side_ = camera.value("side", side_);
@@ -223,7 +213,7 @@ void StageIntroSequence::UpdateDrop(const Context& context, float dt){
         return;
     }
     const float u = ( std::min )( dropTime_ / kDropLandTime, 1.0f );
-    const float squash = 1.0f - 0.3f * std::sin(u * 3.14159265f) * ( 1.0f - 0.4f * u );
+    const float squash = 1.0f - 0.3f * std::sin(u * Math::kPi) * ( 1.0f - 0.4f * u );
     context.avatar->SetDropPose(0.0f, squash);
     if ( u >= 1.0f ) {
         drop_ = Drop::None;
@@ -257,7 +247,7 @@ void StageIntroSequence::UpdateCamera(Camera* camera, const Context& context, fl
         lookLift_ += ( target - lookLift_ ) * ( std::min )( 10.0f * dt, 1.0f );
     }
     if ( state_ != State::Returning ) {
-        LookAt(camera, introCamera_, { position.x, position.y + lookHeight_ + lookLift_, position.z });
+        camera->LookAt(introCamera_, { position.x, position.y + lookHeight_ + lookLift_, position.z });
         return;
     }
     // イントロカメラ → 通常カメラへ（始めと終わりがゆっくり）。向きはどちらもプレイヤーを見るので、見る点を補間する
@@ -267,7 +257,7 @@ void StageIntroSequence::UpdateCamera(Camera* camera, const Context& context, fl
     const Vector3 at { introCamera_.x + ( follow.x - introCamera_.x ) * e,
                        introCamera_.y + ( follow.y - introCamera_.y ) * e,
                        introCamera_.z + ( follow.z - introCamera_.z ) * e };
-    LookAt(camera, at, { position.x, position.y + lookHeight_ + lookLift_ * ( 1.0f - e ) + ( kFollowLookHeight - lookHeight_ ) * e, position.z });
+    camera->LookAt(at, { position.x, position.y + lookHeight_ + lookLift_ * ( 1.0f - e ) + ( kFollowLookHeight - lookHeight_ ) * e, position.z });
 }
 
 // ロール：道の幅の方向を軸に、進む方向へ転がる（回った角度 ＝ 転がった距離 ÷ 半径）。転がるほど少し細くなる
@@ -303,7 +293,7 @@ void StageIntroSequence::SpawnDust(EggSystem* eggSystem, const Vector3& at, floa
     if ( !eggSystem ) { return; }
     const Vector4 color { 0.86f, 0.76f, 0.6f, 1.0f };
     for ( int i = 0; i < 3; ++i ) {
-        const float angle = forwardYaw_ + 3.14159265f * 0.5f + ( float ) i * 2.0944f;
+        const float angle = forwardYaw_ + Math::kHalfPi + ( float ) i * 2.0944f;
         const Vector3 velocity { std::sin(angle) * spread * 3.0f, 0.9f + 0.25f * ( float ) i, std::cos(angle) * spread * 3.0f };
         eggSystem->SpawnPuff({ at.x, at.y + 0.1f, at.z }, velocity, color, 0.16f + 0.03f * ( float ) i, 0.45f);
     }

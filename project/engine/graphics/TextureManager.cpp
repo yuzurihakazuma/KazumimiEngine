@@ -29,7 +29,7 @@ void TextureManager::Initialize(ComPtr<ID3D12Device> device, DirectXCommon* dxCo
 // 終了処理
 void TextureManager::Finalize(){
 	// テクスチャデータ解放
-	textureDatas.clear();
+	textureDatas_.clear();
 	// 中間リソース解放
 	intermediateResources_.clear();
 
@@ -42,7 +42,7 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 
 	// 1. 画像ファイルを読み込む
 	DirectX::ScratchImage image {};
-	std::wstring filePathw = logManager.ConvertString(filePath);
+	std::wstring filePathw = logManager_.ConvertString(filePath);
 	HRESULT hr = DirectX::LoadFromWICFile(filePathw.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 
 	if ( filePath.ends_with(".dds") || filePath.ends_with(".DDS") ) {
@@ -55,7 +55,7 @@ DirectX::ScratchImage TextureManager::LoadTexture(const std::string& filePath){
 
 
 	if ( FAILED(hr) ) {
-		logManager.Log("Failed to load texture: " + filePath + "\n");
+		logManager_.Log("Failed to load texture: " + filePath + "\n");
 		assert(false);
 		return image;
 	}
@@ -106,8 +106,8 @@ TextureData TextureManager::LoadCube(const std::string& filePath){
  [[nodiscard]]
 TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,ID3D12GraphicsCommandList* commandList){
 	// すでにロード済みならそれを返す
-	auto it = textureDatas.find(filePath);
-	if ( it != textureDatas.end() ) {
+	auto it = textureDatas_.find(filePath);
+	if ( it != textureDatas_.end() ) {
 		return it->second;
 	}
 
@@ -146,7 +146,7 @@ TextureData TextureManager::LoadTextureAndCreateSRV(const std::string& filePath,
 	}
 
 	// 6. キャッシュに保存
-	textureDatas[filePath] = texData;
+	textureDatas_[filePath] = texData;
 
 	return texData;
 }
@@ -156,10 +156,10 @@ TextureData TextureManager::ReloadTextureAndCreateSRV(const std::string& filePat
 
 	// 既存エントリがあれば SRV スロットを引き継ぐ（参照側のインデックスを無効にしない）
 	uint32_t reuseSrvIndex = UINT32_MAX;
-	auto it = textureDatas.find(filePath);
-	if ( it != textureDatas.end() ) {
+	auto it = textureDatas_.find(filePath);
+	if ( it != textureDatas_.end() ) {
 		reuseSrvIndex = it->second.srvIndex;
-		textureDatas.erase(it);
+		textureDatas_.erase(it);
 	}
 
 	TextureData texData {};
@@ -186,15 +186,15 @@ TextureData TextureManager::ReloadTextureAndCreateSRV(const std::string& filePat
 	);
 
 	// 6. キャッシュ更新
-	textureDatas[filePath] = texData;
+	textureDatas_[filePath] = texData;
 
 	return texData;
 }
 
 TextureData TextureManager::LoadTextureAndCreateSRVCube(const std::string& filePath, ID3D12GraphicsCommandList* commandList){
 	// すでにロード済みならそれを返す
-	auto it = textureDatas.find(filePath);
-	if ( it != textureDatas.end() ) {
+	auto it = textureDatas_.find(filePath);
+	if ( it != textureDatas_.end() ) {
 		return it->second;
 	}
 
@@ -224,7 +224,7 @@ TextureData TextureManager::LoadTextureAndCreateSRVCube(const std::string& fileP
 	);
 
 	// 6. キャッシュに保存
-	textureDatas[filePath] = texData;
+	textureDatas_[filePath] = texData;
 
 	return texData;
 }
@@ -265,12 +265,12 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 			static_cast<unsigned>(hr_),
 			resourceDesc.Width, resourceDesc.Height, resourceDesc.MipLevels, static_cast<int>(resourceDesc.Format)
 		);
-		logManager.Log(log);
+		logManager_.Log(log);
 
 		// デバイス削除理由を問い合わせてログに残す
 		if ( device_ ) {
 			HRESULT removedReason = device_->GetDeviceRemovedReason();
-			logManager.Log(std::format("GetDeviceRemovedReason: 0x{:08X}\n", static_cast<unsigned>(removedReason)));
+			logManager_.Log(std::format("GetDeviceRemovedReason: 0x{:08X}\n", static_cast<unsigned>(removedReason)));
 
 #if defined(_DEBUG)
 			// InfoQueue をダンプ（デバッグビルド限定）
@@ -284,7 +284,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 					auto msg = reinterpret_cast<D3D12_MESSAGE*>(buf.data());
 					infoQueue->GetMessage(i, msg, &msgLen);
 					if ( msg->pDescription ) {
-						logManager.Log(std::string("[D3D12] ") + msg->pDescription + "\n");
+						logManager_.Log(std::string("[D3D12] ") + msg->pDescription + "\n");
 					}
 				}
 			}
@@ -331,7 +331,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateCubemapResource(con
 		nullptr, IID_PPV_ARGS(&resource));
 
 	if ( FAILED(hr) ) {
-		logManager.Log("CreateCubemapResource Failed\n");
+		logManager_.Log("CreateCubemapResource Failed\n");
 		return nullptr;
 	}
 
@@ -341,7 +341,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateCubemapResource(con
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(const Microsoft::WRL::ComPtr<ID3D12Resource>& texture, const DirectX::ScratchImage& mipImages, ID3D12GraphicsCommandList* commandList){
 	// nullptr ガード
 	if ( !texture ) {
-		logManager.Log("UploadTextureData: destination texture is nullptr. Aborting upload.\n");
+		logManager_.Log("UploadTextureData: destination texture is nullptr. Aborting upload.\n");
 		return nullptr;
 	}
 
@@ -412,11 +412,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateDepthStencilTexture
 		IID_PPV_ARGS(&resource));
 
 	if ( FAILED(hr) ) {
-		logManager.Log(std::format("CreateDepthStencilTextureResource Failed. hr=0x{:08X} Width:{} Height:{} Format:{}\n",
+		logManager_.Log(std::format("CreateDepthStencilTextureResource Failed. hr=0x{:08X} Width:{} Height:{} Format:{}\n",
 			static_cast<unsigned>(hr), resourceDesc.Width, resourceDesc.Height, static_cast<int>(resourceDesc.Format)));
 		if ( device_ ) {
 			HRESULT removed = device_->GetDeviceRemovedReason();
-			logManager.Log(std::format("GetDeviceRemovedReason: 0x{:08X}\n", static_cast<unsigned>(removed)));
+			logManager_.Log(std::format("GetDeviceRemovedReason: 0x{:08X}\n", static_cast<unsigned>(removed)));
 #if defined(_DEBUG)
 			Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue;
 			if ( SUCCEEDED(device_->QueryInterface(IID_PPV_ARGS(&infoQueue))) ) {
@@ -427,7 +427,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateDepthStencilTexture
 					std::vector<char> buf(len);
 					auto msg = reinterpret_cast<D3D12_MESSAGE*>(buf.data());
 					infoQueue->GetMessage(i, msg, &len);
-					if ( msg->pDescription ) logManager.Log(std::string("[D3D12] ") + msg->pDescription + "\n");
+					if ( msg->pDescription ) logManager_.Log(std::string("[D3D12] ") + msg->pDescription + "\n");
 				}
 			}
 #endif
@@ -439,7 +439,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateDepthStencilTexture
 }
 // SRVインデックスからテクスチャデータを取得
 const TextureData& TextureManager::GetTextureDataBySrvIndex(uint32_t srvIndex){
-	for ( auto& pair : textureDatas ) {
+	for ( auto& pair : textureDatas_ ) {
 		if ( pair.second.srvIndex == srvIndex ) {
 			return pair.second;
 		}

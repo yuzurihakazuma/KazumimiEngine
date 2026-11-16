@@ -1,4 +1,6 @@
 #include "game/gameover/GameOverScreen.h"
+#include "game/ui/UiScale.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/2d/Sprite.h"
 #include "engine/base/WindowProc.h"
@@ -9,7 +11,7 @@
 #include <cmath>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     // 1920×1080 での置き場所
     constexpr float kTitleY = 330.0f;
     constexpr float kButtonY[2] = { 610.0f, 750.0f };
@@ -96,8 +98,8 @@ void GameOverScreen::DrawAt(Sprite* sprite, const Vector2& size, float x, float 
     if ( !sprite || scale <= 0.001f || alpha <= 0.001f ) { return; }
     const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
     const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
-    const float k = ( std::min )( width / 1920.0f, height / 1080.0f );
-    sprite->SetPosition({ width * 0.5f + ( x - 960.0f ) * k, height * 0.5f + ( y - 540.0f ) * k });
+    const float k = UiScale::Fit(width, height);
+    sprite->SetPosition({ width * 0.5f + ( x - UiScale::kBaseWidth * 0.5f ) * k, height * 0.5f + ( y - UiScale::kBaseHeight * 0.5f ) * k });
     sprite->SetSize({ size.x * scale * k, size.y * scale * k });
     sprite->SetRotation(rotation);
     sprite->SetColor({ 1.0f, 1.0f, 1.0f, alpha });

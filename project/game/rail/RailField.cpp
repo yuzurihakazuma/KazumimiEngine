@@ -1,4 +1,5 @@
 #include "game/rail/RailField.h"
+#include "engine/base/TimeManager.h"
 #include "game/rail/RailConnections.h"
 
 #include "engine/utils/EditorManager.h"
@@ -149,7 +150,7 @@ void RailField::ResetMotion(){
 
 // 動くレールのエディタプレビュー（OFFにした瞬間に基準位置へ戻す）
 void RailField::UpdateEditorPreview(bool enabled){
-    if ( enabled ) { UpdateMotion(1.0f / 60.0f, kMotionStartAll); }
+    if ( enabled ) { UpdateMotion(Time::kFixedDeltaTime, kMotionStartAll); }
     else if ( prevEditorPreview_ ) { ResetMotion(); }
     prevEditorPreview_ = enabled;
 }

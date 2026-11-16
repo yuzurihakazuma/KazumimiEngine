@@ -1,5 +1,6 @@
 #pragma once
 #include "engine/graphics/RenderTexture.h"
+#include "engine/base/Singleton.h"
 #include <memory>
 #include <d3d12.h>
 #include <wrl.h>
@@ -9,7 +10,8 @@ class DirectXCommon;
 class SrvManager;
 
 // Bloom（光の溢れ）エフェクト専用クラス
-class Bloom {
+class Bloom : public Singleton<Bloom> {
+	friend class Singleton<Bloom>; // 土台（Singleton）だけが作れる
 public:
 	// シェーダーに送る設定データ
 	struct BloomData {
@@ -17,10 +19,6 @@ public:
 		float padding[3];
 	};
 
-	static Bloom* GetInstance() {
-		static Bloom instance;
-		return &instance;
-	}
 
 
 	// ブラー用の設定データ構造体

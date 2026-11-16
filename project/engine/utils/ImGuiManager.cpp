@@ -11,13 +11,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "engine/graphics/SrvManager.h"
 
 
-ImGuiManager* ImGuiManager::GetInstance() {
-    static ImGuiManager instance;
-    return &instance;
-}
 
-
-void ImGuiManager::Initialize(WindowProc* windowProc, DirectXCommon* dxCommon){
+void ImGuiManager::Initialize([[maybe_unused]] WindowProc* windowProc, [[maybe_unused]] DirectXCommon* dxCommon){
 
 #ifdef USE_IMGUI
 
@@ -134,7 +129,7 @@ void ImGuiManager::Begin(){
 	ImGui::NewFrame();
 #endif
 }
-void ImGuiManager::End(ID3D12GraphicsCommandList* commandList){
+void ImGuiManager::End([[maybe_unused]] ID3D12GraphicsCommandList* commandList){
 #ifdef USE_IMGUI
     ImGui::Render(); // ImGui描画データ生成
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -148,7 +143,7 @@ void ImGuiManager::End(ID3D12GraphicsCommandList* commandList){
     }
 #endif
 }
-void ImGuiManager::Render(ID3D12GraphicsCommandList* commandList){
+void ImGuiManager::Render([[maybe_unused]] ID3D12GraphicsCommandList* commandList){
 #ifdef USE_IMGUI
     // Endの中でRenderDrawDataを呼んでいるなら、ここはEndを呼ぶか、あるいは空でもよい
     End(commandList);
@@ -162,7 +157,7 @@ void ImGuiManager::Shutdown(){
 #endif
 }
 
-bool ImGuiManager::WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam){
+bool ImGuiManager::WndProcHandler([[maybe_unused]] HWND hwnd, [[maybe_unused]] UINT msg, [[maybe_unused]] WPARAM wparam, [[maybe_unused]] LPARAM lparam){
 #ifdef USE_IMGUI
     return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 #else

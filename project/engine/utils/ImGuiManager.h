@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include "externals/imgui/imgui.h"
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <wtypes.h>
 #include <string>
@@ -11,11 +12,14 @@ class DirectXCommon;
 class WindowProc;
 
 
-class ImGuiManager{
+// =====================================================================
+//  ImGuiManager：ImGui（エディタの UI）の準備と、1 フレームの流れ。
+//   初期化・フォントの読み込み（日本語とアイコン）・フレームの始めと終わり・描画を受け持つ
+// =====================================================================
+class ImGuiManager : public Singleton<ImGuiManager> {
+	friend class Singleton<ImGuiManager>; // 土台（Singleton）だけが作れる
 public:
 
-    // シングルトンインスタンスの取得
-    static ImGuiManager* GetInstance();
 
     // -------------------- 初期化・終了処理 --------------------
 
@@ -62,8 +66,6 @@ private:
     // コンストラクタを隠蔽
     ImGuiManager() = default;
     ~ImGuiManager() = default;
-    ImGuiManager(const ImGuiManager&) = delete;
-    ImGuiManager& operator=(const ImGuiManager&) = delete;
 
     std::vector<UiFont> fonts_; // 読み込めたUIフォント（[0]=既定のメイリオ）
 };

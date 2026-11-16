@@ -60,6 +60,8 @@ public:
     // 産卵エロージョン演出中は実体メッシュを隠す（SDFの卵が育ちきったら表示に戻す）
     void SetVisualHidden(bool hidden) { visualHidden_ = hidden; }
     bool IsVisualHidden() const { return visualHidden_; }
+    // 最後に飛んでいた向き（長さ1。投げていない卵は 0）。割れた時に、殻が飛んで来た方へはね返るのに使う
+    const Vector3& GetFlightDir() const { return flightDir_; }
     // 回るのを止めておく（SDF の卵から実体へ交代する間。SDF の卵は回らないので、模様の向きをそろえたまま重ねる）
     void SetSpinPaused(bool paused) { spinPaused_ = paused; }
 
@@ -70,6 +72,7 @@ private:
     bool     hitObstacle_ = false;         // 壁/地面に当たって止まった（次の判定で割れる）
     Vector3  target_ { 0.0f, 0.0f, 0.0f }; // 並ぶ目標（後ろのスロット）
     Vector3  vel_ { 0.0f, 0.0f, 0.0f };    // 飛行中の速度
+    Vector3  flightDir_ { 0.0f, 0.0f, 0.0f }; // 最後に飛んでいた向き（止まった後も残す）
     float    radius_ = 0.4f;
     float    flyTimer_   = 0.0f;
     float    brokenTimer_ = 0.0f;

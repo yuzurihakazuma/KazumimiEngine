@@ -84,7 +84,7 @@ void RenderTexture::PreDrawScene(ID3D12GraphicsCommandList* commandList, DirectX
 }
 
 // 描画先を Swapchain（メイン画面）に戻す処理
-void RenderTexture::PostDrawScene(ID3D12GraphicsCommandList* commandList, DirectXCommon* dxCommon){
+void RenderTexture::PostDrawScene(ID3D12GraphicsCommandList* commandList, [[maybe_unused]] DirectXCommon* dxCommon){
 	// RenderTexture を「描画用(RT) → 読み込み用(SRV)」に戻すバリアのみ行う
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

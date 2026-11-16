@@ -1,4 +1,5 @@
 #include "PlayerAvatar.h"
+#include "engine/math/MathUtil.h"
 #include "game/player/Player.h"
 #include "game/player/SwallowAbility.h"
 #include "game/player/AimThrowController.h"
@@ -84,7 +85,7 @@ void PlayerAvatar::Update(const Context& context){
 	}
 	jumpStretch_ = ( std::max )( 0.0f, jumpStretch_ - frameSeconds_ / 0.22f );
 	landSquash_ = ( std::max )( 0.0f, landSquash_ - frameSeconds_ / 0.18f );
-	const float actionY = ( 1.0f + 0.16f * jumpStretch_ ) * ( 1.0f - 0.22f * std::sin(landSquash_ * 3.14159265f * 0.5f) );
+	const float actionY = ( 1.0f + 0.16f * jumpStretch_ ) * ( 1.0f - 0.22f * std::sin(landSquash_ * Math::kHalfPi) );
 
 	model_->SetTranslation({ pos.x, pos.y + modelYOffset_ + dropLift_, pos.z });
 	const float scaleY = dropSquash_ * actionY;
@@ -94,9 +95,10 @@ void PlayerAvatar::Update(const Context& context){
 	model_->Update();
 }
 
-void PlayerAvatar::PlayIntroClip(const std::string& clip){
+void PlayerAvatar::PlayIntroClip(const std::string& clip, bool loop){
 	introClip_ = clip;
 	introRestart_ = true;
+	introLoop_ = loop;
 }
 
 void PlayerAvatar::ClearIntroClip(){
@@ -123,7 +125,7 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 	// ステージ開始演出のクリップが指定されていたら、いちばん先にそれを流す（状態から選び直すと Idle に戻されるため）
 	if ( !introClip_.empty() ) {
 		ResetTongueAndHeldEgg();
-		model_->SetClip(introClip_, false);   // ループなし：最後の形で止まる
+		model_->SetClip(introClip_, introLoop_); // ふつうはループなし：最後の形で止まる
 		model_->SetPlaybackSpeed(1.0f);
 		if ( introRestart_ ) {                // SetClip は同じ名前だと時間を戻さないので、指定した瞬間に頭へ
 			model_->SetAnimationTime(0.0f);
@@ -140,8 +142,14 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		//   骨のスケール 1＝口の中にしまってある長さ（SwallowAbility::kTongueRestLength）
 		const float length = ( std::max )( context.swallow->GetTongueLength(), SwallowAbility::kTongueRestLength );
 		const float thick = 1.0f + 0.1f * std::clamp(( length - SwallowAbility::kTongueRestLength ) / 1.2f, 0.0f, 1.0f);
-		model_->SetBoneScaleOverride("Tongue", { thick, length / SwallowAbility::kTongueRestLength, thick }, true);
-		model_->SetBoneAimOverride("Tongue", context.swallow->GetTongueTip()); // 判定のベロと同じ向き（敵へまっすぐ）
+		if ( context.swallow->IsTongueLimp() ) {
+			// 食べられない物にぶつかって波打っている間：曲がるベロの絵（SwallowAbility）を描くので、骨のベロは小さくして口の中へ隠す
+			model_->SetBoneScaleOverride("Tongue", { 0.2f, 0.2f, 0.2f }, true);
+			model_->ClearBoneAimOverride();
+		} else {
+			model_->SetBoneScaleOverride("Tongue", { thick, length / SwallowAbility::kTongueRestLength, thick }, true);
+			model_->SetBoneAimOverride("Tongue", context.swallow->GetTongueTip()); // 判定のベロと同じ向き
+		}
 		model_->ClearLayer();
 		// 捕獲成立で戻しに入った瞬間、クリップを収納パートへ飛ばす（伸ばす絵をスキップ）
 		if ( wasRetracting && context.swallow->IsRetracting() && !tongueSeeked_ ) {
@@ -182,7 +190,7 @@ void PlayerAvatar::SelectClip(const Context& context, float speedRatio){
 		}
 		model_->SetClip("Throw", false);
 		model_->SetPlaybackSpeed(1.6f);
-		throwTimer_ -= 1.0f / 60.0f;
+		throwTimer_ -= Time::kFixedDeltaTime;
 	} else if ( playing && context.eggSystem && context.eggSystem->IsBirthActive() ) {
 		// 産卵：しゃがみ踏ん張り→ポンッ（演出時間に合わせて早回し）
 		heldEggVisible_ = false;

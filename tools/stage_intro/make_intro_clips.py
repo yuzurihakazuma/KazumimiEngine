@@ -13,6 +13,9 @@
   IntroPush（約1.0秒）：一歩前へ出て両手を前へ → ぷるぷる力む → 押し切って一歩下がる
   IntroJump（約1.1秒）：ため → 両手を開いて 0.9m 跳ぶ → 着地でつぶれる
   WallBump（約0.85秒）：ブロックにぶつかって顔がぺしゃんとつぶれ、ぼよよんと戻り、両手で顔を押さえてうつむく（ゲーム中の動き）
+  GoalJump（約1.5秒）：ゴールの輪をくぐって、両手を上げて 1.7m 跳ぶ → 着地でつぶれる（クリア演出）
+  GoalPose（約1.0秒）：小さく跳ねて、両手を V の字に上げた決めポーズで止まる（最後の形のまま）
+  GoalDance（1.6秒・くり返し）：両手を上げたまま、左右にゆれながら跳ねる喜びの踊り
 """
 import json
 import math
@@ -221,8 +224,79 @@ def wall_bump(t):
                 scales={"Head": (1.0 + 0.22 * squash, 1.0 + 0.14 * squash, 1.0 - squash)})
 
 
-CLIPS = [("IntroWave", 1.2, intro_wave), ("IntroPush", 1.0, intro_push), ("IntroJump", 1.1, intro_jump),
-         ("WallBump", 0.85, wall_bump)]
+# --- クリア演出（クリア演出 企画書）：大ジャンプ → 決めポーズ → 喜びの踊り -------------------------------
+GOAL_JUMP_HEIGHT = float(os.environ.get("GOAL_JUMP_HEIGHT", "1.7"))   # 大ジャンプの高さ(m)
+GOAL_TAKE_OFF, GOAL_LAND = 0.2, 1.3                                   # 跳び上がる・着地する時刻（resources/clear/clear.json の jump と合わせる）
+
+
+def victory(amount, kick=1.0):
+    """決めポーズ：両手を上へ V の字・少しのけぞって顔を上げる・片足をぴょんと上げる（amount＝0〜1 で立ち姿から）"""
+    return {"rot": {"Arm_L": [(ARM_RAISE["Arm_L"], amount * 150.0)], "Arm_R": [(ARM_RAISE["Arm_R"], amount * 150.0)],
+                    "Head": [(LEAN, -amount * 14.0)], "Body": [(LEAN, -amount * 7.0)],
+                    "Foot_R": [(FOOT, -amount * kick * 38.0)], "Tail": [(LEAN, amount * 18.0)]},
+            "parent_rot": {"Arm_L": [(ARM_SWING["Arm_L"], amount * 24.0)], "Arm_R": [(ARM_SWING["Arm_R"], amount * 24.0)]}}
+
+
+def goal_jump(t):
+    """ゴールの輪をくぐった：ためて、両手を上げて高く跳ぶ → 着地でぺたんとつぶれる"""
+    crouch = bump(t, 0.0, 0.14, 0.26)
+    air_time = GOAL_LAND - GOAL_TAKE_OFF
+    up = (t - GOAL_TAKE_OFF) / air_time
+    height = 4.0 * GOAL_JUMP_HEIGHT * up * (1.0 - up) if 0.0 < up < 1.0 else 0.0
+    air = smooth((t - GOAL_TAKE_OFF) / 0.16) * (1.0 - smooth((t - (GOAL_LAND - 0.12)) / 0.14))
+    stretch = bump(t, GOAL_TAKE_OFF, GOAL_TAKE_OFF + 0.1, GOAL_TAKE_OFF + 0.36)
+    land = bump(t, GOAL_LAND - 0.04, GOAL_LAND + 0.05, GOAL_LAND + 0.2)
+    kick = math.sin((t - GOAL_TAKE_OFF) * 2 * math.pi * 2.6) * air            # 空中で足をばたばた
+    arms = air * 158.0 - crouch * 20.0
+    return pose({"Arm_L": [(ARM_RAISE["Arm_L"], arms)], "Arm_R": [(ARM_RAISE["Arm_R"], arms)],
+                 "Head": [(LEAN, crouch * 10.0 - air * 14.0 + land * 8.0)],
+                 "Body": [(LEAN, crouch * 8.0 - air * 6.0)],
+                 "Foot_L": [(FOOT, -air * 22.0 + kick * 24.0)], "Foot_R": [(FOOT, -air * 22.0 - kick * 24.0)],
+                 "Tail": [(LEAN, air * 26.0), (TILT, kick * 10.0)]},
+                root_up=height, body_up=-0.07 * crouch - 0.05 * land,
+                parent_rot={"Arm_L": [(ARM_SWING["Arm_L"], air * 26.0)], "Arm_R": [(ARM_SWING["Arm_R"], air * 26.0)]},
+                body_scale=(1.0 + 0.11 * (crouch + land) - 0.06 * stretch, 1.0 - 0.2 * (crouch + land) + 0.12 * stretch,
+                            1.0 + 0.11 * (crouch + land) - 0.06 * stretch))
+
+
+def goal_pose(t):
+    """着地から決めポーズ：小さく跳ねて、両手を V の字に上げて止まる（最後の形で止まる）"""
+    hop = bump(t, 0.05, 0.22, 0.42) * 0.22
+    up = smooth((t - 0.08) / 0.3)
+    wobble = math.sin(max(t - 0.4, 0.0) * 2 * math.pi * 3.2) * math.exp(-max(t - 0.4, 0.0) * 6.0) * (t > 0.4)  # 止まる時のぷるん
+    parts = victory(up)
+    parts["rot"]["Body"].append((TILT, wobble * 4.0))
+    parts["rot"]["Head"].append((TILT, -wobble * 5.0))
+    return pose(parts["rot"], root_up=hop, parent_rot=parts["parent_rot"],
+                body_scale=(1.0 - 0.04 * wobble, 1.0 + 0.06 * wobble, 1.0 - 0.04 * wobble))
+
+
+GOAL_DANCE_LENGTH = 1.6
+
+
+def goal_dance(t):
+    """喜びの踊り（くり返し）：両手を上げたまま、左右にゆれながら 2 回ずつ跳ねる。始めと終わりは同じ形"""
+    phase = t / GOAL_DANCE_LENGTH * 2 * math.pi
+    sway = math.sin(phase)                            # 左右へ 1 往復
+    hop = abs(math.sin(phase * 2.0)) ** 1.5 * 0.2     # その間に 4 回、小さく跳ねる
+    parts = victory(1.0, kick=0.0)
+    parts["rot"]["Body"].append((TILT, sway * 11.0))
+    parts["rot"]["Head"].append((TILT, -sway * 8.0))
+    parts["rot"]["Tail"].append((TILT, -sway * 20.0))
+    parts["rot"]["Foot_L"] = [(FOOT, -max(sway, 0.0) * 34.0)]
+    parts["rot"]["Foot_R"] = [(FOOT, -max(-sway, 0.0) * 34.0)]
+    parts["parent_rot"]["Arm_L"].append((ARM_SWING["Arm_L"], sway * 16.0))
+    parts["parent_rot"]["Arm_R"].append((ARM_SWING["Arm_R"], -sway * 16.0))
+    squash = 1.0 - min(hop / 0.2, 1.0)                # 地面にいる時に少しつぶれる
+    return pose(parts["rot"], root_up=hop, parent_rot=parts["parent_rot"],
+                body_scale=(1.0 + 0.04 * squash, 1.0 - 0.06 * squash, 1.0 + 0.04 * squash))
+
+
+# (名前, 長さ, 姿勢の関数, 立ち姿にそろえる端)：both＝始めと終わり（切り替えても飛ばない）/ start＝始めだけ（最後の形で止まる）/
+#   none＝そろえない（くり返すクリップ。始めと終わりが同じ形）
+CLIPS = [("IntroWave", 1.2, intro_wave, "both"), ("IntroPush", 1.0, intro_push, "both"), ("IntroJump", 1.1, intro_jump, "both"),
+         ("WallBump", 0.85, wall_bump, "both"),
+         ("GoalJump", 1.5, goal_jump, "both"), ("GoalPose", 1.0, goal_pose, "start"), ("GoalDance", GOAL_DANCE_LENGTH, goal_dance, "none")]
 
 
 def append(data, gl_type, count, comp_type, minmax=False):
@@ -242,12 +316,16 @@ def append(data, gl_type, count, comp_type, minmax=False):
     return len(gltf["accessors"]) - 1
 
 
-for name, length, func in CLIPS:
+for name, length, func, ends in CLIPS:
     frames = int(round(length * FPS)) + 1
     times = [i / FPS for i in range(frames)]
     poses = [func(t) for t in times]
-    poses[0] = pose()   # 最初と最後は立ち姿（Idle の最初）
-    poses[-1] = pose()
+    if ends in ("both", "start"):
+        poses[0] = pose()   # 最初は立ち姿（Idle の最初）
+    if ends == "both":
+        poses[-1] = pose()  # 最後も立ち姿
+    if ends == "none":
+        poses[-1] = poses[0]  # くり返し：つなぎ目をぴったり同じに
     time_acc = append(times, "SCALAR", frames, 5126, minmax=True)
     animation = {"name": name, "channels": [], "samplers": []}
     for joint in joints:

@@ -404,6 +404,22 @@ private:
     float pathEditPullX_ = 0.0f, pathEditPullY_ = 0.0f; // 押した位置（判定用キャンバスpx）
     // 汎用の2D形状エディタ。motionOverlay=true でガイド追従用の区間◆と動きの青丸も描く
     void DrawRailPathEditor(int railIdx, bool motionOverlay);
+    // ----- レールエディタのウィンドウ（DrawWindow）の中身。タブごと・折りたたみの見出しごとに分けてある -----
+    void DrawManageTab();            // 「管理」タブ：下の 4 つを順に呼ぶ（＋元に戻す・操作ヘルプ）
+    void DrawVerifySection();        //   検証（ジャンプの予測線・動きのプレビュー・到達チェック・ゴースト走行）
+    void DrawRailListSection();      //   路線の一覧（選ぶ・複製・削除・グループで絞る）
+    void DrawSelectedRailSection();  //   選んだレールの設定（操作の向き・地面・表示・道の見た目・スタートとゴール）
+    void DrawNodeListSection();      //   ノードの一覧（足す・はさむ・消す・座標を打つ）
+    void DrawCreateTab();            // 「作成」タブ：下の 4 つ＋小さい道具（空の路線・マウスで描く・方向ボタン）
+    void DrawShapeStampSection();    //   形を選んで作る（形・向き・長さを決めて、Game View でクリックして置く）
+    void DrawTemplateSection();      //   テンプレート（のぼり足場・らせんのぼり・動くリフト一式）
+    void DrawSketchSection();        //   手描きで作る（キャンバスに引いた線からレールにする）
+    void DrawShapeToolsSection();    //   形を整える（直線にする・カーブにする・なめらかにする）
+    void DrawMotionTab();            // 「動き」タブ：下の 2 つ＋出現する道・親子付け
+    void DrawRailMotionSection();    //   このレールの動き（揺れ・波形・ガイド追従）
+    void DrawGroupMotionSection();   //   グループをまとめて動かす
+    void DrawItemsTab();             // 「配置物」タブ：穴（落ちる区間）
+    void DrawJointsTab();            // 「接続」タブ：つなぐ道具・つながりの一覧と切断・つながっていない端の一覧
     int   railJointVisible_  = 1;     // ジョイント表示：0=エディタのみ / 1=常に / 2=非表示
 
     // 接続一覧（接続タブ）で選択中の行（-1=なし）

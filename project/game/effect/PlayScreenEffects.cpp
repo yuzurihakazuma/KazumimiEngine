@@ -1,4 +1,5 @@
 #include "PlayScreenEffects.h"
+#include "engine/base/TimeManager.h"
 #include "game/combat/CombatSystem.h"
 #include "game/egg/EggSystem.h"
 #include "engine/postEffect/PostEffect.h"
@@ -40,7 +41,7 @@ void PlayScreenEffects::StartMissIris(){
 void PlayScreenEffects::UpdateIris(const Vector3& focus, const Camera& camera){
 	if ( irisPhase_ == IrisPhase::None ) return;
 	PostEffect* postEffect = PostEffect::GetInstance();
-	irisTimer_ += 1.0f / 60.0f;
+	irisTimer_ += Time::kFixedDeltaTime;
 	const float kCloseTime = 0.18f, kHoldTime = 0.12f, kOpenTime = 0.5f;
 	float radius = 1.4f; // 全開
 	if ( irisPhase_ == IrisPhase::Closing ) {

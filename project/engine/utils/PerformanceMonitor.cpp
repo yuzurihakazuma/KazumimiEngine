@@ -43,7 +43,7 @@ void PerformanceMonitor::MinAvgMax(const float* buf, float& outMin, float& outAv
     outMin = mn; outAvg = sum / ( float ) n; outMax = mx;
 }
 
-void PerformanceMonitor::DrawDebugUI(float cpuUpdateMs, float cpuDrawMs) {
+void PerformanceMonitor::DrawDebugUI([[maybe_unused]] float cpuUpdateMs, [[maybe_unused]] float cpuDrawMs) {
 #ifdef USE_IMGUI
     ImGui::Begin("パフォーマンスモニター");
 

@@ -1,4 +1,7 @@
 #include "game/transition/StageIntroCard.h"
+#include "engine/utils/JsonFile.h"
+#include "game/ui/UiScale.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/2d/Sprite.h"
 #include "engine/graphics/TextureManager.h"
@@ -7,14 +10,13 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 
 using json = nlohmann::json;
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
-    constexpr float kImageWidth = 1920.0f;   // カードの座標の基準
-    constexpr float kImageHeight = 1080.0f;
+    constexpr float kPi = Math::kPi;
+    constexpr float kImageWidth = UiScale::kBaseWidth;   // カードの座標の基準
+    constexpr float kImageHeight = UiScale::kBaseHeight;
     constexpr const char* kImageDir = "resources/kamishibai/";
     constexpr const char* kLayoutPath = "resources/kamishibai/intro_layout.json";
     constexpr const char* kContentDir = "resources/stage_intro/";
@@ -65,11 +67,8 @@ void StageIntroCard::Load(){
     if ( slit_ ) { slitImageWidth_ = slit_->GetSize().x; }
     loaded_ = true;
 
-    std::ifstream file(kLayoutPath);
-    json layout = json::object();
-    if ( file.is_open() ) {
-        try { file >> layout; } catch ( ... ) { layout = json::object(); }
-    }
+    json layout;
+    JsonFile::Load(kLayoutPath, layout); // 無い・読めない時は空（＝既定の置き場所）
     Configure(layout);
 }
 
@@ -122,8 +121,8 @@ void StageIntroCard::Configure(const json& layout){
         element.baseX = entry.value("x", kImageWidth * 0.5f);
         element.baseY = entry.value("y", kImageHeight * 0.5f);
         element.baseScale = entry.value("scale", 1.0f);
-        element.baseAngle = entry.value("angle", 0.0f) * kPi / 180.0f;
-        element.swayAmount = entry.value("sway", 2.0f) * kPi / 180.0f;
+        element.baseAngle = Math::ToRadians(entry.value("angle", 0.0f));
+        element.swayAmount = Math::ToRadians(entry.value("sway", 2.0f));
         element.swaySpeed = entry.value("swaySpeed", 1.6f);
         element.swayPhase = entry.value("swayPhase", 0.0f);
         element.bob = entry.value("bob", 0.0f);
@@ -146,11 +145,8 @@ void StageIntroCard::Configure(const json& layout){
 
 // 中身：名前の画像・帯の色・星の色・出す敵（書いていない色は、置き場所の既定の色）
 void StageIntroCard::SetContent(const std::string& content){
-    std::ifstream file(std::string(kContentDir) + content + ".json");
-    json data = json::object();
-    if ( file.is_open() ) {
-        try { file >> data; } catch ( ... ) { data = json::object(); }
-    }
+    json data;
+    JsonFile::Load(std::string(kContentDir) + content + ".json", data); // 無い・読めない時は空（＝既定の中身）
     const json starColors = data.value("starColors", json::array());
     enemy_ = data.value("enemy", std::string("enemy_ground"));
     for ( Element& element : elements_ ) {

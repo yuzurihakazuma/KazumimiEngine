@@ -23,6 +23,8 @@ const float kGentleDot   = -0.866f; // 2本溶接: dot<=これ(150°以上) → 
 // （旧 kStraightDot は廃止：ほぼ一直線でも折れ目に隙間が出るためコネクタを常に掃引する）
 const float kArm         = 1.0f;    // 掃引コネクタが両側を削る長さ
 const float kPlazaTCut   = 1.1f;    // 端の丸広場：端から入口までの距離（広場の大きさ）
+const float kSteepArm    = 0.26f;   // 角のそばでレールがこれより傾いていたら坂（|接線.y|。約15°）
+const int   kConnSteps   = 4;       // 掃引コネクタ：削る長さを何個に分けて点を取るか
 
 // レール端のレール距離（atFront=始点 0 / 終点 len）
 float EndDistance(const SplineRail& rail, bool atFront){ return atFront ? 0.0f : rail.GetLength(); }
@@ -62,6 +64,7 @@ void RoadJunctionDetector::Detect(const std::vector<SplineRail>& rails, std::vec
     plazas_.clear();
     connectors_.clear();
     junctions_.clear();
+    extensions_.assign(rails.size(), { 0.0f, 0.0f });
 
     DetectEndPlazas(rails, cuts);
     DetectWelds(rails, cuts);
@@ -135,25 +138,46 @@ void RoadJunctionDetector::DetectWelds(const std::vector<SplineRail>& rails,
                 float trimA = ( std::min )( kArm, a.GetLength() * 0.4f );
                 float trimB = ( std::min )( kArm, b.GetLength() * 0.4f );
 
+                // つなぎ目の両側 2×削る長さ を、レールの上から細かく取った点でたどる（レールの形のとおりの土台になる）。
+                //   前は 5 点（1m おき）だけを通る別の曲線で作っていたので、つなぎ目の近くで土台がレール（＝布・歩く線）から
+                //   数 cm ずれ、布が土台に沈んだり浮いたりしていた
                 Connector cn;
-                cn.nodes = {
-                    a.GetPositionByDistance(FromEnd(a, front, trimA * 2.0f)),  // pPre
-                    a.GetPositionByDistance(FromEnd(a, front, trimA)),         // p0
-                    a.GetPositionByDistance(EndDistance(a, front)),            // pc（ノード）
-                    b.GetPositionByDistance(FromEnd(b, bFront, trimB)),        // p1
-                    b.GetPositionByDistance(FromEnd(b, bFront, trimB * 2.0f)), // pPost
-                };
+                for ( int k = kConnSteps * 2; k >= 1; --k ) {
+                    cn.nodes.push_back(a.GetPositionByDistance(FromEnd(a, front, trimA * ( float ) k / ( float ) kConnSteps)));
+                }
+                cn.nodes.push_back(a.GetPositionByDistance(EndDistance(a, front))); // つなぎ目
+                for ( int k = 1; k <= kConnSteps * 2; ++k ) {
+                    cn.nodes.push_back(b.GetPositionByDistance(FromEnd(b, bFront, trimB * ( float ) k / ( float ) kConnSteps)));
+                }
+                cn.keepFrom = kConnSteps;      // a の「削る長さ」の所
+                cn.keepTo   = kConnSteps * 3;  // b の「削る長さ」の所
+                const Vector3& jointPos = cn.nodes[kConnSteps * 2];
 
                 cuts[i].push_back(front ? RoadCut { 0.0f, trimA } : RoadCut { a.GetLength() - trimA, a.GetLength() });
                 cuts[conn].push_back(bFront ? RoadCut { 0.0f, trimB } : RoadCut { b.GetLength() - trimB, b.GetLength() });
 
                 // ゆるい角にもジョイントは置く（2本溶接＝中央1個）
-                cn.joint.center = cn.nodes[2];
+                cn.joint.center = jointPos;
                 cn.joint.followRail = i;
                 cn.joint.arms.push_back({ i, EndDistance(a, front), 0.0f, front, aDir });
                 cn.joint.arms.push_back({ conn, EndDistance(b, bFront), 0.0f, bFront, bDir });
                 connectors_.push_back(std::move(cn));
                 continue;
+            }
+
+            // --- 坂の付け根・坂の途中にある角：継ぎ板は張らない ---
+            //   継ぎ板は「角のまわりは平ら」の前提で、角の高さの平らな面から各レールの切り口へ面を張る。
+            //   片方が坂だと切り口が傾いて高い所に来るので、急な三角の面や裏返った壁ができていた。
+            //   平らな側は角の先へ半幅ぶん伸ばして四角い踊り場にし、坂の側は角からそのまま始める（坂の板が踊り場に載る形）
+            {
+                const float probeA = ( std::min )( 0.6f, a.GetLength() * 0.3f ), probeB = ( std::min )( 0.6f, b.GetLength() * 0.3f );
+                const bool steepA = std::abs(a.GetTangentByDistance(FromEnd(a, front, probeA)).y) > kSteepArm;
+                const bool steepB = std::abs(b.GetTangentByDistance(FromEnd(b, bFront, probeB)).y) > kSteepArm;
+                if ( steepA || steepB ) {
+                    if ( !steepA ) { extensions_[i][front ? 0 : 1] = kHalfWidth; }
+                    if ( !steepB ) { extensions_[conn][bFront ? 0 : 1] = kHalfWidth; }
+                    continue;
+                }
             }
 
             // --- 鋭い角（150°未満）：ジャンクションパッチ ---

@@ -1,4 +1,5 @@
 #include "game/camera/PlayCameraController.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/camera/Camera.h"
 #include "engine/rail/SplineRail.h"
@@ -27,12 +28,12 @@ void PlayCameraController::Sync(const std::vector<LevelCameraZone>& zones, const
         cz.radius = z.radius;
         cz.mode   = z.mode;
         cz.offset = z.offset;
-        cz.yawRad    = z.yawDeg * 3.14159265f / 180.0f;
+        cz.yawRad    = z.yawDeg * Math::kDegToRad;
         cz.camDist   = z.dist;
         cz.camHeight = z.height;
         cz.revert    = ( z.revert != 0 );
         cz.freeze    = ( z.freeze != 0 );
-        cz.fovRad = z.fovDeg * 3.14159265f / 180.0f;
+        cz.fovRad = z.fovDeg * Math::kDegToRad;
         zones_.push_back(cz);
     }
     lastZone_ = -1;
@@ -133,9 +134,7 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
             // 「回転中は時間を止める」：まだ大きく回す必要があるならフリーズ開始。
             //   （角度を少し変えるだけの演出は freeze OFF でそのまま進ませる＝ゾーンごとに選べる）
             if ( z.freeze ) {
-                float dy = camYawTgt_ - camYawCur_;
-                while ( dy >  3.14159265f ) dy -= 2.0f * 3.14159265f;
-                while ( dy < -3.14159265f ) dy += 2.0f * 3.14159265f;
+                const float dy = Math::AngleDelta(camYawCur_, camYawTgt_);
                 if ( std::abs(dy) > 0.26f ) { freezingRotation_ = true; } // 約15°以上回すなら停止演出
             }
         }
@@ -155,7 +154,7 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
     // 回転フリーズ中：時間を止める（毎フレーム上書き＝ヒットストップ終了で戻されても維持）。
     //   dt=0 になるので、カメラの補間だけリアル時間(1/60)で進めて回転を完了させる。
     if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(0.0f); }
-    float camDt = ( freezingRotation_ || flipSnap_ ) ? ( 1.0f / 60.0f ) : dt;
+    float camDt = ( freezingRotation_ || flipSnap_ ) ? Time::kFixedDeltaTime : dt;
     if ( flipSnap_ ) { groundY_ = focusY_ = playerPos.y; heightReady_ = true; } // 反転中：高さも補間しない
     float k = ( std::min )( 4.0f * camDt, 1.0f );
     // 追う点：横と奥行きはプレイヤー、高さは着地している所
@@ -170,9 +169,7 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
         targetFov = active->fovRad;
     } else {
         // 追従：向き(yaw)を最短経路で滑らかに回す → 180度切替は「回り込み」の演出になる
-        float dyaw = camYawTgt_ - camYawCur_;
-        while ( dyaw >  3.14159265f ) dyaw -= 2.0f * 3.14159265f;
-        while ( dyaw < -3.14159265f ) dyaw += 2.0f * 3.14159265f;
+        const float dyaw = Math::AngleDelta(camYawCur_, camYawTgt_);
 
         // 回転フリーズ：ほぼ回り終わったら時間を戻してゲーム再開
         if ( freezingRotation_ && std::abs(dyaw) < 0.05f ) {

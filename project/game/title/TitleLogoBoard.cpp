@@ -1,4 +1,5 @@
 #include "game/title/TitleLogoBoard.h"
+#include "engine/math/MathUtil.h"
 #include "game/title/TitleTopple.h"
 #include "game/title/TitleAssets.h"
 
@@ -9,7 +10,7 @@
 #include <cmath>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr float kFlightTime   = 0.9f;  // 飛んでいる時間(秒)
     constexpr float kFlightHeight = 2.6f * TitleLayout::kScale; // 山なりの高さ(m)
     constexpr float kBoardScale   = TitleLayout::kScale;        // 刺さった時の大きさ
@@ -64,10 +65,10 @@ void TitleLogoBoard::Update(float deltaTime){
     if ( state_ == State::Flying ) {
         const float t = Easing::Clamp01(time_ / kFlightTime);
         // 山なりに飛ぶ。小さく出て、回りながら大きくなって、最後は真っすぐ刺さる
-        position = VectorMath::Lerp(launchPosition_, landPosition_, t);
+        position = Math::Lerp(launchPosition_, landPosition_, t);
         position.y += kFlightHeight * 4.0f * t * ( 1.0f - t );
         rotation.z = ( 1.0f - Easing::EaseOutCubic(t) ) * kFlightSpins * kPi * 2.0f;
-        const float size = kBoardScale * Easing::Lerp(0.3f, 1.0f, Easing::EaseOutQuad(t));
+        const float size = kBoardScale * Math::Lerp(0.3f, 1.0f, Easing::EaseOutQuad(t));
         scale = { size, size, size };
         if ( t >= 1.0f ) {
             state_ = State::Landed;

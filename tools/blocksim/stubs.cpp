@@ -8,9 +8,9 @@
 unsigned char g_keyNow[256] = {};
 unsigned char g_keyPrev[256] = {};
 
-Input* Input::GetInstance(){ static Input instance; return &instance; }
-bool Input::Pushkey(BYTE key){ return g_keyNow[key] != 0; }
-bool Input::Triggerkey(BYTE key){ return g_keyNow[key] != 0 && g_keyPrev[key] == 0; }
+// Input::GetInstance は Singleton<Input>（engine/base/Singleton.h）が持つ
+bool Input::PushKey(BYTE key){ return g_keyNow[key] != 0; }
+bool Input::TriggerKey(BYTE key){ return g_keyNow[key] != 0 && g_keyPrev[key] == 0; }
 
 // ---- ブロックの描画・ワールドの箱は使わない（描画クラスは空の型で置き換える）----
 class InstancedGroup {};

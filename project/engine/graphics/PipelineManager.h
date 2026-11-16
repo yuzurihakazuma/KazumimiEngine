@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <d3d12.h>
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <string>
 #include <vector>
@@ -15,12 +16,9 @@ class DirectXCommon;
 enum class PostEffectType;
 
 // パイプラインマネージャー
-class PipelineManager{
+class PipelineManager : public Singleton<PipelineManager> {
+	friend class Singleton<PipelineManager>; // 土台（Singleton）だけが作れる
 public:
-	static PipelineManager* GetInstance(){
-		static PipelineManager instance;
-		return &instance;
-	}
 
 	void Finalize();
 

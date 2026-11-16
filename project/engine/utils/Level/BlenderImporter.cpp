@@ -1,4 +1,6 @@
 #include "BlenderImporter.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 // --- 標準ライブラリ ---
 #include <fstream>
@@ -123,7 +125,7 @@ namespace{
 
         // 度→ラジアン
         if ( ctx.rotationInDegrees ) {
-            const float deg2rad = 3.14159265358979323846f / 180.0f;
+            const float deg2rad = Math::kDegToRad;
             rot.x *= deg2rad; rot.y *= deg2rad; rot.z *= deg2rad;
         }
 
@@ -231,16 +233,12 @@ void BlenderImporter::SaveSettings() const{
     j["cameraCorrection"] = cameraCorrection_;
     j["lastImportedPath"] = importedPath_;
 
-    std::ofstream file(kSettingsPath);
-    if ( file.is_open() ) { file << j.dump(4); }
+    JsonFile::Save(kSettingsPath, j, 4);
 }
 
 void BlenderImporter::LoadSettings(){
-    std::ifstream file(kSettingsPath);
-    if ( !file.is_open() ) return;
-
     json j;
-    try { file >> j; } catch ( ... ) { return; }
+    if ( !JsonFile::Load(kSettingsPath, j) ) return;
 
     folder_ = j.value("folder", folder_);
     convertAxes_ = j.value("convertAxes", convertAxes_);
@@ -299,7 +297,7 @@ bool BlenderImporter::ConsumeCameraRequest(Vector3& outPos, Vector3& outRot){
     if ( cameraCorrection_ ) {
         // Blenderカメラはローカル -Z が前方（rx=90°で水平を向く）。
         // 座標変換で rx → -rx になっているので +90° すると エンジンの前方 +Z と一致する
-        outRot.x += 3.14159265358979323846f * 0.5f;
+        outRot.x += Math::kHalfPi;
     }
     return true;
 }

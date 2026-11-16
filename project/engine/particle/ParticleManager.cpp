@@ -1,4 +1,6 @@
 #include "ParticleManager.h"
+#include "engine/base/TimeManager.h"
+#include "engine/utils/JsonFile.h"
 #include "ParticleManager.h"
 
 // --- 標準ライブラリ ---
@@ -55,7 +57,7 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&uploadHeapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -117,7 +119,7 @@ void ParticleManager::Update(Camera* camera){
 			Particle& p = group.particles[i];
 
 			// 1. 更新処理
-			p.currentTime += 1.0f / 60.0f; // 時間を進める
+			p.currentTime += Time::kFixedDeltaTime; // 時間を進める
 
 			// 寿命尽きたら「Swap & Pop」で超高速削除
 			if ( p.currentTime >= p.lifeTime ) {
@@ -229,7 +231,7 @@ void ParticleManager::CreateParticleGroup(const std::string& name, const std::st
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&uploadHeapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -308,7 +310,7 @@ void ParticleManager::CreateModel(){
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&uploadHeapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -499,13 +501,10 @@ void ParticleManager::Save(){
 
 // 🌟 JSONファイルから設定を読み込む
 void ParticleManager::Load(){
-	std::ifstream file("resources/ParticleSettings.json");
-	if ( !file.is_open() ) {
+	nlohmann::json root;
+	if ( !JsonFile::Load("resources/ParticleSettings.json", root) ) {
 		return; // ファイルがなければ何もしない
 	}
-
-	nlohmann::json root;
-	file >> root;
 
 	for ( auto& [name, group] : particleGroups_ ) {
 		// JSON内にこのグループの設定が保存されていれば読み込む

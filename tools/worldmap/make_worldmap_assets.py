@@ -182,7 +182,7 @@ def key(d, x, y, s, size=26):
 
 
 def panel(path, locked):
-    W, H = 620, 470
+    W, H = 620, 540   # 3 段目（卵スタンプ）の分、70 高くした（WorldMapPanel.cpp の kPanelSize と合わせる）
     img = kraft_board(W, H)
     d = ImageDraw.Draw(img)
     if locked:
@@ -202,6 +202,13 @@ def panel(path, locked):
             d.ellipse([px - 10, py - 10, px + 10, py + 10], fill=(250, 200, 50), outline=BROWN, width=3)
         d.ellipse([60, best_y - 12, 84, best_y + 12], fill=(240, 140, 50), outline=BROWN, width=3)
         text(d, (118, best_y), "コンボ花", 40, anchor="lm")
+        # 卵スタンプ（クリアのリザルトでためる。取った数 / 全部の数）。クリーム色の丸に、赤いインクの卵
+        stamp_y = 380
+        d.ellipse([44, stamp_y - 28, 100, stamp_y + 28], fill=(250, 244, 230), outline=BROWN, width=4)
+        d.ellipse([58, stamp_y - 19, 86, stamp_y + 19], outline=(214, 52, 44), width=5)
+        for dx, dy in ((-4, -6), (5, 2), (-3, 8)):
+            d.ellipse([72 + dx - 3, stamp_y + dy - 3, 72 + dx + 3, stamp_y + dy + 3], fill=(214, 52, 44))
+        text(d, (118, stamp_y), "スタンプ", 40, anchor="lm")
     # 操作の案内
     y = H - 62
     if not locked:

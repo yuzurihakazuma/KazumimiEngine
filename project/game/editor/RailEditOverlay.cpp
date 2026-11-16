@@ -1,4 +1,5 @@
 #include "RailEditOverlay.h"
+#include "engine/math/MathUtil.h"
 #include "engine/rail/SplineRail.h"
 #include "engine/graphics/DebugDraw.h"
 
@@ -22,7 +23,7 @@ namespace {
 
 	// 円運動：始点・中間・終点の3箇所に軌道リング（実際に通る円/楕円）
 	void DrawCircleMotion(const SplineRail& rail){
-		const float kTwoPi = 2.0f * 3.14159265f;
+		const float kTwoPi = Math::kTwoPi;
 		const float railLen = rail.GetLength();
 		const Vector3& amp = rail.motionAmp;
 		const float ringAnchors[3] = { 0.0f, 0.5f, 1.0f };

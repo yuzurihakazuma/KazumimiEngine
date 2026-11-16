@@ -1,4 +1,6 @@
 #include "game/worldmap/StageDiorama.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/obj/SkinnedObj3d.h"
@@ -9,13 +11,12 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
 
 using json = nlohmann::json;
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
-    constexpr float kDeg = 180.0f / kPi;
+    constexpr float kPi = Math::kPi;
+    constexpr float kDeg = Math::kRadToDeg; // ラジアン → 度（掛ける）
     constexpr float kCropStep = 0.5f;      // 四角で切った道を区切る長さ(m)
     constexpr float kMinToken = 0.07f;     // 敵・ゴールの駒の最小の大きさ（小さすぎると見えない）
     constexpr float kTraceTime = 3.0f;     // 布の道をなぞり切るまで(秒)
@@ -83,10 +84,8 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
                          Camera* camera, uint32_t noiseSrv, uint32_t envSrv){
     Finalize();
     envSrv_ = envSrv;
-    std::ifstream file("resources/map/" + stage + ".json");
-    if ( !file.is_open() ) { return false; }
     json level;
-    try { file >> level; } catch ( ... ) { return false; }
+    if ( !JsonFile::Load("resources/map/" + stage + ".json", level) ) { return false; }
     if ( !level.contains("railLines") ) { return false; }
 
     // --- レール（ゲームと同じ形・つながり。動くレールは止めたまま）。ブロック・敵の置き場所を求めるのに使う ---
@@ -523,10 +522,10 @@ void StageDiorama::Update(float deltaTime, bool previewing, const Camera* camera
         bounceTime_ += deltaTime;
         if ( selected_ ) {
             const float t = bounceTime_;
-            base = t < 0.12f ? Easing::Lerp(1.0f, 1.1f, Easing::EaseOutQuad(t / 0.12f))
-                 : t < 0.32f ? Easing::Lerp(1.1f, 1.05f, Easing::EaseInOutCubic(( t - 0.12f ) / 0.2f)) : 1.05f;
+            base = t < 0.12f ? Math::Lerp(1.0f, 1.1f, Easing::EaseOutQuad(t / 0.12f))
+                 : t < 0.32f ? Math::Lerp(1.1f, 1.05f, Easing::EaseInOutCubic(( t - 0.12f ) / 0.2f)) : 1.05f;
         } else {
-            base = Easing::Lerp(1.05f, 1.0f, Easing::EaseOutQuad(Easing::Clamp01(bounceTime_ / 0.2f)));
+            base = Math::Lerp(1.05f, 1.0f, Easing::EaseOutQuad(Easing::Clamp01(bounceTime_ / 0.2f)));
         }
         if ( bounceTime_ > 0.4f ) { bounceTime_ = -1.0f; }
     }

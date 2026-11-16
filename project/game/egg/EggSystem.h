@@ -92,6 +92,8 @@ public:
     void SpawnSwallowFx(const Vector3& pos); // 飲み込み：緑がふわっと上へ吸い込まれる
     void SpawnLayFx(const Vector3& pos);     // 産卵：白＆緑がぽわっと広がる（生まれた感）
     void SpawnHitFx(const Vector3& pos);     // 命中：黄＆オレンジが鋭く飛び散る（衝撃）
+    // 卵が割れた：殻のかけら（白と緑＝卵の模様の色）が、飛んで来た方へはね返って落ちる。flightDir＝飛んでいた向き（0 なら真上へ）
+    void SpawnBreakFx(const Vector3& pos, const Vector3& flightDir);
 
     int HeldCount() const;    // 保持中の卵の数
     int TotalCount() const { return ( int ) eggs_.size(); }
@@ -153,6 +155,8 @@ private:
         float   life    = 0.0f;
         float   maxLife = 0.4f;
         float   baseScale = 0.3f;
+        float   gravity = 3.0f;                // 落ちる速さ（煙はふわっと・殻はすとんと）
+        bool    lateShrink = false;            // true＝終わりの方でだけ縮む（殻。最初から縮むと、かけらに見えない）
     };
     std::vector<TrailPuff> puffs_;
 
@@ -184,6 +188,8 @@ public:
     //   modelName="fxSphere"（白い専用の粒。敵の"sphere"とは別物）の時だけ color でタイントする。
     //   "eggShell" 等の専用モデルは自前の色をそのまま見せる。
     //   ？ブロックのコイン演出など、外部のちょっとした粒エフェクトにも使える
+    // 殻のかけらを 1 個（green＝緑のかけら）。重く落ちて、終わりの方でだけ縮む
+    void SpawnShell(const Vector3& pos, const Vector3& vel, float scale, float life, bool green);
     void SpawnPuff(const Vector3& pos, const Vector3& vel, const Vector4& color, float scale, float life,
                    const std::string& modelName = "fxSphere");
 };

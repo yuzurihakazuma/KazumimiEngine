@@ -1,4 +1,5 @@
 #include "game/title/TitleAmbience.h"
+#include "engine/math/MathUtil.h"
 #include "game/title/TitleLayout.h"
 #include "game/title/TitleAssets.h"
 #include "game/title/TitleTopple.h"
@@ -14,7 +15,7 @@
 #include <string>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
 
     // --- 風 ---
     constexpr float kGrassSway  = 0.11f;  // 草がゆれる角度(rad)

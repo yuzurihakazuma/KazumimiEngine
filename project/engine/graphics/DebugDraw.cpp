@@ -1,4 +1,5 @@
 #include "DebugDraw.h"
+#include "engine/math/MathUtil.h"
 
 #include <cmath>
 #include <algorithm>
@@ -10,11 +11,6 @@
 #include "engine/graphics/RootSignatureBuilder.h"
 #include "engine/graphics/GraphicsPipelineBuilder.h"
 #include "engine/math/struct.h"
-
-DebugDraw* DebugDraw::GetInstance(){
-    static DebugDraw instance;
-    return &instance;
-}
 
 void DebugDraw::Initialize(DirectXCommon* dxCommon){
     dxCommon_ = dxCommon;
@@ -112,7 +108,7 @@ void DebugDraw::Box(const Vector3& center, const Vector3& size, const Vector4& c
 
 void DebugDraw::Sphere(const Vector3& c, float radius, const Vector4& color, int segments){
     if ( segments < 4 ) segments = 4;
-    const float kPi2 = 6.28318530718f;
+    const float kPi2 = Math::kTwoPi;
     // 3つの円（XY, YZ, XZ）を描く
     for ( int axis = 0; axis < 3; ++axis ) {
         Vector3 prev {};

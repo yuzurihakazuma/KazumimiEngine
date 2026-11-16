@@ -1,4 +1,6 @@
 #include "Enemy.h"
+#include "engine/base/TimeManager.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/obj/Obj3dCommon.h"
@@ -109,7 +111,7 @@ void Enemy::ApplySpawn(const EnemySpawnData& spawn){
     waitTimer_    = 0.0f;
     turnCooldown_ = 0.0f;
     biteTimer_    = 0.0f;
-    bobPhase_     = std::fmod(spawn.distance * 0.61f, 6.2831853f); // 個体ごとに揺れの位相をずらす
+    bobPhase_     = std::fmod(spawn.distance * 0.61f, Math::kTwoPi); // 個体ごとに揺れの位相をずらす
 
     if ( skinnedObj_ ) {
         skinnedObj_->SetScale({ scale_, scale_, scale_ });
@@ -320,8 +322,8 @@ void Enemy::SetHighlight(bool on, float pulse){
 
 void Enemy::ApplyLook(float squash, float melt){
     // 狙われた瞬間の「ぽん」（0.2 秒で 1 → 1.12 → 1）
-    highlightPop_ = ( std::max )( 0.0f, highlightPop_ - 1.0f / 60.0f / 0.2f );
-    const float pop = 1.0f + 0.12f * std::sin(( 1.0f - highlightPop_ ) * 3.14159265f) * ( highlightPop_ > 0.0f ? 1.0f : 0.0f );
+    highlightPop_ = ( std::max )( 0.0f, highlightPop_ - Time::kFixedDeltaTime / 0.2f );
+    const float pop = 1.0f + 0.12f * std::sin(( 1.0f - highlightPop_ ) * Math::kPi) * ( highlightPop_ > 0.0f ? 1.0f : 0.0f );
     squash *= pop;
     const float spread = ( 1.0f + ( 1.0f - squash / pop ) * 0.45f ) * pop; // つぶれた分だけ横へ広がる
     const float threshold = melt > 0.0f ? 0.02f + 0.98f * melt : 0.0f;

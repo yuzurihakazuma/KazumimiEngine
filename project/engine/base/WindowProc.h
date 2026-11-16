@@ -1,13 +1,18 @@
 #pragma once
 // --- 標準ライブラリ ---
 #include <wtypes.h>
+#include "engine/base/Singleton.h"
 #include <cstdint>
 #include <string>
 #include <vector>
-class WindowProc{
+// =====================================================================
+//  WindowProc：ゲームのウィンドウ。
+//   作成・メッセージの処理・大きさの変更・フルスクリーンの切り替え・ドロップされたファイルの受け取りを受け持つ
+// =====================================================================
+class WindowProc : public Singleton<WindowProc> {
+	friend class Singleton<WindowProc>; // 土台（Singleton）だけが作れる
 public:
 
-	static WindowProc* GetInstance();
 
 	/// <summary>
    /// ウィンドウの初期化
@@ -68,8 +73,6 @@ private:
 	// コンストラクタを private にして外部からの生成を禁止
 	WindowProc() = default;
 	~WindowProc() = default;
-	WindowProc(const WindowProc&) = delete;
-	WindowProc& operator=(const WindowProc&) = delete;
 
 private:
 	// -------------------- ウィンドウ生成処理 --------------------

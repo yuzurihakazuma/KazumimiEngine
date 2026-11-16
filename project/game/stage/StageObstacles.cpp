@@ -25,14 +25,14 @@ bool StageObstacles::HitRoadSurface(const Vector3& to, float radius, Vector3& ou
 		if ( rail.nodes.size() < 2 || !rail.visible ) continue; // 見えない連結レールに道は無い
 		if ( rail.roadMode != 0 ) continue;                      // 道なしのレール
 		if ( rail.IsRideBlocked() ) continue;                    // まだ出現していない道
-		if ( rail.frameCache_.empty() ) continue;
+		if ( rail.GetFrames().empty() ) continue;
 
 		// 列車式で回っている最中のレールは、位置テーブル（基準位置）が使えないので都度計算する
 		const bool rotating = ( rail.guideAlign != 0 && rail.animYaw != 0.0f );
-		const int frameCount = ( int ) rail.frameCache_.size();
+		const int frameCount = ( int ) rail.GetFrames().size();
 		for ( int i = 0; i < frameCount; i += kSampleStride ) {
 			float railDist = ( float ) i * SplineRail::kFrameStep;
-			SplineRail::RailFrame frame = rail.frameCache_[i];
+			SplineRail::RailFrame frame = rail.GetFrames()[i];
 			Vector3 surface;
 			if ( rotating ) {
 				surface = rail.GetPositionByDistance(railDist);

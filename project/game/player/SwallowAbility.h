@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/math/struct.h"
+#include <vector>
 #include <functional>
 #include <memory>
 #include <d3d12.h>
@@ -84,13 +85,25 @@ public:
     bool IsRetracting() const{ return state_ == State::Retracting; }
     // 今フレームのベロの実距離(m)。モデルの Tongue ボーンの伸びをこれに合わせると貫通しない
     float GetTongueLength() const{ return tongueLength_; }
+    // 食べられない物にぶつかって、波打っている間か（その間は曲がるベロの絵を描くので、骨のベロは口の中へ隠す）
+    bool IsTongueLimp() const{ return limp_; }
     // ベロの先（ワールド）。見た目のベロの骨をここへ向ける
     const Vector3& GetTongueTip() const{ return tongueTip_; }
     // ベロの形（見た目と同じ）。player.gltf の TongueOut で伸びきった時の、付け根の位置と伸びる向き（足元・向きからの相対）
     static constexpr float kTongueRootForward = 0.37f; // 付け根：足元から前へ(m)
     static constexpr float kTongueRootHeight  = 0.84f; // 付け根：足元から上へ(m)
     static constexpr float kTongueSpeed       = 13.0f;  // ベロの先が伸びる速さ(m/秒)。1.76m を約 0.12 秒
-    static constexpr float kTongueHoldTime    = 0.06f;  // 伸びきってから戻し始めるまで止まる秒
+    static constexpr float kTongueHoldTime    = 0.06f;  // 何にも当たらず伸びきった時、戻し始めるまで止まる秒
+    // 食べられない物（壁・ブロック）にぶつかった時：ベロが上下に波打つ（何にも当たらない時は、しならない）
+    static constexpr float kLimpHangTime      = 0.2f;   // ぶつかってから戻し始めるまでの秒（波打つ所を見せる）
+    static constexpr float kWaveAmplitude     = 0.17f;  // 波の高さ(m)
+    static constexpr float kWaveCount         = 1.6f;   // ベロの長さの中に入る波の数
+    static constexpr float kWaveSpeed         = 5.0f;   // 波が走る速さ（1 秒に何山ぶん進むか）
+    static constexpr float kWaveDecay         = 3.5f;   // 波がおさまる速さ（大きいほど早い）
+    static constexpr int   kLimpSegments      = 20;     // 波打つベロの折れ線の区切りの数（なめらかな波に見える数）
+    static constexpr int   kLimpRing          = 10;     // しなったベロの絵（筒）の断面の点の数
+    static constexpr float kTongueModelHalfWide = 0.080f; // モデルのベロの断面：横の半分(m)（平たい楕円）
+    static constexpr float kTongueModelHalfThin = 0.041f; // モデルのベロの断面：厚さの半分(m)
     static constexpr float kTongueRestLength  = 0.27f; // Tongue の骨のスケールが 1 の時の長さ(m)（口の中にしまってある長さ）
     static constexpr float kTongueHalfWidth   = 0.09f; // ベロの太さの半分(m)
 
@@ -110,7 +123,12 @@ private:
     bool    retractCaught_   = false;       // Retracting が捕獲後か空振りかの区別
     float   missLength_      = 0.0f;        // 空振りで戻し始めた時のベロの長さ
     float   shootLength_     = 0.0f;        // 伸ばしている間の今の長さ
-    float   holdT_           = 0.0f;        // 伸びきってからの秒
+    float   holdT_           = 0.0f;        // 何にも当たらず伸びきってからの秒
+    bool    limp_            = false;       // 食べられない物にぶつかって、波打っている
+    float   limpT_           = 0.0f;        // 波打ち始めてからの秒
+    std::vector<Vector3> curve_;            // 波打つベロの形（付け根 → 先の折れ線）
+    Vector3 limpSide_ { 1.0f, 0.0f, 0.0f }; // 波打つ面に垂直な横の向き
+    void BuildLimpCurve(const Vector3& root, const Vector3& dir, float length, float floorY);
     Vector3 aimDir_ { 0.0f, 0.0f, 1.0f };   // ベロを伸ばす向き（いつも今の正面。敵の方へは向けない）
     Vector3 tongueTip_ { 0.0f, 0.0f, 0.0f }; // 今のベロの先
     int     lastBelly_       = 0;           // 前のフレームのお腹の数（増えた＝食べた）

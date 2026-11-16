@@ -3,6 +3,12 @@
 #include "engine/rail/RailSkin.h"
 #include "engine/math/struct.h"
 
+// =====================================================================
+//  SplineRail：レール 1 本。
+//   ノード（通る点）をつないだ曲線で、「始めからの距離」を渡すと、その場所の位置・進む向き・横の向きを答える。
+//   プレイヤー・敵・ブロック・コイン・道の見た目は、全部「どのレールの、何 m の所か」で場所を決める。
+//   ほかのレールとつながった端は、つなぎ目の向きをそろえて、折れずに通れるようにする
+// =====================================================================
 class SplineRail{
 public:
     std::vector<Vector3> nodes;
@@ -49,11 +55,6 @@ public:
     void AutoDetectType();
 
     // --- ここから等速移動用の追加コード ---
-
-    // 距離の計測テーブル
-    std::vector<float> distanceTable_;
-    std::vector<float> tTable_;
-    float totalLength_ = 0.0f;
 
     // 座標を計算する関数（既存のものと仮定）
     Vector3 EvaluatePosition(float t) const;
@@ -110,8 +111,21 @@ public:
     // FrameCache の構築（BuildDistanceTable の最後で自動的に呼ばれる）
     void BuildFrameCache();
 
-    std::vector<RailFrame> frameCache_;
+    // フレームの表（kFrameStep 刻み）。読むだけ（作るのは BuildFrameCache）
+    const std::vector<RailFrame>& GetFrames() const { return frameCache_; }
     static constexpr float kFrameStep = 0.25f; // テーブルの刻み(m)
+
+    // ============================================================
+    // つなぎ目での向き（RailConnections が入れる。実行時だけ・保存しない）。
+    //   端どうしでつながった相手と共通の向き（長さ1。始点→終点へ進む向き）。端の区間の曲線を、端でこの向きになるように作る。
+    //   無い時は自分の点を折り返して作るので、端はいつも最後の区間の向きのままになり、
+    //   相手と向きが違うつなぎ目では、向きがその 1 点でカクッと折れていた（坂 45° → ゆるい坂 12° など）。
+    //   入れると、2 本のレールが 1 本の曲線のようにつながる（つなぎ目で向きが同じになる）
+    // ============================================================
+    bool    hasFrontTangent = false;
+    bool    hasBackTangent  = false;
+    Vector3 frontTangent { 0.0f, 0.0f, 1.0f };
+    Vector3 backTangent  { 0.0f, 0.0f, 1.0f };
 
     // ⑤ 終端の接続情報（インデックスで管理・距離チェック不要）
     int  frontConnIndex = -1;    // front端の接続先レール番号 (-1=なし)
@@ -212,4 +226,11 @@ public:
         int   zSign;         // +1=W/Dキー(Z+方向), -1=S/Aキー(Z-方向)
     };
     std::vector<BranchPoint> branchPoints;
+
+private:
+    // --- 中で作る表（nodes から BuildDistanceTable / BuildFrameCache が作る。外からは書き換えない）---
+    std::vector<float> distanceTable_;  // 曲線を細かく刻んだ点ごとの、始めからの距離
+    std::vector<float> tTable_;         // その点の、曲線のパラメーター t
+    float totalLength_ = 0.0f;          // レールの長さ(m)。読むのは GetLength
+    std::vector<RailFrame> frameCache_; // 位置と向きの表。読むのは GetFrames / GetFrameAtDistance
 };

@@ -1,6 +1,6 @@
 #include "SDFAtlas.h"
+#include "engine/utils/JsonFile.h"
 
-#include <fstream>
 #include "externals/nlohmann/json.hpp"
 #include "engine/graphics/TextureManager.h"
 
@@ -78,15 +78,8 @@ bool SDFAtlas::Reload(ID3D12GraphicsCommandList* commandList) {
 }
 
 bool SDFAtlas::ParseJson(const std::string& jsonPath) {
-    std::ifstream file(jsonPath);
-    if ( !file.is_open() ) return false;
-
     json j;
-    try {
-        file >> j;
-    } catch ( ... ) {
-        return false; // 生成途中の不完全なJSONは次のリロードで拾う
-    }
+    if ( !JsonFile::Load(jsonPath, j) ) return false; // 無い・生成途中の不完全なJSONは次のリロードで拾う
 
     if ( j.contains("textureWidth") )  atlasWidth_ = j["textureWidth"].get<float>();
     if ( j.contains("textureHeight") ) atlasHeight_ = j["textureHeight"].get<float>();

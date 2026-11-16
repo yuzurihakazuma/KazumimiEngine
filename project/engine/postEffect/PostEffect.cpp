@@ -1,7 +1,7 @@
 #include "PostEffect.h"
+#include "engine/utils/JsonFile.h"
 // --- 標準ライブラリ ---
 #include "externals/nlohmann/json.hpp"
-#include <fstream>
 #include <iostream>
 #include <utility> 
 
@@ -413,21 +413,14 @@ void PostEffect::Save(const std::string& filePath) {
 		j["activeEffects"][std::to_string(i)] = activeEffects_[i];
 	}
 
-	std::ofstream file(filePath);
-	if (file.is_open()) {
-		file << j.dump(4);
-		file.close();
-	}
+	JsonFile::Save(filePath, j, 4);
 }
 // JSONファイルから設定を読み込む関数
 void PostEffect::Load(const std::string& filePath) {
-	std::ifstream file(filePath);
-	if (!file.is_open()) {
+	json j;
+	if ( !JsonFile::Load(filePath, j) ) {
 		return; // ファイルがなければ何もしない
 	}
-
-	json j;
-	file >> j;
 
 	if (j.contains("isActive")) {
 		isActive_ = j["isActive"];

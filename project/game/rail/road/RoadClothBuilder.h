@@ -28,6 +28,7 @@ public:
 
 private:
     // corner：端どうしでつながった相手が、30°以上曲がって続く（延長を水平にして、斜めに突き出さない）
-    struct EndInfo { bool connected; bool plaza; bool corner; };
+    // partner＝角でないつなぎ目の相手のレール（-1＝無い・角）。partnerFront＝相手の始点側でつながっている
+    struct EndInfo { bool connected; bool plaza; bool corner; int partner = -1; bool partnerFront = false; };
     static EndInfo EndOf(const std::vector<SplineRail>& rails, int railIndex, bool front);
 };

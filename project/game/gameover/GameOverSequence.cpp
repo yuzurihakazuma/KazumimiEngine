@@ -1,4 +1,8 @@
 #include "game/gameover/GameOverSequence.h"
+#include "engine/math/VectorMath.h"
+#include "game/ui/UiScale.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -23,10 +27,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr const char* kSettingsFile = "resources/gameover/gameover.json";
     constexpr const char* kFreezeSe = "resources/kamishibai/se_pon.wav";
     constexpr const char* kRevealSe = "resources/kamishibai/se_whoosh.wav";
@@ -59,19 +62,18 @@ namespace {
     constexpr float kFlatShare = 0.35f;    // 開く段の終わり、光なしの絵（写したままの色）へなじませる割合
     constexpr float kUnscreenTime = 0.3f;  // 文字とボタンをしまう時間（看板は残す）
 
-    Vector3 Add(const Vector3& a, const Vector3& b){ return { a.x + b.x, a.y + b.y, a.z + b.z }; }
-    Vector3 Sub(const Vector3& a, const Vector3& b){ return { a.x - b.x, a.y - b.y, a.z - b.z }; }
-    Vector3 Mul(const Vector3& a, float s){ return { a.x * s, a.y * s, a.z * s }; }
-    float Dot(const Vector3& a, const Vector3& b){ return a.x * b.x + a.y * b.y + a.z * b.z; }
-    Vector3 Cross(const Vector3& a, const Vector3& b){ return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x }; }
-    Vector3 Normalize(const Vector3& v){
-        const float length = std::sqrt(Dot(v, v));
-        return length > 1e-6f ? Mul(v, 1.0f / length) : Vector3 { 0.0f, 0.0f, 1.0f };
-    }
+    // ベクトルの計算は、エンジンの VectorMath を使う（前は、同じ物をこのファイルの中にも書いていた）
+    using VectorMath::Add;
+    using VectorMath::Cross;
+    using VectorMath::Dot;
+    using VectorMath::Multiply;
+    using VectorMath::Subtract;
+    // 長さ 1 にする。長さが無い時は、奥向き（+Z）
+    Vector3 Normalize(const Vector3& v){ return VectorMath::NormalizeSafe(v, { 0.0f, 0.0f, 1.0f }); }
     // 軸 axis（長さ1）のまわりに angle 回す
     Vector3 Rotate(const Vector3& v, const Vector3& axis, float angle){
         const float c = std::cos(angle), s = std::sin(angle);
-        return Add(Add(Mul(v, c), Mul(Cross(axis, v), s)), Mul(axis, Dot(axis, v) * ( 1.0f - c )));
+        return Add(Add(Multiply(v, c), Multiply(Cross(axis, v), s)), Multiply(axis, Dot(axis, v) * ( 1.0f - c )));
     }
     // カメラの回転（X＝見下ろす角・Y＝向き）にする
     Vector3 RotationOf(const Vector3& forward){
@@ -162,11 +164,8 @@ void GameOverSequence::Finalize(){
 }
 
 void GameOverSequence::LoadSettings(){
-    std::ifstream file(kSettingsFile);
-    nlohmann::json content = nlohmann::json::object();
-    if ( file.is_open() ) {
-        try { file >> content; } catch ( ... ) { content = nlohmann::json::object(); }
-    }
+    nlohmann::json content;
+    JsonFile::Load(kSettingsFile, content); // 無い・読めない時は空（＝既定値のまま）
     auto read = [&](const char* key, Timing& timing){
         const nlohmann::json t = content.value(key, nlohmann::json::object());
         timing.freeze = t.value("freeze", timing.freeze);
@@ -244,7 +243,7 @@ void GameOverSequence::Start(Camera* camera, bool shortVersion){
     const Vector3 rotation = camera->GetRotation();
     forward_ = { std::sin(rotation.y) * std::cos(rotation.x), -std::sin(rotation.x), std::cos(rotation.y) * std::cos(rotation.x) };
     camPos_ = camera->GetWorldPosition();
-    camLook_ = Add(camPos_, Mul(forward_, sheetDistance_));
+    camLook_ = Add(camPos_, Multiply(forward_, sheetDistance_));
     sheet_.SetFrontTexture(capture_->GetSrvIndex());
     sheet_.SetCoverTexture(capture_->GetSrvIndex());
     sheet_.SetCoverAlpha(1.0f);
@@ -280,8 +279,8 @@ float GameOverSequence::PhaseLength(Phase phase) const{
 
 // 紙を、写し取った時のカメラの前（画面の真ん中）に、幅 width・高さ height(m) で置く
 void GameOverSequence::PlaceSheet(float width, float height){
-    const Vector3 center = Add(camPos_, Mul(forward_, sheetDistance_));
-    sheet_.Place(Sub(center, Mul(up_, height * 0.5f)), right_, up_, Mul(forward_, -1.0f), width, height);
+    const Vector3 center = Add(camPos_, Multiply(forward_, sheetDistance_));
+    sheet_.Place(Subtract(center, Multiply(up_, height * 0.5f)), right_, up_, Multiply(forward_, -1.0f), width, height);
 }
 
 void GameOverSequence::PlaceSheetFull(){ PlaceSheet(sheetWidth_, sheetHeight_); }
@@ -290,7 +289,7 @@ void GameOverSequence::PlaceSheetFull(){ PlaceSheet(sheetWidth_, sheetHeight_); 
 void GameOverSequence::PlaceSheetBoard(){
     const float width = ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientWidth() );
     const float height = ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientHeight() );
-    const float k = ( std::min )( width / 1920.0f, height / 1080.0f );
+    const float k = UiScale::Fit(width, height);
     const float metersPerPixel = sheetHeight_ / height;
     PlaceSheet(screen_.BoardSize().x * k * metersPerPixel, screen_.BoardSize().y * k * metersPerPixel);
 }
@@ -323,7 +322,7 @@ void GameOverSequence::Enter(Phase phase){
     case Phase::Crumple: {
         // 写し取った時のカメラの前に、画面ぴったりの紙を置く（見た目は途切れない）
         const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
-        forward_ = Normalize(Sub(camLook_, camPos_));
+        forward_ = Normalize(Subtract(camLook_, camPos_));
         right_ = Normalize(Cross(worldUp, forward_));
         up_ = Cross(forward_, right_);
         sheetHeight_ = 2.0f * sheetDistance_ * std::tan(camFov_ * 0.5f);
@@ -335,7 +334,7 @@ void GameOverSequence::Enter(Phase phase){
         if ( board_ ) {
             // シールの下の紫のフェルト：少し奥に、画面ぴったりの大きさで（ゲームオーバーの画面の地と同じ見え方）
             const float spread = ( sheetDistance_ + kBoardBehind ) / sheetDistance_;
-            board_->SetTranslation(Add(camPos_, Mul(forward_, sheetDistance_ + kBoardBehind)));
+            board_->SetTranslation(Add(camPos_, Multiply(forward_, sheetDistance_ + kBoardBehind)));
             board_->SetRotation(RotationOf(forward_));
             board_->SetScale({ sheetWidth_ * spread, sheetHeight_ * spread, 0.05f });
         }
@@ -454,7 +453,7 @@ void GameOverSequence::DrawTransparent(){
     const Vector3 side { depth.z, 0.0f, -depth.x };
     for ( size_t i = 0; i < stars_.size(); ++i ) {
         const float angle = starAngle_ + ( float ) i * 2.0f * kPi / ( float ) stars_.size();
-        Vector3 at = Add(head_, Add(Mul(side, std::cos(angle) * kStarRadius), Mul(depth, std::sin(angle) * kStarRadius * 0.55f)));
+        Vector3 at = Add(head_, Add(Multiply(side, std::cos(angle) * kStarRadius), Multiply(depth, std::sin(angle) * kStarRadius * 0.55f)));
         at.y += kStarAbove + 0.06f * std::sin(angle * 2.0f);
         stars_[i]->SetTranslation(at);
         stars_[i]->SetScale({ starSize_, starSize_, starSize_ });
@@ -486,17 +485,17 @@ bool GameOverSequence::ConsumeFinished(){
 void GameOverSequence::UpdateInput(){
     Input* input = Input::GetInstance();
     // 早送り：選ぶ所まで速く進めて、「やりなおす」にする（企画書：決定ボタンで P8 へ）
-    if ( phase_ < Phase::Choose && input->Triggerkey(DIK_RETURN) ) { speed_ = kFastForward; }
+    if ( phase_ < Phase::Choose && input->TriggerKey(DIK_RETURN) ) { speed_ = kFastForward; }
     if ( phase_ != Phase::Choose ) { return; }
     if ( speed_ > 1.0f ) { choice_ = 0; Enter(Phase::ResumeShot); return; }
-    const bool upKey = input->Triggerkey(DIK_W) || input->Triggerkey(DIK_UP) || input->Triggerkey(DIK_A) || input->Triggerkey(DIK_LEFT);
-    const bool downKey = input->Triggerkey(DIK_S) || input->Triggerkey(DIK_DOWN) || input->Triggerkey(DIK_D) || input->Triggerkey(DIK_RIGHT);
+    const bool upKey = input->TriggerKey(DIK_W) || input->TriggerKey(DIK_UP) || input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT);
+    const bool downKey = input->TriggerKey(DIK_S) || input->TriggerKey(DIK_DOWN) || input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT);
     if ( ( upKey && choice_ != 0 ) || ( downKey && choice_ != 1 ) ) {
         choice_ = upKey ? 0 : 1;
         screen_.SetChoice(choice_);
         AudioManager::GetInstance()->PlayWave(kSelectSe, false, 0.5f);
     }
-    if ( input->Triggerkey(DIK_SPACE) || input->Triggerkey(DIK_RETURN) ) {
+    if ( input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) ) {
         if ( choice_ == 0 ) {
             Enter(Phase::ResumeShot); // まず再開する所の絵を写してから、画面をしまって紙を広げる
         } else {
@@ -522,14 +521,14 @@ void GameOverSequence::Update(float deltaTime){
         // ぶつかった瞬間：画面が少しだけ揺れる
         const float hit = Easing::Clamp01(t / kHitEnd);
         const float shake = 0.05f * ( 1.0f - hit ) * std::sin(time_ * 80.0f);
-        camPos_ = Add(startPos_, Mul(right_, shake));
+        camPos_ = Add(startPos_, Multiply(right_, shake));
         if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Reveal); }
         break;
     }
     case Phase::Reveal: {
         // 注視点はそのまま、手前へ引いて上がり、画角を広げる → 箱のふちが見える
         const float e = Easing::EaseInOutSine(t);
-        camPos_ = Add(Add(startPos_, Mul(forward_, -revealBack_ * e)), Mul(worldUp, revealUp_ * e));
+        camPos_ = Add(Add(startPos_, Multiply(forward_, -revealBack_ * e)), Multiply(worldUp, revealUp_ * e));
         camFov_ = startFov_ + revealFov_ * e;
         if ( t >= 1.0f ) { Enter(Phase::Capture); }
         break;
@@ -544,7 +543,7 @@ void GameOverSequence::Update(float deltaTime){
         sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
         // グシャッとした瞬間に、画面が少し揺れる
         const float shake = kShake * ( 1.0f - Easing::Clamp01(t / 0.4f) ) * std::sin(time_ * 70.0f);
-        camPos_ = Add(startPos_, Add(Mul(right_, shake), Mul(up_, shake * 0.6f)));
+        camPos_ = Add(startPos_, Add(Multiply(right_, shake), Multiply(up_, shake * 0.6f)));
         if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Open); }
         break;
     }
@@ -626,7 +625,7 @@ void GameOverSequence::ApplyCamera(){
         camera_->SetFovY(resumeFov_);
     } else {
         camera_->SetTranslation(camPos_);
-        camera_->SetRotation(RotationOf(Normalize(Sub(camLook_, camPos_))));
+        camera_->SetRotation(RotationOf(Normalize(Subtract(camLook_, camPos_))));
         camera_->SetFovY(camFov_);
     }
     camera_->Update();

@@ -2,6 +2,7 @@
 
 // --- 標準ライブラリ・外部ライブラリ ---
 #include <memory>
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <string>
 // --- エンジン側のファイル ---
@@ -69,13 +70,15 @@ struct PostEffectMaskParams {
 };
 
 
-class PostEffect {
+// =====================================================================
+//  PostEffect：画面全体にかける効果（ポストエフェクト）。
+//   3D の絵をいったん別の絵（レンダーテクスチャ）へ描き（PreDrawScene〜PostDrawScene）、
+//   効果を重ねてから画面へ出す（Draw）。どの効果を使うか・強さは JSON に保存する
+// =====================================================================
+class PostEffect : public Singleton<PostEffect> {
+	friend class Singleton<PostEffect>; // 土台（Singleton）だけが作れる
 public:
 
-	static PostEffect* GetInstance() {
-		static PostEffect instance;
-		return &instance;
-	}
 
 	~PostEffect() = default;
 
@@ -190,8 +193,6 @@ public: // ゲームプレイシーンなどから、描画に必要なSRVイン
 private:
 
 	PostEffect() = default;
-	PostEffect(const PostEffect&) = delete;
-	PostEffect& operator=(const PostEffect&) = delete;
 
 private:
 

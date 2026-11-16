@@ -1,4 +1,5 @@
-#include "game/worldmap/PaperFx.h"
+#include "game/effect/PaperFx.h"
+#include "engine/math/MathUtil.h"
 
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -12,7 +13,7 @@
 #include <string>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr uint32_t kCapacity = 192;      // 1色あたりの最大数
     constexpr float kGravity = -6.0f;        // 紙吹雪の重力(m/秒²)
     constexpr float kFallLimit = -0.9f;      // 紙は空気でゆっくり落ちる(m/秒)
@@ -84,7 +85,7 @@ float PaperFx::Random(float lo, float hi){
     return std::uniform_real_distribution<float>(lo, hi)(random_);
 }
 
-void PaperFx::Confetti(const Vector3& at, int count, float speed, float size){
+void PaperFx::Confetti(const Vector3& at, int count, float speed, float size, float lifeScale){
     if ( confettiGroups_ == 0 ) { return; }
     for ( int i = 0; i < count; ++i ) {
         Piece piece;
@@ -97,7 +98,7 @@ void PaperFx::Confetti(const Vector3& at, int count, float speed, float size){
         piece.rotation = { Random(0.0f, kPi), Random(0.0f, kPi), Random(0.0f, kPi) };
         piece.spin = { Random(-9.0f, 9.0f), Random(-4.0f, 4.0f), Random(-9.0f, 9.0f) };
         piece.size = size * Random(0.75f, 1.25f);
-        piece.life = Random(1.3f, 2.0f);
+        piece.life = Random(1.3f, 2.0f) * lifeScale;
         piece.phase = Random(0.0f, 2.0f * kPi);
         pieces_.push_back(piece);
     }

@@ -35,6 +35,14 @@ void EnemyManager::Spawn(const std::vector<EnemySpawnData>& spawns, const std::v
         enemy->Update(rails, { 0.0f, 0.0f, 0.0f }, 0.0f);
         enemies_.push_back(std::move(enemy));
     }
+    // 置き直した：倒した数は、ここから数え直す（知らせは出さない）
+    spawnedCount_ = static_cast<int>( enemies_.size() );
+    remainingCount_ = spawnedCount_;
+}
+
+int EnemyManager::CountRemaining() const{
+    return static_cast<int>( std::count_if(enemies_.begin(), enemies_.end(),
+        [](const std::unique_ptr<Enemy>& enemy){ return ( enemy->IsAlive() || enemy->IsSwallowing() ) && !enemy->IsConsumed(); }) );
 }
 
 // 移動＋吸い込みTick＋消化（完了で onConsumed を呼んで削除）
@@ -51,6 +59,11 @@ void EnemyManager::Update(const std::vector<SplineRail>& rails, const Vector3& p
     }
     enemies_.erase(std::remove_if(enemies_.begin(), enemies_.end(),
         [](const std::unique_ptr<Enemy>& enemy){ return enemy->IsConsumed(); }), enemies_.end());
+
+    // 倒した敵（溶けて消える・食べ終えた）の分だけ知らせる
+    const int remaining = CountRemaining();
+    for ( int i = remaining; i < remainingCount_; ++i ) { onEnemyDefeated_.Emit(); }
+    remainingCount_ = remaining;
 }
 
 void EnemyManager::SetHighlight(const Enemy* target, float pulse){

@@ -1,4 +1,5 @@
 #include "game/editor/BackdropEditTool.h"
+#include "engine/math/MathUtil.h"
 #include "game/editor/SceneEditContext.h"
 
 #include "engine/3d/model/Model.h"
@@ -20,8 +21,8 @@
 #include <filesystem>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
-    constexpr float kDeg = 180.0f / kPi;
+    constexpr float kPi = Math::kPi;
+    constexpr float kDeg = Math::kRadToDeg; // ラジアン → 度（掛ける）
     constexpr size_t kUndoLimit = 80;
     constexpr int   kOpTranslate = 7, kOpRotate = 120, kOpScale = 896; // ImGuizmo::OPERATION
 
@@ -704,7 +705,7 @@ void BackdropEditTool::UpdateGround(const SceneEditContext& context){
         return;
     }
     // 指している升目：地面があればその上、無ければ「作る高さ」の面
-    Vector3 point;
+    Vector3 point {};
     bool onGround = backdrop.HitGround(origin, dir, point);
     if ( !onGround && !RayPlane(origin, dir, groundHeight_, point) ) { return; }
     int column, row;
@@ -787,7 +788,7 @@ void BackdropEditTool::UpdatePathLine(const SceneEditContext& context){
 #ifdef USE_IMGUI
     StageBackdrop& backdrop = *context.backdrop;
     const auto& view = context.View();
-    Vector3 origin, dir, point;
+    Vector3 origin {}, dir {}, point {};
     const bool hasPoint = view.hovered && context.MouseRay(origin, dir)
         && ( backdrop.HitGround(origin, dir, point) || RayPlane(origin, dir, groundHeight_, point) );
     const Vector4 color { 1.0f, 0.85f, 0.3f, 1.0f };
@@ -899,7 +900,7 @@ void BackdropEditTool::BuildPath(StageBackdrop& backdrop){
     }
     // 3) 帯（2点の間）と丸（曲がり角・端）を並べる。下に少し広い段ボールのふち
     const int group = backdrop.NextGroup();
-    Vector3 stripMin, stripMax, discMin, discMax;
+    Vector3 stripMin {}, stripMax {}, discMin {}, discMax {};
     if ( !RawModelBounds(StageBackdrop::kPathStrip, stripMin, stripMax) || !RawModelBounds(StageBackdrop::kPathDisc, discMin, discMax) ) return;
     const float edge = 0.22f; // ふちの幅（両側の合計）
     auto place = [&](const char* model, const Vector3& at, float yaw, const Vector3& scale, float bottom, float minY, float pitch = 0.0f){
@@ -1107,9 +1108,7 @@ void BackdropEditTool::UpdateGizmo(const SceneEditContext& context){
     } else {
         // たくさん：移動はそのまま足す／回転は先頭を中心に水平に回す／拡縮は割合を掛ける
         const Vector3 moved { t.x - proxyT_.x, t.y - proxyT_.y, t.z - proxyT_.z };
-        float turn = YawOf(r) - YawOf(proxyR_);
-        while ( turn > 180.0f ) turn -= 360.0f;
-        while ( turn < -180.0f ) turn += 360.0f;
+        const float turn = Math::WrapDegrees(YawOf(r) - YawOf(proxyR_));
         const Vector3 ratio { proxyS_.x != 0.0f ? s.x / proxyS_.x : 1.0f, proxyS_.y != 0.0f ? s.y / proxyS_.y : 1.0f,
                               proxyS_.z != 0.0f ? s.z / proxyS_.z : 1.0f };
         const bool useMove = !byGizmo || op == kOpTranslate, useTurn = !byGizmo || op == kOpRotate, useScale = !byGizmo || op == kOpScale;

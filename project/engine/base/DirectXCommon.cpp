@@ -31,7 +31,6 @@ void DirectXCommon::Finalize(){
 	includeHandler_.Reset();
 	dxcCompiler_.Reset();
 	dxcUtils_.Reset();
-	resource.Reset();
 
 	rtvDescriptorHeap_.Reset();
 	dsvDescriptorHeap_.Reset();
@@ -146,7 +145,7 @@ void DirectXCommon::Initialize(WindowProc* windowProc){
 	logManager_.Log("DirectXCommon::Initialize() 開始");
 
 	// DXCコンパイラの生成（ShaderCompilerの初期化）
-	bool result = shaderCompiler_.Initialize();
+	[[maybe_unused]] bool result = shaderCompiler_.Initialize();
 	assert(result);
 	logManager_.Log("ShaderCompiler 初期化成功");
 

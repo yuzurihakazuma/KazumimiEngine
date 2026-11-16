@@ -25,8 +25,9 @@ public:
     void Initialize(uint32_t noiseSrv);
     void Clear();
 
-    // 紙吹雪：at から上へ、count 枚。speed＝舞い上がる速さ(m/秒)、size＝1枚の大きさ(m)
-    void Confetti(const Vector3& at, int count, float speed, float size);
+    // 紙吹雪：at から上へ、count 枚。speed＝舞い上がる速さ(m/秒)、size＝1枚の大きさ(m)、
+    //   lifeScale＝消えるまでの長さの倍率（上から降らせる時は長くする）
+    void Confetti(const Vector3& at, int count, float speed, float size, float lifeScale = 1.0f);
     // 綿のけむり：size＝いちばんふくらんだ時の直径(m)、life＝消えるまで(秒)
     void Puff(const Vector3& at, const Vector3& velocity, float size, float life, PuffColor color);
     // 綿のけむりを輪にして広げる（着地・跳んだ時の土ぼこり）

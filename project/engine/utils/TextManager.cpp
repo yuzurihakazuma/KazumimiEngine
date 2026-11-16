@@ -1,4 +1,5 @@
 #include "TextManager.h"
+#include "engine/utils/JsonFile.h"
 
 // --- 標準ライブラリ ---
 #include <fstream>
@@ -221,11 +222,8 @@ void TextManager::Save(const std::string& filePath){
 }
 
 void TextManager::Load(const std::string& filePath){
-	std::ifstream file(filePath);
-	if ( !file.is_open() ) return;
-
 	json j;
-	file >> j;
+	if ( !JsonFile::Load(filePath, j) ) return;
 
 	texts_.clear(); // 現在のリストをリセット
 

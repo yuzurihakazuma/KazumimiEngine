@@ -1,4 +1,5 @@
 #include "game/egg/EggSystem.h"
+#include "engine/math/MathUtil.h"
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/3d/model/Model.h"
 #include "engine/3d/model/ModelManager.h"
@@ -131,7 +132,7 @@ void EggSystem::SpawnPuff(const Vector3& pos, const Vector3& vel, const Vector4&
             puff.obj->GetModel()->GetMaterial()->color = color;
         }
         // 殻は薄い湾曲面なので両面表示（裏返っても消えない）
-        if ( modelName == "eggShell" ) {
+        if ( modelName == "eggShell" || modelName == "eggShellGreen" ) {
             puff.obj->SetPipelineType(PipelineType::Object3D_CullNone);
         }
         puff.obj->SetTranslation(pos);
@@ -141,6 +142,36 @@ void EggSystem::SpawnPuff(const Vector3& pos, const Vector3& vel, const Vector4&
     puff.rot = { Rand11() * 3.14f, Rand11() * 3.14f, Rand11() * 3.14f };       // ランダムな初期姿勢
     puff.rotSpeed = { Rand11() * 8.0f, Rand11() * 8.0f, Rand11() * 8.0f };     // くるくる回りながら舞う
     puffs_.push_back(std::move(puff));
+}
+
+// 殻のかけらを 1 個：重く落ちて、終わりの方でだけ縮む（最初から縮む・ふわふわ浮くと、割れた殻に見えない）
+void EggSystem::SpawnShell(const Vector3& pos, const Vector3& vel, float scale, float life, bool green){
+    SpawnPuff(pos, vel, { 1.0f, 1.0f, 1.0f, 1.0f }, scale, life, green ? "eggShellGreen" : "eggShell");
+    puffs_.back().gravity = 14.0f;
+    puffs_.back().lateShrink = true;
+}
+
+// 卵が割れた：殻のかけらが、飛んで来た方（壁からはね返る向き）と上へ散って落ちる。白 7・緑 3 ＝卵の模様の色。
+//   前は全部の向きへ均等に飛ばしていたので、半分は壁の中へ飛び込んでいた。黄身の黄色い玉も、紙の卵には合わないのでやめた
+void EggSystem::SpawnBreakFx(const Vector3& pos, const Vector3& flightDir){
+    const float speed = std::sqrt(flightDir.x * flightDir.x + flightDir.y * flightDir.y + flightDir.z * flightDir.z);
+    // はね返る向き：飛んで来た向きの逆。投げていない卵（列からあふれて割れた等）は真上
+    const Vector3 back = speed > 1e-3f ? Vector3 { -flightDir.x / speed, -flightDir.y / speed, -flightDir.z / speed }
+                                       : Vector3 { 0.0f, 1.0f, 0.0f };
+    for ( int i = 0; i < 10; ++i ) {
+        const float out = 1.2f + ( Rand11() * 0.5f + 0.5f ) * 2.6f;   // はね返る速さ
+        const Vector3 velocity { back.x * out + Rand11() * 2.2f,
+                                 back.y * out + 2.2f + Rand11() * 1.6f,  // 少し上へ
+                                 back.z * out + Rand11() * 2.2f };
+        const Vector3 at { pos.x + Rand11() * 0.12f, pos.y + Rand11() * 0.18f, pos.z + Rand11() * 0.12f }; // 卵の大きさの中から
+        SpawnShell(at, velocity, 0.2f + ( Rand11() * 0.5f + 0.5f ) * 0.12f, 0.55f + ( Rand11() * 0.5f + 0.5f ) * 0.2f, i % 3 == 0);
+    }
+    // 割れた瞬間の白いけむり（卵のあった所にぽん。すぐ消える）
+    SpawnPuff(pos, { back.x * 0.6f, 0.5f, back.z * 0.6f }, { 1.0f, 1.0f, 0.97f, 1.0f }, 0.55f, 0.16f);
+    for ( int i = 0; i < 3; ++i ) {
+        SpawnPuff(pos, { back.x * 1.2f + Rand11() * 1.0f, 0.8f + Rand11() * 0.5f, back.z * 1.2f + Rand11() * 1.0f },
+                  { 1.0f, 1.0f, 0.97f, 1.0f }, 0.2f, 0.3f);
+    }
 }
 
 // 敵を飲み込んだ → お腹に1匹ためる（卵にするのは LayEgg）。
@@ -178,8 +209,8 @@ bool EggSystem::LayEgg(const Vector3& birthPos){
         // 連続産卵対策：前の演出対象がまだ非表示のままなら、先に実体表示へ戻す
         //   （戻さないと演出が新しい卵へ移った時、前の卵が永久に見えなくなる）
         if ( birthEgg_ ) {
-            for ( auto& egg : eggs_ ) {
-                if ( egg.get() == birthEgg_ ) { birthEgg_->SetVisualHidden(false); birthEgg_->SetSpinPaused(false); break; }
+            for ( auto& ownedEgg : eggs_ ) {
+                if ( ownedEgg.get() == birthEgg_ ) { birthEgg_->SetVisualHidden(false); birthEgg_->SetSpinPaused(false); break; }
             }
         }
         // SDF の卵を、実体の卵と同じ見た目（同じテクスチャ・同じ光・同じつや）にする。交代しても模様・明るさが変わらない
@@ -328,7 +359,7 @@ Vector3 EggSystem::FollowSlot(int index) const{
         Vector3 at, dir;
         TrailPointAt(along, at, dir, nullptr);
         // ぴょこぴょこ：同じ所で跳ねる（前の卵が跳ねた所へ来ると、後ろの卵も跳ねる＝1 個ずつ順に跳ねて付いてくる）
-        const float hop = kWalkHop * std::abs(std::sin(( walkedTotal_ - along ) * 3.14159265f / kWalkHopStride));
+        const float hop = kWalkHop * std::abs(std::sin(( walkedTotal_ - along ) * Math::kPi / kWalkHopStride));
         return { at.x, at.y + kHeldEggHeight + hop, at.z };
     }
     // まとまる：全部の卵を、恐竜のすぐ後ろの 1 か所に重ねる（1 個ごとに少しだけ奥へずらす）。
@@ -402,17 +433,9 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
                 egg->StopAtObstacle(floorPos);
             }
         }
-        if ( egg->JustBroke() ) { // 着弾／時間切れ：殻の欠片が飛び散り、黄身が splash する
+        if ( egg->JustBroke() ) { // 着弾／時間切れ：卵の本体は消えて、殻のかけらが飛んで来た方へはね返って落ちる
             AudioManager::GetInstance()->PlayWave("resources/se/eggBreak.wav", false, 0.4f); // 割れる音
-            Vector3 breakPos = egg->GetPosition();
-            for ( int i = 0; i < 6; ++i ) { // 殻の欠片（くるくる回りながら舞う）
-                SpawnPuff(breakPos, { Rand11() * 3.5f, 2.0f + Rand11() * 2.0f, Rand11() * 3.5f },
-                          { 1.0f, 1.0f, 1.0f, 1.0f }, 0.22f, 0.45f, "eggShell");
-            }
-            for ( int i = 0; i < 6; ++i ) { // 黄身の飛沫（小さい黄色の粒）
-                SpawnPuff(breakPos, { Rand11() * 2.5f, 1.5f + Rand11() * 1.5f, Rand11() * 2.5f },
-                          { 1.0f, 0.85f, 0.2f, 1.0f }, 0.12f, 0.35f);
-            }
+            SpawnBreakFx(egg->GetPosition(), egg->GetFlightDir());
             egg->ClearJustBroke();
         }
     }
@@ -465,7 +488,7 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
     // 実体パフの更新（移動＋軽い重力＋回転＋縮小、寿命切れで削除）
     for ( auto& puff : puffs_ ) {
         puff.life   -= dt;
-        puff.vel.y  -= 3.0f * dt;
+        puff.vel.y  -= puff.gravity * dt;
         puff.pos.x  += puff.vel.x * dt;
         puff.pos.y  += puff.vel.y * dt;
         puff.pos.z  += puff.vel.z * dt;
@@ -474,7 +497,8 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
         puff.rot.z  += puff.rotSpeed.z * dt;
         float lifeRatio = ( puff.maxLife > 0.0f ) ? ( puff.life / puff.maxLife ) : 0.0f;
         if ( lifeRatio < 0.0f ) lifeRatio = 0.0f;
-        float shrunkScale = puff.baseScale * lifeRatio;
+        // 殻は終わりの 3 割でだけ縮む（それまでは元の大きさのまま回って落ちる）
+        float shrunkScale = puff.baseScale * ( puff.lateShrink ? ( std::min )( lifeRatio / 0.3f, 1.0f ) : lifeRatio );
         if ( puff.obj ) {
             puff.obj->SetTranslation(puff.pos);
             puff.obj->SetRotation(puff.rot);
@@ -598,9 +622,8 @@ void EggSystem::SpawnLayFx(const Vector3& pos){
 
 // 命中：殻の欠片が勢いよく飛び散り、黄身が splash する（衝撃感。速い・多い）。
 void EggSystem::SpawnHitFx(const Vector3& pos){
-    for ( int i = 0; i < 8; ++i ) { // 殻の欠片（大きめ・速い・回転）
-        SpawnPuff(pos, { Rand11() * 4.8f, 1.0f + Rand11() * 3.0f, Rand11() * 4.8f },
-                  { 1.0f, 1.0f, 1.0f, 1.0f }, 0.24f, 0.4f, "eggShell");
+    for ( int i = 0; i < 8; ++i ) { // 殻の欠片（大きめ・速い・回転。重く落ちる）
+        SpawnShell(pos, { Rand11() * 4.8f, 2.0f + Rand11() * 3.0f, Rand11() * 4.8f }, 0.24f, 0.55f, i % 3 == 0);
     }
     for ( int i = 0; i < 8; ++i ) { // 黄身の飛沫
         SpawnPuff(pos, { Rand11() * 3.5f, 0.8f + Rand11() * 2.2f, Rand11() * 3.5f },

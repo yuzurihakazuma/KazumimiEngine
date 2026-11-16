@@ -1,4 +1,6 @@
 #include "RailEditor.h"
+#include "engine/base/TimeManager.h"
+#include "engine/math/MathUtil.h"
 
 #include <cmath>
 #include <cstdio>
@@ -397,7 +399,7 @@ int RailEditor::PredictJumpLanding(int rail, bool front, bool useFlutter,
 	Vector3 pos = a;
 	float vy     = kJumpPower;
 	float budget = kFloatTime;
-	const float dt = 1.0f / 60.0f;
+	const float dt = Time::kFixedDeltaTime;
 
 	for ( int step = 0; step < 180; ++step ) { // 最大3秒ぶんシミュレート
 		// ふんばり：上昇が尽きたら SPACE 長押しで滞空した想定（Player と同じ式）
@@ -1305,11 +1307,11 @@ void RailEditor::DrawRailPathEditor(int railIdx, bool motionOverlay){
 		const float u = ( float ) std::fmod(ImGui::GetTime() / period + phase, 1.0);
 		float w;
 		if ( guideMode == 1 ) {
-			w = 0.5f - 0.5f * std::cos(u * 6.2831853f); // 往復
+			w = 0.5f - 0.5f * std::cos(u * Math::kTwoPi); // 往復
 		} else if ( guideMode == 2 ) {
 			// 片道：到着→少し停車→最初から（実際のゲームでは到着後そのまま停まる。ここは確認用の繰り返し）
 			float cycle = ( float ) std::fmod(ImGui::GetTime() / period + phase, 1.3);
-			w = 0.5f - 0.5f * std::cos(( std::min )( cycle, 1.0f ) * 3.14159265f);
+			w = 0.5f - 0.5f * std::cos(( std::min )( cycle, 1.0f ) * Math::kPi);
 		} else {
 			w = u; // 一周ループ
 		}
@@ -2399,9 +2401,9 @@ void RailEditor::TickEditing(){
         //   途中で配列が入れ替わると、続きの操作が別のブロックやコインへ書き込んでしまう
         const bool mouseHeld = in->PushMouseButton(0) || in->PushMouseButton(1);
         if ( !skipHotkey && !mouseHeld ) {
-            bool ctrl = in->Pushkey(DIK_LCONTROL) || in->Pushkey(DIK_RCONTROL);
-            if ( ctrl && in->Triggerkey(DIK_Z) ) Undo();
-            if ( ctrl && in->Triggerkey(DIK_Y) ) Redo();
+            bool ctrl = in->PushKey(DIK_LCONTROL) || in->PushKey(DIK_RCONTROL);
+            if ( ctrl && in->TriggerKey(DIK_Z) ) Undo();
+            if ( ctrl && in->TriggerKey(DIK_Y) ) Redo();
         }
     }
 #endif
@@ -2410,14 +2412,45 @@ void RailEditor::TickEditing(){
 void RailEditor::DrawWindow(){
 #ifdef USE_IMGUI
 	// =========================================================
-	//  5. レールエディタ ウィンドウ（1つのウィンドウ内をタブで分割）
-	//     「管理」タブ … 既存レールの一覧・プロパティ・座標
-	//     「作成」タブ … 新しいレールを作る（シェイプ生成・マウス描画）
+	//  レールエディタ ウィンドウ（1つのウィンドウ内をタブで分割）。
+	//  タブの中身は、タブごとの関数（Draw〜Tab）に分けてある：ここは「どのタブが開いているか」だけを見る
 	// =========================================================
 	ImGui::Begin("レールエディタ");
 	if ( ImGui::BeginTabBar("RailEditorTabs") ) {
-	if ( ImGui::BeginTabItem("管理 (Rails)") ) {
+		// 管理：既存レールの一覧・プロパティ・座標
+		if ( ImGui::BeginTabItem("管理 (Rails)") ) {
+			DrawManageTab();
+			ImGui::EndTabItem();
+		}
+		// 作成：新しいレールを「作る」専用。生成直後は路線まるごと選択済みなので、ギズモですぐ配置できる
+		if ( ImGui::BeginTabItem("作成 (Shape)") ) {
+			DrawCreateTab();
+			ImGui::EndTabItem();
+		}
+		// 動き：動くレール（波形・親子付け・リフト生成）を1か所に集約
+		if ( ImGui::BeginTabItem("動き (Motion)") ) {
+			DrawMotionTab();
+			ImGui::EndTabItem();
+		}
+		// 配置物：ステージに置く「モノ」（コイン・穴）の編集
+		if ( ImGui::BeginTabItem("配置物 (Items)") ) {
+			DrawItemsTab();
+			ImGui::EndTabItem();
+		}
+		// 接続：溶接/T字の接続一覧・選択ハイライト・切断（接続はレール座標から毎回導出する。保存しない派生データ）
+		if ( ImGui::BeginTabItem("接続 (Joints)") ) {
+			DrawJointsTab();
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
+	ImGui::End();
+#endif
+}
 
+// 「管理」タブ：検証・レールの一覧・選んだレールの設定・ノードの一覧
+void RailEditor::DrawManageTab(){
+#ifdef USE_IMGUI
 	// railTypes / railMotions / railGroundTypes を railLines と必ず同数に保つ
 	if ( data_->railMotions.size() != data_->railLines.size() ) {
 		data_->railMotions.resize(data_->railLines.size(), Vector4 { 0.0f, 0.0f, 0.0f, 2.0f });
@@ -2447,6 +2480,59 @@ void RailEditor::DrawWindow(){
 		data_->railNodeHoles.resize(data_->railLines.size());
 	}
 
+	DrawVerifySection();
+
+	DrawRailListSection();
+	ImGui::Separator();
+
+	DrawSelectedRailSection();
+
+	// Undo / Redo
+	// --- 操作履歴（元に戻す / やり直す / 最初期に戻す）---
+	ImGui::BeginDisabled(undoStack_.empty());
+	if ( ImGui::Button("元に戻す (Ctrl+Z)") ) { Undo(); }
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::BeginDisabled(redoStack_.empty());
+	if ( ImGui::Button("やり直す (Ctrl+Y)") ) { Redo(); }
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!CanResetToInitial());
+	if ( ImGui::Button("最初期に戻す") ) { ResetToInitial(); }
+	ImGui::EndDisabled();
+	ImGui::TextDisabled("履歴:%d手 / やり直し:%d手  ※最初期=このマップを開いた直後の状態",
+		static_cast< int >( undoStack_.size() ), static_cast< int >( redoStack_.size() ));
+
+	if ( ImGui::CollapsingHeader("操作ヘルプ（クリックで開閉）") ) {
+		ImGui::TextDisabled("【Game View操作】");
+		ImGui::TextDisabled("線クリック→路線まるごと選択(ギズモで移動) / ノードクリック→1点選択");
+		ImGui::TextDisabled("空白をドラッグ→矩形選択(まとめて移動) / Shift+クリック→追加選択");
+		ImGui::TextDisabled("Ctrl+線クリック→ノード挿入 / 右クリック→ノード削除");
+		ImGui::TextDisabled("端点をドラッグ→近くの線に自動スナップ(緑=接続/オレンジ=高さ差表示)");
+		ImGui::TextDisabled("【キーボード】矢印=1マス移動 / Q,E=下,上 / Delete=削除 / Ctrl+D=路線複製");
+		ImGui::TextDisabled("【数値欄】クリック=キーボード入力 / ドラッグ=増減");
+		ImGui::TextDisabled("【リスト】行を右クリック=グループへ分類 / ホバー=画面で黄色に光る");
+		ImGui::TextDisabled("【リフトの作り方】作成タブ「動くリフト一式」→クリック設置→「検証」の動きプレビューON");
+		ImGui::TextDisabled("  既存の足場を動かす→「動き」タブの「自動でリフト化」/ 親レール番号を入れて追従");
+		ImGui::TextDisabled("【仕上げ】「検証」ウィンドウの「到達チェック」→OK(緑)ならクリア可能 / ゴースト走行で流れ確認");
+		ImGui::TextDisabled("  経路色: オレンジ=走る / シアン=ジャンプ / マゼンタ=ふんばり必要");
+	}
+
+
+
+
+
+
+
+
+
+	DrawNodeListSection();
+#endif
+}
+
+// 管理タブ：検証（ジャンプの予測線・動きのプレビュー・到達チェック・ゴースト走行）
+void RailEditor::DrawVerifySection(){
+#ifdef USE_IMGUI
 	// --- 検証（到達チェック・ゴースト走行・表示トグル）。よく使うので管理タブの先頭に置く ---
 	if ( ImGui::CollapsingHeader("検証（到達チェック・プレビュー）", ImGuiTreeNodeFlags_DefaultOpen) ) {
 		ImGui::Checkbox("ジャンプ予測線を表示", &railReachLines_);
@@ -2490,7 +2576,12 @@ void RailEditor::DrawWindow(){
 		}
 		ImGui::Separator();
 	}
+#endif
+}
 
+// 管理タブ：路線の一覧（選ぶ・複製・削除・グループで絞る）
+void RailEditor::DrawRailListSection(){
+#ifdef USE_IMGUI
 	// --- 路線リスト（クリック＝路線まるごと選択 / 複製 / 削除）---
 	ImGui::Text("路線リスト:");
 	ImGui::SameLine();
@@ -2701,8 +2792,12 @@ void RailEditor::DrawWindow(){
 			RebuildRailPoints();
 		}
 	}
-	ImGui::Separator();
+#endif
+}
 
+// 管理タブ：選んだレールの設定（操作の向き・地面・表示・線のつなぎ方・丸広場・片方向・道の見た目・スタートとゴール）
+void RailEditor::DrawSelectedRailSection(){
+#ifdef USE_IMGUI
 	// --- このレールの「移動操作タイプ」（横=A/D移動 / 縦=W/S移動）---
 	if ( currentEditRailIndex_ >= 0 && currentEditRailIndex_ < ( int ) data_->railLines.size() ) {
 		int& t = data_->railTypes[currentEditRailIndex_];
@@ -2974,46 +3069,12 @@ void RailEditor::DrawWindow(){
 		ImGui::Separator();
 
 	}
+#endif
+}
 
-	// Undo / Redo
-	// --- 操作履歴（元に戻す / やり直す / 最初期に戻す）---
-	ImGui::BeginDisabled(undoStack_.empty());
-	if ( ImGui::Button("元に戻す (Ctrl+Z)") ) { Undo(); }
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::BeginDisabled(redoStack_.empty());
-	if ( ImGui::Button("やり直す (Ctrl+Y)") ) { Redo(); }
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::BeginDisabled(!CanResetToInitial());
-	if ( ImGui::Button("最初期に戻す") ) { ResetToInitial(); }
-	ImGui::EndDisabled();
-	ImGui::TextDisabled("履歴:%d手 / やり直し:%d手  ※最初期=このマップを開いた直後の状態",
-		static_cast< int >( undoStack_.size() ), static_cast< int >( redoStack_.size() ));
-
-	if ( ImGui::CollapsingHeader("操作ヘルプ（クリックで開閉）") ) {
-		ImGui::TextDisabled("【Game View操作】");
-		ImGui::TextDisabled("線クリック→路線まるごと選択(ギズモで移動) / ノードクリック→1点選択");
-		ImGui::TextDisabled("空白をドラッグ→矩形選択(まとめて移動) / Shift+クリック→追加選択");
-		ImGui::TextDisabled("Ctrl+線クリック→ノード挿入 / 右クリック→ノード削除");
-		ImGui::TextDisabled("端点をドラッグ→近くの線に自動スナップ(緑=接続/オレンジ=高さ差表示)");
-		ImGui::TextDisabled("【キーボード】矢印=1マス移動 / Q,E=下,上 / Delete=削除 / Ctrl+D=路線複製");
-		ImGui::TextDisabled("【数値欄】クリック=キーボード入力 / ドラッグ=増減");
-		ImGui::TextDisabled("【リスト】行を右クリック=グループへ分類 / ホバー=画面で黄色に光る");
-		ImGui::TextDisabled("【リフトの作り方】作成タブ「動くリフト一式」→クリック設置→「検証」の動きプレビューON");
-		ImGui::TextDisabled("  既存の足場を動かす→「動き」タブの「自動でリフト化」/ 親レール番号を入れて追従");
-		ImGui::TextDisabled("【仕上げ】「検証」ウィンドウの「到達チェック」→OK(緑)ならクリア可能 / ゴースト走行で流れ確認");
-		ImGui::TextDisabled("  経路色: オレンジ=走る / シアン=ジャンプ / マゼンタ=ふんばり必要");
-	}
-
-
-
-
-
-
-
-
-
+// 管理タブ：ノードの一覧（足す・はさむ・消す・座標を打つ）
+void RailEditor::DrawNodeListSection(){
+#ifdef USE_IMGUI
 	// --- ノード一覧・編集（追加/挿入/削除。座標はクリックでキーボード入力可）---
 	if ( ImGui::CollapsingHeader("ノード一覧・編集", ImGuiTreeNodeFlags_DefaultOpen) ) {
 	ImGui::Text("ノード追加 (レール%d):", currentEditRailIndex_);
@@ -3093,15 +3154,12 @@ void RailEditor::DrawWindow(){
 	}
 	ImGui::EndChild();
 	}
-	ImGui::EndTabItem();
-	} // 管理タブ
+#endif
+}
 
-	// =========================================================
-	//  作成 (Shape) タブ — 新しいレールを「作る」専用。
-	//  生成直後は路線まるごと選択済みなので、ギズモですぐ配置できる。
-	// =========================================================
-	if ( ImGui::BeginTabItem("作成 (Shape)") ) {
-
+// 「作成」タブ：形から作る・テンプレート・絵を描いて作る・形を整える
+void RailEditor::DrawCreateTab(){
+#ifdef USE_IMGUI
 	// --- 作り方ガイド（モードが多いので、おすすめ順を一目で）---
 	ImGui::TextDisabled("作り方（上から手軽な順）:");
 	ImGui::BulletText("形から: 「形」を選び生成 → Game Viewでクリック設置");
@@ -3130,6 +3188,107 @@ void RailEditor::DrawWindow(){
 	}
 	ImGui::Separator();
 
+	DrawShapeStampSection();
+	ImGui::Separator();
+
+	// =========================================================
+	//  テンプレート（複数レール一括生成）：ヨッシー風の「登り」構成をワンクリックで用意する。
+	//   長い本線＋小さい足場の組み合わせは、本線を置いた後にこのテンプレートを重ねて作る
+	DrawTemplateSection();
+	ImGui::Separator();
+
+	// =========================================================
+	//  手描きキャンバス：ImGui内で線を「仮」で引いて → 生成 → Game Viewで設置
+	//   ・キャンバス内クリックで点を足す（仮の線がライブ表示される）
+	//   ・右クリック / 「1つ戻す」で直前の点を取り消し
+	//   ・「生成」でその形がマウスに付いてくる（既存スタンプ機構を再利用）
+	// =========================================================
+	DrawSketchSection();
+	ImGui::Separator();
+
+	// --- 空の路線・押し出し ---
+	if ( ImGui::Button("空の路線を追加") ) {
+		data_->railLines.push_back(std::vector<Vector3>());
+		data_->railTypes.push_back(-1);
+		data_->railMotions.push_back(Vector4 { 0.0f, 0.0f, 0.0f, 2.0f });
+		data_->railGroundTypes.push_back(1); // 既定は Gap（端から落ちられる）
+		data_->railVisible.push_back(1);
+		data_->railLineModes.push_back(0);
+		data_->railNodeHoles.push_back(std::vector<int>());
+		currentEditRailIndex_ = ( int ) data_->railLines.size() - 1;
+		selectedRailNode_ = -1;
+		ClearMultiSelection();
+		RebuildRailPoints();
+	}
+	ImGui::SameLine();
+	if ( ImGui::Button("末尾にノードを追加 (押し出し)") ) {
+		if ( currentEditRailIndex_ >= 0 && currentEditRailIndex_ < ( int ) data_->railLines.size() ) {
+			Vector3 newPos = { 0.0f, railDrawHeight_, 0.0f };
+			if ( !data_->railLines[currentEditRailIndex_].empty() ) {
+				newPos = data_->railLines[currentEditRailIndex_].back();
+				newPos.z += 5.0f; // 奥へ
+			}
+			data_->railLines[currentEditRailIndex_].push_back(newPos);
+			RebuildRailPoints();
+		}
+	}
+	ImGui::Separator();
+
+	// --- マウスで描く設定 ---
+	if ( ImGui::CollapsingHeader("マウスで描く（追加モード・吸着設定）") ) {
+		ImGui::Checkbox("マウス追加モード（地面クリックで末尾に追加）", &railDrawMode_);
+		if ( railDrawMode_ ) {
+			ImGui::SameLine();
+			ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "対象: レール%d", currentEditRailIndex_);
+		}
+		ImGui::DragFloat("追加する高さ Y", &railDrawHeight_, 0.05f);
+		ImGui::Checkbox("グリッド吸着", &railSnap_);
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(90.0f);
+		ImGui::DragFloat("間隔(m)", &railGridSize_, 0.05f, 0.1f, 10.0f);
+		ImGui::Checkbox("直角モード（X/Z軸に固定）", &railAxisLock_);
+		ImGui::Checkbox("ノード吸着（他レール端点へ）", &railNodeSnap_);
+		ImGui::SameLine();
+		ImGui::Checkbox("フリーハンド", &railFreehand_);
+		ImGui::TextDisabled("※斜め視点だと奥行き(Z)がずれやすい→「斜め視点に戻す/トップビュー」推奨。\n   地平線方向の遠すぎる位置には置かないように制限済み。");
+	}
+
+	// --- 方向ボタンで1マスずつ伸ばす（確実に直角・正確サイズ）---
+	if ( ImGui::CollapsingHeader("方向ボタンで伸ばす（確実に直角）") ) {
+		static int railStep = 1;
+		ImGui::SetNextItemWidth(110.0f);
+		ImGui::InputInt("マス数", &railStep);
+		if ( railStep < 1 ) railStep = 1;
+		const float d = railGridSize_ * static_cast< float >( railStep );
+		if ( ImGui::Button(" 左 -X ") ) { AppendRailNodeRelative(-d, 0.0f, 0.0f); RebuildRailPoints(); } ImGui::SameLine();
+		if ( ImGui::Button(" 右 +X ") ) { AppendRailNodeRelative(+d, 0.0f, 0.0f); RebuildRailPoints(); }
+		if ( ImGui::Button("手前 -Z") ) { AppendRailNodeRelative(0.0f, 0.0f, -d); RebuildRailPoints(); } ImGui::SameLine();
+		if ( ImGui::Button(" 奥 +Z ") ) { AppendRailNodeRelative(0.0f, 0.0f, +d); RebuildRailPoints(); }
+		if ( ImGui::Button(" 下 -Y ") ) { AppendRailNodeRelative(0.0f, -d, 0.0f); RebuildRailPoints(); } ImGui::SameLine();
+		if ( ImGui::Button(" 上 +Y ") ) { AppendRailNodeRelative(0.0f, +d, 0.0f); RebuildRailPoints(); }
+	}
+
+	// --- 路線全体を移動（数値での微調整用。ふだんはギズモで動かせる）---
+	if ( ImGui::CollapsingHeader("微調整：路線全体を移動") ) {
+		static float wholeMove[3] = { 0.0f, 0.0f, 0.0f };
+		ImGui::Text("路線全体を移動:");
+		ImGui::SetNextItemWidth(180.0f);
+		ImGui::DragFloat3("##WholeMove", wholeMove, 0.1f);
+		ImGui::SameLine();
+		if ( ImGui::Button("適用##WholeMove") ) {
+			auto& line = data_->railLines[currentEditRailIndex_];
+			for ( auto& n : line ) { n.x += wholeMove[0]; n.y += wholeMove[1]; n.z += wholeMove[2]; }
+			wholeMove[0] = wholeMove[1] = wholeMove[2] = 0.0f;
+			RebuildRailPoints();
+		}
+	}
+	DrawShapeToolsSection();
+#endif
+}
+
+// 作成タブ：形を選んで作る（形・向き・長さなどを決めて、Game View でクリックして置く）
+void RailEditor::DrawShapeStampSection(){
+#ifdef USE_IMGUI
 	// --- パラメータ式シェイプ生成（スタンプ配置：生成→マウスに追従→クリックで設置）---
 	{
 		static int   shapeType   = 0;
@@ -3142,7 +3301,7 @@ void RailEditor::DrawWindow(){
 
 		// 形の各点を Y軸まわりに回す（0°=+X向き=従来どおり / 90°=+Z(奥) / ±180°=-X / -90°=-Z(手前)）
 		auto rotateShape = [](const std::vector<Vector3>& src, float yawDeg) -> std::vector<Vector3>{
-			float rad = yawDeg * 3.14159265f / 180.0f;
+			float rad = yawDeg * Math::kDegToRad;
 			float c = std::cos(rad), s = std::sin(rad);
 			std::vector<Vector3> out;
 			out.reserve(src.size());
@@ -3215,7 +3374,7 @@ void RailEditor::DrawWindow(){
 			{
 				int seg = ( div < 6 ) ? 6 : div;
 				for ( int k = 0; k <= seg; ++k ) {
-					float ang = 6.2831853f * static_cast< float >( k ) / static_cast< float >( seg );
+					float ang = Math::kTwoPi * static_cast< float >( k ) / static_cast< float >( seg );
 					line.push_back({ base.x + std::cos(ang) * shapeRadius,
 					                 base.y,
 					                 base.z + std::sin(ang) * shapeRadius });
@@ -3240,7 +3399,7 @@ void RailEditor::DrawWindow(){
 					float t = static_cast< float >( k ) / static_cast< float >( seg );
 					line.push_back({ base.x + shapeLen * t,
 					                 base.y,
-					                 base.z + std::sin(t * 6.2831853f) * shapeRadius });
+					                 base.z + std::sin(t * Math::kTwoPi) * shapeRadius });
 				}
 			}
 			break;
@@ -3262,11 +3421,12 @@ void RailEditor::DrawWindow(){
 			ImGui::TextDisabled("「生成」を押すと形がマウスに付いてくる → クリックで設置");
 		}
 	}
-	ImGui::Separator();
+#endif
+}
 
-	// =========================================================
-	//  テンプレート（複数レール一括生成）：ヨッシー風の「登り」構成をワンクリックで用意する。
-	//   長い本線＋小さい足場の組み合わせは、本線を置いた後にこのテンプレートを重ねて作る
+// 作成タブ：テンプレート（のぼり足場・らせんのぼり・動くリフト一式）
+void RailEditor::DrawTemplateSection(){
+#ifdef USE_IMGUI
 	if ( ImGui::CollapsingHeader("テンプレート（登り足場・らせん）") ) {
 		static int   climbCount  = 6;    // 足場の数
 		static float climbRise   = 1.4f; // 1段ごとの高さ(m)
@@ -3315,7 +3475,7 @@ void RailEditor::DrawWindow(){
 			int totalSteps = ( std::max )( 8, ( int ) ( spiralTurns * 16.0f ) );
 			for ( int k = 0; k <= totalSteps; ++k ) {
 				float t = ( float ) k / totalSteps;
-				float ang = spiralTurns * 2.0f * 3.14159265f * t;
+				float ang = spiralTurns * Math::kTwoPi * t;
 				pendingStamp_.push_back({ std::cos(ang) * spiralRadius,
 				                          spiralRise * t,
 				                          std::sin(ang) * spiralRadius });
@@ -3386,20 +3546,20 @@ void RailEditor::DrawWindow(){
 				int totalSteps = ( std::max )( 8, ( int ) ( moveTurns * 16.0f ) );
 				for ( int k = 0; k <= totalSteps; ++k ) {
 					float t = ( float ) k / totalSteps;
-					float ang = moveTurns * 2.0f * 3.14159265f * t;
+					float ang = moveTurns * Math::kTwoPi * t;
 					guideLine.push_back({ std::cos(ang) * moveRadius, moveHeight * t, std::sin(ang) * moveRadius });
 				}
 				break;
 			}
 			case 2: // 観覧車（縦の円ループ。最下点スタート、先頭=末尾でループ扱い）
 				for ( int k = 0; k <= 16; ++k ) {
-					float ang = 2.0f * 3.14159265f * ( float ) k / 16.0f;
+					float ang = Math::kTwoPi * ( float ) k / 16.0f;
 					guideLine.push_back({ std::sin(ang) * moveRadius, moveRadius - std::cos(ang) * moveRadius, 0.0f });
 				}
 				break;
 			default: // ベルトコンベア（水平の楕円ループ。長径=高さ(m)の値 / 短径=半径）
 				for ( int k = 0; k <= 16; ++k ) {
-					float ang = 2.0f * 3.14159265f * ( float ) k / 16.0f;
+					float ang = Math::kTwoPi * ( float ) k / 16.0f;
 					guideLine.push_back({ std::cos(ang) * moveHeight * 0.5f, 0.0f, std::sin(ang) * moveRadius });
 				}
 				break;
@@ -3434,14 +3594,12 @@ void RailEditor::DrawWindow(){
 			}
 		}
 	}
-	ImGui::Separator();
+#endif
+}
 
-	// =========================================================
-	//  手描きキャンバス：ImGui内で線を「仮」で引いて → 生成 → Game Viewで設置
-	//   ・キャンバス内クリックで点を足す（仮の線がライブ表示される）
-	//   ・右クリック / 「1つ戻す」で直前の点を取り消し
-	//   ・「生成」でその形がマウスに付いてくる（既存スタンプ機構を再利用）
-	// =========================================================
+// 作成タブ：手描きで作る（キャンバスに引いた線からレールにする）
+void RailEditor::DrawSketchSection(){
+#ifdef USE_IMGUI
 	if ( ImGui::CollapsingHeader("手描きで作る（キャンバスに引いて生成）") ) {
 		static std::vector<ImVec2> sketch;     // キャンバス正規化座標(0..1)
 		static float sketchSpan   = 20.0f;     // キャンバス全体が表す世界の幅(m)
@@ -3538,84 +3696,12 @@ void RailEditor::DrawWindow(){
 			ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "Game Viewでクリック→設置 / 右クリックかEscで中止");
 		}
 	}
-	ImGui::Separator();
+#endif
+}
 
-	// --- 空の路線・押し出し ---
-	if ( ImGui::Button("空の路線を追加") ) {
-		data_->railLines.push_back(std::vector<Vector3>());
-		data_->railTypes.push_back(-1);
-		data_->railMotions.push_back(Vector4 { 0.0f, 0.0f, 0.0f, 2.0f });
-		data_->railGroundTypes.push_back(1); // 既定は Gap（端から落ちられる）
-		data_->railVisible.push_back(1);
-		data_->railLineModes.push_back(0);
-		data_->railNodeHoles.push_back(std::vector<int>());
-		currentEditRailIndex_ = ( int ) data_->railLines.size() - 1;
-		selectedRailNode_ = -1;
-		ClearMultiSelection();
-		RebuildRailPoints();
-	}
-	ImGui::SameLine();
-	if ( ImGui::Button("末尾にノードを追加 (押し出し)") ) {
-		if ( currentEditRailIndex_ >= 0 && currentEditRailIndex_ < ( int ) data_->railLines.size() ) {
-			Vector3 newPos = { 0.0f, railDrawHeight_, 0.0f };
-			if ( !data_->railLines[currentEditRailIndex_].empty() ) {
-				newPos = data_->railLines[currentEditRailIndex_].back();
-				newPos.z += 5.0f; // 奥へ
-			}
-			data_->railLines[currentEditRailIndex_].push_back(newPos);
-			RebuildRailPoints();
-		}
-	}
-	ImGui::Separator();
-
-	// --- マウスで描く設定 ---
-	if ( ImGui::CollapsingHeader("マウスで描く（追加モード・吸着設定）") ) {
-		ImGui::Checkbox("マウス追加モード（地面クリックで末尾に追加）", &railDrawMode_);
-		if ( railDrawMode_ ) {
-			ImGui::SameLine();
-			ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "対象: レール%d", currentEditRailIndex_);
-		}
-		ImGui::DragFloat("追加する高さ Y", &railDrawHeight_, 0.05f);
-		ImGui::Checkbox("グリッド吸着", &railSnap_);
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(90.0f);
-		ImGui::DragFloat("間隔(m)", &railGridSize_, 0.05f, 0.1f, 10.0f);
-		ImGui::Checkbox("直角モード（X/Z軸に固定）", &railAxisLock_);
-		ImGui::Checkbox("ノード吸着（他レール端点へ）", &railNodeSnap_);
-		ImGui::SameLine();
-		ImGui::Checkbox("フリーハンド", &railFreehand_);
-		ImGui::TextDisabled("※斜め視点だと奥行き(Z)がずれやすい→「斜め視点に戻す/トップビュー」推奨。\n   地平線方向の遠すぎる位置には置かないように制限済み。");
-	}
-
-	// --- 方向ボタンで1マスずつ伸ばす（確実に直角・正確サイズ）---
-	if ( ImGui::CollapsingHeader("方向ボタンで伸ばす（確実に直角）") ) {
-		static int railStep = 1;
-		ImGui::SetNextItemWidth(110.0f);
-		ImGui::InputInt("マス数", &railStep);
-		if ( railStep < 1 ) railStep = 1;
-		const float d = railGridSize_ * static_cast< float >( railStep );
-		if ( ImGui::Button(" 左 -X ") ) { AppendRailNodeRelative(-d, 0.0f, 0.0f); RebuildRailPoints(); } ImGui::SameLine();
-		if ( ImGui::Button(" 右 +X ") ) { AppendRailNodeRelative(+d, 0.0f, 0.0f); RebuildRailPoints(); }
-		if ( ImGui::Button("手前 -Z") ) { AppendRailNodeRelative(0.0f, 0.0f, -d); RebuildRailPoints(); } ImGui::SameLine();
-		if ( ImGui::Button(" 奥 +Z ") ) { AppendRailNodeRelative(0.0f, 0.0f, +d); RebuildRailPoints(); }
-		if ( ImGui::Button(" 下 -Y ") ) { AppendRailNodeRelative(0.0f, -d, 0.0f); RebuildRailPoints(); } ImGui::SameLine();
-		if ( ImGui::Button(" 上 +Y ") ) { AppendRailNodeRelative(0.0f, +d, 0.0f); RebuildRailPoints(); }
-	}
-
-	// --- 路線全体を移動（数値での微調整用。ふだんはギズモで動かせる）---
-	if ( ImGui::CollapsingHeader("微調整：路線全体を移動") ) {
-		static float wholeMove[3] = { 0.0f, 0.0f, 0.0f };
-		ImGui::Text("路線全体を移動:");
-		ImGui::SetNextItemWidth(180.0f);
-		ImGui::DragFloat3("##WholeMove", wholeMove, 0.1f);
-		ImGui::SameLine();
-		if ( ImGui::Button("適用##WholeMove") ) {
-			auto& line = data_->railLines[currentEditRailIndex_];
-			for ( auto& n : line ) { n.x += wholeMove[0]; n.y += wholeMove[1]; n.z += wholeMove[2]; }
-			wholeMove[0] = wholeMove[1] = wholeMove[2] = 0.0f;
-			RebuildRailPoints();
-		}
-	}
+// 作成タブ：形を整える（直線にする・カーブにする・なめらかにする）
+void RailEditor::DrawShapeToolsSection(){
+#ifdef USE_IMGUI
 	// --- 形を整えるツール（ワンクリックで 直線 / カーブ / なめらか化）---
 	if ( ImGui::CollapsingHeader("形を整える（直線/カーブ/なめらか化）") ) {
 		auto& line = data_->railLines[currentEditRailIndex_];
@@ -3659,7 +3745,7 @@ void RailEditor::DrawWindow(){
 				for ( int k = 1; k < n - 1; ++k ) {
 					float t = static_cast< float >( k ) / static_cast< float >( n - 1 );
 					Vector3 base = { a.x + ( b.x - a.x ) * t, a.y + ( b.y - a.y ) * t, a.z + ( b.z - a.z ) * t };
-					float bump = std::sin(t * 3.14159265f) * curveAmount; // 中央が最大、両端0
+					float bump = std::sin(t * Math::kPi) * curveAmount; // 中央が最大、両端0
 					if ( curveAxis == 0 )      base.x += bump;
 					else if ( curveAxis == 1 ) base.y += bump;
 					else                       base.z += bump;
@@ -3685,13 +3771,12 @@ void RailEditor::DrawWindow(){
 		ImGui::TextDisabled("※カーブは中間ノードを曲げます。保存→Playでゲームに反映");
 		ImGui::Separator();
 	}
-	ImGui::EndTabItem();
-	} // 作成タブ
+#endif
+}
 
-	// =====================================================================
-	//  動きタブ：動くレール（波形・親子付け・リフト生成）を1か所に集約
-	// =====================================================================
-	if ( ImGui::BeginTabItem("動き (Motion)") ) {
+// 「動き」タブ：動くレール（揺れ・ガイド追従・後から出る道）の設定
+void RailEditor::DrawMotionTab(){
+#ifdef USE_IMGUI
 	if ( data_->railLines.empty() || currentEditRailIndex_ < 0
 		|| currentEditRailIndex_ >= ( int ) data_->railLines.size() ) {
 		ImGui::TextDisabled("レールがありません（作成タブで作成／管理タブで選択）");
@@ -3726,6 +3811,115 @@ void RailEditor::DrawWindow(){
 			ImGui::SetTooltip("動くレール（親子付けリフト含む）をエディタ中も再生する。\nPlayを押さなくても、リフトの組み方が合っているかその場で確認できる");
 		}
 		ImGui::Separator();
+		DrawRailMotionSection();
+		ImGui::Separator();
+		// --- 後から出現する道（ヨッシー式：指定レールに乗るとこの道が現れる）---
+		if ( ImGui::CollapsingHeader("出現する道（後から現れる）") ) {
+			data_->railAppearTriggers.resize(data_->railLines.size(), -1);
+			int appearSel = data_->railAppearTriggers[currentEditRailIndex_];
+			bool appearOn = ( appearSel >= 0 );
+			if ( ImGui::Checkbox("後から出現する道にする##appear", &appearOn) ) {
+				int defaultTrigger = ( currentEditRailIndex_ == 0 && ( int ) data_->railLines.size() > 1 ) ? 1 : 0;
+				data_->railAppearTriggers[currentEditRailIndex_] = appearOn ? defaultTrigger : -1;
+				appearSel = data_->railAppearTriggers[currentEditRailIndex_];
+				++railVersion_;
+			}
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("プレイ開始時はこの道が消えていて、乗ることも着地することもできない。\n"
+					"下で選んだ「発動レール」にプレイヤーが乗った瞬間、下からせり上がって出現する");
+			}
+			if ( appearOn ) {
+				auto appearLabel = [&](int r) -> std::string {
+					std::string label = "路線" + std::to_string(r);
+					if ( r >= 0 && r < ( int ) data_->railGroups.size() && !data_->railGroups[r].empty() ) {
+						label += " [" + data_->railGroups[r] + "]";
+					}
+					return label;
+				};
+				ImGui::SetNextItemWidth(220.0f);
+				if ( ImGui::BeginCombo("発動レール（ここに乗ると出現）",
+					appearSel >= 0 ? appearLabel(appearSel).c_str() : "未設定") ) {
+					for ( int r = 0; r < ( int ) data_->railLines.size(); ++r ) {
+						if ( r == currentEditRailIndex_ ) continue; // 自分自身では発動できない（乗れないので）
+						if ( data_->railLines[r].size() < 2 ) continue;
+						if ( ImGui::Selectable(appearLabel(r).c_str(), appearSel == r) ) {
+							data_->railAppearTriggers[currentEditRailIndex_] = r;
+							++railVersion_;
+						}
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::TextDisabled("エディタ中は普通に表示される（プレイで消える）\n"
+					"道の種類が「SDF溶け道」なら溶け演出つきで出現する\n"
+					"※出現前に見えるつなぎ目を避けるため、他の道と溶接しない独立レール推奨");
+			}
+		}
+		ImGui::Separator();
+		// --- 親子付け：このレールを「親レール」の経路に沿って動かす（リフト/エスカレーター）---
+		//   波形コンボを探さなくても、ここに番号を入れるだけで自動的にガイド追従になる
+		data_->railGuideRails.resize(data_->railLines.size(), -1);
+		data_->railMotionTypes.resize(data_->railLines.size(), 0);
+		{
+			int& parentRail = data_->railGuideRails[currentEditRailIndex_];
+			int prevParent = parentRail;
+			ImGui::SetNextItemWidth(110.0f);
+			if ( ImGui::InputInt("親レール（経路に沿って動く）", &parentRail) ) {
+				if ( parentRail < -1 ) parentRail = -1;
+				if ( parentRail >= ( int ) data_->railLines.size() ) parentRail = ( int ) data_->railLines.size() - 1;
+				if ( parentRail == currentEditRailIndex_ ) parentRail = -1; // 自分自身は不可
+				if ( parentRail >= 0 ) { data_->railMotionTypes[currentEditRailIndex_] = 3; } // 自動でガイド追従へ
+				else if ( prevParent >= 0 && data_->railMotionTypes[currentEditRailIndex_] == 3 ) {
+					data_->railMotionTypes[currentEditRailIndex_] = 0; // 外したら通常の波形へ戻す
+				}
+				++railVersion_;
+			}
+			if ( parentRail >= 0 ) {
+				ImGui::TextDisabled("親=路線%d の経路を一周し続ける（周期=1周の秒数 / 位相=スタート位置0〜1）\n"
+					"同じ親の足場を複数用意して位相をずらすと数珠つなぎのリフトになる", parentRail);
+			} else if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("番号を入れるとこのレール全体が親レールの経路に沿って動き続ける（-1=なし）\n"
+					"親レール側は「道=なし」「ゲームに表示OFF」にすると見えない骨組みになる");
+			}
+
+			// ワンボタン簡易化：選択レールを親（骨組み）にして、追従する足場一式を自動生成。
+			//   位相は等間隔＝数珠つなぎ。グループも自動で付くので後から一括調整できる
+			static int   liftCount  = 4;
+			static float liftPeriod = 12.0f;
+			static float liftPadLen = 2.0f;
+			ImGui::SetNextItemWidth(80.0f);
+			ImGui::DragInt("足場数##lift", &liftCount, 1, 1, 12);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(80.0f);
+			ImGui::DragFloat("1周(秒)##lift", &liftPeriod, 0.5f, 2.0f, 60.0f, "%.1f");
+			if ( ImGui::Button("このレールを親にしてリフト足場を一括生成") ) {
+				int parentIdx = currentEditRailIndex_;
+				std::string liftGroup = "リフト" + std::to_string(parentIdx);
+				Vector3 base = data_->railLines[parentIdx].front();
+				for ( int i = 0; i < liftCount; ++i ) {
+					int padIdx = AppendRail({ { base.x - liftPadLen * 0.5f, base.y, base.z },
+					                          { base.x + liftPadLen * 0.5f, base.y, base.z } }, liftGroup);
+					data_->railLineModes[padIdx]    = 1;         // 足場は直線
+					data_->railGuideRails[padIdx]   = parentIdx; // 親に追従
+					data_->railMotionTypes[padIdx]  = 3;         // ガイドレール追従
+					data_->railMotionPhases[padIdx] = ( float ) i / ( float ) liftCount; // 等間隔
+					data_->railMotions[padIdx].w    = liftPeriod;
+				}
+				RebuildRailPoints();
+			}
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("選択中のレールを骨組みとして、追従する足場を位相等間隔で一括生成。\n"
+					"これ1回で「動く乗り継ぎリフト」が完成する（親は道=なし・表示OFF推奨）");
+			}
+		}
+
+		DrawGroupMotionSection();
+	}
+#endif
+}
+
+// 動きタブ：このレールの動き（揺れ・波形・ガイド追従）
+void RailEditor::DrawRailMotionSection(){
+#ifdef USE_IMGUI
 		// --- このレールの「動き」（ムービングプラットフォーム）。畳んで整理（親子付けは下の欄）---
 		if ( ImGui::CollapsingHeader("動くレール（揺れ/波形/ガイド追従）", ImGuiTreeNodeFlags_DefaultOpen) ) {
 		Vector4& motion = data_->railMotions[currentEditRailIndex_];
@@ -3890,106 +4084,12 @@ void RailEditor::DrawWindow(){
 		if ( motionChanged ) { ++railVersion_; } // ゲーム側へ即反映
 		ImGui::TextDisabled("例: 振幅(0,0,3) 周期2 → 奥行き±3mを2秒で往復 / 位相0.5=半周期ずれ");
 		}
-		ImGui::Separator();
-		// --- 後から出現する道（ヨッシー式：指定レールに乗るとこの道が現れる）---
-		if ( ImGui::CollapsingHeader("出現する道（後から現れる）") ) {
-			data_->railAppearTriggers.resize(data_->railLines.size(), -1);
-			int appearSel = data_->railAppearTriggers[currentEditRailIndex_];
-			bool appearOn = ( appearSel >= 0 );
-			if ( ImGui::Checkbox("後から出現する道にする##appear", &appearOn) ) {
-				int defaultTrigger = ( currentEditRailIndex_ == 0 && ( int ) data_->railLines.size() > 1 ) ? 1 : 0;
-				data_->railAppearTriggers[currentEditRailIndex_] = appearOn ? defaultTrigger : -1;
-				appearSel = data_->railAppearTriggers[currentEditRailIndex_];
-				++railVersion_;
-			}
-			if ( ImGui::IsItemHovered() ) {
-				ImGui::SetTooltip("プレイ開始時はこの道が消えていて、乗ることも着地することもできない。\n"
-					"下で選んだ「発動レール」にプレイヤーが乗った瞬間、下からせり上がって出現する");
-			}
-			if ( appearOn ) {
-				auto appearLabel = [&](int r) -> std::string {
-					std::string label = "路線" + std::to_string(r);
-					if ( r >= 0 && r < ( int ) data_->railGroups.size() && !data_->railGroups[r].empty() ) {
-						label += " [" + data_->railGroups[r] + "]";
-					}
-					return label;
-				};
-				ImGui::SetNextItemWidth(220.0f);
-				if ( ImGui::BeginCombo("発動レール（ここに乗ると出現）",
-					appearSel >= 0 ? appearLabel(appearSel).c_str() : "未設定") ) {
-					for ( int r = 0; r < ( int ) data_->railLines.size(); ++r ) {
-						if ( r == currentEditRailIndex_ ) continue; // 自分自身では発動できない（乗れないので）
-						if ( data_->railLines[r].size() < 2 ) continue;
-						if ( ImGui::Selectable(appearLabel(r).c_str(), appearSel == r) ) {
-							data_->railAppearTriggers[currentEditRailIndex_] = r;
-							++railVersion_;
-						}
-					}
-					ImGui::EndCombo();
-				}
-				ImGui::TextDisabled("エディタ中は普通に表示される（プレイで消える）\n"
-					"道の種類が「SDF溶け道」なら溶け演出つきで出現する\n"
-					"※出現前に見えるつなぎ目を避けるため、他の道と溶接しない独立レール推奨");
-			}
-		}
-		ImGui::Separator();
-		// --- 親子付け：このレールを「親レール」の経路に沿って動かす（リフト/エスカレーター）---
-		//   波形コンボを探さなくても、ここに番号を入れるだけで自動的にガイド追従になる
-		data_->railGuideRails.resize(data_->railLines.size(), -1);
-		data_->railMotionTypes.resize(data_->railLines.size(), 0);
-		{
-			int& parentRail = data_->railGuideRails[currentEditRailIndex_];
-			int prevParent = parentRail;
-			ImGui::SetNextItemWidth(110.0f);
-			if ( ImGui::InputInt("親レール（経路に沿って動く）", &parentRail) ) {
-				if ( parentRail < -1 ) parentRail = -1;
-				if ( parentRail >= ( int ) data_->railLines.size() ) parentRail = ( int ) data_->railLines.size() - 1;
-				if ( parentRail == currentEditRailIndex_ ) parentRail = -1; // 自分自身は不可
-				if ( parentRail >= 0 ) { data_->railMotionTypes[currentEditRailIndex_] = 3; } // 自動でガイド追従へ
-				else if ( prevParent >= 0 && data_->railMotionTypes[currentEditRailIndex_] == 3 ) {
-					data_->railMotionTypes[currentEditRailIndex_] = 0; // 外したら通常の波形へ戻す
-				}
-				++railVersion_;
-			}
-			if ( parentRail >= 0 ) {
-				ImGui::TextDisabled("親=路線%d の経路を一周し続ける（周期=1周の秒数 / 位相=スタート位置0〜1）\n"
-					"同じ親の足場を複数用意して位相をずらすと数珠つなぎのリフトになる", parentRail);
-			} else if ( ImGui::IsItemHovered() ) {
-				ImGui::SetTooltip("番号を入れるとこのレール全体が親レールの経路に沿って動き続ける（-1=なし）\n"
-					"親レール側は「道=なし」「ゲームに表示OFF」にすると見えない骨組みになる");
-			}
+#endif
+}
 
-			// ワンボタン簡易化：選択レールを親（骨組み）にして、追従する足場一式を自動生成。
-			//   位相は等間隔＝数珠つなぎ。グループも自動で付くので後から一括調整できる
-			static int   liftCount  = 4;
-			static float liftPeriod = 12.0f;
-			static float liftPadLen = 2.0f;
-			ImGui::SetNextItemWidth(80.0f);
-			ImGui::DragInt("足場数##lift", &liftCount, 1, 1, 12);
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(80.0f);
-			ImGui::DragFloat("1周(秒)##lift", &liftPeriod, 0.5f, 2.0f, 60.0f, "%.1f");
-			if ( ImGui::Button("このレールを親にしてリフト足場を一括生成") ) {
-				int parentIdx = currentEditRailIndex_;
-				std::string liftGroup = "リフト" + std::to_string(parentIdx);
-				Vector3 base = data_->railLines[parentIdx].front();
-				for ( int i = 0; i < liftCount; ++i ) {
-					int padIdx = AppendRail({ { base.x - liftPadLen * 0.5f, base.y, base.z },
-					                          { base.x + liftPadLen * 0.5f, base.y, base.z } }, liftGroup);
-					data_->railLineModes[padIdx]    = 1;         // 足場は直線
-					data_->railGuideRails[padIdx]   = parentIdx; // 親に追従
-					data_->railMotionTypes[padIdx]  = 3;         // ガイドレール追従
-					data_->railMotionPhases[padIdx] = ( float ) i / ( float ) liftCount; // 等間隔
-					data_->railMotions[padIdx].w    = liftPeriod;
-				}
-				RebuildRailPoints();
-			}
-			if ( ImGui::IsItemHovered() ) {
-				ImGui::SetTooltip("選択中のレールを骨組みとして、追従する足場を位相等間隔で一括生成。\n"
-					"これ1回で「動く乗り継ぎリフト」が完成する（親は道=なし・表示OFF推奨）");
-			}
-		}
-
+// 動きタブ：グループをまとめて動かす（同じグループの足場を一度にリフトにする）
+void RailEditor::DrawGroupMotionSection(){
+#ifdef USE_IMGUI
 		// --- グループ一括の動き（同じグループ名を付けた足場をまとめてリフト化）---
 		{
 			std::string& currentGroup = data_->railGroups[currentEditRailIndex_];
@@ -4086,14 +4186,12 @@ void RailEditor::DrawWindow(){
 				}
 			}
 		}
-	}
-	ImGui::EndTabItem();
-	} // 動きタブ
+#endif
+}
 
-	// =====================================================================
-	//  配置物タブ：ステージに置く「モノ」（コイン・穴）の編集
-	// =====================================================================
-	if ( ImGui::BeginTabItem("配置物 (Items)") ) {
+// 「配置物」タブ：選んだレールに置く物
+void RailEditor::DrawItemsTab(){
+#ifdef USE_IMGUI
 	if ( data_->railLines.empty() || currentEditRailIndex_ < 0
 		|| currentEditRailIndex_ >= ( int ) data_->railLines.size() ) {
 		ImGui::TextDisabled("レールがありません（作成タブで作成／管理タブで選択）");
@@ -4148,14 +4246,12 @@ void RailEditor::DrawWindow(){
 
 	}
 	}
-	ImGui::EndTabItem();
-	} // 配置物タブ
+#endif
+}
 
-	// =====================================================================
-	//  接続タブ（§5 管理UI）：溶接/T字の接続一覧・選択ハイライト・切断
-	//   接続はレール座標から毎回導出する（保存しない派生データ）
-	// =====================================================================
-	if ( ImGui::BeginTabItem("接続 (Joints)") ) {
+// 「接続」タブ：つなぐ道具・つながりの一覧・つながっていない端の一覧
+void RailEditor::DrawJointsTab(){
+#ifdef USE_IMGUI
 	// --- 接続ツール一式：溶接/連結/自動スナップ/足元ガイド（畳んで整理）---
 	if ( ImGui::CollapsingHeader("接続ツール（溶接・連結・自動スナップ）", ImGuiTreeNodeFlags_DefaultOpen) ) {
 	// --- 端点を溶接（データ自体をぴったり結合 → 実行時に座標がズレない）---
@@ -4335,12 +4431,6 @@ void RailEditor::DrawWindow(){
 		ImGui::Combo("ジョイント表示", &railJointVisible_, jointModes, 3);
 	}
 	ImGui::Separator();
-		ImGui::EndTabItem();
-	}
-
-	ImGui::EndTabBar();
-	}
-	ImGui::End();
 #endif
 }
 
@@ -4681,7 +4771,7 @@ void RailEditor::DrawCameraWindow(){
 			if ( !anchorPos(z, a) ) return;
 			Vector3 camPos;
 			if ( z.mode == 1 ) {
-				float yawRad = z.yawDeg * 3.14159265f / 180.0f;
+				float yawRad = z.yawDeg * Math::kDegToRad;
 				camPos = { a.x + std::sin(yawRad) * z.dist, a.y + z.height, a.z - std::cos(yawRad) * z.dist };
 			} else {
 				camPos = { a.x + z.offset.x, a.y + z.offset.y, a.z + z.offset.z };

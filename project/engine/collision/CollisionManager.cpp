@@ -6,11 +6,6 @@
 #include "engine/collision/Collision.h"
 #include "engine/graphics/DebugDraw.h"
 
-CollisionManager* CollisionManager::GetInstance(){
-    static CollisionManager instance;
-    return &instance;
-}
-
 void CollisionManager::Register(Collider* collider){
     if ( !collider ) return;
     if ( std::find(colliders_.begin(), colliders_.end(), collider) == colliders_.end() ) {

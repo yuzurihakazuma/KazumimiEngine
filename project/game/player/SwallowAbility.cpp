@@ -1,4 +1,6 @@
 #include "game/player/SwallowAbility.h"
+#include "game/ui/UiScale.h"
+#include "engine/math/MathUtil.h"
 
 #include "game/player/Player.h"
 #include "game/enemy/EnemyManager.h"
@@ -29,7 +31,8 @@ namespace {
     const float kRetractDuration   = 0.25f; // 捕獲時の戻り秒数（回収自体は即時。これは見た目の戻り）
     const float kMissRetractDuration = 0.25f; // 空振り時の引っ込み秒数
     // 舌の太さ(半幅)は SwallowAbility::kTongueHalfWidth（当たり判定も同じ太さ）
-    const Vector4 kTongueColor     = { 1.0f, 0.42f, 0.5f, 1.0f }; // ヨッシー舌のピンク
+    // モデルのベロの色（player_palette.png の sRGB 247,172,183 をリニアにした値）。しなったベロの絵に使う
+    const Vector4 kTongueColor     = { 0.930f, 0.412f, 0.473f, 1.0f };
     const float kAutoLayDelay      = 0.3f;  // 食べてから自動で産むまで(秒)。その間に F を押せば吐き出せる
     const Vector4 kCatchableColor  = { 1.0f, 0.55f, 0.7f, 0.9f };  // 「今なら捕まえられる」ハイライト（舌と同系色）
 }
@@ -39,6 +42,7 @@ SwallowAbility::~SwallowAbility() = default;
 
 void SwallowAbility::Reset(){
     state_       = State::Idle;
+    limp_        = false;
     target_      = nullptr;
     phaseT_      = 0.0f;
     lastBelly_   = 0;
@@ -97,9 +101,19 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
         }
         return found;
         };
-    // 今の長さ length のベロの棒に触れている敵のうち、付け根に一番近い敵を捕まえる（捕まえたら true）。
-    //   敵はベロの先にくっついたまま口へ引き込まれ、縮みながら溶ける（Enemy::TickSwallow）。
+    // 敵を捕まえる：敵はベロの先にくっついたまま口へ引き込まれ、縮みながら溶ける（Enemy::TickSwallow）。
     //   敵のポインタは持ち続けない（EnemyManager が食べ終わった時に消すため）
+    auto grab = [&](Enemy* caught){
+        grabPos_ = caught->GetPosition();                                // ベロの先にくっつける（敵の真ん中）
+        caught->SetSwallowMouthOffset(Subtract(root, playerPos));        // ベロの付け根（口）へ
+        caught->StartSwallow();
+        AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.5f); // 捕獲音（流用）
+        hitFeel.Trigger(0.03f, 0.12f); // 捕まえた手応え
+        retractDuration_ = kRetractDuration;
+        retractCaught_   = true;
+        limp_ = false;   // 捕まえたら、ぴんと張って引き戻す
+    };
+    // 今の長さ length のまっすぐなベロの棒に触れている敵のうち、付け根に一番近い敵を捕まえる（捕まえたら true）
     auto tryCatch = [&](float length) -> bool {
         Enemy* caught = nullptr;
         float bestAlong = 1e9f;
@@ -109,15 +123,11 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             if ( along >= 0.0f && along < bestAlong ) { bestAlong = along; caught = enemy.get(); }
         }
         if ( !caught || blockedBefore(aimDir_, bestAlong, nullptr) ) { return false; } // 触れていない・間に壁
-        grabPos_ = caught->GetPosition();                                // ベロの先にくっつける（敵の真ん中）
-        caught->SetSwallowMouthOffset(Subtract(root, playerPos));        // ベロの付け根（口）へ
-        caught->StartSwallow();
-        AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.5f); // 捕獲音（流用）
-        hitFeel.Trigger(0.03f, 0.12f); // 捕まえた手応え
-        retractDuration_ = kRetractDuration;
-        retractCaught_   = true;
+        grab(caught);
         return true;
     };
+    // 波打つ時に床になる高さ（恐竜が立っている面。空中なら床なし）
+    const float limpFloor = player.IsGrounded() ? playerPos.y + 0.05f : -1e9f;
     if ( debugVisible_ && state_ == State::Idle ) {
         // 当たり判定を表示：正面へ伸ばした時の棒（付け根 → 先）
         const Vector3 end = Add(root, Multiply(swallowReach_, straight));
@@ -151,7 +161,7 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
                     if ( MatrixMath::WorldToNdc(head, camera->GetViewProjectionMatrix(), ndc) ) {
                         const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
                         const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
-                        const float size = 64.0f * height / 1080.0f * ( 1.0f + 0.08f * bob );
+                        const float size = 64.0f * height / UiScale::kBaseHeight * ( 1.0f + 0.08f * bob );
                         markSprite_->SetPosition({ ( ndc.x * 0.5f + 0.5f ) * width, ( 1.0f - ( ndc.y * 0.5f + 0.5f ) ) * height });
                         markSprite_->SetSize({ size, size });
                         markSprite_->SetRotation(0.25f * std::sin(highlightPulseT_ * 6.0f));
@@ -165,11 +175,13 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             }
         }
 
-        if ( input->Triggerkey(DIK_E) && cooldownTimer_ <= 0.0f && !actionBlocked_ ) {
+        if ( input->TriggerKey(DIK_E) && cooldownTimer_ <= 0.0f && !actionBlocked_ ) {
             target_ = nullptr;         // 狙いは付けない：正面へまっすぐ伸ばして、触れた敵を捕まえる
             state_  = State::Shooting;
             phaseT_ = 0.0f;
             shootLength_ = kTongueRestLength;
+            limp_ = false;
+            limpT_ = 0.0f;
             holdT_ = 0.0f;
             // 移動はロックしない：ヨッシー同様、走りながらでも舌を出せる
             // （口の位置は毎フレーム player.GetPosition() から取り直すので動いていても破綻しない）
@@ -186,28 +198,33 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
             // 敵が別要因で消えた（踏まれた等）→ 以後は空振り扱いで続行
             target_ = nullptr;
         }
-        // ベロは正面へまっすぐ速く伸びる。伸びきったら少しだけ止まってから戻す。壁に当たったらそこで止まる
+        // ベロは正面へまっすぐ速く伸びる。
+        //   ・何にも当たらず伸びきった：少しだけ止まって、まっすぐ戻す（しならない）
+        //   ・食べられない物（壁・ブロック）にぶつかった：そこで止まり、ぶつかった勢いで上下に波打ってから戻す
         phaseT_ += dt;
         shootLength_ = ( std::min )( shootLength_ + kTongueSpeed * dt, swallowReach_ );
         float length = shootLength_;
-        if ( length >= swallowReach_ - 1e-4f ) { holdT_ += dt; }
-        float t = ( holdT_ >= kTongueHoldTime ) ? 1.0f : 0.0f; // 伸びきって少し止まったら戻す
         Vector3 wallHit;
         bool blocked = false;
         if ( blockedBefore(aimDir_, length, &wallHit) ) {
             length = Length(Subtract(wallHit, root));
             blocked = true;
         }
-        Vector3 tip = Add(root, Multiply(length, aimDir_));
-        UpdateTongueMesh(root, tip, camera);
-
         // 今のベロの棒に触れた敵がいたら、その瞬間に捕まえる（伸びきりを待たない＝当たったら即ベロを戻す）。
         //   ベロは体と一緒に動くので、出している途中でジャンプして敵の高さに重なった時も捕まえる
         const bool hitNow = tryCatch(length);
-        if ( blocked && !hitNow ) { t = 1.0f; } // 壁で止まった：空振りで戻す
-        if ( hitNow || t >= 1.0f ) {
+        if ( !hitNow && blocked && !limp_ ) { limp_ = true; limpT_ = 0.0f; } // ぶつかった：ここから波打つ
+        if ( limp_ ) {
+            limpT_ += dt;
+            BuildLimpCurve(root, aimDir_, length, limpFloor);
+        } else if ( !hitNow && length >= swallowReach_ - 1e-4f ) {
+            holdT_ += dt; // 伸びきった所で少し止まる
+        }
+        UpdateTongueMesh(root, Add(root, Multiply(length, aimDir_)), camera);
+        const bool giveUp = limp_ ? ( limpT_ >= kLimpHangTime ) : ( holdT_ >= kTongueHoldTime );
+        if ( hitNow || giveUp ) {
             if ( !hitNow ) {
-                // 空振り：掴めなかったので引っ込める（伸びた長さから戻す。戻している間も、触れた敵は捕まえる）
+                // 空振り：引っ込める（伸びた長さから戻す。戻している間も、触れた敵は捕まえる）
                 retractDuration_ = kMissRetractDuration;
                 retractCaught_   = false;
                 missLength_      = length;
@@ -224,18 +241,23 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     else {
         phaseT_ += dt;
         float t = ( std::min )( phaseT_ / retractDuration_, 1.0f );
+        const float missLength = kTongueRestLength + ( missLength_ - kTongueRestLength ) * ( 1.0f - t );
         if ( !retractCaught_ ) {
-            // 空振りで戻している間も、ベロの棒に敵が重なったら捕まえる（ジャンプして高さが合った時など）
-            const float length = kTongueRestLength + ( missLength_ - kTongueRestLength ) * ( 1.0f - t );
-            if ( tryCatch(length) ) { phaseT_ = 0.0f; t = 0.0f; } // そこから捕まえた時の戻し方へ
+            // 空振りで戻している間も、ベロの棒に敵が重なったら捕まえる（ジャンプして高さが合った時など）。
+            //   壁にぶつかって波打っている時は、波打ったまま（だんだんおさまりながら）巻き取る
+            if ( limp_ ) {
+                limpT_ += dt;
+                BuildLimpCurve(root, aimDir_, missLength, limpFloor);
+            }
+            if ( tryCatch(missLength) ) { phaseT_ = 0.0f; t = 0.0f; } // そこから捕まえた時の戻し方へ
         }
-        Vector3 tip = retractCaught_
-            ? grabPos_ + ( root - grabPos_ ) * t
-            : Add(root, Multiply(kTongueRestLength + ( missLength_ - kTongueRestLength ) * ( 1.0f - t ), aimDir_));
+        Vector3 tip = retractCaught_ ? grabPos_ + ( root - grabPos_ ) * t : Add(root, Multiply(missLength, aimDir_));
         UpdateTongueMesh(root, tip, camera);
 
         if ( t >= 1.0f ) {
             state_ = State::Idle;
+            limp_ = false;
+            UpdateTongueMesh(root, root, camera); // しなったベロの絵を消す
         }
     }
 
@@ -253,7 +275,7 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     }
 
     // --- 左Ctrl（しゃがみ）・食べた後の自動：お腹の敵を1匹、後ろに卵として産む ---
-    if ( ( input->Triggerkey(DIK_LCONTROL) || autoLay ) && !actionBlocked_ ) {
+    if ( ( input->TriggerKey(DIK_LCONTROL) || autoLay ) && !actionBlocked_ ) {
         const Vector3 behind = eggs.FollowSlot(eggs.HeldCount()); // 後ろの卵の列の最後（通って来た所。壁の中にならない）
         if ( eggs.LayEgg(behind) ) {
             eggs.SpawnLayFx(behind);        // 産まれた合図（白＆緑がぽわっと）
@@ -262,30 +284,53 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     }
 
     // --- F：お腹の敵を吐き出す（プレイヤーの向いている方向へ発射。敵にぶつけて倒せる）---
-    if ( input->Triggerkey(DIK_F) ) {
+    if ( input->TriggerKey(DIK_F) ) {
         // 坂道では坂に沿って前へ吐く（水平に吐くと、上り坂では吐いた直後に道へぶつかって消える）
-        Vector3 facing = player.GetFacingAlongGround();
-        Vector3 spitMouth = { playerPos.x + facing.x * 0.6f, playerPos.y + 0.5f + facing.y * 0.6f, playerPos.z + facing.z * 0.6f };
-        if ( eggs.SpitOut(spitMouth, facing) ) {
+        Vector3 spitFacing = player.GetFacingAlongGround();
+        Vector3 spitMouth = { playerPos.x + spitFacing.x * 0.6f, playerPos.y + 0.5f + spitFacing.y * 0.6f, playerPos.z + spitFacing.z * 0.6f };
+        if ( eggs.SpitOut(spitMouth, spitFacing) ) {
             hitFeel.Trigger(0.03f, 0.1f);   // 吐き出しの軽い手応え
             AudioManager::GetInstance()->PlayWave("resources/se/eggThrow.wav", false, 0.5f); // 発射音
         }
     }
 }
 
-// 舌の見た目を口(mouth)〜先端(tip)の十字リボン（2枚の直交クアッド）として書き直す。
-//   ワールド座標へ直接焼く動的メッシュ（RoadMesh/RailField と同じ方式）。
+// 食べられない物にぶつかったベロの形（付け根から先までの折れ線 curve_）を作る：上下に波打つ。
+//   ぶつかった先から付け根へ向かって波が走り、だんだんおさまる。付け根（口）は動かさない。
+//   床（恐竜が立っている面）より下へは行かない
+void SwallowAbility::BuildLimpCurve(const Vector3& root, const Vector3& dir, float length, float floorY){
+    const Vector3 side = Normalize(Cross({ 0.0f, 1.0f, 0.0f }, dir));   // 横（波打つ面に垂直）
+    const Vector3 up = Normalize(Cross(dir, side));                     // 正面に垂直な上向き（波の向き）
+    limpSide_ = side;
+    const float kTwoPi = Math::kTwoPi;
+    // 波の大きさ：ぶつかった瞬間にぱっと出て、だんだんおさまる。短く巻き取られるほど小さく
+    const float amplitude = kWaveAmplitude * ( std::min )( limpT_ / 0.03f, 1.0f ) * std::exp(-kWaveDecay * limpT_)
+                          * ( std::min )( length / 1.0f, 1.0f );
+    curve_.clear();
+    for ( int i = 0; i <= kLimpSegments; ++i ) {
+        const float s = ( float ) i / ( float ) kLimpSegments;         // 0＝付け根 → 1＝先
+        const float envelope = ( std::min )( s * 3.0f, 1.0f );          // 付け根は動かさない
+        const float wave = std::sin(kTwoPi * ( kWaveCount * s + kWaveSpeed * limpT_ )); // 先から付け根へ走る
+        Vector3 point = Add(Add(root, Multiply(length * s, dir)), Multiply(amplitude * envelope * wave, up));
+        if ( point.y < floorY ) { point.y = floorY; }
+        curve_.push_back(point);
+    }
+}
+
+// ベロの長さ・先の位置を覚える（見た目のベロの骨が使う）。しなっている間は、しなったベロの絵（筒）を作る。
+//   筒の太さ・色は、プレイヤーのモデルのベロ（平たい楕円の断面・真ん中が太い）と同じにしてある
 void SwallowAbility::UpdateTongueMesh(const Vector3& mouth, const Vector3& tip, Camera* camera){
     tongueLength_ = Length(tip - mouth); // モデルの Tongue ボーンの伸び制御に使う実距離
     tongueTip_ = tip;                    // 見た目のベロの骨をここへ向ける
-    // 遅延生成：初めて必要になった時に固定容量の動的メッシュを1回だけ確保する
+    if ( !limp_ && !tongueModel_ ) { return; }
+    // 遅延生成：初めて必要になった時に動的メッシュを1回だけ確保する
     if ( !tongueModel_ ) {
         tongueModel_ = std::make_unique<Model>();
         tongueModel_->InitializeDynamic(ModelManager::GetInstance()->GetModelCommon(),
-                                        16, 24, "resources/block/white1x1.png");
+                                        ( kLimpSegments + 1 ) * kLimpRing, kLimpSegments * kLimpRing * 6, "resources/block/white1x1.png");
         if ( tongueModel_->GetMaterial() ) {
-            tongueModel_->GetMaterial()->color = kTongueColor;
-            tongueModel_->GetMaterial()->enableLighting = 0; // 平坦な発色（薄いリボンなので陰影は不要）
+            tongueModel_->GetMaterial()->color = kTongueColor; // モデルのベロと同じ色
+            tongueModel_->GetMaterial()->enableLighting = 1;
         }
         tongueObj_ = std::make_unique<Obj3d>();
         tongueObj_->Initialize(tongueModel_.get());
@@ -293,53 +338,57 @@ void SwallowAbility::UpdateTongueMesh(const Vector3& mouth, const Vector3& tip, 
         tongueObj_->SetTranslation({ 0.0f, 0.0f, 0.0f }); // 頂点はワールド座標で焼くので平行移動はしない
     }
 
-    Vector3 dir = tip - mouth;
-    float len = Length(dir);
-    if ( len < 1e-4f ) {
-        static const std::vector<Model::VertexData> kEmptyVertices;
-        static const std::vector<uint32_t> kEmptyIndices;
-        tongueModel_->UpdateMesh(kEmptyVertices, kEmptyIndices);
-    } else {
-        dir = dir / len;
-
-        // 進行方向に直交する2軸（十字リボンの幅方向）。ほぼ真上/真下でも破綻しない保険つき
-        Vector3 worldUp = { 0.0f, 1.0f, 0.0f };
-        Vector3 right = Cross(worldUp, dir);
-        if ( Length(right) < 1e-4f ) { right = Cross({ 0.0f, 0.0f, 1.0f }, dir); }
-        right = Normalize(right);
-        Vector3 up = Normalize(Cross(dir, right));
-
-        Model::ModelData meshData;
-        auto quad = [&](const Vector3& widthAxis, const Vector3& normal){
-            uint32_t base = static_cast<uint32_t>( meshData.vertices.size() );
-            Vector3 corners[4] = {
-                mouth - widthAxis * kTongueHalfWidth, mouth + widthAxis * kTongueHalfWidth,
-                tip   + widthAxis * kTongueHalfWidth, tip   - widthAxis * kTongueHalfWidth,
-            };
-            const Vector2 uv[4] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f } };
-            for ( int k = 0; k < 4; ++k ) {
+    std::vector<Model::VertexData> vertices;
+    std::vector<uint32_t> indices;
+    if ( limp_ && curve_.size() >= 2 ) {
+        float length = 0.0f;
+        for ( size_t i = 1; i < curve_.size(); ++i ) { length += Length(Subtract(curve_[i], curve_[i - 1])); }
+        const float thick = 1.0f + 0.1f * std::clamp(( length - kTongueRestLength ) / 1.2f, 0.0f, 1.0f); // 骨のベロと同じ太り方
+        const int count = ( int ) curve_.size();
+        for ( int i = 0; i < count; ++i ) {
+            const Vector3 ahead = curve_[( std::min )( i + 1, count - 1 )];
+            const Vector3 behind = curve_[( std::max )( i - 1, 0 )];
+            Vector3 tangent = Subtract(ahead, behind);
+            tangent = Length(tangent) > 1e-5f ? Normalize(tangent) : Vector3 { 0.0f, 0.0f, 1.0f };
+            const Vector3 up = Normalize(Cross(tangent, limpSide_));
+            // 断面の大きさ：モデルのベロは細長い楕円体（真ん中が一番太い）。付け根は口の中から始まるので、少し太い所から
+            const float u = 0.097f + 0.903f * ( float ) i / ( float ) ( count - 1 );
+            const float profile = std::sqrt(( std::max )( 1.0f - ( 2.0f * u - 1.0f ) * ( 2.0f * u - 1.0f ), 0.0f ));
+            const float halfWide = kTongueModelHalfWide * thick * profile;
+            const float halfThin = kTongueModelHalfThin * thick * profile;
+            for ( int r = 0; r < kLimpRing; ++r ) {
+                const float a = Math::kTwoPi * ( float ) r / ( float ) kLimpRing;
+                const float cosA = std::cos(a), sinA = std::sin(a);
+                const Vector3 offset = Add(Multiply(cosA * halfWide, limpSide_), Multiply(sinA * halfThin, up));
+                Vector3 normal = Add(Multiply(cosA * kTongueModelHalfThin, limpSide_), Multiply(sinA * kTongueModelHalfWide, up)); // 楕円の法線
+                normal = Normalize(normal);
                 Model::VertexData vertex {};
-                vertex.position = { corners[k].x, corners[k].y, corners[k].z, 1.0f };
+                const Vector3 position = Add(curve_[i], offset);
+                vertex.position = { position.x, position.y, position.z, 1.0f };
                 vertex.normal = normal;
-                vertex.texcoord = uv[k];
-                meshData.vertices.push_back(vertex);
+                vertex.texcoord = { 0.5f, 0.5f };
+                vertices.push_back(vertex);
             }
-            meshData.indices.push_back(base); meshData.indices.push_back(base + 1); meshData.indices.push_back(base + 2);
-            meshData.indices.push_back(base); meshData.indices.push_back(base + 2); meshData.indices.push_back(base + 3);
-        };
-        quad(right, up); // 縦リボン
-        quad(up, right); // 横リボン（2枚で十字断面 → どの角度から見ても線に見えない）
-
-        tongueModel_->UpdateMesh(meshData.vertices, meshData.indices);
+        }
+        for ( int i = 0; i + 1 < count; ++i ) {
+            for ( int r = 0; r < kLimpRing; ++r ) {
+                const uint32_t a = ( uint32_t ) ( i * kLimpRing + r );
+                const uint32_t b = ( uint32_t ) ( i * kLimpRing + ( r + 1 ) % kLimpRing );
+                const uint32_t c = a + ( uint32_t ) kLimpRing, d = b + ( uint32_t ) kLimpRing;
+                indices.push_back(a); indices.push_back(c); indices.push_back(b);
+                indices.push_back(b); indices.push_back(c); indices.push_back(d);
+            }
+        }
     }
-
+    tongueModel_->UpdateMesh(vertices, indices); // 空なら何も描かれない
     tongueObj_->SetCamera(camera);
     tongueObj_->Update();
 }
 
 void SwallowAbility::Draw() const{
-    // ベロの見た目はプレイヤーモデルの TongueOut アニメに一本化した（二重表示防止のためリボンは描かない）。
-    // 捕獲判定・敵の引き込み・SDF消滅・食べられる敵のプレビューリング等の仕様はそのまま生きている
+    // ふだんのベロの見た目は、プレイヤーモデルの TongueOut アニメ（骨のベロ）。
+    //   食べられない物にぶつかって波打っている間だけ、曲がるベロの絵（筒）を描く（その間、骨のベロは口の中へ隠す。PlayerAvatar）
+    if ( limp_ && tongueObj_ ) { tongueObj_->Draw(); }
 }
 
 void SwallowAbility::InitializeMark(){

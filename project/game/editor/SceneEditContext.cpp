@@ -43,20 +43,20 @@ float SceneEditContext::ScreenDistanceToMouse(const Vector3& world) const{
 }
 
 bool SceneEditContext::RailPoint(int railIndex, float distance, float height, Vector3& out) const{
-	const auto& rails = Rails();
-	if ( railIndex < 0 || railIndex >= ( int ) rails.size() ) return false;
-	if ( rails[railIndex].nodes.size() < 2 ) return false;
-	Vector3 p = rails[railIndex].GetPositionByDistance(distance);
+	const auto& railList = Rails();
+	if ( railIndex < 0 || railIndex >= ( int ) railList.size() ) return false;
+	if ( railList[railIndex].nodes.size() < 2 ) return false;
+	Vector3 p = railList[railIndex].GetPositionByDistance(distance);
 	out = { p.x, p.y + height, p.z };
 	return true;
 }
 
 bool SceneEditContext::PickRailPoint(float height, float maxPx, int stickRail, float stickBonus,
                                      RailPick& out, int allowHidden) const{
-	const auto& rails = Rails();
+	const auto& railList = Rails();
 	int bestRail = -1; float bestDist = 0.0f; float bestPx = maxPx;
-	for ( int railIndex = 0; railIndex < ( int ) rails.size(); ++railIndex ) {
-		const SplineRail& rail = rails[railIndex];
+	for ( int railIndex = 0; railIndex < ( int ) railList.size(); ++railIndex ) {
+		const SplineRail& rail = railList[railIndex];
 		if ( rail.nodes.size() < 2 ) continue;
 		// 見えない骨組み（リフトのガイド等）へは乗せない
 		if ( !rail.visible && railIndex != allowHidden ) continue;

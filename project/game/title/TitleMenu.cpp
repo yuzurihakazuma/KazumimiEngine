@@ -1,4 +1,5 @@
 #include "game/title/TitleMenu.h"
+#include "engine/math/MathUtil.h"
 #include "game/title/TitleTopple.h"
 #include "game/title/TitleAssets.h"
 #include "game/title/TitleLayout.h"
@@ -11,7 +12,7 @@
 #include <cmath>
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr float kFacingYaw     = kPi;    // モデルの正面(+Z)をカメラ（-Z側）へ向ける
     constexpr float kAppearTime    = 0.35f;  // 1つが出てくる時間(秒)
     constexpr float kAppearStagger = 0.12f;  // 隣が出るまでのずれ(秒)
@@ -120,7 +121,7 @@ void TitleMenu::Update(float deltaTime){
 
         // 選んでいる的：大きくなって、ゆっくり弾む
         const float pulse = 1.0f + 0.04f * std::sin(time_ * 5.0f);
-        const float size = kTargetScale * appear * Easing::Lerp(1.0f, kSelectedScale * pulse, target.focus);
+        const float size = kTargetScale * appear * Math::Lerp(1.0f, kSelectedScale * pulse, target.focus);
 
         Vector3 rotation { 0.0f, kFacingYaw, 0.0f };
         // 地面に刺した棒の先なので、いつもほんの少しゆらゆらしている（的ごとにずらす）
@@ -146,7 +147,7 @@ void TitleMenu::Update(float deltaTime){
 
         // 選んでいない的は少し暗くする（モデルは的ごとに別なので、色も別々に持てる）
         if ( Model* model = target.object->GetModel() ) {
-            const float brightness = Easing::Lerp(kDimColor, 1.0f, target.focus);
+            const float brightness = Math::Lerp(kDimColor, 1.0f, target.focus);
             model->SetColor({ brightness, brightness, brightness, 1.0f });
         }
     }

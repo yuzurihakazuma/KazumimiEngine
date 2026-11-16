@@ -62,6 +62,11 @@ void RoadMesh::PlaceJoints(const std::vector<SplineRail>& rails, const RoadJunct
 void RoadMesh::BuildJunctions(const std::vector<SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts){
     RoadJunctionDetector detector;
     detector.Detect(rails, cuts);
+    // 坂の付け根の角：平らな側の端を伸ばす長さ（掃引で使う）
+    endExtensions_.assign(rails.size(), { 0.0f, 0.0f });
+    for ( int r = 0; r < ( int ) rails.size(); ++r ) {
+        endExtensions_[r] = { detector.EndExtension(r, true), detector.EndExtension(r, false) };
+    }
 
     const RoadJunctionPatchBuilder patchBuilder(cornerStyle_);
     const RoadSweepBuilder sweepBuilder(warnLength_);
@@ -75,7 +80,7 @@ void RoadMesh::BuildJunctions(const std::vector<SplineRail>& rails, std::vector<
     // ゆるい角の2本溶接：掃引コネクタ＋中央のジョイント
     for ( const RoadJunctionDetector::Connector& conn : detector.Connectors() ) {
         RoadMeshBuilder mesh;
-        sweepBuilder.BuildConnector(conn.nodes, mesh);
+        sweepBuilder.BuildConnector(conn.nodes, conn.keepFrom, conn.keepTo, mesh);
         slots_.EmitMesh(mesh.Data(), conn.joint.followRail);
         PlaceJoints(rails, conn.joint);
     }
@@ -99,6 +104,7 @@ void RoadMesh::Build(const std::vector<SplineRail>& rails, Camera* camera, bool 
 
     // ジャンクションの検出＋パッチ配置。各レールの「掃引しない区間」も決まる
     std::vector<std::vector<RoadCut>> cuts(rails.size());
+    endExtensions_.assign(rails.size(), { 0.0f, 0.0f });
     if ( !simple ) { BuildJunctions(rails, cuts); }
 
     const RoadSweepBuilder sweepBuilder(warnLength_);
@@ -119,7 +125,8 @@ void RoadMesh::Build(const std::vector<SplineRail>& rails, Camera* camera, bool 
 
         // 掃引メッシュ本体（ジャンクションの切り詰め範囲は張らない）
         RoadMeshBuilder mesh;
-        sweepBuilder.Build(rail, cuts[railIdx], simple, capFront, capBack, mesh);
+        sweepBuilder.Build(rail, cuts[railIdx], simple, capFront, capBack, mesh,
+                           endExtensions_[railIdx][0], endExtensions_[railIdx][1]);
         slots_.EmitMesh(mesh.Data(), railIdx);
     }
 

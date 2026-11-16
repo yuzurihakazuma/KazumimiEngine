@@ -1,4 +1,5 @@
 #include "EnemyGameViewTool.h"
+#include "engine/math/MathUtil.h"
 #include "game/editor/SceneEditContext.h"
 #include "game/enemy/Enemy.h"
 #include "game/enemy/EnemyEditor.h"
@@ -111,7 +112,7 @@ void EnemyGameViewTool::DrawPinsAndLabels(const SceneEditContext& context){
 			const int kRingSegments = 32;
 			Vector3 prevPoint {};
 			for ( int s = 0; s <= kRingSegments; ++s ) {
-				float angle = 6.2831853f * ( float ) s / ( float ) kRingSegments;
+				float angle = Math::kTwoPi * ( float ) s / ( float ) kRingSegments;
 				Vector3 ringPoint = { railPoint.x + std::cos(angle) * spawnData.chaseRange,
 				                      railPoint.y + 0.1f,
 				                      railPoint.z + std::sin(angle) * spawnData.chaseRange };

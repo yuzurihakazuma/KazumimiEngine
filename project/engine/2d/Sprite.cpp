@@ -104,12 +104,12 @@ void Sprite::Initialize(){
 void Sprite::Update(){
 
 	// 位置、回転、スケールからワールド行列を作る
-	transform.translate = { position_.x, position_.y, 0.0f };
-	transform.rotate = { 0.0f, 0.0f, rotation_ };
-	transform.scale = { 1.0f, 1.0f, 1.0f };
+	transform_.translate = { position_.x, position_.y, 0.0f };
+	transform_.rotate = { 0.0f, 0.0f, rotation_ };
+	transform_.scale = { 1.0f, 1.0f, 1.0f };
 
 	// ワールド行列を作る
-	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
 
 	// 画面の幅と高さを取得
@@ -120,8 +120,8 @@ void Sprite::Update(){
 	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, screenW, screenH, 0.0f, 100.0f);
 	Matrix4x4 viewProjection = Multiply(viewMatrix, projectionMatrix);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjection);
-	transformationMatirxData_->WVP = worldViewProjectionMatrix;
-	transformationMatirxData_->World = worldMatrix;
+	transformationMatrixData_->WVP = worldViewProjectionMatrix;
+	transformationMatrixData_->World = worldMatrix;
 
 
 
@@ -238,9 +238,10 @@ void Sprite::CreateMaterialBuffer(){
 	// SpriteはLightingしないのでfalseを設定する
 	materialData_->enableLighting = false;
 	// UVTransformはSpriteでは使うので設定しておく。今回は単位行列を設定しておく
-	materialData_->uvTransfrom = MakeIdentity4x4();
+	materialData_->uvTransform = MakeIdentity4x4();
 	// Shininessは使わないが一応0.0fを設定しておく
 	materialData_->shininess = 0.0f;
+	materialData_->reveal = kRevealOff; // 描き順のマスクは使わない
 
 
 }
@@ -250,11 +251,11 @@ void Sprite::CreateTransformationMatrixBuffer(){
 	transformationMatrixResource_ = spriteCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(TransformationMatrix));
 
 	// 書き込むためのアドレスを取得
-	transformationMatrixResource_->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatirxData_ ));
+	transformationMatrixResource_->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatrixData_ ));
 	// 単位行列を書き込んでおく
-	transformationMatirxData_->WVP = MakeIdentity4x4();
-	transformationMatirxData_->World = MakeIdentity4x4();
-	transformationMatirxData_->WorldInverseTranspose = MakeIdentity4x4();
+	transformationMatrixData_->WVP = MakeIdentity4x4();
+	transformationMatrixData_->World = MakeIdentity4x4();
+	transformationMatrixData_->WorldInverseTranspose = MakeIdentity4x4();
 
 }
 // 頂点データの計算・転送
@@ -336,6 +337,15 @@ void Sprite::ClearCorners(){
 }
 
 // 切り抜きを指定する関数
+// 描き順のマスク：progress（0〜1）まで描いた所を出す。シェーダーは「描く順 >= しきい値」の所を出すので、しきい値は 1 - progress
+void Sprite::SetReveal(float progress) {
+	materialData_->reveal = 1.0f - std::clamp(progress, 0.0f, 1.0f);
+}
+
+void Sprite::ClearReveal() {
+	materialData_->reveal = kRevealOff;
+}
+
 void Sprite::SetTextureRect(float startX, float startY, float width, float height) {
 	// ピクセルとしてそのまま保存する！
 	textureLeftTop_ = { startX, startY };

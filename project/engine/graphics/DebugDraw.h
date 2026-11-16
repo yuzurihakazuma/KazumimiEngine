@@ -11,6 +11,7 @@
 //     DebugDraw::GetInstance()->Render(camera);
 // =====================================================================
 #include <d3d12.h>
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <vector>
 #include "engine/math/struct.h"
@@ -19,9 +20,9 @@
 class DirectXCommon;
 class Camera;
 
-class DebugDraw{
+class DebugDraw : public Singleton<DebugDraw> {
+	friend class Singleton<DebugDraw>; // 土台（Singleton）だけが作れる
 public:
-    static DebugDraw* GetInstance();
 
     void Initialize(DirectXCommon* dxCommon);
     void Finalize();
@@ -39,8 +40,6 @@ public:
 private:
     DebugDraw() = default;
     ~DebugDraw() = default;
-    DebugDraw(const DebugDraw&) = delete;
-    DebugDraw& operator=(const DebugDraw&) = delete;
 
     struct LineVertex{
         Vector3 pos;

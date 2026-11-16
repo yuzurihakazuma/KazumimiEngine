@@ -1,10 +1,12 @@
 #pragma once
 #include <memory>
+#include "engine/base/Singleton.h"
 #include <vector>
 #include "engine/math/struct.h" // Vector3
 #include "engine/utils/Level/LevelData.h" // LevelEnemyData
 #include "engine/utils/Level/RailEditor.h" // SnapTarget（自動スナップ接続 §5）
 
+struct ImVec2; // ImGui の 2D の点（Game View の四角を渡すのに使う。中身は imgui.h）
 class LevelEditor;
 class BlenderImporter;
 class Camera;
@@ -23,11 +25,15 @@ enum class EngineMode{
     Play  // 時間が動き、ゲームとして遊べる状態
 };
 
-class EditorManager{
+// =====================================================================
+//  EditorManager：エディタ全体のまとめ役（ImGui）。
+//   ドックと各パネルの表示、Edit（編集）と Play（プレイ）の切り替え、ギズモ、Game View の表示を受け持つ。
+//   エディタが入るのは Debug と Development だけ（Release は ImGui を使わない）
+// =====================================================================
+class EditorManager : public Singleton<EditorManager> {
+	friend class Singleton<EditorManager>; // 土台（Singleton）だけが作れる
 public:
 
-    // シングルトンインスタンスの取得
-    static EditorManager* GetInstance();
 
 
     // ImGuiのフレーム開始（Game::Update の先頭で呼ぶ）
@@ -252,10 +258,8 @@ public:
 private:
 
     // シングルトンなので外部からの生成・コピーを禁止
-    EditorManager() = default;
-    ~EditorManager();  // cpp 側で定義（unique_ptr の前方宣言対応）
-    EditorManager(const EditorManager&) = delete;
-    EditorManager& operator=(const EditorManager&) = delete;
+    EditorManager();   // cpp 側で定義（unique_ptr の前方宣言対応）
+    ~EditorManager();
 
 
 private:
@@ -288,6 +292,13 @@ private:
     bool showGlobalVars_ = false;
 
     // --- UIシェル（アイコンモード）の状態 ---
+    // --- Update の中身（順に呼ぶ。長い 1 つの関数だった物を、役割ごとに分けた）---
+    void SetupDockSpace();           // ドックの土台と、はじめての時のパネルの並び
+    void DrawControlWindow();        // コントロールウィンドウ（Edit / Play・時間）
+    void DrawMainMenuBar();          // メインメニューバー
+    void UpdateGameViewEditing(const ImVec2& imgMin, const ImVec2& imgSize, bool imageHovered); // Game View の上の編集（ギズモ・レール）
+    void UpdateRailEditing(RailEditor* railEditor, const ImVec2& imgMin, const ImVec2& imgSize, bool imageHovered); // レールのマウス・キー操作と線の表示
+    void DrawTransformInspector();   // インスペクター（Transform）
     void DrawIconToolbar();          // 左端のアイコンツールバー（Iconモードのみ）
     void DrawUiSettingsWindow();     // フォント・UIスケール設定ウィンドウ
     void ApplyWorkspace(int index);  // ワークスペースプリセット適用（0=設置/1=調整/2=レール/3=敵/4=全部閉じる）

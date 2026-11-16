@@ -1,4 +1,5 @@
 #include "GameHud.h"
+#include "game/ui/UiScale.h"
 #include "game/egg/EggSystem.h"
 #include "game/stage/CoinSystem.h"
 #include "engine/2D/Sprite.h"
@@ -6,9 +7,9 @@
 #include "engine/graphics/TextureManager.h"
 
 #include <algorithm>
-#include <cstring>
 
 namespace {
+	constexpr const char* kDigitsTexture = "resources/ui/hud_digits.png";
 	constexpr const char* kDigitChars = "0123456789/x+"; // hud_digits.png の並び（x＝×）
 	constexpr float kDigitCellW = 64.0f, kDigitCellH = 96.0f;
 	constexpr int   kMaxDigits = 16;
@@ -50,13 +51,7 @@ void GameHud::Initialize(){
 		emptyEggs_.push_back(Make("resources/ui/hud_egg_empty.png"));
 		belly_.push_back(Make("resources/ui/hud_belly.png"));
 	}
-	const uint32_t digits = TextureManager::GetInstance()->Load("resources/ui/hud_digits.png").srvIndex;
-	digits_.clear();
-	for ( int i = 0; i < kMaxDigits; ++i ) {
-		auto sprite = Sprite::Create(digits, { 0.0f, 0.0f });
-		sprite->SetAnchorPoint({ 0.0f, 0.5f });
-		digits_.push_back(std::move(sprite));
-	}
+	digits_.Initialize(kDigitsTexture, kDigitChars, kDigitCellW, kDigitCellH, kMaxDigits);
 }
 
 void GameHud::Update(const EggSystem& eggSystem, bool aiming, const CoinSystem& coinSystem){
@@ -67,7 +62,7 @@ void GameHud::Update(const EggSystem& eggSystem, bool aiming, const CoinSystem& 
 	if ( aiming && held_ > 0 ) { --held_; }
 	coins_ = coinSystem.CollectedCount();
 	coinTotal_ = coinSystem.TotalCount();
-	scale_ = ( float ) WindowProc::GetInstance()->GetClientHeight() / 1080.0f;
+	scale_ = UiScale::FromHeight(( float ) WindowProc::GetInstance()->GetClientHeight());
 }
 
 void GameHud::Place(Sprite* sprite, float x, float y, float width, float height, float alpha){
@@ -78,18 +73,9 @@ void GameHud::Place(Sprite* sprite, float x, float y, float width, float height,
 	sprite->Draw();
 }
 
+// 数字の絵を並べる。置き場所は 1080p の値で受け取り、画面の大きさに合わせて DigitStrip へ渡す
 float GameHud::DrawNumber(const std::string& text, float x, float y, float height){
-	const float width = height * kDigitCellW / kDigitCellH;
-	const float step = width * 0.78f; // 字のふちが重なるくらいに詰める
-	for ( char c : text ) {
-		const char* found = std::strchr(kDigitChars, c);
-		if ( !found || nextDigit_ >= ( int ) digits_.size() ) { continue; }
-		Sprite* sprite = digits_[nextDigit_++].get(); // 1枚を1フレームに2回描くと上書きされるので、字ごとに別の物
-		sprite->SetTextureRect(( float ) ( found - kDigitChars ) * kDigitCellW, 0.0f, kDigitCellW, kDigitCellH);
-		Place(sprite, x, y, width, height);
-		x += step;
-	}
-	return x + ( width - step );
+	return digits_.Draw(text, x * scale_, y * scale_, height * scale_) / scale_;
 }
 
 // 札：上と下（点線とふち）は絵の大きさのまま、真ん中だけ縦に伸ばす
@@ -108,7 +94,7 @@ void GameHud::DrawBoard(float x, float y, float width, float height){
 
 void GameHud::Draw(ID3D12GraphicsCommandList* /*commandList*/){
 	if ( !board_ ) { return; }
-	nextDigit_ = 0;
+	digits_.BeginFrame();
 	const bool showCoins = coinTotal_ > 0; // コインが1枚も置かれていないマップでは出さない
 	const bool showFlowers = flowerTotal_ > 0; // かくれ花が隠れている木があるステージだけ
 	const bool showComboFlowers = comboFlowerTotal_ > 0; // コンボの的があるステージだけ
@@ -151,7 +137,7 @@ void GameHud::Draw(ID3D12GraphicsCommandList* /*commandList*/){
 	}
 	// コンボ：画面の上の真ん中に「コンボ」の札と「×n」。当てた瞬間にぽんと大きく
 	if ( combo_ > 0 && comboAlpha_ > 0.0f ) {
-		const float centerX = 960.0f * ( float ) WindowProc::GetInstance()->GetClientWidth() / ( 1920.0f * scale_ );
+		const float centerX = ( UiScale::kBaseWidth * 0.5f ) * ( float ) WindowProc::GetInstance()->GetClientWidth() / ( UiScale::kBaseWidth * scale_ );
 		// 消える時は薄くせずに縮む（α で薄くすると、画面の α まで書き換わって黒っぽく抜ける）
 		const float pop = ( 1.0f + 0.35f * comboPop_ ) * comboAlpha_;
 		Place(comboLabel_.get(), centerX - 70.0f, 130.0f, 364.0f * pop, 105.0f * pop);

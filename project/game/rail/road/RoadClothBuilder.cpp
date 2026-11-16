@@ -1,4 +1,5 @@
 #include "game/rail/road/RoadClothBuilder.h"
+#include "engine/math/MathUtil.h"
 
 #include "game/rail/road/RoadMeshBuilder.h"
 #include "engine/math/VectorMath.h"
@@ -10,7 +11,7 @@
 using namespace VectorMath;
 
 namespace {
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
     constexpr float kStep = 0.15f;        // リングの間隔(m)
     constexpr float kSkirtOut = 0.012f;   // すそが端より外へ出る量(m)
     constexpr float kGroundDepth = 0.075f; // 布のみ：すそを地面の中へ入れる深さ（背景の地面はレール面の 6cm 下）
@@ -20,7 +21,8 @@ namespace {
     struct Section { float lat, h, v; };
 
     // レール上の1リング（位置・向き・柄の u）
-    struct Ring { Vector3 pos, right, up, tangent; float u; };
+    //   noSkirt＝すそを出さない（つながった相手の布へ重ねた所。相手のすそと同じ所に 2 枚目のすそが並ぶと、下の色が筋になって見える）
+    struct Ring { Vector3 pos, right, up, tangent; float u; bool noSkirt = false; };
 
     Ring RingAt(const SplineRail& rail, float s){
         const SplineRail::RailFrame f = rail.GetFrameAtDistance(s);
@@ -44,7 +46,15 @@ RoadClothBuilder::EndInfo RoadClothBuilder::EndOf(const std::vector<SplineRail>&
             const Vector3 in = front ? Multiply(rail.GetTangentByDistance(0.0f), -1.0f) : rail.GetTangentByDistance(rail.GetLength());
             const bool toFront = front ? rail.frontConnToFront : rail.backConnToFront;
             const Vector3 outDir = toFront ? other.GetTangentByDistance(0.0f) : Multiply(other.GetTangentByDistance(other.GetLength()), -1.0f);
-            info.corner = Dot(Normalize(in), Normalize(outDir)) < 0.866f; // 30°
+            // 水平の向きで見る（30°）。坂の折れ目（平ら → 坂、坂 → ゆるい坂）は角ではない
+            //   （前は立体の角度で見ていたので、坂の折れ目も角になり、布が水平に突き出して坂の下へ棚のように出ていた）
+            const Vector3 inFlat { in.x, 0.0f, in.z }, outFlat { outDir.x, 0.0f, outDir.z };
+            if ( Length(inFlat) > 0.2f && Length(outFlat) > 0.2f ) {
+                info.corner = Dot(Normalize(inFlat), Normalize(outFlat)) < 0.866f;
+            } else {
+                info.corner = Dot(Normalize(in), Normalize(outDir)) < 0.866f;
+            }
+            if ( !info.corner ) { info.partner = partner; info.partnerFront = toFront; }
         }
         return info;
     }
@@ -109,7 +119,9 @@ void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex
     };
     auto emitRing = [&](const Ring& ring){
         for ( int k = 0; k < 6; ++k ) {
-            out.AddVertex(At(ring, section[k].lat, section[k].h), vertexNormal(ring, k), ring.u, section[k].v);
+            // すそを出さない輪：すその点を、めくれの端の点に重ねる
+            const int shape = !ring.noSkirt ? k : ( k == 0 ? 1 : ( k == 5 ? 4 : k ) );
+            out.AddVertex(At(ring, section[shape].lat, section[shape].h), vertexNormal(ring, k), ring.u, section[k].v);
         }
     };
 
@@ -169,17 +181,59 @@ void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex
             return r;
         };
 
+        // 角でないつなぎ目：相手のレールの形のとおりに重ねる（つなぎ目に近い順に outRings へ）。
+        //   まっすぐ伸ばすと、相手が曲がっている所（坂の付け根など）で、相手の道から浮いたり、下へ突き抜けたりする
+        auto overlapRings = [&](const Ring& endRing, float sign, float amount, const EndInfo& info, std::vector<Ring>& outRings){
+            const SplineRail& other = rails[info.partner];
+            const float otherLength = other.GetLength();
+            // 輪は、相手の布の輪と同じ所に置く（相手の布と同じ面を、重なりの高さの差だけ離れてなぞる）。
+            //   別の所に置くと、曲がっている所で 2 枚の布が 2〜3mm 食い違い、下の布が三角に突き抜けて見える
+            float spanStart = 0.0f, spanEnd = otherLength; // 相手の布の、つなぎ目側の 1 枚（穴で切れる所まで）
+            for ( const auto& hole : other.GetHoleIntervals() ) {
+                if ( info.partnerFront ) { spanEnd = ( std::min )( spanEnd, ( std::max )( hole.d0, 0.0f ) ); }
+                else { spanStart = ( std::max )( spanStart, ( std::min )( hole.d1, otherLength ) ); }
+            }
+            const float spanLength = spanEnd - spanStart;
+            float step = kStep;
+            int maxSteps = 1;
+            if ( spanLength > 0.02f ) {
+                maxSteps = ( std::max )( 1, ( int ) std::ceil(spanLength / ( std::max )( kStep, otherLength / 600.0f )) );
+                step = spanLength / ( float ) maxSteps;
+            }
+            const int steps = std::clamp(( int ) std::lround(amount / step), 1, maxSteps);
+            for ( int i = 1; i <= steps; ++i ) {
+                const float d = step * ( float ) i;
+                const SplineRail::RailFrame f = other.GetFrameAtDistance(info.partnerFront ? d : otherLength - d);
+                // 相手のレールが逆向きに進む時は、横と進む向きを裏返す（上はそのまま）
+                const float flip = ( Dot(f.right, endRing.right) >= 0.0f ) ? 1.0f : -1.0f;
+                outRings.push_back({ f.position, Multiply(f.right, flip), f.up, Multiply(f.tangent, flip),
+                                     endRing.u + sign * d * kUvPerMeter, true });
+            }
+        };
+
         std::vector<Ring> rings;
         if ( extendFront > 0.0f ) {
-            rings.push_back(extendedRing(RingAt(rail, span.s0), -1.0f, extendFront, frontEnd.corner));
+            if ( frontEnd.partner >= 0 ) {
+                std::vector<Ring> overlap;
+                overlapRings(RingAt(rail, span.s0), -1.0f, extendFront, frontEnd, overlap);
+                rings.insert(rings.end(), overlap.rbegin(), overlap.rend()); // 遠い方から
+            } else {
+                rings.push_back(extendedRing(RingAt(rail, span.s0), -1.0f, extendFront, frontEnd.corner));
+            }
         }
+        const size_t firstOwn = rings.size(); // このレールの最初の輪
         const float spanLength = span.s1 - span.s0;
         const int count = ( std::max )( 1, ( int ) std::ceil(spanLength / ( std::max )( kStep, length / 600.0f )) );
         for ( int i = 0; i <= count; ++i ) {
             rings.push_back(RingAt(rail, span.s0 + spanLength * ( float ) i / count));
         }
+        const size_t lastOwn = rings.size() - 1; // このレールの最後の輪
         if ( extendBack > 0.0f ) {
-            rings.push_back(extendedRing(RingAt(rail, span.s1), 1.0f, extendBack, backEnd.corner));
+            if ( backEnd.partner >= 0 ) {
+                overlapRings(RingAt(rail, span.s1), 1.0f, extendBack, backEnd, rings);
+            } else {
+                rings.push_back(extendedRing(RingAt(rail, span.s1), 1.0f, extendBack, backEnd.corner));
+            }
         }
 
         const uint32_t base = out.VertexCount();
@@ -196,7 +250,7 @@ void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex
         auto finishEnd = [&](bool isFront){
             const bool atRailEnd = isFront ? atFront : atBack;
             const EndInfo& info = isFront ? frontEnd : backEnd;
-            const Ring& ring = isFront ? rings[extendFront > 0.0f ? 1 : 0] : rings[rings.size() - ( extendBack > 0.0f ? 2 : 1 )];
+            const Ring& ring = isFront ? rings[firstOwn] : rings[lastOwn];
             const Vector3 outDir = Multiply(ring.tangent, isFront ? -1.0f : 1.0f);
             if ( atRailEnd && info.plaza ) {
                 const float radius = ( std::max )( hw * 1.6f, 1.3f );

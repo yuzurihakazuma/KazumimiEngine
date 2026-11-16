@@ -1,9 +1,9 @@
 #include "SDFManager.h"
+#include "engine/utils/JsonFile.h"
 
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -427,15 +427,12 @@ void SDFManager::SaveScene() const {
     }
 
     std::filesystem::create_directories(watchDir_);
-    std::ofstream f(scenePath_);
-    if ( f ) { f << j.dump(4); }
+    JsonFile::Save(scenePath_, j, 4);
 }
 
 void SDFManager::LoadScene() {
-    std::ifstream f(scenePath_);
-    if ( !f ) return;
     json j;
-    try { f >> j; } catch ( ... ) { return; }
+    if ( !JsonFile::Load(scenePath_, j) ) return;
 
     texts_.clear();
     sprites_.clear();

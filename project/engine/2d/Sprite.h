@@ -14,6 +14,12 @@
 // 前方宣言
 class SpriteCommon;
 
+// =====================================================================
+//  Sprite：2D の絵 1 枚（スプライト）。
+//   テクスチャ・置き場所・大きさ・回転・色・切り出す範囲を持ち、画面のピクセルの座標で描く。
+//   作るのは Create、毎フレーム Update → Draw（描く前の共通の設定は SpriteCommon::PreDraw が 1 回だけ行う）。
+//   SetReveal で、なぞる順のマスクを使った「書かれていく」表示もできる（リザルトの花丸）
+// =====================================================================
 class Sprite {
 public:
 
@@ -98,6 +104,12 @@ public:
 	// テクスチャの切り抜き範囲を設定する関数 (ピクセル単位で指定)
 	void SetTextureRect(float startX, float startY, float width, float height);
 
+	// 描き順のマスク付きの絵を、描いた順に少しずつ出す（花丸を一筆ずつ描くなど。ディゾルブと同じ考え方）。
+	//   絵は「R＝濃さ・G＝形（ふちのなめらかさ）・B＝描く順（早く描く所ほど明るい）」で作る。色は SetColor の色。
+	//   progress＝0 で何も出ず、1 で全部出る。ClearReveal でふつうの絵の描き方へ戻る
+	void SetReveal(float progress);
+	void ClearReveal();
+
 	// 四すみの位置を直接指定して描く（台形など、長方形でない形。位置は SetPosition からのずれ）。
 	//   指定している間は大きさ・アンカー・反転は使わない。ClearCorners で元の長方形に戻る
 	void SetCorners(const Vector2& topLeft, const Vector2& topRight, const Vector2& bottomLeft, const Vector2& bottomRight);
@@ -123,8 +135,9 @@ private:
 		Vector4 color;
 		int32_t enableLighting;
 		float padding[3];
-		Matrix4x4 uvTransfrom; // UV変換行列
+		Matrix4x4 uvTransform; // UV変換行列
 		float shininess;
+		float reveal;          // 描き順のマスクのしきい値（負＝使わない。Sprite2d.PS.hlsl）
 	};
 
 	struct TransformationMatrix {
@@ -147,9 +160,9 @@ private:
 	// Sprite用のTransformationMatirx用のリソースを作る。Matrix4x4 一つ分のサイズを用意する
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
 	// データを書き込む
-	TransformationMatrix* transformationMatirxData_ = nullptr;
+	TransformationMatrix* transformationMatrixData_ = nullptr;
 
-	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
+	Transform transform_{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
 
 	
 	// indexSprite用の頂点indexを作る1つ辺りのindexのサイズは32bit
@@ -186,6 +199,8 @@ private:
 	Vector2 textureSize_ = { 100.0f, 100.0f }; // 切り抜きサイズ（ピクセル）
 
 	bool isDirty_ = true; // 頂点データ更新フラグ
+
+	static constexpr float kRevealOff = -1.0f; // Material::reveal：描き順のマスクを使わない
 
 };
 
