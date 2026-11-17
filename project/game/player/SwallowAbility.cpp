@@ -63,12 +63,14 @@ void SwallowAbility::Update(Player& player, EnemyManager& enemies, EggSystem& eg
     float yaw = player.GetRotation().y;
     Vector3 facing = { std::sin(yaw), 0.0f, std::cos(yaw) };
 
-    // ベロ：付け根（鼻先の口）から、太さ kTongueHalfWidth・長さ swallowReach_ の棒が、いつも正面へまっすぐ伸びる。
-    //   敵の方へは向けない（届かない敵・高さの合わない敵がいても、まっすぐ出て空振りする）。坂の上では坂に沿った正面。
+    // ベロ：付け根（鼻先の口）から、太さ kTongueHalfWidth・長さ swallowReach_ の棒が、いつも正面へ水平にまっすぐ伸びる。
+    //   敵の方へは向けない（届かない敵・高さの合わない敵がいても、まっすぐ出て空振りする）。
+    //   坂の上でも坂には沿わせない（体はまっすぐ立っているので、坂に沿わせると急な坂でベロだけが斜めに飛んでいた）。
+    //   上り坂の面やブロックにぶつかったら、そこで止まって波打つ（壁の問い合わせ wallQuery_ が道の面も見る）。
     //   見た目のベロの骨も同じ向き・同じ長さにする（PlayerAvatar）。
     //   当たり判定はこの棒と敵の体（縦カプセル）が触れたか。捕まえた敵は、ベロの先にくっついたまま口へ戻る
     const Vector3 root = { playerPos.x + facing.x * kTongueRootForward, playerPos.y + kTongueRootHeight, playerPos.z + facing.z * kTongueRootForward };
-    const Vector3 straight = Normalize(player.GetFacingAlongGround());
+    const Vector3 straight = facing; // 水平の正面
     aimDir_ = straight; // 伸ばしている間・戻している間も、今の正面（振り向けば一緒に向く）
     // 付け根から dir へ length までの棒に、敵の体が触れるか。触れる時は、付け根から触れる所までの長さ（-1＝触れない）
     auto touchAlong = [&](const Enemy& enemy, const Vector3& dir, float length) -> float {

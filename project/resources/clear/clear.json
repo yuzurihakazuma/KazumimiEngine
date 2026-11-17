@@ -43,14 +43,22 @@
   "letters": {
     "count": 4,
     "height": 1.05,
-    "spacing": 1.16,
-    "centerHeight": 2.6,
     "front": 0.05,
     "start": 0.15,
     "interval": 0.14,
     "dropTime": 0.75,
     "swing": 0.28,
-    "sway": 0.035
+    "sway": 0.035,
+    "scale": 0.7,
+    "arcRadius": 1.65,
+    "arcAngles": [
+      -62.0,
+      -22.0,
+      22.0,
+      62.0
+    ],
+    "stringLength": 3.5,
+    "dropHeight": 3.0
   },
   "stars": {
     "perSide": 3,
@@ -73,6 +81,62 @@
     "height": 5.2,
     "spread": 3.6
   },
+  "sounds": {
+    "gate": "resources/clear/se_gate.wav",
+    "letter": "resources/clear/se_letter.wav",
+    "star": "resources/clear/se_star.wav",
+    "count": "resources/clear/se_count.wav",
+    "stamp": "resources/clear/se_stamp.wav",
+    "hanamaru": "resources/clear/se_hanamaru.wav",
+    "add": "resources/clear/se_add.wav",
+    "road": "resources/clear/se_road.wav"
+  },
+  "backdrop": [
+    {
+      "model": "goal_sun",
+      "back": 30.0,
+      "side": 12.0,
+      "up": 14.0,
+      "scale": [
+        1.6,
+        1.6,
+        1.6
+      ]
+    },
+    {
+      "model": "cloud_cutout_00",
+      "back": 28.0,
+      "side": -13.0,
+      "up": 12.0,
+      "scale": [
+        3.0,
+        3.0,
+        3.0
+      ]
+    },
+    {
+      "model": "cloud_cutout_01",
+      "back": 29.0,
+      "side": 3.0,
+      "up": 15.0,
+      "scale": [
+        2.6,
+        2.6,
+        2.6
+      ]
+    },
+    {
+      "model": "cloud_cutout_00",
+      "back": 27.0,
+      "side": 20.0,
+      "up": 10.0,
+      "scale": [
+        2.2,
+        2.2,
+        2.2
+      ]
+    }
+  ],
   "result": {
     "dim": [
       0.03,
@@ -135,15 +199,5 @@
     "rowGap": 0.25,
     "hanamaruTime": 1.25,
     "addTime": 1.4
-  },
-  "sounds": {
-    "gate": "resources/clear/se_gate.wav",
-    "letter": "resources/clear/se_letter.wav",
-    "star": "resources/clear/se_star.wav",
-    "count": "resources/clear/se_count.wav",
-    "stamp": "resources/clear/se_stamp.wav",
-    "hanamaru": "resources/clear/se_hanamaru.wav",
-    "add": "resources/clear/se_add.wav",
-    "road": "resources/clear/se_road.wav"
   }
 }

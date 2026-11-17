@@ -51,6 +51,7 @@ void ClearFlow::Initialize(const Context& context, const std::string& stage, uin
 
     gate_.Initialize();
     props_.Initialize(settings_);
+    backdrop_.Initialize(settings_.backdrop);
     result_.Initialize(settings_, stage_);
     paperFx_.Initialize(noiseSrv);
     AudioManager::GetInstance()->LoadWave(settings_.sounds.gate);
@@ -102,6 +103,7 @@ void ClearFlow::Abort(){
     sequence_.Abort(context_);
     active_ = false;
     props_.Hide();
+    backdrop_.Hide();
     result_.Close();
     paperFx_.Clear();
     context_.resultOpen = context_.leaving = false;
@@ -223,6 +225,8 @@ void ClearFlow::Begin(float direction){
         camera_.Begin(*scene_.camera, context_.landPoint);
         ApplyStageCamera();
     }
+    // 書き割り：演出のカメラから見て、門の後ろ（カメラの反対側）に立てる
+    backdrop_.Begin(gate_.Position(), context_.toCamera * -1.0f);
     ClearSequence::Build(sequence_, context_);
     active_ = true;
     sequence_.Start(context_);
@@ -250,6 +254,7 @@ void ClearFlow::UpdateAfterPlayer(float deltaTime){
 
 void ClearFlow::UpdateVisuals(float deltaTime){
     gate_.Update(deltaTime);
+    if ( active_ ) { backdrop_.Update(deltaTime); }
     paperFx_.Update(deltaTime, scene_.camera);
 }
 
@@ -258,6 +263,7 @@ void ClearFlow::UpdateVisuals(float deltaTime){
 // ---------------------------------------------------------------------
 void ClearFlow::DrawOpaque(){
     gate_.Draw();
+    if ( active_ ) { backdrop_.Draw(); }
 }
 
 void ClearFlow::DrawInstanced(const Camera* camera){
@@ -319,8 +325,11 @@ void ClearFlow::DrawInspector(bool playing){
 
     // --- 小道具（どのステージでも同じ値）---
     ImGui::SeparatorText("切り文字と星");
-    ImGui::DragFloat("文字：真ん中の高さ(m)", &settings_.letters.centerHeight, 0.02f, 0.5f, 6.0f, "%.2f");
-    ImGui::DragFloat("文字：間(m)", &settings_.letters.spacing, 0.01f, 0.5f, 2.5f, "%.2f");
+    ImGui::DragFloat("文字：大きさ", &settings_.letters.scale, 0.01f, 0.3f, 1.5f, "%.2f");
+    ImGui::DragFloat("文字：並べる円の半径(m)", &settings_.letters.arcRadius, 0.02f, 0.5f, 3.5f, "%.2f");
+    for ( size_t i = 0; i < settings_.letters.arcAngles.size(); ++i ) {
+        ImGui::DragFloat(( "文字 " + std::to_string(i + 1) + "：角度(度)" ).c_str(), &settings_.letters.arcAngles[i], 0.5f, -120.0f, 120.0f, "%.1f");
+    }
     ImGui::DragFloat("文字：アーチより手前へ(m)", &settings_.letters.front, 0.02f, -1.0f, 3.0f, "%.2f");
     ImGui::DragFloat("星：根元の横(m)", &settings_.stars.pivotSide, 0.02f, 1.0f, 8.0f, "%.2f");
     ImGui::DragFloat("星：根元の高さ(m)", &settings_.stars.pivotHeight, 0.02f, -3.0f, 3.0f, "%.2f");

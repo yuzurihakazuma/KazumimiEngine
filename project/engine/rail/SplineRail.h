@@ -204,13 +204,54 @@ public:
     bool  appeared      = true;  // 出現済みか（実行時状態。トリガー無しなら常にtrue）
     float appearAnim    = 1.0f;  // 出現アニメ（0=隠れている → 1=完全に出現。下からせり上がる）
     // まだ出現していない道か（＝プレイ中は見えない・乗れない・着地できない）
-    bool IsRideBlocked() const { return appearTrigger >= 0 && !appeared; }
+    //   渡し板は、開ききるまで乗れない
+    bool IsRideBlocked() const { return ( appearTrigger >= 0 && !appeared ) || ( boardKind != 0 && boardOpen < 0.95f ); }
 
     // 片方向レール（0=両方向 / 1=正方向のみ(front→back) / 2=逆方向のみ(back→front)）
     int oneWay = 0;
 
     // このレール上での移動速度倍率（1=通常。2で加速レール、0.5で減速レール）
     float speedMul = 1.0f;
+
+    // ============================================================
+    // 列車（RailMotion の列車の動き。ガイド追従の足場だけ）
+    //   駅＝ガイドの区間の両はし。駅で待つ → プレイヤーが乗ると trainDepart 秒で発車 → 次の駅で止まる。
+    //   走っている間（Run）はプレイヤーが降りられない・だれも乗れない。
+    //   ガイドのレールは isTrack（線路）になる：歩けない・つながない・道を敷かない
+    // ============================================================
+    enum class TrainState { Wait = 0, Depart = 1, Run = 2 };
+    int   train       = 0;     // 1＝列車
+    float trainDepart = 0.8f;  // 乗ってから発車までの秒
+    float trainReturn = 4.0f;  // 降りてから元の駅へ戻るまでの秒（負＝戻らない）
+    int   trainEngine = 1;     // 1＝先頭に機関車（見た目と駅の位置）
+    // 実行時（RailField の Sync で決める物）
+    int   trainHome   = 0;     // 元の駅（0＝区間のはじめ側 / 1＝おわり側）。足場を置いた所に近い方
+    float trainFlip   = 0.0f;  // 足場の向きとガイドの向きが逆なら π（足場の前後をそのままにして走らせる）
+    // 実行時（動き）
+    TrainState trainState = TrainState::Wait;
+    int   trainAt       = 0;     // 今いる駅（Run 中は行き先）
+    int   trainFrom     = 0;     // Run の出発駅
+    float trainTimer    = 0.0f;  // Depart の待ち・駅で空のまま待った秒
+    float trainProgress = 0.0f;  // Run の進み（0〜1）
+    float trainDist     = 0.0f;  // 今の、足場の真ん中のガイド上の距離(m)
+    bool  trainNeedsLeave = false; // 乗ったまま着いた：一度降りるまで発車しない
+    bool  isTrack = false;       // 列車のガイド（線路）
+    // 渡し板（列車がこの駅に止まっている時だけ開く板。RailMotion が開け閉めする）
+    int   boardKind    = 0;      // 0＝渡し板ではない / 1＝ぱたん（列車が止まったら開く）/ 2＝ころころ（卵で広がる）
+    bool  boardTriggered = false; // ころころ：卵が当たった（広がり始めた。一度当たったらそのまま）
+    int   boardTrain   = -1;     // ぱたん：つなぐ列車のレール番号
+    int   boardStation = 0;      // 列車のどちらの駅の板か（0＝区間のはじめ側）
+    bool  boardHingeFront = true; // ちょうつがい（駅の側）が始点側か
+    float boardOpen    = 1.0f;   // 開き具合（0＝起き上がって閉じている → 1＝倒れて開いている）
+    bool  IsBoard() const { return boardKind != 0; }
+    bool  IsRollBoard() const { return boardKind == 2; }
+    bool IsTrain() const { return train != 0 && motionType == 3 && guideRail >= 0; }
+    // 走っている最中か（降りられない・乗れない）
+    bool IsTrainRunning() const { return IsTrain() && trainState == TrainState::Run; }
+    // 端どうしの連結・分岐・端の寄せから外すレール（動くレールと線路）
+    bool IsLinkExcluded() const { return HasMotion() || isTrack; }
+    // 歩いて乗り移れないレール（線路・走っている列車）
+    bool IsUnwalkable() const { return isTrack || IsTrainRunning(); }
 
     // 動きが設定されているか
     bool HasMotion() const {

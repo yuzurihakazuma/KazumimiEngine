@@ -10,7 +10,7 @@ set INC=/I"%P%" /I"%P%\engine\graphics" /I"%P%\engine\base" /I"%P%\engine\audio"
 cl /nologo /std:c++20 /EHsc /utf-8 /O2 /D_ALLOW_KEYWORD_MACROS /DDIRECTINPUT_VERSION=0x0800 %INC% /Foobj\ ^
   main.cpp ..\blocksim\stubs.cpp ^
   "%P%\engine\rail\SplineRail.cpp" "%P%\engine\math\VectorMath.cpp" ^
-  "%P%\game\rail\RailConnections.cpp" ^
+  "%P%\game\rail\RailConnections.cpp" "%P%\game\rail\RailMotion.cpp" ^
   "%P%\game\rail\road\RoadJunctionDetector.cpp" "%P%\game\rail\road\RoadJunctionPatchBuilder.cpp" ^
   "%P%\game\rail\road\RoadSweepBuilder.cpp" "%P%\game\rail\road\RoadClothBuilder.cpp" "%P%\game\rail\road\RoadMeshBuilder.cpp" ^
   "%P%\game\stage\BlockSystem.cpp" "%P%\game\stage\BlockShape.cpp" "%P%\game\stage\BlockGrid.cpp" ^

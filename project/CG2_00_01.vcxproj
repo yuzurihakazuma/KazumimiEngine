@@ -376,6 +376,9 @@ exit 0</Command>
     <ClCompile Include="engine\3d\Skybox.cpp" />
     <ClCompile Include="engine\rail\SplineRail.cpp" />
     <ClCompile Include="game\clear\GoalGate.cpp" />
+    <ClCompile Include="game\clear\ClearBackdrop.cpp" />
+    <ClCompile Include="game\rail\TrainVisuals.cpp" />
+    <ClCompile Include="game\rail\ToyTrain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\particle\GPUParticleEmitterData.h" />
@@ -599,6 +602,9 @@ exit 0</Command>
     <ClInclude Include="engine\utils\RenderStats.h" />
     <ClInclude Include="game\ui\UiScale.h" />
     <ClInclude Include="game\clear\GoalGate.h" />
+    <ClInclude Include="game\clear\ClearBackdrop.h" />
+    <ClInclude Include="game\rail\TrainVisuals.h" />
+    <ClInclude Include="game\rail\ToyTrain.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

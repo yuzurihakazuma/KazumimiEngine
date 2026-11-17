@@ -154,7 +154,7 @@ bool GameOverFlow::UpdateAfterCombat(){
         player->Respawn();
         if ( context_.onRespawn ) { context_.onRespawn(); }
         if ( context_.screenFx ) { context_.screenFx->StartMissIris(); }
-        if ( context_.railField ) { context_.railField->ResetMotion(); }
+        if ( context_.railField ) { context_.railField->ResetMotion(true); } // 渡し板「ころころ」は広げたまま
     }
     return false;
 }

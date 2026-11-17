@@ -29,13 +29,13 @@ namespace {
     // フェーズ1：最も近い端点同士で連結関係を決める（動くレールは除外）
     void FindEndConnections(std::vector<SplineRail>& rails){
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
-            if ( rails[i].isLoop || rails[i].HasMotion() || rails[i].nodes.size() < 2 ) continue;
+            if ( rails[i].isLoop || rails[i].IsLinkExcluded() || rails[i].nodes.size() < 2 ) continue;
             const Vector3& iFront = rails[i].nodes.front();
             const Vector3& iBack  = rails[i].nodes.back();
             float bestFront = kConnThreshold;
             float bestBack  = kConnThreshold;
             for ( int j = 0; j < ( int ) rails.size(); ++j ) {
-                if ( i == j || rails[j].HasMotion() || rails[j].nodes.size() < 2 ) continue;
+                if ( i == j || rails[j].IsLinkExcluded() || rails[j].nodes.size() < 2 ) continue;
                 const Vector3& jFront = rails[j].nodes.front();
                 const Vector3& jBack  = rails[j].nodes.back();
 
@@ -144,13 +144,13 @@ namespace {
         bool changed = false;
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
             SplineRail& a = rails[i];
-            if ( a.nodes.size() < 2 || a.isLoop || a.HasMotion() || a.lineMode != 0 ) continue;
+            if ( a.nodes.size() < 2 || a.isLoop || a.IsLinkExcluded() || a.lineMode != 0 ) continue;
             for ( int end = 0; end < 2; ++end ) {
                 const bool aFront = ( end == 0 );
                 const int  j      = aFront ? a.frontConnIndex : a.backConnIndex;
                 if ( j <= i ) continue; // つながっていない・自分自身・相手の側で処理済み
                 SplineRail& b = rails[j];
-                if ( b.nodes.size() < 2 || b.isLoop || b.HasMotion() || b.lineMode != 0 ) continue;
+                if ( b.nodes.size() < 2 || b.isLoop || b.IsLinkExcluded() || b.lineMode != 0 ) continue;
                 const bool bFront = aFront ? a.frontConnToFront : a.backConnToFront;
                 // 互いに選び合っている組だけ（片思いの端は、相手の曲線を変えない）
                 const int  backIndex = bFront ? b.frontConnIndex : b.backConnIndex;
@@ -196,7 +196,7 @@ namespace {
         bool moved = false;
         for ( int j = 0; j < ( int ) rails.size(); ++j ) {
             SplineRail& rj = rails[j];
-            if ( rj.nodes.size() < 2 || rj.isLoop || rj.HasMotion() ) continue;
+            if ( rj.nodes.size() < 2 || rj.isLoop || rj.IsLinkExcluded() ) continue;
             for ( int end = 0; end < 2; ++end ) {
                 const bool isFront = ( end == 0 );
                 if ( ( isFront ? rj.frontConnIndex : rj.backConnIndex ) >= 0 ) continue; // 端どうしでつながっている
@@ -204,7 +204,7 @@ namespace {
                 for ( int i = 0; i < ( int ) rails.size(); ++i ) {
                     if ( i == j ) continue;
                     const SplineRail& ri = rails[i];
-                    if ( ri.nodes.size() < 2 || ri.HasMotion() ) continue;
+                    if ( ri.nodes.size() < 2 || ri.IsLinkExcluded() ) continue;
                     const float len = ri.GetLength();
                     if ( len < 1.5f ) continue;
                     const float cd = ri.GetClosestDistance(node);
@@ -227,7 +227,7 @@ namespace {
     void FindBranchPoints(std::vector<SplineRail>& rails){
         for ( int j = 0; j < ( int ) rails.size(); ++j ) {
             const SplineRail& rj = rails[j];
-            if ( rj.nodes.size() < 2 || rj.isLoop || rj.HasMotion() ) continue;
+            if ( rj.nodes.size() < 2 || rj.isLoop || rj.IsLinkExcluded() ) continue;
 
             struct EndInfo { Vector3 pos; bool isFront; int connIdx; };
             const EndInfo ends[2] = {
@@ -239,7 +239,7 @@ namespace {
                 for ( int i = 0; i < ( int ) rails.size(); ++i ) {
                     if ( i == j ) continue;
                     SplineRail& ri = rails[i];
-                    if ( ri.nodes.size() < 2 || ri.HasMotion() ) continue;
+                    if ( ri.nodes.size() < 2 || ri.IsLinkExcluded() ) continue;
                     float len = ri.GetLength();
                     if ( len < 1.5f ) continue;
 

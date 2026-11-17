@@ -411,6 +411,9 @@
     <ClCompile Include="game\camera\PlayCameraController.cpp">
       <Filter>game\camera</Filter>
     </ClCompile>
+    <ClCompile Include="game\clear\ClearBackdrop.cpp">
+      <Filter>game\clear</Filter>
+    </ClCompile>
     <ClCompile Include="game\clear\ClearCamera.cpp">
       <Filter>game\clear</Filter>
     </ClCompile>
@@ -637,6 +640,12 @@
       <Filter>game\rail\road</Filter>
     </ClCompile>
     <ClCompile Include="game\rail\RoadMesh.cpp">
+      <Filter>game\rail</Filter>
+    </ClCompile>
+    <ClCompile Include="game\rail\ToyTrain.cpp">
+      <Filter>game\rail</Filter>
+    </ClCompile>
+    <ClCompile Include="game\rail\TrainVisuals.cpp">
       <Filter>game\rail</Filter>
     </ClCompile>
     <ClCompile Include="game\scene\BaseScene.cpp">
@@ -1043,6 +1052,9 @@
     <ClInclude Include="game\camera\PlayCameraController.h">
       <Filter>game\camera</Filter>
     </ClInclude>
+    <ClInclude Include="game\clear\ClearBackdrop.h">
+      <Filter>game\clear</Filter>
+    </ClInclude>
     <ClInclude Include="game\clear\ClearCamera.h">
       <Filter>game\clear</Filter>
     </ClInclude>
@@ -1290,6 +1302,12 @@
       <Filter>game\rail\road</Filter>
     </ClInclude>
     <ClInclude Include="game\rail\RoadMesh.h">
+      <Filter>game\rail</Filter>
+    </ClInclude>
+    <ClInclude Include="game\rail\ToyTrain.h">
+      <Filter>game\rail</Filter>
+    </ClInclude>
+    <ClInclude Include="game\rail\TrainVisuals.h">
       <Filter>game\rail</Filter>
     </ClInclude>
     <ClInclude Include="game\scene\BaseScene.h">

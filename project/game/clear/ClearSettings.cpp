@@ -91,8 +91,11 @@ bool ClearSettings::Load(){
     const json lettersNode = JsonFile::Child(root, "letters");
     JsonFile::Read(lettersNode, "count", letters.count);
     JsonFile::Read(lettersNode, "height", letters.height);
-    JsonFile::Read(lettersNode, "spacing", letters.spacing);
-    JsonFile::Read(lettersNode, "centerHeight", letters.centerHeight);
+    JsonFile::Read(lettersNode, "scale", letters.scale);
+    JsonFile::Read(lettersNode, "arcRadius", letters.arcRadius);
+    JsonFile::Read(lettersNode, "arcAngles", letters.arcAngles);
+    JsonFile::Read(lettersNode, "stringLength", letters.stringLength);
+    JsonFile::Read(lettersNode, "dropHeight", letters.dropHeight);
     JsonFile::Read(lettersNode, "front", letters.front);
     JsonFile::Read(lettersNode, "start", letters.start);
     JsonFile::Read(lettersNode, "interval", letters.interval);
@@ -117,6 +120,21 @@ bool ClearSettings::Load(){
     JsonFile::Read(confettiNode, "height", confetti.height);
     JsonFile::Read(confettiNode, "spread", confetti.spread);
 
+    // クリアの書き割り（"backdrop"：{ model, back, side, up, scale[3], turn } の並び）
+    if ( root.contains("backdrop") && root["backdrop"].is_array() ) {
+        backdrop.clear();
+        for ( const json& entry : root["backdrop"] ) {
+            ClearBackdropItem item;
+            JsonFile::Read(entry, "model", item.model);
+            JsonFile::Read(entry, "back", item.back);
+            JsonFile::Read(entry, "side", item.side);
+            JsonFile::Read(entry, "up", item.up);
+            JsonFile::Read(entry, "scale", item.scale);
+            JsonFile::Read(entry, "turn", item.turn);
+            if ( !item.model.empty() ) { backdrop.push_back(item); }
+        }
+    }
+
     ReadResult(root, result);
 
     const json soundsNode = JsonFile::Child(root, "sounds");
@@ -134,8 +152,9 @@ bool ClearSettings::Load(){
 bool ClearSettings::SaveProps() const{
     json root;
     JsonFile::Load(kSharedFile, root); // ほかの項目を残すため、今のファイルに書き足す
-    root["letters"]["centerHeight"] = letters.centerHeight;
-    root["letters"]["spacing"] = letters.spacing;
+    root["letters"]["scale"] = letters.scale;
+    root["letters"]["arcRadius"] = letters.arcRadius;
+    root["letters"]["arcAngles"] = letters.arcAngles;
     root["letters"]["front"] = letters.front;
     root["stars"]["pivotSide"] = stars.pivotSide;
     root["stars"]["pivotHeight"] = stars.pivotHeight;

@@ -2703,17 +2703,7 @@
             0,
             0
         ],
-        [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
+        [],
         [
             0,
             0,
@@ -3294,6 +3284,158 @@
         1.0,
         1.0
     ],
+    "railTrains": [
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 1
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        },
+        {
+            "depart": 0.800000011920929,
+            "engine": 1,
+            "return": 4.0,
+            "use": 0
+        }
+    ],
     "railTypes": [
         0,
         -1,
@@ -3349,5 +3491,5 @@
         1
     ],
     "startNodeIndex": 0,
-    "startRailIndex": 0
+    "startRailIndex": 21
 }

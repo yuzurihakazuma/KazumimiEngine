@@ -102,6 +102,7 @@ void RailEditor::OnMapChanged(){
     data_->railOneWay.resize(data_->railLines.size(), 0);
     data_->railSpeedMuls.resize(data_->railLines.size(), 1.0f);
     data_->railCameras.resize(data_->railLines.size());
+    data_->railTrains.resize(data_->railLines.size());
     data_->railSkins.resize(data_->railLines.size());
     initialLines_   = data_->railLines;
     initialTypes_   = data_->railTypes;
@@ -721,6 +722,7 @@ void RailEditor::SyncRailArraySizes(){
 	data_->railOneWay.resize(n, 0);
 	data_->railSpeedMuls.resize(n, 1.0f);
 	data_->railCameras.resize(n);
+	data_->railTrains.resize(n);
 	data_->railSkins.resize(n);
 
 	// レールが短くなって範囲外に取り残されたブロックを末尾セルへ寄せる。
@@ -788,6 +790,7 @@ int RailEditor::AppendRail(std::vector<Vector3> line, const std::string& group){
 	data_->railOneWay.push_back(0);
 	data_->railSpeedMuls.push_back(1.0f);
 	data_->railCameras.push_back(RailCamera {});
+	data_->railTrains.push_back(RailTrain {});
 	data_->railSkins.push_back(RailSkin {});
 	return ( int ) data_->railLines.size() - 1;
 }
@@ -843,6 +846,7 @@ void RailEditor::EraseRail(int idx){
 	data_->railOneWay.erase(data_->railOneWay.begin() + idx);
 	data_->railSpeedMuls.erase(data_->railSpeedMuls.begin() + idx);
 	data_->railCameras.erase(data_->railCameras.begin() + idx);
+	if ( idx < ( int ) data_->railTrains.size() ) { data_->railTrains.erase(data_->railTrains.begin() + idx); }
 	data_->railSkins.erase(data_->railSkins.begin() + idx);
 	// ガイド参照の付け替え：消した番号より後ろは1つ前へ、消した本人を指していたら解除
 	for ( auto& guideRef : data_->railGuideRails ) {
@@ -853,6 +857,11 @@ void RailEditor::EraseRail(int idx){
 	for ( auto& appearRef : data_->railAppearTriggers ) {
 		if ( appearRef == idx ) { appearRef = -1; }
 		else if ( appearRef > idx ) { --appearRef; }
+	}
+	// 渡し板がつなぐ列車の参照も同様に付け替え
+	for ( auto& train : data_->railTrains ) {
+		if ( train.boardFor == idx ) { train.boardFor = -1; }
+		else if ( train.boardFor > idx ) { --train.boardFor; }
 	}
 	// コインの付け替え：消したレール上のコインは削除、後ろのレールのコインは番号を1つ前へ
 	std::erase_if(data_->coins, [idx](const CoinData& coin){ return coin.rail == idx; });
@@ -1620,6 +1629,7 @@ void RailEditor::DuplicateRail(int railIdx){
 	data_->railOneWay.push_back(( railIdx < ( int ) data_->railOneWay.size() ) ? data_->railOneWay[railIdx] : 0);
 	data_->railSpeedMuls.push_back(( railIdx < ( int ) data_->railSpeedMuls.size() ) ? data_->railSpeedMuls[railIdx] : 1.0f);
 	data_->railCameras.push_back(( railIdx < ( int ) data_->railCameras.size() ) ? data_->railCameras[railIdx] : RailCamera {});
+	data_->railTrains.push_back(( railIdx < ( int ) data_->railTrains.size() ) ? data_->railTrains[railIdx] : RailTrain {});
 	data_->railSkins.push_back(( railIdx < ( int ) data_->railSkins.size() ) ? data_->railSkins[railIdx] : RailSkin {});
 	SelectWholeRail(( int ) data_->railLines.size() - 1);
 	RebuildRailPoints();
@@ -1980,6 +1990,7 @@ RailEditor::RailSettings RailEditor::CaptureRailSettings() const{
 	settings.motionPhases   = data_->railMotionPhases;
 	settings.speedMuls      = data_->railSpeedMuls;
 	settings.cameras        = data_->railCameras;
+	settings.trains         = data_->railTrains;
 	settings.skins          = data_->railSkins;
 	return settings;
 }
@@ -2005,6 +2016,7 @@ void RailEditor::ApplyRailSettings(const RailSettings& settings){
 	data_->railMotionPhases   = settings.motionPhases;
 	data_->railSpeedMuls      = settings.speedMuls;
 	data_->railCameras        = settings.cameras;
+	data_->railTrains         = settings.trains;
 	data_->railSkins          = settings.skins;
 	SyncRailArraySizes(); // 古い履歴（配列が足りない）でも数だけは必ずそろえる
 }
@@ -2932,6 +2944,7 @@ void RailEditor::DrawSelectedRailSection(){
 					data_->railOneWay.resize(railTotal, 0);
 					data_->railSpeedMuls.resize(railTotal, 1.0f);
 					data_->railCameras.resize(railTotal);
+					data_->railTrains.resize(railTotal);
 					data_->railSkins.resize(railTotal);
 					data_->railGuideRails.resize(railTotal, -1);
 					data_->railGuideStarts.resize(railTotal, 0.0f);
@@ -2953,6 +2966,7 @@ void RailEditor::DrawSelectedRailSection(){
 						data_->railOneWay[g]      = data_->railOneWay[currentEditRailIndex_];
 						data_->railSpeedMuls[g]   = data_->railSpeedMuls[currentEditRailIndex_];
 						data_->railCameras[g]     = data_->railCameras[currentEditRailIndex_];
+						data_->railTrains[g]      = data_->railTrains[currentEditRailIndex_];
 						data_->railSkins[g]       = data_->railSkins[currentEditRailIndex_];
 						data_->railGuideRails[g]  = data_->railGuideRails[currentEditRailIndex_];
 						data_->railGuideStarts[g] = data_->railGuideStarts[currentEditRailIndex_];
@@ -4063,6 +4077,51 @@ void RailEditor::DrawRailMotionSection(){
 			if ( ImGui::IsItemHovered() ) {
 				ImGui::SetTooltip("足場の位置から縦6mのガイド（見えない骨組み）を作って割り当てる。\n形は下の経路エディタでドラッグして自由に変えられる");
 			}
+			// --- 列車：駅で待つ → 乗ると発車 → 次の駅で止まる（下の「動き方」「停車時間」「動き出し」「位相」は使わない）---
+			data_->railTrains.resize(data_->railLines.size());
+			RailTrain& train = data_->railTrains[currentEditRailIndex_];
+			bool trainOn = ( train.enabled != 0 );
+			if ( ImGui::Checkbox("列車にする（駅で待つ→乗ると発車→次の駅で止まる）##train", &trainOn) ) {
+				train.enabled = trainOn ? 1 : 0;
+				motionChanged = true;
+			}
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("足場を列車（台車＋機関車）にして、ガイドを線路（枕木とレール）にする。\n"
+					"駅＝ガイドの区間の両はし。足場を置いた所に近い方が元の駅。\n"
+					"乗ると少しして発車し、向こうの駅で止まる。走っている間は降りられない・乗れない。\n"
+					"降りてだれも乗らないと、しばらくして元の駅へ戻る（ミスしてやり直す時に乗れるように）。\n"
+					"ガイドの高さ＝台車の上の面（歩く高さ）。線路はその 1.1m 下に描く。\n"
+					"駅の道は、止まった台車の真ん中の線まで重ねて置く（端から台車へ乗れる・乗り換えキーで降りられる）");
+			}
+			if ( trainOn ) {
+				ImGui::Indent();
+				ImGui::SetNextItemWidth(100.0f);
+				if ( ImGui::DragFloat("発車までの秒##trainDepart", &train.departSec, 0.05f, 0.0f, 10.0f, "%.2f") ) {
+					train.departSec = ( std::max )( train.departSec, 0.0f );
+					motionChanged = true;
+				}
+				bool trainReturns = ( train.returnSec >= 0.0f );
+				if ( ImGui::Checkbox("だれも乗らないと元の駅へ戻る##trainReturn", &trainReturns) ) {
+					train.returnSec = trainReturns ? 4.0f : -1.0f;
+					motionChanged = true;
+				}
+				if ( trainReturns ) {
+					ImGui::SameLine();
+					ImGui::SetNextItemWidth(90.0f);
+					if ( ImGui::DragFloat("秒後##trainReturnSec", &train.returnSec, 0.1f, 0.0f, 60.0f, "%.1f") ) {
+						train.returnSec = ( std::max )( train.returnSec, 0.0f );
+						motionChanged = true;
+					}
+				}
+				bool trainEngine = ( train.engine != 0 );
+				if ( ImGui::Checkbox("先頭に機関車##trainEngine", &trainEngine) ) {
+					train.engine = trainEngine ? 1 : 0;
+					motionChanged = true;
+				}
+				ImGui::TextDisabled("駅から駅までの秒＝上の「周期」");
+				ImGui::Unindent();
+			}
+
 			int& guideMode = data_->railGuideModes[currentEditRailIndex_];
 			const char* guideModeLabels[] = { "一周ループ (終点まで行くと始点へ戻る)",
 			                                  "往復 (端で滑らかに折り返す)",
@@ -4146,6 +4205,36 @@ void RailEditor::DrawRailMotionSection(){
 			ImGui::SetTooltip("「乗ったら動き出す」＝プレイヤーがこのレールに乗るまで待機し、\n"
 				"乗った瞬間から動き出す（以後は降りても動き続ける）。\n"
 				"ガイド追従リフトに設定すると、乗ってから出発する列車になる");
+		}
+
+		// 渡し板：列車がこのレールの駅に止まった時だけ、ぱたんと倒れて開く板にする
+		{
+			data_->railTrains.resize(data_->railLines.size());
+			int& boardFor = data_->railTrains[currentEditRailIndex_].boardFor;
+			int& boardMode = data_->railTrains[currentEditRailIndex_].boardMode;
+			auto boardLabel = [&](int mode, int r) -> std::string {
+				if ( mode == 1 ) { return "ころころ：卵を当てると広がる"; }
+				return r < 0 ? std::string("しない") : "ぱたん：路線" + std::to_string(r) + " の列車が止まったら開く";
+			};
+			ImGui::SetNextItemWidth(260.0f);
+			if ( ImGui::BeginCombo("渡し板##board", boardLabel(boardMode, boardFor).c_str()) ) {
+				if ( ImGui::Selectable("しない", boardMode == 0 && boardFor < 0) ) { boardFor = -1; boardMode = 0; motionChanged = true; }
+				if ( ImGui::Selectable(boardLabel(1, -1).c_str(), boardMode == 1) ) { boardFor = -1; boardMode = 1; motionChanged = true; }
+				for ( int r = 0; r < ( int ) data_->railTrains.size(); ++r ) {
+					if ( r == currentEditRailIndex_ || data_->railTrains[r].enabled == 0 ) continue; // 列車にしたレールだけ
+					if ( ImGui::Selectable(boardLabel(0, r).c_str(), boardMode == 0 && boardFor == r) ) { boardFor = r; boardMode = 0; motionChanged = true; }
+				}
+				ImGui::EndCombo();
+			}
+			if ( ImGui::IsItemHovered() ) {
+				ImGui::SetTooltip("このレールを渡し板（草の板）にする。閉じている・広がる前は乗れない。\n"
+					"・ぱたん：列車がこの駅に止まっている時だけ、駅の側を軸にぱたんと倒れて開く。\n"
+					"　発車を待つ間に起き上がって閉じる（止まっていない列車には乗れない）。列車に遠い方のはしがちょうつがい。\n"
+					"・ころころ：巻いた草のマットが置いてあり、卵を当てると転がって広がる。一度広げたらそのまま\n"
+					"　（落ちて戻っても広がったまま。やり直し・ゲームオーバー・エディタへ戻ると巻き直す）。\n"
+					"　ほかの道とつながっている方のはしから転がり出す。\n"
+					"引き方：駅の道のはしから、止まった列車の真ん中の線（または向こう岸）まで、まっすぐ1本");
+			}
 		}
 
 		if ( motionChanged ) { ++railVersion_; } // ゲーム側へ即反映

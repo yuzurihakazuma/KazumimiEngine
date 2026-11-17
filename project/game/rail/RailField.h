@@ -29,9 +29,14 @@ public:
     //   ridingRail: プレイヤーが今乗っているレール番号（「乗ったら動き出す」レールの発動判定。
     //   -1=誰も乗っていない / kMotionStartAll=全レール強制発動＝エディタのプレビュー用）
     static constexpr int kMotionStartAll = RailMotion::kStartAll;
-    void UpdateMotion(float dt, int ridingRail = -1);
+    //   playerRail: プレイヤーのレール（跳んでいる間も。列車の「乗っている」に使う。-1＝ridingRail と同じ）
+    void UpdateMotion(float dt, int ridingRail = -1, int playerRail = -1);
     // 編集モードへ戻った時：動くレールを基準位置へ戻す（発動状態・出現状態もリセット）
-    void ResetMotion();
+    //   keepRolls＝渡し板「ころころ」を広げたままにする（落ちて戻った時）
+    void ResetMotion(bool keepRolls = false);
+    // 卵 × 渡し板「ころころ」の巻いたマット。当たったら広がり始めて true（卵を割る）
+    bool HitRoll(const Vector3& from, const Vector3& to, float radius);
+    bool HasRolls() const;
     // 動くレールのエディタプレビュー：Playを押さなくても動きを再生して組み方を確認できる。
     //   enabled が false に変わった瞬間に基準位置へ戻す（編集と表示がずれないように）。Edit中に毎フレーム呼ぶ
     void UpdateEditorPreview(bool enabled);

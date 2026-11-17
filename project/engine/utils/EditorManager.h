@@ -233,6 +233,7 @@ public:
 	int GetEditorGoalNode() const;   // ゴール地点（ノード番号）
 	const std::vector<LevelCameraZone>& GetEditorCameraZones() const; // カメラ演出ゾーン
 	const std::vector<RailCamera>& GetEditorRailCameras() const;      // レールごとのカメラ
+	const std::vector<RailTrain>& GetEditorRailTrains() const;        // レールごとの列車の設定
 
 	// --- 敵の配置（マップと一緒に保存/読込）。シーンの EnemyEditor と同期する ---
 	void SetEditorEnemyData(const std::vector<LevelEnemyData>& e); // シーン→エディタ（保存に乗せる）

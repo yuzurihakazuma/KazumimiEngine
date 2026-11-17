@@ -44,12 +44,16 @@ struct ClearGate {
     float tapeAngle = 1.45f;        // テープが根元を軸に垂れる角度(rad)
 };
 
-// 「ゴール！」の切り文字（白い紙の札に色紙の文字。門のアーチから糸で下がる）
+// 「ゴール！」の切り文字（白い紙の札に色紙の文字）。上から糸で吊られて下りてきて、アーチの虹の上に弧を描いて並ぶ
+//   （門の柱・花や、札どうしに重ならないよう、虹の帯の上に置く）
 struct ClearLetters {
     int   count = 4;
     float height = 1.05f;        // 札の高さ(m)（モデルと同じ）
-    float spacing = 1.16f;       // 札の間(m)
-    float centerHeight = 2.6f;   // 下がり切った時の、札の真ん中の高さ（門の足元から）
+    float scale = 0.7f;          // 札の大きさ（モデルに対する倍率）
+    float arcRadius = 1.65f;     // 札の真ん中を並べる円の半径（アーチの円の中心から。虹の帯のまん中あたり）
+    std::vector<float> arcAngles { -62.0f, -22.0f, 22.0f, 62.0f }; // 札の位置（てっぺんからの角度・度。左が－）
+    float stringLength = 3.5f;   // 札の上の糸の長さ(m)。糸は画面の上の外まで伸びる
+    float dropHeight = 3.0f;     // 下りてくる高さ(m)
     float front = 0.05f;         // アーチの表の面から、さらに手前へ(m)
     float start = 0.15f;         // 場面に入ってから、最初の文字が下り始めるまで(秒)
     float interval = 0.14f;      // 文字ごとの遅れ(秒)
@@ -119,6 +123,16 @@ struct ClearSounds {
     std::string road = "resources/clear/se_road.wav";
 };
 
+// クリアの書き割り 1 枚（ClearBackdrop）。門の足元から、カメラから見て奥へ back・右へ side・上へ up(m)。表をカメラへ向ける
+struct ClearBackdropItem {
+    std::string model;            // クラフトのキットのモデル（resources/craft/models/<model>.gltf）
+    float back = 20.0f;
+    float side = 0.0f;
+    float up = 0.0f;
+    Vector3 scale { 1.0f, 1.0f, 1.0f };
+    float turn = 0.0f;            // カメラへ向けた後に、さらに回す(rad)
+};
+
 // どのステージでも同じ値（clear.json）
 struct ClearSettings {
     ClearTiming full;          // 初めてのクリア
@@ -128,6 +142,7 @@ struct ClearSettings {
     ClearLetters letters;
     ClearStars stars;
     ClearConfetti confetti;
+    std::vector<ClearBackdropItem> backdrop; // クリアの間だけ、門の後ろに立てる書き割り
     ClearResultLayout result;
     ClearSounds sounds;
 
@@ -144,7 +159,7 @@ struct ClearStageSettings {
     float landAhead = 1.4f;         // 門をくぐってから着地する所（門から先へ m）
     // 演出カメラの終点（着地する所から見て）。くぐった向きから、遊んでいる時のカメラの側へ cameraYaw 度回した方へ置く
     //   （真正面だと、来た道をまっすぐ見通してしまう。少し横からにすると、門と恐竜が重ならずに並ぶ）
-    float cameraYaw = 28.0f;
+    float cameraYaw = 20.0f;
     float cameraDistance = 8.6f;
     float cameraHeight = 2.0f;
     float lookHeight = 2.4f;        // 見る点の高さ

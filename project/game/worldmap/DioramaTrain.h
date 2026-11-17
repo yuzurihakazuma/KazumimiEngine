@@ -1,12 +1,13 @@
 #pragma once
 // =====================================================================
 //  DioramaTrain：箱庭の上をぐるぐる走る、おもちゃの汽車（ステージの目印。ステージ選択）。
-//   機関車＋客車2両を、フェルトの色の箱・筒・球で組む（モデルの素材は要らない）。
+//   機関車＋客車2両を、フェルトの色の箱・筒・球で組む（形は game/rail/ToyTrain。ステージの列車と同じ）。
 //   線路（輪になったレール。箱庭の中の座標）に沿って走り、向きは線路の向き
 //   DioramaRoot：箱庭の中の座標 → 世界（縮めて・回して・台座の上へ）。StageDiorama と同じ変換
 // =====================================================================
 #include "engine/math/struct.h"
 #include "engine/rail/SplineRail.h"
+#include "game/rail/ToyTrain.h"
 
 #include <memory>
 #include <vector>
@@ -47,7 +48,7 @@ private:
         std::vector<Part> parts;
         float behind = 0.0f; // 機関車の先頭から、この車両の真ん中までの距離
     };
-    void AddPart(Car& car, const char* shape, const Vector3& color, const Vector3& offset, const Vector3& size, float pitch = 0.0f);
+    void AddPart(Car& car, const ToyTrain::Part& part);
 
     SplineRail loop_;
     std::vector<Car> cars_;

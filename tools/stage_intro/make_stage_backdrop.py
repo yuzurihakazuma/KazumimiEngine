@@ -21,6 +21,7 @@
   ・ずっと下（落ちてミスになる高さより下）に、裏返したブロックで段ボールの底を敷く
           （穴をのぞくと、深い穴の底が見える。何も無いと画面のクリア色が見えてしまう）
   道を直したら、もう一度流せば合う
+  最後に make_backdrop_ring.py を呼んで、ステージのまわりを段ボールの書き割りで囲う（ジオラマの舞台）
 """
 import json
 import math
@@ -609,3 +610,7 @@ with open(OUT, "w", encoding="utf-8") as f:
     json.dump({"stage": STAGE, "grid": {"origin": [round(min_x, 4), round(min_z, 4)], "cell": SUB}, "objects": objects},
               f, ensure_ascii=False, separators=(",", ":"))
 print("wrote", OUT, len(objects), "objects", counts)
+
+# ステージのまわりの段ボールの囲い（手前・左・右の空の板・丘・雲と、囲いの内側の底）を足し直す
+import make_backdrop_ring  # noqa: E402
+make_backdrop_ring.main()

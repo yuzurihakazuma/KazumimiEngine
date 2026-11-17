@@ -181,6 +181,15 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
     }
     rootJson["railCameras"] = cameraArray;
 
+    // レールごとの列車。railLines と数を合わせて保存
+    json trainArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        const RailTrain train = ( i < levelData.railTrains.size() ) ? levelData.railTrains[i] : RailTrain {};
+        trainArray.push_back({ { "use", train.enabled }, { "depart", train.departSec }, { "return", train.returnSec },
+                               { "engine", train.engine }, { "board", train.boardFor }, { "boardMode", train.boardMode } });
+    }
+    rootJson["railTrains"] = trainArray;
+
     // 道の見た目（布ロード）。railLines と数を合わせて保存
     json skinArray = json::array();
     for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
@@ -461,6 +470,20 @@ LevelData LevelManager::Load(const std::string& fileName){
             levelData.railCameras.push_back(camera);
         }
     }
+    if ( rootJson.contains("railTrains") && rootJson["railTrains"].is_array() ) {
+        for ( const auto& trainJson : rootJson["railTrains"] ) {
+            RailTrain train;
+            if ( trainJson.is_object() ) {
+                train.enabled   = trainJson.value("use", train.enabled);
+                train.departSec = trainJson.value("depart", train.departSec);
+                train.returnSec = trainJson.value("return", train.returnSec);
+                train.engine    = trainJson.value("engine", train.engine);
+                train.boardFor  = trainJson.value("board", train.boardFor);
+                train.boardMode = trainJson.value("boardMode", train.boardMode);
+            }
+            levelData.railTrains.push_back(train);
+        }
+    }
     if ( rootJson.contains("railSkins") && rootJson["railSkins"].is_array() ) {
         for ( const auto& skinJson : rootJson["railSkins"] ) {
             RailSkin skin;
@@ -557,6 +580,7 @@ LevelData LevelManager::Load(const std::string& fileName){
     levelData.railOneWay.resize(levelData.railLines.size(), 0);
     levelData.railSpeedMuls.resize(levelData.railLines.size(), 1.0f);
     levelData.railCameras.resize(levelData.railLines.size());
+    levelData.railTrains.resize(levelData.railLines.size());
     levelData.railSkins.resize(levelData.railLines.size());
     levelData.railNodeHoles.resize(levelData.railLines.size());
     // 各レールの穴配列をノード数に合わせる（足りない分は0=穴なし）

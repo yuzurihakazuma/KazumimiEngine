@@ -64,6 +64,7 @@ protected:
     virtual bool GetSdfViewerPosition(Vector3& /*outPos*/) const { return false; }
 
     // --- 差し込み口：描画（3Dは MRT の中。呼ばれる順） ---
+    virtual void OnDrawBackground(ID3D12GraphicsCommandList* /*commandList*/) {}  // いちばん奥の空（3D の物より先。Obj3d の準備の前）
     virtual void OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/) {}      // 不透明（Obj3d の準備済み）
     virtual void OnDrawInstanced() {}                                             // インスタンシングの一括描画
     virtual void OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/) {} // 透明・加算（パーティクルの前）

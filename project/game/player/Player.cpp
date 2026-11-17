@@ -288,6 +288,11 @@ bool Player::HandleRailEnds(const std::vector<SplineRail>& rails, const SplineRa
         }
         return false;
     }
+    // 走っている列車：足場のはしで止まる（走っている間は降りられない。駅で止まってから降りる）
+    if ( rail.IsTrainRunning() ) {
+        currentDistance_ = std::clamp(currentDistance_, 0.0f, len);
+        return false;
+    }
     if ( endHoldTimer_ > 0.0f ) { // 乗り換えキー・分岐・着地の直後は端でクランプ（乗った直後に隣へ持ち越すワープの防止）
         const float clamped = std::clamp(currentDistance_, 0.0f, len);
         if ( clamped != currentDistance_ ) {
@@ -407,6 +412,8 @@ bool Player::TryJoinNearbyBody(const std::vector<SplineRail>& rails, const Splin
 // 乗り換えキー：T字路の途中分岐（同じタイプ同士でも分岐できる）を優先し、
 //   無ければ押した方向に伸びている別タイプの近接レール（交差点近くだけ）へ乗り換える
 bool Player::TrySwitchOrBranch(const std::vector<SplineRail>& rails, bool horizontalRail, int switchDir){
+    // 走っている列車からは乗り換えない（降りられない）
+    if ( currentRailIndex_ >= 0 && currentRailIndex_ < ( int ) rails.size() && rails[currentRailIndex_].IsTrainRunning() ) { return false; }
     PlayerRailQuery::Spot spot;
     const bool branch = PlayerRailQuery::FindBranch(rails, currentRailIndex_, currentDistance_, switchDir, spot);
     const bool found = branch

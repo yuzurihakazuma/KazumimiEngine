@@ -373,9 +373,9 @@ def build_gate():
             band.rotation_euler = box.rotation_euler
             band.location = (x, 0, 0)
             parts.append(band)
-        # 柱の上の、大きな紙の花（表と裏）
-        for face, petal in ((-1, "paper_pink"), (1, "paper_orange")):
-            parts += paper_flower(f"pf{side}{face}", x, face * (ARCH_D / 2 + 0.03), PILLAR_TOP + 0.62, 0.34, petal, face)
+        # 大きな紙の花：裏は柱の上、表は柱のいちばん上の箱の面（表の柱の上は「ゴール！」の札が下りてくるので空けておく）
+        parts += paper_flower(f"pf{side}b", x, ARCH_D / 2 + 0.03, PILLAR_TOP + 0.62, 0.34, "paper_orange", 1)
+        parts += paper_flower(f"pf{side}f", x, -(PILLAR_W[2] * 0.46 + 0.03), PILLAR_TOP - 0.45, 0.3, "paper_pink", -1)
     # アーチ：段ボールの帯（真ん中の芯）＋表と裏に色紙の虹（外から赤・黄・緑）
     parts.append(extrude("arch", annulus(R_IN, R_OUT, ARCH_CY, 0, math.pi, 56), -ARCH_D / 2, ARCH_D / 2, KRAFT(), EDGE(), edge_uv=0.9))
     width = (R_OUT - R_IN) / 3
@@ -597,6 +597,25 @@ def build_string():
     return join("goal_string", [stick("str", (0, 0, -1.0), (0, 0, 0), 0.012, paper("paper_white"), 6)])
 
 
+# ================================================================ クリアの書き割りの太陽（clear.json の "backdrop" が門の後ろに置く）
+def build_sun():
+    """紙の太陽：黄色の丸に、オレンジの三角の光（12 本）。裏に段ボールの切り口。原点＝丸の真ん中の下のはし"""
+    R = 1.4
+    parts = [extrude("sd", circle(R, 48, cz=R + 0.9), -0.05, 0.05, paper("paper_yellow"), EDGE())]
+    rays = 12
+    for i in range(rays):
+        a = 2 * math.pi * (i + 0.5) / rays
+        c, s = math.cos(a), math.sin(a)
+        base, tip, half = R + 0.08, R + 0.75, 0.28
+        cz = R + 0.9
+        pts = [(base * c - half * s, cz + base * s + half * c), (base * c + half * s, cz + base * s - half * c), (tip * c, cz + tip * s)]
+        parts.append(extrude(f"sr{i}", pts, -0.03, 0.03, paper("paper_orange" if i % 2 else "paper_yellow"), EDGE()))
+    # ほっぺ（ピンクの丸）
+    for x in (-0.75, 0.75):
+        parts.append(extrude(f"sc{x}", circle(0.22, 20, cx=x, cz=R + 0.65), -0.065, -0.05, paper("paper_pink")))
+    return join("goal_sun", parts)
+
+
 # ================================================================ 書き出し
 def export(ob):
     bpy.ops.object.select_all(action="DESELECT")
@@ -641,7 +660,7 @@ def preview():
     for o in dino:
         if o.parent is None:
             o.location = land
-            o.rotation_euler = (0, 0, math.radians(-28 + 180))
+            o.rotation_euler = (0, 0, math.radians(-20 + 180))
     # 門まわり（門・卵・テープ・文字・星）を、入口の面がカメラの方へ向くよう GATE_TURN だけ回す（ゲームと同じ）
     turn = Matrix.Rotation(math.radians(GATE_TURN), 4, "Z")
     gate_parts = [bpy.data.objects[n] for n in ("goal_gate", "goal_egg_bottom", "goal_egg_top", "goal_tape_left", "goal_tape_right")]
@@ -649,16 +668,18 @@ def preview():
     import json as _json
     cfg = _json.load(open(CLEAR_JSON, encoding="utf-8"))
     lt, stc, gate = cfg["letters"], cfg["stars"], cfg["gate"]
-    attach_r = gate["archOuterRadius"] - 0.25
+    # 切り文字：アーチの虹の上の弧に並べる（ClearSettings の letters と同じ決め方）。糸は上へ
     for i in range(4):
         ob = bpy.data.objects[f"goal_letter_{i}"]
-        x = (i - 1.5) * lt["spacing"]
-        top = lt["centerHeight"] + lt["height"] / 2
-        attach = gate["archCenterHeight"] + math.sqrt(max(attach_r ** 2 - x * x, 0.0))
+        s = lt["scale"]
+        ob.scale = (s, s, s)
+        a = math.radians(lt["arcAngles"][i])
+        x = math.sin(a) * lt["arcRadius"]       # 門の表（-Y）から見て、右＝+X
+        top = gate["archCenterHeight"] + math.cos(a) * lt["arcRadius"] + lt["height"] * s / 2
         y = -(gate["archFront"] + lt["front"])
-        ob.location = (x, y, top)   # 門の表（-Y）から見て、右＝+X
-        s = stick(f"pvs{i}", (x, y, top), (x, y, attach), 0.012, paper("paper_white"), 6)
-        gate_parts += [ob, s]
+        ob.location = (x, y, top)
+        st = stick(f"pvs{i}", (x, y, top), (x, y, top + lt["stringLength"]), 0.012, paper("paper_white"), 6)
+        gate_parts += [ob, st]
     for i in range(stc["perSide"] * 2):
         side = -1 if i % 2 == 0 else 1
         ob = bpy.data.objects[f"goal_star_{i % 3}"].copy()
@@ -671,6 +692,25 @@ def preview():
     bpy.context.view_layer.update()  # 置いた場所を matrix_world へ反映してから回す
     for ob in gate_parts:
         ob.matrix_world = turn @ ob.matrix_world
+    # 札は、ゲームと同じく表を演出のカメラへ向ける（カメラは、くぐった向きから -X の側へ 20° 回った所）
+    for i in range(4):
+        ob = bpy.data.objects[f"goal_letter_{i}"]
+        ob.rotation_euler = (0.0, 0.0, math.radians(-20))
+    # 書き出し用に作った太陽（門の真ん中にある）は、絵に入れない（書き割りの太陽は下で読み込んで置く）
+    bpy.data.objects["goal_sun"].hide_render = True
+    # クリアの書き割り（clear.json の "backdrop"。ゲームの ClearBackdrop と同じ置き方：カメラから見て奥・右・上）
+    cam_yaw = math.radians(20)
+    back = Vector((math.sin(cam_yaw), math.cos(cam_yaw), 0.0))   # カメラから見て奥
+    right = Vector((math.cos(cam_yaw), -math.sin(cam_yaw), 0.0)) # カメラから見て右
+    for k, item in enumerate(cfg.get("backdrop", [])):
+        before = set(bpy.data.objects)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(MODELS, item["model"] + ".gltf"))
+        made = [o for o in bpy.data.objects if o not in before and o.parent is None]
+        sx, sy, sz = item["scale"]
+        for o in made:
+            o.location = back * item["back"] + right * item["side"] + Vector((0, 0, item["up"]))
+            o.rotation_euler = (0.0, 0.0, -cam_yaw + item.get("turn", 0.0))
+            o.scale = (sx, sz, sy)   # エンジンの (x, y＝上, z) → Blender の (x, y, z＝上)
     # 光と空
     world = bpy.data.worlds.new("w")
     sc.world = world
@@ -699,10 +739,12 @@ def preview():
     # 遊んでいる時のカメラ（横から：-X 側 10m・高さ 3.5・恐竜の 1m 上を見る）。恐竜が門の 4m 手前にいる時
     shoot(os.path.join(HERE, "preview_set_side.png"), (-10.0, 4.0, 3.5), (0, 4.0, 1.0), 0.78)
     # 演出の終わりのカメラ（ClearStageSettings の既定値と同じ式）
-    yaw, dist, h, look_h, fov = math.radians(28), 8.6, 2.0, 2.4, 0.82
+    yaw, dist, h, look_h, fov = math.radians(20), 8.6, 2.0, 2.4, 0.82
     eye = land + Vector((-math.sin(yaw) * dist, -math.cos(yaw) * dist, h))
     look = land + Vector((0, 0.7, look_h))
     shoot(os.path.join(HERE, "preview_set_front.png"), eye, look, fov)
+    if "--top" in ARGV:  # 上から見た並び（書き割りの置き場所の確認用）
+        shoot(os.path.join(HERE, "preview_set_top.png"), (0.0, 8.0, 60.0), (0.0, 8.0, 0.0), 0.9)
 
 
 # ================================================================
@@ -717,7 +759,8 @@ if __name__ == "__main__":
     letters = [build_letter(i, ch, c) for i, (ch, c) in enumerate(zip("ゴール！", LETTER_COLORS))]
     stars = [build_star(i, c) for i, c in enumerate(("paper_yellow", "paper_pink", "paper_orange"))]
     string = build_string()
-    for ob in [gate, egg_b, egg_t, tl, tr, string] + letters + stars:
+    sun = build_sun()
+    for ob in [gate, egg_b, egg_t, tl, tr, string, sun] + letters + stars:
         export(ob)
     write_gate_json()
     if PREVIEW:

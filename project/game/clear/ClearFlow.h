@@ -12,6 +12,7 @@
 //  演出の時間は、ゲームの時間（止まる）とは別の、止まらない時間で進める
 // =====================================================================
 #include "engine/math/struct.h"
+#include "game/clear/ClearBackdrop.h"
 #include "game/clear/ClearCamera.h"
 #include "game/clear/ClearContext.h"
 #include "game/clear/ClearSequence.h"
@@ -102,6 +103,7 @@ private:
     GoalGate     gate_;
     ClearCamera  camera_;
     GoalProps    props_;
+    ClearBackdrop backdrop_;       // クリアの間だけ、門の後ろに立てる書き割り
     ResultScreen result_;
     PaperFx      paperFx_;
     ClearSequence::Sequence sequence_;

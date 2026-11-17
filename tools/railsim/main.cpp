@@ -4,6 +4,7 @@
 //   railsim walk rails.txt <rail> <dist> <台本>    … プレイヤーを歩かせて、毎フレームの位置を出す
 //        台本の例：  X+:200,Z+:60,X+:300   （世界 +X を 200 フレーム押す → +Z を 60 → …。N:30 は何も押さない）
 //   railsim frames rails.txt <rail> <from> <to> <step> … レールの位置・向きを並べる
+//   railsim train <台本> [board|roll]             … 列車に乗って降りる（駅で待つ・走っている間は降りられない・空なら戻る。board＝渡し板ぱたん / roll＝ころころ）
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -24,6 +25,7 @@
 #include "game/stage/BlockSystem.h"
 #include "engine/rail/SplineRail.h"
 #include "game/rail/RailConnections.h"
+#include "game/rail/RailMotion.h"
 #include "game/rail/road/RoadJunctionDetector.h"
 #include "game/rail/road/RoadJunctionPatchBuilder.h"
 #include "game/rail/road/RoadSweepBuilder.h"
@@ -234,8 +236,83 @@ static void Walk(std::vector<SplineRail>& rails, int rail, float dist, const std
     }
 }
 
+// 列車の確かめ：駅 A の道（縦）→ 台車（横・6m）に乗る → 発車 → 走っている間に降りようとする → 駅 B で降りる → 空の列車が戻る。
+//   線路＝まっすぐ 40m。駅の道は、止まった台車の真ん中の線まで重ねてある。台本は walk と同じ（J:n＝跳ぶ）
+//   boardKind：駅 A の道を台車の 2m 手前で止め、そこから台車までを渡し板（4 番）にする（1＝ぱたん / 2＝ころころ。台本の E:1＝卵が当たる）
+static void Train(const std::string& script, int boardKind){
+    const bool withBoard = boardKind != 0;
+    auto line = [](std::initializer_list<Vector3> points){ SplineRail rail; rail.nodes = points; rail.BuildDistanceTable(); return rail; };
+    std::vector<SplineRail> rails;
+    if ( withBoard ) { rails.push_back(line({ { 4.0f, 1.0f, -6.0f }, { 4.0f, 1.0f, -4.0f }, { 4.0f, 1.0f, -2.0f } })); } // 0：駅 A の道（板の手前まで）
+    else             { rails.push_back(line({ { 4.0f, 1.0f, -6.0f }, { 4.0f, 1.0f, -3.0f }, { 4.0f, 1.0f, 0.0f } })); }  // 0：駅 A の道
+    rails.push_back(line({ { 1.0f, 1.0f, 0.0f }, { 4.0f, 1.0f, 0.0f }, { 7.0f, 1.0f, 0.0f } }));         // 1：台車
+    rails.push_back(line({ { 0.0f, 1.0f, 0.0f }, { 20.0f, 1.0f, 0.0f }, { 40.0f, 1.0f, 0.0f } }));       // 2：線路
+    rails.push_back(line({ { 33.3f, 1.0f, 0.0f }, { 33.3f, 1.0f, 3.0f }, { 33.3f, 1.0f, 6.0f } }));      // 3：駅 B の道
+    rails.push_back(line({ { 4.0f, 1.0f, -2.0f }, { 4.0f, 1.0f, -1.0f }, { 4.0f, 1.0f, 0.0f } }));       // 4：渡し板（withBoard の時だけ使う）
+    rails[0].type = rails[3].type = rails[4].type = SplineRail::RailType::Vertical;
+    if ( withBoard ) { rails[4].boardKind = boardKind; rails[4].boardTrain = boardKind == 1 ? 1 : -1; } else { rails[4].nodes.clear(); rails[4].BuildDistanceTable(); }
+    rails[1].type = rails[2].type = SplineRail::RailType::Horizontal;
+    SplineRail& car = rails[1];
+    car.motionType = 3; car.guideRail = 2; car.motionPeriod = 3.0f;
+    car.train = 1; car.trainDepart = 0.5f; car.trainReturn = 2.0f; car.trainEngine = 1;
+    car.animPivot = car.GetPositionByDistance(car.GetLength() * 0.5f);
+    car.restYaw = std::atan2(1.0f, 0.0f);
+    rails[2].visible = 0; rails[2].roadMode = 1;
+    rails[2].isTrack = true;
+    RailMotion::SetupTrain(car, rails);
+    RailMotion::SetupBoard(rails[4], rails);
+    car.roadMode = 1;
+    RailConnections::Build(rails);
+    RailMotion::SetupRollBoard(rails[4]);
+    RailMotion::Reset(rails);
+    std::printf("home %d  station x %.2f\n", car.trainHome, car.animPivot.x + car.animOffset.x);
+
+    BlockSystem blocks;
+    blocks.Sync({}, &rails);
+    Player player;
+    player.SetBlocks(&blocks);
+    player.SetSpawn(0, 1.0f);
+    player.SetCameraYaw(0.0f);
+    player.Initialize();
+    const float dt = 1.0f / 60.0f;
+    Time::GetInstance()->deltaTime_ = dt;
+    std::stringstream ss(script);
+    std::string part;
+    int frame = 0;
+    const char* states[] = { "Wait", "Depart", "Run" };
+    std::printf("frame,keys,playerRail,dist,x,y,z,grounded,train,carX,board\n");
+    while ( std::getline(ss, part, ',') ) {
+        const size_t colon = part.find(':');
+        const std::string keys = part.substr(0, colon);
+        const int frames = std::atoi(part.substr(colon + 1).c_str());
+        PlayerInput::AutoPilot pilot;
+        if ( keys == "X+" ) pilot.moveX = 1.0f;
+        if ( keys == "X-" ) pilot.moveX = -1.0f;
+        if ( keys == "Z+" ) pilot.moveZ = 1.0f;
+        if ( keys == "Z-" ) pilot.moveZ = -1.0f;
+        for ( int i = 0; i < frames; ++i, ++frame ) {
+            PlayerInput::AutoPilot now = pilot;
+            if ( i == 0 ) { now.switchX = ( int ) pilot.moveX; now.switchZ = ( int ) pilot.moveZ; }
+            if ( keys == "J" ) { now.jumpPressed = ( i == 0 ); now.jumpHeld = ( i < 10 ); }
+            if ( keys == "E" && i == 0 ) { rails[4].boardTriggered = true; } // 卵が巻いたマットに当たった
+            const int riding = player.IsGrounded() ? player.GetCurrentRail() : -1;
+            RailMotion::Advance(rails, dt, riding, player.GetCurrentRail());
+            player.SetAutoPilot(true, now);
+            player.Update(rails);
+            const Vector3 p = player.GetPosition();
+            const bool print = ( i == 0 || i == frames - 1 || frame % 15 == 0 );
+            if ( print ) {
+                std::printf("%d,%s,%d,%.2f,%.2f,%.2f,%.2f,%d,%s,%.2f,%.2f\n", frame, keys.c_str(), player.GetCurrentRail(),
+                    player.GetDebugStep().dist, p.x, p.y, p.z, player.IsGrounded() ? 1 : 0, states[( int ) car.trainState],
+                    car.animPivot.x + car.animOffset.x, rails[4].boardOpen);
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv){
-    if ( argc < 3 ) { std::printf("usage: railsim conn|mesh|walk|frames rails.txt ...\n"); return 1; }
+    if ( argc >= 3 && std::string(argv[1]) == "train" ) { Train(argv[2], argc >= 4 ? ( std::string(argv[3]) == "board" ? 1 : std::string(argv[3]) == "roll" ? 2 : 0 ) : 0); return 0; }
+    if ( argc < 3 ) { std::printf("usage: railsim conn|mesh|walk|frames rails.txt ... / railsim train <script>\n"); return 1; }
     const std::string mode = argv[1];
     std::vector<SplineRail> rails;
     if ( !LoadRails(argv[2], rails) ) return 1;

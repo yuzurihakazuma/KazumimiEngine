@@ -64,6 +64,7 @@ public:
     const std::vector<int>&   GetRailOneWay() const{ return data_->railOneWay; }
     const std::vector<float>& GetRailSpeedMuls() const{ return data_->railSpeedMuls; }
     const std::vector<RailCamera>& GetRailCameras() const{ return data_->railCameras; }
+    const std::vector<RailTrain>& GetRailTrains() const{ return data_->railTrains; }
     const std::vector<RailSkin>& GetRailSkins() const{ return data_->railSkins; } // 道の見た目（布ロード）
     int GetStartRail() const{ return data_->startRailIndex; }
     int GetStartNode() const{ return data_->startNodeIndex; }
@@ -533,6 +534,7 @@ private:
         std::vector<int>   motionTypes, motionTriggers, appearTriggers, oneWay;
         std::vector<float> motionPhases, speedMuls;
         std::vector<RailCamera> cameras;
+        std::vector<RailTrain> trains;
         std::vector<RailSkin> skins;
     };
     RailSettings CaptureRailSettings() const;

@@ -16,6 +16,7 @@
 #include "game/rail/RailField.h"
 #include "game/rail/RoadMesh.h"
 #include "game/rail/DissolveRoad.h"
+#include "game/rail/TrainVisuals.h"
 #include "game/camera/PlayCameraController.h"
 #include "game/combat/HitFeel.h"
 #include "game/combat/CombatSystem.h"
@@ -23,6 +24,7 @@
 #include "game/player/AimThrowController.h"
 #include "game/player/PlayerAvatar.h"
 #include "game/clear/ClearFlow.h"
+#include "engine/3d/Skybox.h"
 #include "game/stage/CoinSystem.h"
 #include "game/stage/BlockSystem.h"
 #include "game/stage/StageObstacles.h"
@@ -68,6 +70,7 @@ private:
 	void UpdateCamera() override;     // カメラ更新＋シェイク＋ヒット点のポストエフェクト
 	void OnUpdate() override;         // Edit↔Play の切替・プレイ中の進行・見た目
 	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	void OnDrawBackground(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawInstanced() override;
 	void OnDrawTransparent(ID3D12GraphicsCommandList* commandList) override;
@@ -120,7 +123,9 @@ private:
 	RailField      railField_;    // 実行時レール（本体・緑線・動くレール）
 	RoadMesh       roadMesh_;     // レール下の道メッシュ
 	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
-	ClearFlow      clear_;        // ゴールの輪・集計・クリア演出（中身は game/clear/。ここは決まった所で呼ぶだけ）
+	TrainVisuals   trainVisuals_; // 列車（台車・機関車）と線路（列車のガイド）
+	ClearFlow      clear_;        // ゴールの門・集計・クリア演出（中身は game/clear/。ここは決まった所で呼ぶだけ）
+	Skybox         sky_;          // いちばん奥の紙の空（どの向きを見ても空・地平線の丘・下の草。tools/sky/make_paper_sky.py）
 	StageIntroSequence intro_;    // ステージ開始の演技（遷移の合図で動く）
 	StageBackdrop  backdrop_;     // ステージ全体のクラフトの背景（地面・空・丘・雲・木・柵・草花）
 	CoinSystem     coinSystem_;   // 収集物（コイン）

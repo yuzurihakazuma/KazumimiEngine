@@ -101,6 +101,7 @@ void GamePlayScene::OnInitialize(){
 	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
 	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
 	BuildBackdrop();
+	sky_.Initialize("resources/sky/paper_sky.dds"); // いちばん奥の紙の空
 	SetupCaptureTakes();             // 撮影のテイク：記録・再生の始めに戻す状態
 	// 編集を始めた時のカメラ：裏の世界の地面（表の道の奥、-z 側）より上から、表のステージを少し見下ろす
 	//   （共通の初期位置 (0, 2, -15) は裏の世界の地面の中に入ってしまう）
@@ -263,9 +264,22 @@ void GamePlayScene::SetupGameplay(){
 
 	// 卵・吐き出し弾がブロックと道に当たるようにする
 	obstacles_.Initialize(&blockSystem_, &railField_.GetRails());
-	// ベロは壁（ブロック）を通り抜けない（壁越しに敵を食べられないように）
+	// ベロは壁（ブロック）と道の面（上り坂）を通り抜けない（壁越しに敵を食べられない・坂の中へ伸びない）。
+	//   道の面は先の 1 点しか見ないので、付け根から少しずつ進めて、最初にぶつかった所で止める
 	swallow_.SetWallQuery([this](const Vector3& from, const Vector3& to, Vector3& outHit){
-		return blockSystem_.SweepSphere(from, to, 0.08f, &outHit);
+		constexpr float kTongueRadius = 0.08f; // ベロの太さ（ブロック・道に当たる大きさ）
+		constexpr float kStep = 0.1f;          // 進める間(m)
+		const Vector3 move { to.x - from.x, to.y - from.y, to.z - from.z };
+		const float length = std::sqrt(move.x * move.x + move.y * move.y + move.z * move.z);
+		const int steps = ( std::max )( 1, static_cast<int>( std::ceil(length / kStep) ) );
+		Vector3 previous = from;
+		for ( int i = 1; i <= steps; ++i ) {
+			const float t = static_cast<float>( i ) / static_cast<float>( steps );
+			const Vector3 point { from.x + move.x * t, from.y + move.y * t, from.z + move.z * t };
+			if ( obstacles_.Sweep(previous, point, kTongueRadius, outHit) ) { return true; }
+			previous = point;
+		}
+		return false;
 	});
 	eggSystem_.SetObstacleQuery(
 		[this](const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos) -> bool {
@@ -423,6 +437,7 @@ void GamePlayScene::SyncRailsFromEditor(bool simple){
 	if ( simple ) {
 		railField_.Sync(GetCamera(), whiteTex);                     // レール本体＋緑線
 		roadMesh_.Build(railField_.GetRails(), GetCamera(), true);  // 道は簡易プレビュー
+		trainVisuals_.Build(railField_.GetRails(), textures_["noise0"].srvIndex); // 線路も引きずりに付いてくる
 		return;
 	}
 
@@ -444,6 +459,7 @@ void GamePlayScene::SyncRailsFromEditor(bool simple){
 	railField_.Sync(GetCamera(), whiteTex);               // レール本体＋緑線を作り直す
 	roadMesh_.Build(railField_.GetRails(), GetCamera());  // レール下の道メッシュも敷き直す
 	dissolveRoad_.Build(railField_.GetRails());             // SDF溶け道のパネル敷設点も打ち直す
+	trainVisuals_.Build(railField_.GetRails(), textures_["noise0"].srvIndex); // 列車と線路
 
 	if ( repin ) {
 		pin.Apply(*enemyEditor_, railField_.GetRails());
@@ -573,6 +589,9 @@ void GamePlayScene::UpdatePlayMode(){
 		return;
 	}
 
+	// クリア演出の間は、画面の上下のぼかしを消す（門のてっぺんの卵まで、画面の上から下まで写すため）
+	screenFx_.UpdateTiltFocus(clear_.IsActive(), Time::GetInstance()->GetUnscaledDeltaTime());
+
 	// クリア演出の間は、ゲームの時間を止めて、恐竜と演出だけ進める
 	if ( clear_.IsActive() ) {
 		UpdateClearStaging(deltaTime);
@@ -605,7 +624,7 @@ void GamePlayScene::UpdatePlayMode(){
 	// 動くレール → プレイヤー → 敵 の順で更新（位置の整合のため）。
 	//   「乗ったら動き出す」レールの発動判定用に、接地中のプレイヤーのレール番号を渡す
 	const int ridingRail = player_->IsGrounded() ? player_->GetCurrentRail() : -1;
-	railField_.UpdateMotion(deltaTime, ridingRail);
+	railField_.UpdateMotion(deltaTime, ridingRail, player_->GetCurrentRail()); // 列車は跳んでいる間も「乗っている」
 	railField_.DrawWaitingLiftMarkers(deltaTime);
 
 	// カメラの向きを渡す：向き切替（180°回り込み等）の後も「Dで画面の右へ」進めるように、
@@ -661,6 +680,9 @@ void GamePlayScene::UpdatePlayMode(){
 	swallow_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera(), deltaTime);  // 舌・産卵
 	aimThrow_.Update(*player_, enemyMgr_, eggSystem_, GetCamera(), deltaTime);           // 卵の構え・投げ
 	flip_.CheckEggHits();                                                                // 卵 ×「？」スイッチ → 反転
+	if ( railField_.HasRolls() ) {                                                       // 卵 × 巻いた草のマット → 転がって広がる
+		eggSystem_.ResolveHits([this](const Vector3& from, const Vector3& to, float radius){ return railField_.HitRoll(from, to, radius); });
+	}
 
 	// 卵の追従・飛行・割れの更新
 	float yaw = player_->GetRotation().y;
@@ -742,8 +764,9 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 		if ( player_->ConsumeFellRespawn() ) {
 			screenFx_.StartMissIris();
 			// 動くレールを基準位置へ戻す（「片道で行ったきり」の列車が戻らず詰むのを防ぐ。
-			//   「乗ったら動き出す」は待機に、「出現する道」は消えた状態に戻る＝区間をやり直せる）
-			railField_.ResetMotion();
+			//   「乗ったら動き出す」は待機に、「出現する道」は消えた状態に戻る＝区間をやり直せる。
+			//   渡し板「ころころ」は一度広げたらそのまま）
+			railField_.ResetMotion(true);
 		}
 		screenFx_.UpdateIris({ playerPos.x, playerPos.y + 0.8f, playerPos.z }, *GetCamera()); // 円の中心＝胸元
 	}
@@ -778,6 +801,7 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 	hud_.SetComboFlowers(eggCombo_.ComboFlowersFound(), eggCombo_.ComboFlowersTotal(), eggCombo_.ComboFlowerPop());
 	if ( playing ) { StageRecords::GetInstance()->NoteCoins(kStageName, coinSystem_.CollectedCount()); } // ワールドマップの「コイン」
 	backdrop_.Update(GetCamera());
+	trainVisuals_.Update(railField_.GetRails(), GetCamera(), Time::GetInstance()->GetDeltaTime(), player_->GetCurrentRail()); // 列車・渡し板（動くレールを進めた後）・けむり
 	eggCombo_.UpdateVisuals(); // 光る物・飛ぶ物の代役（カメラが決まった後）
 }
 
@@ -803,10 +827,17 @@ void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 	if ( !playing ) { railField_.DrawMarkers(); }
 }
 
+// いちばん奥の空（物の無いすき間だけが空になる。裏の世界・カメラ反転・クリアのカメラでも同じ）
+void GamePlayScene::OnDrawBackground(ID3D12GraphicsCommandList* commandList){
+	if ( gameOver_.HidesScene() ) { return; }
+	sky_.Draw(commandList, GetCamera());
+}
+
 void GamePlayScene::OnDrawInstanced(){
 	if ( gameOver_.HidesScene() ) { return; }
 	blockSystem_.Draw(GetCamera()); // 配置ブロック（見た目グループごとに1ドローコール）
 	backdrop_.Draw(GetCamera());    // ステージのクラフトの背景（モデルごとに1ドローコール）
+	trainVisuals_.Draw(GetCamera()); // 列車と線路
 	eggCombo_.Draw();               // 狙って光っている物・はじけ飛んでいる物（背景の代役）
 	clear_.DrawInstanced(GetCamera()); // クリア演出の紙吹雪
 }

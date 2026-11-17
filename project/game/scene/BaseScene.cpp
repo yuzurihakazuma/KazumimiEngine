@@ -205,6 +205,10 @@ void BaseScene::Draw(){
 void BaseScene::DrawScene3D(ID3D12GraphicsCommandList* commandList){
     const bool demoVisible = IsDemoVisible();
 
+    // --- いちばん奥の空：物より先に描く（奥行きは書かないので、後から描く物が全部上に乗る）。
+    //     別のルートシグネチャを使うので、Obj3d の準備（PreDraw・環境マップの束縛）より前に済ませる
+    OnDrawBackground(commandList);
+
     Obj3dCommon::GetInstance()->PreDraw(commandList);
     // 環境マップを束縛（PreDraw でルートシグネチャが張り直されるため毎フレーム必要）
     SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9, envMapSrv_);

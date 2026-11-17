@@ -17,8 +17,6 @@ namespace {
     constexpr const char* kStringModel = "goalString";   // 長さ 1m の糸（原点＝上のはし）
     constexpr int   kStarColors = 3;
     constexpr float kDepthStep = 0.03f;        // 小道具どうしが同じ奥行きで重ならないよう、1 つごとに手前へずらす(m)
-    constexpr float kAttachInset = 0.25f;      // 糸をつなぐ所：アーチの外のふちから、これだけ内側
-    constexpr float kMinString = 0.12f;        // 糸のいちばん短い長さ(m)
     constexpr float kSwingStart = 0.6f;        // 文字：下りる時間のこの割合から、糸の揺れが始まる
     constexpr float kSwingDecay = 3.0f;        // 糸の揺れがおさまる速さ
     constexpr float kSwingRate = 1.4f;         // 糸の揺れの速さ(回/秒)
@@ -75,13 +73,6 @@ Vector3 GoalProps::FacingRotation(float angle) const{
     return ToEulerXYZ(Multiply(MakeRotateZ(-angle), MakeRotateY(faceYaw_)));
 }
 
-float GoalProps::ArchHeightAt(float across) const{
-    const ClearGate& gate = settings_->gate;
-    const float radius = ( std::max )( gate.archOuterRadius - kAttachInset, 0.1f );
-    const float x = ( std::min )( std::abs(across), radius );
-    return gate.archCenterHeight + std::sqrt(( std::max )( radius * radius - x * x, 0.0f ));
-}
-
 void GoalProps::Update(float elapsed){
     if ( !visible_ || !settings_ ) { return; }
     const ClearLetters& letters = settings_->letters;
@@ -89,8 +80,9 @@ void GoalProps::Update(float elapsed){
     const ClearSounds& sounds = settings_->sounds;
     AudioManager* audio = AudioManager::GetInstance();
 
-    // --- 切り文字：アーチにつないだ糸が伸びて下がる（行き過ぎて戻る）→ 糸で揺れる ---
+    // --- 切り文字：上から糸で吊られて下りてくる（行き過ぎて戻る）→ 糸で揺れる。止まる所は、アーチの虹の上の弧 ---
     const int letterCount = static_cast<int>( letters_.size() );
+    const float cardHalf = letters.height * letters.scale * 0.5f;
     for ( int i = 0; i < letterCount; ++i ) {
         Piece& piece = letters_[i];
         const float time = elapsed - ( letters.start + letters.interval * static_cast<float>( i ) );
@@ -99,20 +91,22 @@ void GoalProps::Update(float elapsed){
             piece.soundPlayed = true;
             audio->PlayWave(sounds.letter, false, kLetterVolume);
         }
-        const float across = ( static_cast<float>( i ) - static_cast<float>( letterCount - 1 ) * 0.5f ) * letters.spacing;
-        const float attach = ArchHeightAt(across);
-        const float restTop = letters.centerHeight + letters.height * 0.5f;
-        const float restLength = ( std::max )( attach - restTop, kMinString );
-        // 出る前は札を見せない（アーチの中に隠れている）。下りながら、ぽんと大きくなる
-        const float length = ( time >= 0.0f ) ? restLength * Easing::EaseOutBack(drop) : 0.0f;
-        const float scale = ( time >= 0.0f ) ? ( std::min )( drop * 4.0f, 1.0f ) : 0.0f;
+        // 止まる所：アーチの円の中心から arcRadius の円の上（角度はてっぺんから。左が－）
+        const float degrees = ( i < static_cast<int>( letters.arcAngles.size() ) ) ? letters.arcAngles[i] : 0.0f;
+        const float radians = Math::ToRadians(degrees);
+        const float centerX = std::sin(radians) * letters.arcRadius;
+        const float centerY = settings_->gate.archCenterHeight + std::cos(radians) * letters.arcRadius;
+        // 出る前は、上の画面の外。下りながら、ぽんと大きくなる
+        const float lift = ( time >= 0.0f ) ? letters.dropHeight * ( 1.0f - Easing::EaseOutBack(drop) ) : letters.dropHeight;
+        const float scale = ( time >= 0.0f ) ? ( std::min )( drop * 4.0f, 1.0f ) * letters.scale : 0.0f;
+        const float length = letters.stringLength;
         const float swingTime = ( std::max )( time - letters.dropTime * kSwingStart, 0.0f );
         const float swing = letters.swing * std::exp(-kSwingDecay * swingTime) * std::sin(2.0f * Math::kPi * kSwingRate * swingTime);
         const float sway = letters.sway * std::sin(2.0f * Math::kPi * kSwayRate * elapsed + static_cast<float>( i ) * 1.7f);
         const float angle = ( time >= 0.0f ) ? swing + sway : 0.0f;
-        // 支点＝アーチの糸をつなぐ所。札の上のはしは、そこから糸の長さだけ下（画面の中で angle だけ振れる）
+        // 支点＝糸の上のはし（札の上のはしの真上 length）。札は支点から糸の長さだけ下（画面の中で angle だけ振れる）
         const float depth = settings_->gate.archFront + letters.front + kDepthStep * static_cast<float>( i );
-        const Vector3 pivot { across, attach, depth };
+        const Vector3 pivot { centerX, centerY + cardHalf + length + lift, depth };
         const Vector3 top { pivot.x + std::sin(angle) * length, pivot.y - std::cos(angle) * length, depth };
         const Vector3 rotation = FacingRotation(angle);
         if ( piece.object ) {

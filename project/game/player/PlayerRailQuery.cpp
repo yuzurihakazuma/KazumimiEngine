@@ -22,6 +22,7 @@ bool IsOverHole(const std::vector<SplineRail>& rails, const Vector3& footPos){
     for ( const SplineRail& rail : rails ) {
         if ( rail.nodes.size() < 2 || rail.nodeHole.empty() ) continue;
         if ( rail.IsRideBlocked() ) continue; // 出現前の道の穴では落ちない
+        if ( rail.isTrack ) continue;         // 線路（歩かない）の穴では落ちない
         float closestDist = rail.GetClosestDistance(footPos);
         if ( !rail.IsHoleAtDistance(closestDist) ) continue;
         Vector3 closestPos = rail.GetPositionByDistance(closestDist);
@@ -42,6 +43,7 @@ bool FindJoin(const std::vector<SplineRail>& rails, int currentRail,
         const SplineRail& candidateRail = rails[j];
         if ( candidateRail.nodes.size() < 2 ) continue;
         if ( candidateRail.IsRideBlocked() ) continue; // まだ出現していない道へは合流しない
+        if ( candidateRail.IsUnwalkable() ) continue;  // 線路・走っている列車へは合流しない（列車の足場の端から線路へ降りていた）
         float closestDist = candidateRail.GetClosestDistance(edgePos);
         Vector3 closestPos = candidateRail.GetPositionByDistance(closestDist);
         float dx = closestPos.x - edgePos.x, dy = closestPos.y - edgePos.y, dz = closestPos.z - edgePos.z;
@@ -50,7 +52,11 @@ bool FindJoin(const std::vector<SplineRail>& rails, int currentRail,
 
         // 前方チェック：合流先が真横〜後方なら弾く（端点の真上を通る動くレール等、ほぼ同位置は許可）。
         //   これが無いと、1.2m以内を平行に走る隣のレールへ端に来ただけで勝手に飛び移る誤爆が起きる
-        if ( Length(forwardDir) > 1e-4f ) {
+        //   端が相手の上に乗っている（横に kOnTop 以内）なら向きは見ない：最寄り点は距離の表の刻み（数cm）でしか求まらず、
+        //   真上に乗っていても数cm横にずれて「真横」と判定され、動く足場（列車など。端の寄せをしない）へ乗れなかった
+        constexpr float kOnTop = 0.25f;
+        const bool onTop = std::sqrt(dx * dx + dz * dz) <= kOnTop && std::abs(dy) < 0.5f; // 上下に重なった別の階は「乗っている」に入れない
+        if ( Length(forwardDir) > 1e-4f && !onTop ) {
             Vector3 toTarget = HorizDir(dx, dz);
             if ( Length(toTarget) > 1e-4f && ( toTarget.x * forwardDir.x + toTarget.z * forwardDir.z ) < 0.1f ) continue;
         }
@@ -64,8 +70,11 @@ bool FindJoin(const std::vector<SplineRail>& rails, int currentRail,
 
 bool FindSwitch(const std::vector<SplineRail>& rails, int currentRail, const Vector3& footPos,
                 bool currentHorizontal, int switchDir, Spot& out){
-    const float kReach   = 0.9f;  // 乗り換え先の最寄り点までの最大3D距離（狭いほど誤爆しない）
-    const float kLateral = 0.5f;  // 進行軸(横=X/縦=Z)の横ズレ上限。真上で交差してる相手だけ拾う
+    // 止まっている列車から駅の道へ降りる時だけ広く拾う（台車の上でぴったり道の前に立たなくても降りられる。
+    //   駅の道は台車の真ん中の線まで重ねて置くので、台車の上なら 1.2m 以内に必ず道のはしがある）
+    const bool  fromTrain = currentRail >= 0 && currentRail < ( int ) rails.size() && rails[currentRail].IsTrain();
+    const float kReach   = fromTrain ? 1.2f : 0.9f;  // 乗り換え先の最寄り点までの最大3D距離（狭いほど誤爆しない）
+    const float kLateral = fromTrain ? 1.2f : 0.5f;  // 進行軸(横=X/縦=Z)の横ズレ上限。真上で交差してる相手だけ拾う
     const float kMinOff  = 0.3f;  // 押した方向にこれ以上伸びているレールであること
     const bool  wantHorizontalTarget = !currentHorizontal; // 縦に乗ってたら横へ／横なら縦へ
     const float myAxis = currentHorizontal ? footPos.z : footPos.x; // 横=Z(奥/手前) / 縦=X(右/左)
@@ -78,6 +87,7 @@ bool FindSwitch(const std::vector<SplineRail>& rails, int currentRail, const Vec
         if ( candidateRail.nodes.size() < 2 ) continue;
         if ( !candidateRail.visible ) continue; // 見えない連結レールへは乗り換えできない（見えない道を歩く混乱防止）
         if ( candidateRail.IsRideBlocked() ) continue; // まだ出現していない道へも乗り換えできない
+        if ( candidateRail.IsUnwalkable() ) continue;  // 線路・走っている列車へも乗り換えできない
         if ( ( candidateRail.type == SplineRail::RailType::Horizontal ) != wantHorizontalTarget ) continue; // 反対タイプのみ
 
         float closestDist = candidateRail.GetClosestDistance(footPos);
@@ -130,7 +140,7 @@ bool FindRailBelow(const std::vector<SplineRail>& rails, const Vector3& pos, Spo
     bool found = false;
     for ( int i = 0; i < ( int ) rails.size(); ++i ) {
         const SplineRail& rail = rails[i];
-        if ( rail.nodes.size() < 2 || !rail.visible || rail.IsRideBlocked() ) continue;
+        if ( rail.nodes.size() < 2 || !rail.visible || rail.IsRideBlocked() || rail.IsUnwalkable() ) continue;
         float closestDist = rail.GetClosestDistance(pos);
         Vector3 closestPos = rail.GetPositionByDistance(closestDist);
         float dx = closestPos.x - pos.x, dz = closestPos.z - pos.z;
@@ -155,6 +165,7 @@ bool FindLanding(const std::vector<SplineRail>& rails, const Vector3& pos, float
         if ( rail.nodes.size() < 2 ) continue;
         if ( !rail.visible ) continue; // 見えない連結レールには着地しない（床ではなく「道」なので）
         if ( rail.IsRideBlocked() ) continue; // まだ出現していない道にも着地しない（すり抜けて落ちる）
+        if ( rail.IsUnwalkable() ) continue;  // 線路・走っている列車にも着地しない（列車は駅で止まっている時だけ乗る）
 
         float closestDist = rail.GetClosestDistance(pos);
         Vector3 closestPos = rail.GetPositionByDistance(closestDist);

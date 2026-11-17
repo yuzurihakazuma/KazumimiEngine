@@ -71,6 +71,22 @@ struct RailCamera {
     bool operator==(const RailCamera&) const = default;
 };
 
+// レールごとの列車の設定（railLines と同じ並び）。enabled の足場（ガイド追従のレール）は列車になる：
+//   駅（ガイドの区間の両はし）で待つ → 乗ると発車 → 次の駅で止まる。走っている間は降りられない。
+//   ガイドのレールは線路になる（枕木とレールを描き、歩けない）
+struct RailTrain {
+    int   enabled  = 0;      // 1＝列車
+    float departSec = 0.8f;  // 乗ってから発車までの秒
+    float returnSec = 4.0f;  // 降りてから、だれも乗らなければ元の駅へ戻るまでの秒（負＝戻らない）
+    int   engine   = 1;      // 1＝先頭に機関車を付ける（見た目。駅の位置も機関車のぶん内側になる）
+    // 渡し板（列車ではないレールの設定）：このレールを、列車 boardFor の駅の渡し板にする（-1＝しない）。
+    //   列車がその駅に止まっている時だけ、板がぱたんと倒れて開き、歩ける（閉じている間は乗れない）
+    int   boardFor = -1;
+    // 1＝渡し板「ころころ」：卵を当てると、巻いた草のマットが転がって広がる（一度広げたらそのまま。列車は要らない）
+    int   boardMode = 0;
+    bool operator==(const RailTrain&) const = default;
+};
+
 // マップ全体のデータ
 // 収集物（コイン）1枚：レール上の距離と高さで配置する
 struct CoinData {
@@ -165,6 +181,9 @@ struct LevelData{
 
     // 各レールのカメラ（そのレールに乗っている間の追従カメラ。railLines と同じ並び）
     std::vector<RailCamera> railCameras;
+
+    // 各レールの列車の設定（railLines と同じ並び）
+    std::vector<RailTrain> railTrains;
 
     // スタート地点（レール番号＋ノード番号。プレイヤーの開始・リスポーン先）
     int startRailIndex = 0;

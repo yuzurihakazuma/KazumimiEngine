@@ -428,8 +428,11 @@ def make_settings():
         "letters": {                 # 立体の切り文字（モデルは make_goal_set.py。門のアーチから糸で下がる）
             "count": 4,
             "height": 1.05,          # 文字の高さ(m)（モデルと同じ）
-            "spacing": 1.16,         # 文字の間(m)
-            "centerHeight": 2.6,     # 下がり切った時の、文字の真ん中の高さ（門の足元から）
+            "scale": 0.7,            # 札の大きさ（モデルに対する倍率）
+            "arcRadius": 1.65,       # 札を並べる円の半径（アーチの円の中心から。虹の帯の上）
+            "arcAngles": [-62.0, -22.0, 22.0, 62.0],   # 札の位置（てっぺんからの角度・度。左が－）
+            "stringLength": 3.5,     # 札の上の糸の長さ(m)（画面の上の外まで）
+            "dropHeight": 3.0,       # 下りてくる高さ(m)
             "front": 0.05,           # アーチの表の面から、さらに手前へ(m)
             "start": 0.15,           # 「ゴール！」の場面に入ってから、最初の文字が下り始めるまで(秒)
             "interval": 0.14,        # 文字ごとの遅れ(秒)
@@ -448,6 +451,14 @@ def make_settings():
             "popTime": 0.5,
         },
         "confetti": {"burst": 46, "rain": 5, "rainInterval": 0.22, "height": 5.2, "spread": 3.6},
+        # クリアの間だけ空に出す飾り（太陽と雲）。門の足元から、カメラから見て奥へ back・右へ side・上へ up。
+        #   地面・丘・木・空の板は置かない（遊んできたステージが後ろに見えなくなるため）
+        "backdrop": [
+            {"model": "goal_sun", "back": 30.0, "side": 12.0, "up": 14.0, "scale": [1.6, 1.6, 1.6]},
+            {"model": "cloud_cutout_00", "back": 28.0, "side": -13.0, "up": 12.0, "scale": [3.0, 3.0, 3.0]},
+            {"model": "cloud_cutout_01", "back": 29.0, "side": 3.0, "up": 15.0, "scale": [2.6, 2.6, 2.6]},
+            {"model": "cloud_cutout_00", "back": 27.0, "side": 20.0, "up": 10.0, "scale": [2.2, 2.2, 2.2]},
+        ],
         # リザルト画面（1920×1080 の画素。x・y は真ん中）
         "result": {
             "dim": [0.03, 0.13, 0.08, 0.74],       # 景色を沈める色（暗い緑）
@@ -487,7 +498,7 @@ def make_settings():
                 "gateOffset": -3.2,      # ゴールの点から、レールに沿って門を置く所(m)。マイナス＝手前
                 "gateTurn": 20.0,        # 門を、遊んでいる時のカメラの方へ回す角度(度)。横から見ても門の表が見える
                 "landAhead": 1.4,        # 門をくぐってから、着地する所（門から先へ m）
-                "camera": {"yaw": 35.0, "distance": 8.6, "height": 2.0, "lookHeight": 2.4, "lookBack": 0.7, "fovY": 0.82},
+                "camera": {"yaw": 20.0, "distance": 8.6, "height": 2.0, "lookHeight": 2.4, "lookBack": 0.7, "fovY": 0.82},
                 "comboTarget": 5,        # 1 行目の目標の連鎖数
                 "band": "comboFlowers",  # 帯に出す集める物（comboFlowers＝コンボ花 / flowers＝かくれ花 / none＝帯なし）
                 "healthRule": "full",    # 2 行目：full＝満タンでゴール / noDamage＝1 回もダメージを受けない

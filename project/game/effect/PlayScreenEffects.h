@@ -16,6 +16,9 @@ class PlayScreenEffects {
 public:
     // Edit→Play：プレイ用の見た目をONにする（値はエディタで調整して決めた本番ルック）
     void EnablePlayLook();
+    // 画面の上下のぼかし（ティルトシフト）の強さ：sharp の間は 0 へ、そうでなければ元へ、少しずつ寄せる（毎フレーム）。
+    //   クリア演出のように、写したい物（門のてっぺんの卵・恐竜）が画面の上から下まで並ぶ時に使う
+    void UpdateTiltFocus(bool sharp, float deltaTime);
     // Play→Edit：プレイ用の見た目とアイリスを全部OFFにする（編集画面はそのまま見えるように）
     void DisablePlayLook();
 
@@ -34,6 +37,7 @@ private:
     enum class IrisPhase { None, Closing, Hold, Opening };
     IrisPhase irisPhase_ = IrisPhase::None;
     float irisTimer_ = 0.0f;
+    float tiltScale_ = 1.0f;   // 画面の上下のぼかしの強さ（1＝いつもの強さ・0＝ぼかさない）
 
     int warmupFrame_ = 0;
 };

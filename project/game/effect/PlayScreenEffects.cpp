@@ -10,12 +10,27 @@
 
 using namespace MatrixMath;
 
+namespace {
+	// 画面の上下のぼかし（ジオラマ風）：強さ(px)・ピントが合う帯の真ん中（画面の上 0〜下 1）・帯の半分の幅
+	constexpr float kTiltStrength = 7.2f, kTiltCenterY = 0.55f, kTiltHalfWidth = 0.17f;
+	constexpr float kTiltFadeTime = 0.6f; // ぼかしを消す・戻す時間(秒)
+}
+
+void PlayScreenEffects::UpdateTiltFocus(bool sharp, float deltaTime){
+	const float target = sharp ? 0.0f : 1.0f;
+	if ( tiltScale_ == target ) { return; }
+	const float step = ( kTiltFadeTime > 0.0f ) ? deltaTime / kTiltFadeTime : 1.0f;
+	tiltScale_ = ( tiltScale_ < target ) ? ( std::min )( tiltScale_ + step, target ) : ( std::max )( tiltScale_ - step, target );
+	PostEffect::GetInstance()->SetTiltShiftParams(kTiltStrength * tiltScale_, kTiltCenterY, kTiltHalfWidth);
+}
+
 void PlayScreenEffects::EnablePlayLook(){
 	PostEffect* postEffect = PostEffect::GetInstance();
 	postEffect->SetEffectActive(PostEffectType::TiltShift, true);   // ジオラマ風（遠景ぼかし）
 	postEffect->SetEffectActive(PostEffectType::PaperGrain, true);  // 紙の質感
 	postEffect->SetEffectActive(PostEffectType::PictureBook, true); // 絵本風（ポスタライズ＋輪郭）
-	postEffect->SetTiltShiftParams(7.2f, 0.55f, 0.17f);
+	postEffect->SetTiltShiftParams(kTiltStrength, kTiltCenterY, kTiltHalfWidth);
+	tiltScale_ = 1.0f;
 	postEffect->SetPaperGrainStrength(0.17f);
 	postEffect->SetPictureBookParams(14.0f, 0.8f);
 }

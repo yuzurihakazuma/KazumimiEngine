@@ -26,6 +26,7 @@ void RailField::Sync(Camera* camera, uint32_t whiteTexIndex){
     ApplyMotionSettings(editor);
     ApplyRailTypes(editor);
     RailConnections::Build(rails_); // 接続・分岐・ループ（動くレールは静的連結から除外）
+    for ( SplineRail& rail : rails_ ) { RailMotion::SetupRollBoard(rail); } // ころころの転がり出すはし（つながりが決まってから）
     ApplySurfaceSettings(editor);
     ResolveStartGoal(editor);
 
@@ -60,6 +61,7 @@ void RailField::ApplyMotionSettings(const EditorManager& editor){
     const auto& appearTriggers = editor.GetEditorRailAppearTriggers();
     const auto& guideAligns    = editor.GetEditorRailGuideAligns();
     const auto& guideDwells    = editor.GetEditorRailGuideDwells();
+    const auto& trains         = editor.GetEditorRailTrains();
     for ( size_t i = 0; i < rails_.size(); ++i ) {
         SplineRail& rail = rails_[i];
         if ( i < motions.size() ) {
@@ -76,6 +78,16 @@ void RailField::ApplyMotionSettings(const EditorManager& editor){
         rail.motionTrigger = ValueAt(motionTriggers, i, 0);
         rail.appearTrigger = ValueAt(appearTriggers, i, -1);
         rail.guideAlign    = ValueAt(guideAligns, i, 0);
+        const RailTrain train = ( i < trains.size() ) ? trains[i] : RailTrain {};
+        rail.train       = train.enabled;
+        rail.trainDepart = train.departSec;
+        rail.trainReturn = train.returnSec;
+        rail.trainEngine = train.engine;
+        rail.isTrack     = false;
+        rail.boardTrain  = ( train.boardFor >= 0 && train.boardFor != ( int ) i ) ? train.boardFor : -1;
+        rail.boardKind   = train.boardMode == 1 ? 2 : ( rail.boardTrain >= 0 ? 1 : 0 );
+        rail.boardTriggered = false;
+        rail.boardOpen   = 0.0f;
         // 列車式回転の基準：基準位置でのレール中点と向きを1回だけ計測（この時点で回転・移動はゼロ）
         if ( rail.nodes.size() >= 2 && rail.GetLength() > 0.0f ) {
             float mid = rail.GetLength() * 0.5f;
@@ -85,7 +97,14 @@ void RailField::ApplyMotionSettings(const EditorManager& editor){
             rail.restYaw = ( horizLen > 1e-4f ) ? std::atan2(midTan.x, midTan.z) : 0.0f;
         }
     }
-    RailMotion::Reset(rails_); // 動きの経過・発動・出現の状態を基準へ
+    // 列車：ガイドは線路（歩けない・つながない）。元の駅と向きを決める
+    for ( SplineRail& rail : rails_ ) {
+        if ( !rail.IsTrain() || rail.guideRail >= ( int ) rails_.size() ) { continue; }
+        rails_[rail.guideRail].isTrack = true;
+        RailMotion::SetupTrain(rail, rails_);
+    }
+    for ( SplineRail& rail : rails_ ) { RailMotion::SetupBoard(rail, rails_); } // 渡し板（列車の駅が決まってから）
+    RailMotion::Reset(rails_); // 動きの経過・発動・出現の状態を基準へ（列車は元の駅へ）
 }
 
 // 0/1 ならそれを使い、-1(自動)や未設定は主軸で自動判定
@@ -120,6 +139,11 @@ void RailField::ApplySurfaceSettings(const EditorManager& editor){
         rail.oneWay   = ValueAt(oneWays, i, 0);
         rail.speedMul = ( i < speedMuls.size() && speedMuls[i] > 0.05f ) ? speedMuls[i] : 1.0f;
         rail.skin     = ( i < skins.size() ) ? skins[i] : RailSkin {};
+        // 列車の足場と線路には道も布も敷かない（列車と線路は TrainVisuals が描く。布は roadMode を見ないので見た目も消す）
+        if ( rail.IsTrain() || rail.isTrack || rail.IsBoard() ) { // 渡し板も板の模型を描く
+            rail.roadMode = 1;
+            rail.skin.style = RailSkin::Hidden;
+        }
     }
 }
 
@@ -139,13 +163,38 @@ void RailField::ResolveStartGoal(const EditorManager& editor){
 }
 
 // 動くレールの時間を進めて animOffset を更新し、緑線マーカーも追従させる
-void RailField::UpdateMotion(float dt, int ridingRail){
-    if ( RailMotion::Advance(rails_, dt, ridingRail) ) { markers_.UpdatePositions(rails_); }
+void RailField::UpdateMotion(float dt, int ridingRail, int playerRail){
+    if ( RailMotion::Advance(rails_, dt, ridingRail, playerRail) ) { markers_.UpdatePositions(rails_); }
 }
 
-void RailField::ResetMotion(){
-    RailMotion::Reset(rails_);
+void RailField::ResetMotion(bool keepRolls){
+    RailMotion::Reset(rails_, keepRolls);
     markers_.UpdatePositions(rails_);
+}
+
+bool RailField::HasRolls() const{
+    for ( const SplineRail& rail : rails_ ) { if ( rail.IsRollBoard() ) { return true; } }
+    return false;
+}
+
+// 卵 × 巻いたマット：線分（卵の動いた所）と筒の真ん中の球（少し大きめ）
+bool RailField::HitRoll(const Vector3& from, const Vector3& to, float radius){
+    for ( SplineRail& rail : rails_ ) {
+        if ( !rail.IsRollBoard() || rail.boardTriggered ) { continue; }
+        RailMotion::RollPose pose;
+        if ( !RailMotion::GetRollPose(rail, pose) ) { continue; }
+        const Vector3 d { to.x - from.x, to.y - from.y, to.z - from.z };
+        const Vector3 m { pose.center.x - from.x, pose.center.y - from.y, pose.center.z - from.z };
+        const float len2 = d.x * d.x + d.y * d.y + d.z * d.z;
+        const float t = len2 > 1e-8f ? std::clamp(( m.x * d.x + m.y * d.y + m.z * d.z ) / len2, 0.0f, 1.0f) : 0.0f;
+        const Vector3 q { from.x + d.x * t - pose.center.x, from.y + d.y * t - pose.center.y, from.z + d.z * t - pose.center.z };
+        const float reach = pose.radius + radius + 0.35f; // 筒は横に長い（幅 1.8m）ので、球を少し大きく
+        if ( q.x * q.x + q.y * q.y + q.z * q.z <= reach * reach ) {
+            rail.boardTriggered = true;
+            return true;
+        }
+    }
+    return false;
 }
 
 // 動くレールのエディタプレビュー（OFFにした瞬間に基準位置へ戻す）
@@ -160,7 +209,7 @@ void RailField::DrawWaitingLiftMarkers(float dt){
     liftMarkerTime_ += dt;
     const Vector4 gold { 1.0f, 0.85f, 0.2f, 1.0f };
     for ( const auto& rail : rails_ ) {
-        if ( !rail.HasMotion() || rail.motionTrigger != 1 || rail.motionStarted ) continue;
+        if ( !rail.HasMotion() || rail.motionTrigger != 1 || rail.motionStarted || rail.IsTrain() ) continue; // 列車は駅で待つ（目印なし）
         if ( rail.nodes.size() < 2 || !rail.visible ) continue;
         Vector3 markPos = rail.GetPositionByDistance(rail.GetLength() * 0.5f);
         float bob = std::sin(liftMarkerTime_ * 4.0f) * 0.08f;
