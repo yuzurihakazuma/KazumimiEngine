@@ -4118,7 +4118,37 @@ void RailEditor::DrawRailMotionSection(){
 					train.engine = trainEngine ? 1 : 0;
 					motionChanged = true;
 				}
-				ImGui::TextDisabled("駅から駅までの秒＝上の「周期」");
+				ImGui::SetNextItemWidth(120.0f);
+				if ( ImGui::SliderFloat("速さ (m/秒)##trainSpeed", &train.speed, 0.5f, 20.0f, "%.1f") ) {
+					train.speed = ( std::max )( train.speed, 0.1f );
+					motionChanged = true;
+				}
+				if ( ImGui::IsItemHovered() ) {
+					ImGui::SetTooltip("走る速さ。出発と到着はなめらかに加速・減速する（上の「周期」は列車では使わない）。\n"
+						"恐竜の歩く速さはおよそ 4〜5 m/秒");
+				}
+				// 線路の点ごとの速さ（速い所・遅い所）。点の番号はガイド（線路）の点。点と点の間はなめらかにつなぐ
+				const int guideIdx = ( currentEditRailIndex_ < ( int ) data_->railGuideRails.size() ) ? data_->railGuideRails[currentEditRailIndex_] : -1;
+				if ( guideIdx >= 0 && guideIdx < ( int ) data_->railLines.size() ) {
+					const int nodeCount = ( int ) data_->railLines[guideIdx].size();
+					if ( ImGui::TreeNode("場所ごとの速さ（線路の点ごと）##trainSpeedMuls") ) {
+						if ( ( int ) train.speedMuls.size() != nodeCount ) { train.speedMuls.resize(nodeCount, 1.0f); }
+						for ( int k = 0; k < nodeCount; ++k ) {
+							ImGui::PushID(k);
+							ImGui::SetNextItemWidth(140.0f);
+							char label[64];
+							std::snprintf(label, sizeof(label), "点%d  ×%%.2f（%.1f m/秒）", k, train.speed * train.speedMuls[k]);
+							if ( ImGui::SliderFloat("##mul", &train.speedMuls[k], 0.1f, 3.0f, label) ) { motionChanged = true; }
+							ImGui::PopID();
+						}
+						if ( ImGui::Button("全部 ×1 に戻す##trainSpeedReset") ) {
+							std::fill(train.speedMuls.begin(), train.speedMuls.end(), 1.0f);
+							motionChanged = true;
+						}
+						ImGui::TextDisabled("点の番号は線路（路線%d）の点。2D形状エディタで線路を選ぶと点が見える", guideIdx);
+						ImGui::TreePop();
+					}
+				}
 				ImGui::Unindent();
 			}
 

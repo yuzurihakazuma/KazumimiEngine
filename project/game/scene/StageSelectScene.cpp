@@ -420,8 +420,8 @@ void StageSelectScene::OnUpdate(){
 			counts.coins = records->Get(stage.stage).bestCoins;
 			counts.comboFound = records->ComboFlowersFound(stage.stage);
 			counts.comboTotal = StageRecords::CountComboTargets(stage.stage);
-			counts.stamps = records->StampCount(stage.stage);
-			counts.stampTotal = records->StampTotal(stage.stage);
+			counts.stars = records->StarCount(stage.stage);
+			counts.starTotal = records->IsCleared(stage.stage) ? StageRecords::kStarsPerStage : 0;
 			panel_.SetContent(stage.stage, stage.unlocked && diorama, counts);
 			orbitAngle_ = 0.0f;
 			if ( diorama ) { fx_.Confetti({ nodes_[standing].center.x, nodes_[standing].center.y + 0.2f, nodes_[standing].center.z }, 14, 2.4f, 0.07f); }

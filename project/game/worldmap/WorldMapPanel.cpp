@@ -100,12 +100,12 @@ void WorldMapPanel::Draw(){
         sprite->Draw();
     }
     // コイン：いちばんためた数。コンボ花：見つけた数 / 全体（コンボの的が無いステージは「--」）
-    //   卵スタンプ：取った数 / 全体（まだクリアしていないステージは「--」）
+    //   星：取った数 / 3（まだクリアしていないステージは「--」）
     auto fraction = [](int found, int total){
         return total > 0 ? std::to_string(found) + "/" + std::to_string(total) : std::string("--");
     };
     const float numberX = left + kNumberX * k, numberHeight = kNumberH * k;
     digits_.Draw(std::to_string(counts_.coins), numberX, top + kCoinY * k, numberHeight);
     digits_.Draw(fraction(counts_.comboFound, counts_.comboTotal), numberX, top + kBestY * k, numberHeight);
-    digits_.Draw(fraction(counts_.stamps, counts_.stampTotal), numberX, top + kStampY * k, numberHeight);
+    digits_.Draw(fraction(counts_.stars, counts_.starTotal), numberX, top + kStampY * k, numberHeight);
 }

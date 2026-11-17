@@ -224,6 +224,8 @@ public:
     float trainDepart = 0.8f;  // 乗ってから発車までの秒
     float trainReturn = 4.0f;  // 降りてから元の駅へ戻るまでの秒（負＝戻らない）
     int   trainEngine = 1;     // 1＝先頭に機関車（見た目と駅の位置）
+    float trainSpeed  = 5.0f;  // 走る速さ(m/秒)
+    std::vector<float> trainSpeedMuls; // ガイドの点ごとの速さの倍率（足りない点は 1）
     // 実行時（RailField の Sync で決める物）
     int   trainHome   = 0;     // 元の駅（0＝区間のはじめ側 / 1＝おわり側）。足場を置いた所に近い方
     float trainFlip   = 0.0f;  // 足場の向きとガイドの向きが逆なら π（足場の前後をそのままにして走らせる）
@@ -232,7 +234,8 @@ public:
     int   trainAt       = 0;     // 今いる駅（Run 中は行き先）
     int   trainFrom     = 0;     // Run の出発駅
     float trainTimer    = 0.0f;  // Depart の待ち・駅で空のまま待った秒
-    float trainProgress = 0.0f;  // Run の進み（0〜1）
+    float trainProgress = 0.0f;  // Run の進み（0〜1。確かめ用）
+    float trainSpeedNow = 0.0f;  // 今の速さ(m/秒)（なめらかに加速・減速する）
     float trainDist     = 0.0f;  // 今の、足場の真ん中のガイド上の距離(m)
     bool  trainNeedsLeave = false; // 乗ったまま着いた：一度降りるまで発車しない
     bool  isTrack = false;       // 列車のガイド（線路）

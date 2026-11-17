@@ -3,6 +3,7 @@
 
   "C:/Program Files/Blender Foundation/Blender 4.4/blender.exe" -b --factory-startup -P tools/stage_intro/render_backdrop.py -- [stage1]
      … tools/stage_intro/preview_backdrop_top.png（上から）/ _far.png（手前の高い所から引いて）/ _play.png（遊んでいる時の横から）
+       / _goal.png（ゴールのまわり）・_track.png（列車の線路のまわり）
        / _flip.png・_evening.png・_evening_wide.png（裏から。夕方の光で）
 
   座標：エンジン (x, y, z) → Blender (-x, -z, y)。rotY θ → Blender の Z まわりに -θ。拡縮 (sx, sy, sz) → (sx, sz, sy)
@@ -132,6 +133,10 @@ shoot("top", engine(cx, 400, cz) + Vector((0, 0.01, 0)), engine(cx, 0, cz), orth
 shoot("far", engine(cx - 60, 70, min(zs) - 70), engine(cx, 0, cz + 20), fov=0.9)
 shoot("play", engine(60, 7.5, -12), engine(60, 4.0, 0), fov=0.78)
 shoot("flip", engine(60, 7.5, 52), engine(60, 4.0, 40), fov=0.78)
+# ゴールのまわり（あとから足した道）と、列車の線路のまわり
+shoot("goal", engine(222, 12, -6), engine(222, 4, 14), fov=0.9)
+shoot("track", engine(150, 30, -40), engine(150, 0, 15), fov=1.0)
+shoot("track_near", engine(150, 9, 12), engine(160, 2, 26), fov=0.9)
 # 裏の世界から手前の辺（夕方の書き割り）を見る：夕方の光で
 sun.color = (1.0, 0.6, 0.38)
 world.color = (0.55, 0.38, 0.40)

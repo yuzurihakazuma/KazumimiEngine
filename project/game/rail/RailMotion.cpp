@@ -114,6 +114,26 @@ namespace {
         }
     }
 
+    // ガイドの距離 d での速さ（点ごとの倍率を、点と点の間でなめらかにつなぐ）
+    float TrainSpeedAt(const SplineRail& rail, const SplineRail& guide, float d){
+        const std::vector<float>& muls = rail.trainSpeedMuls;
+        const int count = ( int ) guide.nodes.size();
+        if ( muls.empty() || count < 2 ) { return rail.trainSpeed; }
+        auto mulAt = [&](int k){ return ( k < ( int ) muls.size() && muls[k] > 0.01f ) ? muls[k] : 1.0f; };
+        float prevD = guide.GetDistanceFromT(0.0f);
+        if ( d <= prevD ) { return rail.trainSpeed * mulAt(0); }
+        for ( int k = 1; k < count; ++k ) {
+            const float nextD = guide.GetDistanceFromT(static_cast< float >( k ));
+            if ( d <= nextD ) {
+                const float t = nextD > prevD ? ( d - prevD ) / ( nextD - prevD ) : 0.0f;
+                const float w = t * t * ( 3.0f - 2.0f * t ); // なめらかに
+                return rail.trainSpeed * ( mulAt(k - 1) + ( mulAt(k) - mulAt(k - 1) ) * w );
+            }
+            prevD = nextD;
+        }
+        return rail.trainSpeed * mulAt(count - 1);
+    }
+
     // 列車の1フレーム：駅で待つ → 乗ると発車 → 次の駅で止まる。だれも乗らないまま待つと元の駅へ戻る
     void AdvanceTrain(SplineRail& rail, const std::vector<SplineRail>& rails, float dt, bool riding, bool aboard, bool preview){
         const SplineRail* guide = GuideOf(rail, rails);
@@ -132,6 +152,7 @@ namespace {
                     rail.trainFrom = rail.trainAt;
                     rail.trainAt = rail.trainHome;
                     rail.trainProgress = 0.0f;
+                    rail.trainSpeedNow = 0.0f;
                     rail.trainState = State::Run;
                 }
             } else {
@@ -145,25 +166,40 @@ namespace {
                 rail.trainFrom = rail.trainAt;
                 rail.trainAt = 1 - rail.trainAt;
                 rail.trainProgress = 0.0f;
+                rail.trainSpeedNow = 0.0f;
                 rail.trainState = State::Run;
             }
             break;
         case State::Run: {
-            const float travel = ( std::max )( rail.motionPeriod, 0.5f ); // 駅から駅までの秒（周期の欄）
-            rail.trainProgress = ( std::min )( 1.0f, rail.trainProgress + dt / travel );
-            if ( rail.trainProgress >= 1.0f ) {
+            // 速さ（m/秒。場所ごとの倍率つき）で進む。出発はなめらかに加速し、駅の手前ではなめらかに減速して止まる
+            constexpr float kAccel = 1.5f;     // 加速・減速(m/秒²)
+            constexpr float kMinSpeed = 0.3f;  // 駅の手前で止まりきらないように
+            const float from = layout.station[rail.trainFrom];
+            const float to = layout.station[rail.trainAt];
+            const float dir = ( to >= from ) ? 1.0f : -1.0f;
+            const float remaining = ( to - rail.trainDist ) * dir;
+            const float brake = std::sqrt(2.0f * kAccel * ( std::max )( remaining, 0.0f ));
+            const float wanted = ( std::min )( TrainSpeedAt(rail, *guide, rail.trainDist), brake );
+            if ( wanted > rail.trainSpeedNow ) { rail.trainSpeedNow = ( std::min )( wanted, rail.trainSpeedNow + kAccel * dt ); }
+            else                               { rail.trainSpeedNow = ( std::max )( wanted, rail.trainSpeedNow - kAccel * 2.0f * dt ); }
+            if ( brake < rail.trainSpeedNow ) { rail.trainSpeedNow = brake; } // 駅に止まるのは必ず守る
+            const float step = ( std::max )( rail.trainSpeedNow, kMinSpeed ) * dt;
+            const float total = std::abs(to - from);
+            if ( remaining <= step || total < 1e-4f ) {
+                rail.trainDist = to;
+                rail.trainProgress = 1.0f;
+                rail.trainSpeedNow = 0.0f;
                 rail.trainState = State::Wait;
                 rail.trainTimer = 0.0f;
                 rail.trainNeedsLeave = aboard && !preview; // 乗ったまま着いた：降りて乗り直すまで発車しない
+            } else {
+                rail.trainDist += dir * step;
+                rail.trainProgress = 1.0f - ( remaining - step ) / total;
             }
             break;
         }
         }
-        float d = layout.station[rail.trainAt];
-        if ( rail.trainState == State::Run ) {
-            const float w = 0.5f - 0.5f * std::cos(rail.trainProgress * kPi); // 出発・到着は緩急つき
-            d = layout.station[rail.trainFrom] + ( layout.station[rail.trainAt] - layout.station[rail.trainFrom] ) * w;
-        }
+        const float d = ( rail.trainState == State::Run ) ? rail.trainDist : layout.station[rail.trainAt];
         PlaceTrain(rail, *guide, d);
     }
 }
@@ -327,7 +363,7 @@ void RailMotion::Reset(std::vector<SplineRail>& rails, bool keepRolls){
         // 列車：元の駅で待つ
         rail.trainState = SplineRail::TrainState::Wait;
         rail.trainAt = rail.trainFrom = rail.trainHome;
-        rail.trainTimer = rail.trainProgress = 0.0f;
+        rail.trainTimer = rail.trainProgress = rail.trainSpeedNow = 0.0f;
         rail.trainNeedsLeave = false;
     }
     for ( auto& rail : rails ) {

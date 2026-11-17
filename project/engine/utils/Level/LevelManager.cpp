@@ -186,7 +186,8 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
     for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
         const RailTrain train = ( i < levelData.railTrains.size() ) ? levelData.railTrains[i] : RailTrain {};
         trainArray.push_back({ { "use", train.enabled }, { "depart", train.departSec }, { "return", train.returnSec },
-                               { "engine", train.engine }, { "board", train.boardFor }, { "boardMode", train.boardMode } });
+                               { "engine", train.engine }, { "board", train.boardFor }, { "boardMode", train.boardMode },
+                               { "speed", train.speed }, { "speedMuls", train.speedMuls } });
     }
     rootJson["railTrains"] = trainArray;
 
@@ -480,6 +481,10 @@ LevelData LevelManager::Load(const std::string& fileName){
                 train.engine    = trainJson.value("engine", train.engine);
                 train.boardFor  = trainJson.value("board", train.boardFor);
                 train.boardMode = trainJson.value("boardMode", train.boardMode);
+                train.speed     = trainJson.value("speed", train.speed);
+                if ( trainJson.contains("speedMuls") && trainJson["speedMuls"].is_array() ) {
+                    train.speedMuls = trainJson["speedMuls"].get<std::vector<float>>();
+                }
             }
             levelData.railTrains.push_back(train);
         }

@@ -1101,25 +1101,6 @@
             "bobSpeed": 2.0,
             "chaseRange": 0.0,
             "chaseSpeedMul": 1.5,
-            "distance": 0.0,
-            "hoverHeight": -1.0,
-            "name": "",
-            "patrol": 0,
-            "patrolMax": -1.0,
-            "patrolMin": -1.0,
-            "railIndex": 21,
-            "scale": 1.0,
-            "speed": 0.0,
-            "startDir": 1,
-            "turnWait": 0.0,
-            "type": 1
-        },
-        {
-            "biteRange": -1.0,
-            "bobAmp": 0.0,
-            "bobSpeed": 2.0,
-            "chaseRange": 0.0,
-            "chaseSpeedMul": 1.5,
             "distance": 14.5,
             "hoverHeight": -1.0,
             "name": "",
@@ -2253,8 +2234,8 @@
             ],
             [
                 167.95645141601563,
-                1.7376766204833984,
-                -2.4941155910491943
+                4.0,
+                -2.0
             ],
             [
                 90.0,
@@ -2267,9 +2248,9 @@
                 42.0
             ],
             [
-                222.90090942382813,
-                6.443807601928711,
-                25.864906311035156
+                224.40966796875,
+                7.599084854125977,
+                16.09290885925293
             ]
         ],
         [
@@ -3286,150 +3267,200 @@
     ],
     "railTrains": [
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 1
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
             "use": 0
         },
         {
+            "board": -1,
+            "boardMode": 0,
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,

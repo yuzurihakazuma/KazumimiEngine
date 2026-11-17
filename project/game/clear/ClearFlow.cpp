@@ -28,10 +28,8 @@ namespace {
     constexpr float kEndMargin = 0.2f;                // 着地する所は、レールの端からこれより内側(m)
     constexpr float kClearTurnRate = 9.0f;            // 演出の間の、恐竜の向きを変える速さ（ふつうより少しゆっくり）
     // 卵スタンプの名前（StageRecords に残す）
-    constexpr const char* kStampBand = "band";        // ＋番号
-    constexpr const char* kStampCombo = "combo";
-    constexpr const char* kStampHealth = "health";
-    constexpr const char* kStampEnemies = "enemies";
+    // 星の名前（リザルトの 3 行。StageRecords に残る）
+    constexpr const char* kStarIds[ResultScreen::Row_Count] = { "combo", "health", "enemies" };
 
     // 決定ボタン（ゲームオーバーの画面と同じ）
     bool DecidePressed(){
@@ -190,16 +188,15 @@ ResultScreen::Data ClearFlow::MakeResult(bool& outShort){
     data.hanamaru = data.bandFound >= data.bandTotal && data.achieved[ResultScreen::Row_Combo]
         && data.achieved[ResultScreen::Row_Health] && data.achieved[ResultScreen::Row_Enemy];
 
-    // 卵スタンプ：帯は見つけた分がそのまま、行は達成した分
-    std::vector<std::string> stamps;
-    for ( int i = 0; i < data.bandFound; ++i ) { stamps.push_back(kStampBand + std::to_string(i)); }
-    if ( data.achieved[ResultScreen::Row_Combo] )  { stamps.push_back(kStampCombo); }
-    if ( data.achieved[ResultScreen::Row_Health] ) { stamps.push_back(kStampHealth); }
-    if ( data.achieved[ResultScreen::Row_Enemy] )  { stamps.push_back(kStampEnemies); }
-    data.ownedBefore = records->TotalStamps();
-    data.newStamps = records->AddStamps(stage_, stamps, data.bandTotal + ResultScreen::Row_Count, data.hanamaru);
+    // 星：行ごとに 1 つ（1 ステージに 3 つ）。前のプレイで取った星は、今回取れなくても残る
+    std::vector<std::string> stars;
+    for ( int row = 0; row < ResultScreen::Row_Count; ++row ) {
+        data.hadBefore[row] = records->HasStar(stage_, kStarIds[row]);
+        if ( data.achieved[row] ) { stars.push_back(kStarIds[row]); }
+    }
+    records->AddStars(stage_, stars, data.hanamaru);
 
-    outShort = records->IsCleared(stage_); // 同じステージの 2 回目から短縮版
+    outShort = false; // 2 回目以降も短縮しない（いつもフル版。インスペクターの「短縮版で見る」だけ短縮）
     records->NoteClear(stage_);
     return data;
 }

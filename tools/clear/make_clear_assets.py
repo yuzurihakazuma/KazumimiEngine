@@ -3,6 +3,7 @@
 クリア演出（「たまごザウルスの大冒険」クリア演出 企画書）の素材を作る。
 
   python tools/clear/make_clear_assets.py            素材・モデル・音・調整値を作る
+  python tools/clear/make_clear_assets.py --stars    星の絵だけ作る（clear.json は変えない。--preview も付けられる）
   python tools/clear/make_clear_assets.py --preview  作った素材を、ゲームと同じ置き場所で 1 枚に並べた絵も作る
                                                      （tools/clear/preview_result.png＝リザルト。起動しないで見た目を確かめる）
   ゴールの門・立体の切り文字・棒付きの星は Blender で作る：tools/clear/make_goal_set.py（clear.json の "gate" もそちらが書く）
@@ -15,11 +16,12 @@
       label_band.png（コンボ花）/ label_band_flowers.png（かくれ花）/ label_combo.png / label_health.png / label_enemy.png   行の名前
       icon_combo.png / icon_health.png / icon_enemy.png                       行の絵
       flower_empty.png        帯：まだ見つけていない花（点線の丸）
-      stamp_empty.png         卵スタンプの空欄（点線の卵）
-      stamp_egg.png           卵スタンプ（押した所。赤いインク）
+      star_empty.png          星の空欄（点線の星）
+      star_full.png           星（フェルトの金色の星。白いステッチ）。1 ステージに 3 つ（行ごとに 1 つ）。一度取ったら残る
+      stamp_empty.png / stamp_egg.png   （前の卵スタンプ。今は使っていない）
       hanamaru.png            花丸（描き順のマスク付き：R＝濃さ・G＝形・B＝描く順。Sprite::SetReveal で一筆ずつ出す）
       prompt_next.png         決定ボタンの案内
-      owned_tag.png           左上の「持っているスタンプ」の札
+      owned_tag.png           （前の左上の「持っているスタンプ」の札。今は使っていない）
     音
       se_gate.wav（門の卵が割れる）se_letter.wav（文字が下がる）se_star.wav（星が飛び出す）se_count.wav（数え上げ）
       se_stamp.wav（スタンプ）se_hanamaru.wav（花丸）se_add.wav（加算）se_road.wav（道が開く）
@@ -229,6 +231,55 @@ def make_stamps():
     save(stamp.rotate(-9, resample=Image.BICUBIC), "stamp_egg.png")   # 手で押したように少し傾ける
 
 
+def star_mask(size, inner=0.46, round_px=10, scale=0.9):
+    """角の丸い 5 つ星の形（L）。scale＝絵の大きさに対する星の大きさ"""
+    s = size * 4
+    m = Image.new("L", (s, s), 0)
+    pts = []
+    for i in range(10):
+        a = -math.pi / 2 + i * math.pi / 5
+        r = 0.5 * scale * (1.0 if i % 2 == 0 else inner)
+        pts.append((s * (0.5 + r * math.cos(a)), s * (0.53 + r * math.sin(a))))
+    ImageDraw.Draw(m).polygon(pts, fill=255)
+    m = m.filter(ImageFilter.MaxFilter(round_px * 2 + 1)).filter(ImageFilter.MinFilter(round_px * 2 + 1))  # 角を丸く
+    return m.resize((size, size), Image.LANCZOS)
+
+
+def make_stars():
+    """星：フェルトの金色の星（下にオレンジの重ね・白いステッチ・小さなつや）と、空欄（点線の星）"""
+    size = 140
+    body = star_mask(size)
+    solid = body.point(lambda v: 255 if v > 128 else 0)
+    # 空欄：うすい星と、点線のふち
+    edge = ImageChops.subtract(solid, solid.filter(ImageFilter.MinFilter(7)))
+    dots = Image.new("L", (size, size), 0)
+    dots.putdata([255 if ((i % size) + (i // size)) // 7 % 2 == 0 else 0 for i in range(size * size)])
+    empty = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    empty.paste((255, 255, 255, 46), (0, 0), body)
+    empty.paste((244, 236, 214, 230), (0, 0), ImageChops.multiply(edge, dots))
+    save(empty, "star_empty.png")
+    # 取った星：下にオレンジのフェルト（少しずらして厚みに見せる）、上に金色のフェルト
+    felt = grain((size, size), 91, 2, 0.7)
+    star = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    back = ImageChops.offset(body, 1, 3)   # 厚み（空欄の星と同じ位置に重なるよう、ずらしは小さく）
+    star.paste((214, 112, 30, 255), (0, 0), back)
+    gold = Image.new("RGBA", (size, size), (252, 206, 58, 255))
+    shade = felt.point(lambda v: int(205 + v * 50 / 255))  # フェルトのむら
+    gold = ImageChops.multiply(gold, Image.merge("RGBA", (shade, shade, shade, Image.new("L", (size, size), 255))))
+    star.paste(gold, (0, 0), body)
+    # 白いステッチ（ふちから少し内側の点線）
+    inner = solid.filter(ImageFilter.MinFilter(15))
+    stitch_line = ImageChops.subtract(inner, inner.filter(ImageFilter.MinFilter(5)))
+    dash = Image.new("L", (size, size), 0)
+    dash.putdata([255 if ((i % size) * 0.7 + (i // size) * 0.7) // 5 % 2 == 0 else 0 for i in range(size * size)])
+    star.paste((255, 250, 232, 235), (0, 0), ImageChops.multiply(stitch_line, dash))
+    # つや（左上の小さな丸）
+    shine = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(shine).ellipse([size * 0.36, size * 0.30, size * 0.46, size * 0.38], fill=150)
+    star.paste((255, 255, 255, 255), (0, 0), ImageChops.multiply(shine.filter(ImageFilter.GaussianBlur(2)), solid))
+    save(star, "star_full.png")   # 傾けない（空欄の点線の星とぴったり重なる）
+
+
 def make_flower_empty():
     size = 128
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -421,7 +472,7 @@ def make_sounds():
 def make_settings():
     settings = {
         # 場面の長さ(秒)。企画書の配分：輪をくぐる 0〜2 → 「ゴール！」2〜12 → リザルトへ 12〜13 → リザルト 13〜28 → 加算 28〜36 → 幕
-        "full":  {"gate": 2.0, "goal": 10.0, "toResult": 1.0, "leave": 0.6},
+        "full":  {"gate": 1.8, "goal": 4.5, "toResult": 0.8, "leave": 0.5},   # 長すぎて待たせていたので短く（「ゴール！」まで約 6 秒）
         "short": {"gate": 1.4, "goal": 2.6, "toResult": 0.7, "leave": 0.4},   # 同じステージの 2 回目から（「ゴール！」まで約 4 秒）
         "jump": {"takeOff": 0.2, "land": 1.3, "pose": 1.0},     # GoalJump クリップの中の時刻・GoalPose の長さ（make_intro_clips.py と合わせる）
         "gateOpen": {"time": 0.8, "eggAngle": 1.25, "hop": 0.45, "tapeAngle": 1.45},  # 卵が割れて開く秒・角度(rad)・跳ねる高さ(m)・テープが垂れる角度
@@ -473,8 +524,8 @@ def make_settings():
             "flowerX": 800, "flowerGap": 124, "flowerSize": 100,
             "prompt": {"x": 1560, "y": 1034},
             "owned": {"x": 200, "y": 64, "numberX": 150, "numberHeight": 62},
-            "matIn": 0.5, "itemIn": 0.3, "flowerInterval": 0.4, "countTime": 0.9, "stampTime": 0.35, "rowGap": 0.25,
-            "hanamaruTime": 1.25, "addTime": 1.4,
+            "matIn": 0.4, "itemIn": 0.3, "flowerInterval": 0.3, "countTime": 0.6, "stampTime": 0.35, "rowGap": 0.15,
+            "hanamaruTime": 1.0, "addTime": 1.4,
         },
         "sounds": {"gate": "resources/clear/se_gate.wav", "letter": "resources/clear/se_letter.wav",
                    "star": "resources/clear/se_star.wav", "count": "resources/clear/se_count.wav",
@@ -549,9 +600,9 @@ def preview(settings):
         put(label, layout["labelX"] + img.width / 2, y)
         if value:
             number(value, layout["valueRight"], y, layout["valueHeight"])
-            put("stamp_empty.png", layout["stampX"], y, height=layout["stampSize"])
+            put("star_empty.png", layout["stampX"], y, height=layout["stampSize"])
             if stamp:
-                put("stamp_egg.png", layout["stampX"], y, height=layout["stampSize"])
+                put("star_full.png", layout["stampX"], y, height=layout["stampSize"])
     for i in range(3):
         x = layout["flowerX"] + i * layout["flowerGap"]
         put("flower_empty.png", x, layout["rowYs"][0], height=layout["flowerSize"])
@@ -570,18 +621,22 @@ def preview(settings):
     img = Image.fromarray((np.clip(rgba, 0, 1) * 255).astype(np.uint8), "RGBA").resize((size, size), Image.LANCZOS)
     canvas.alpha_composite(img, (int(layout["hanamaru"]["x"] - size / 2), int(layout["hanamaru"]["y"] - size / 2)))
     put("prompt_next.png", layout["prompt"]["x"], layout["prompt"]["y"])
-    put("owned_tag.png", layout["owned"]["x"], layout["owned"]["y"])
-    number("×4", layout["owned"]["x"] + layout["owned"]["numberX"], layout["owned"]["y"], layout["owned"]["numberHeight"])
     canvas.convert("RGB").save(os.path.join(HERE, "preview_result.png"))
     print("wrote preview_result.png")
 
 
 if __name__ == "__main__":
+    if "--stars" in sys.argv:
+        make_stars()
+        if "--preview" in sys.argv:
+            preview(json.load(open(os.path.join(OUT, "clear.json"), encoding="utf-8")))
+        sys.exit(0)
     make_mat()
     make_row()
     make_labels()
     make_icons()
     make_stamps()
+    make_stars()
     make_flower_empty()
     make_prompt()
     make_owned_tag()

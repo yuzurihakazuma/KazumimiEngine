@@ -83,6 +83,8 @@ void RailField::ApplyMotionSettings(const EditorManager& editor){
         rail.trainDepart = train.departSec;
         rail.trainReturn = train.returnSec;
         rail.trainEngine = train.engine;
+        rail.trainSpeed  = ( std::max )( train.speed, 0.1f );
+        rail.trainSpeedMuls = train.speedMuls;
         rail.isTrack     = false;
         rail.boardTrain  = ( train.boardFor >= 0 && train.boardFor != ( int ) i ) ? train.boardFor : -1;
         rail.boardKind   = train.boardMode == 1 ? 2 : ( rail.boardTrain >= 0 ? 1 : 0 );

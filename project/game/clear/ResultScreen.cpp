@@ -29,17 +29,15 @@ namespace {
     constexpr int   kMaxBandFlowers = 8;        // 帯に並べられる花の数（これより多い時は、数字だけで出す）
     constexpr float kFastSpeed = 8.0f;          // 早送りの速さ（倍）
     constexpr float kMatDropFrom = -1000.0f;    // マットがすべり込む前の高さ（画面の上の外）
-    constexpr float kStampPunch = 0.9f;         // スタンプを押す瞬間の大きさ（1 に足す。そこから縮んで 1 になる）
-    constexpr float kStampFadeIn = 0.08f;       // スタンプのインクが乗るまでの秒数
-    constexpr float kFlowerStampScale = 0.42f;  // 帯の花に付く小さな卵スタンプの大きさ（花に対して）
+    constexpr float kStarSpin = 1.6f;           // 星が出る時の回り始めの角度(ラジアン)。くるっと回って止まる
+    constexpr float kStarHadAlpha = 0.45f;      // 前のプレイで取った星（今回は取れなかった）の、うすさ
     constexpr float kCountShortest = 0.35f;     // 数え上げ：小さい数でもこの割合の時間はかける
     constexpr float kCountFullAt = 10.0f;       // 数え上げ：この数以上で、決めた時間いっぱい
-    constexpr float kAddHold = 0.5f;            // 数え込み終わってから、終わりにするまでの秒数
     constexpr float kPromptBob = 6.0f;          // 案内の上下のゆれ(画素)
     constexpr float kPromptBobRate = 1.2f;      // 案内のゆれの速さ(回/秒)
     constexpr float kHidden = -1.0f;            // 「まだ出していない」の印
     const Vector4 kCrayonRed { 0.67f, 0.03f, 0.025f, 1.0f }; // 花丸のクレヨンの赤（リニア）
-    constexpr float kCountVolume = 0.5f, kStampVolume = 0.8f, kHanamaruVolume = 0.8f, kAddVolume = 0.6f, kFlowerVolume = 0.6f;
+    constexpr float kCountVolume = 0.5f, kStarVolume = 0.8f, kHanamaruVolume = 0.8f, kFlowerVolume = 0.6f;
 
     std::unique_ptr<Sprite> MakeSprite(const std::string& path, const Vector2& anchor = { 0.5f, 0.5f }){
         return Sprite::Create(TextureManager::GetInstance()->Load(path).srvIndex, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, anchor);
@@ -70,8 +68,6 @@ void ResultScreen::Initialize(const ClearSettings& settings, const std::string& 
     hanamaru_ = MakeSprite(File("hanamaru.png"));
     prompt_ = MakeSprite(File("prompt_next.png"));
     promptSize_ = prompt_->GetSize();
-    ownedTag_ = MakeSprite(File("owned_tag.png"));
-    ownedSize_ = ownedTag_->GetSize();
 
     // 行の枠と名前（[0]＝帯、[1..]＝3 行）
     const char* labelFiles[Row_Count + 1] = { "label_band.png", "label_combo.png", "label_health.png", "label_enemy.png" };
@@ -87,19 +83,18 @@ void ResultScreen::Initialize(const ClearSettings& settings, const std::string& 
     const char* iconFiles[Row_Count] = { "icon_combo.png", "icon_health.png", "icon_enemy.png" };
     for ( int i = 0; i < Row_Count; ++i ) {
         icons_[i] = MakeSprite(File(iconFiles[i]));
-        stampEmpty_[i] = MakeSprite(File("stamp_empty.png"));
-        stamps_[i] = MakeSprite(File("stamp_egg.png"));
+        stampEmpty_[i] = MakeSprite(File("star_empty.png")); // 星の空欄（点線の星）
+        stamps_[i] = MakeSprite(File("star_full.png"));      // 星（フェルトの金色の星）
     }
     for ( int i = 0; i < kMaxBandFlowers; ++i ) {
         flowerEmpty_.push_back(MakeSprite(File("flower_empty.png")));
         comboFlowers_.push_back(MakeSprite(kComboFlowerTexture));
         hiddenFlowers_.push_back(MakeSprite(kHiddenFlowerTexture));
-        flowerStamps_.push_back(MakeSprite(File("stamp_egg.png")));
     }
     digits_.Initialize(kDigitsTexture, kDigitChars, kDigitCellWidth, kDigitCellHeight, kDigitCapacity);
 
     AudioManager* audio = AudioManager::GetInstance();
-    for ( const std::string& sound : { sounds_.count, sounds_.stamp, sounds_.hanamaru, sounds_.add, std::string(kFlowerSound) } ) {
+    for ( const std::string& sound : { sounds_.count, sounds_.star, sounds_.hanamaru, std::string(kFlowerSound) } ) {
         audio->LoadWave(sound);
     }
     Close();
@@ -107,7 +102,7 @@ void ResultScreen::Initialize(const ClearSettings& settings, const std::string& 
 
 void ResultScreen::Finalize(){
     // スプライトは GPU の物を持つので、デバイスより先に放す
-    dim_.reset(); mat_.reset(); title_.reset(); hanamaru_.reset(); prompt_.reset(); ownedTag_.reset();
+    dim_.reset(); mat_.reset(); title_.reset(); hanamaru_.reset(); prompt_.reset();
     flowerLabel_.reset();
     name_.reset();
     for ( auto& sprite : rowBoards_ ) { sprite.reset(); }
@@ -115,7 +110,7 @@ void ResultScreen::Finalize(){
     for ( auto& sprite : icons_ ) { sprite.reset(); }
     for ( auto& sprite : stampEmpty_ ) { sprite.reset(); }
     for ( auto& sprite : stamps_ ) { sprite.reset(); }
-    flowerEmpty_.clear(); comboFlowers_.clear(); hiddenFlowers_.clear(); flowerStamps_.clear();
+    flowerEmpty_.clear(); comboFlowers_.clear(); hiddenFlowers_.clear();
     digits_.Finalize();
     phase_ = Phase::Closed;
 }
@@ -131,13 +126,12 @@ void ResultScreen::Open(const Data& data){
     data_.bandFound = std::clamp(data_.bandFound, 0, data_.bandTotal);
     phase_ = Phase::Showing;
     speed_ = 1.0f;
-    openTime_ = time_ = addTime_ = 0.0f;
+    openTime_ = time_ = 0.0f;
     titleShown_ = hanamaruProgress_ = promptShown_ = kHidden;
     rowShown_.fill(kHidden);
     stampShown_.fill(kHidden);
     rowValue_.fill(0.0f);
     flowerShown_.assign(static_cast<size_t>( ( std::min )( data_.bandTotal, kMaxBandFlowers ) ), kHidden);
-    ownedValue_ = static_cast<float>( data_.ownedBefore );
     lastTick_ = 0;
 
     BuildRows();
@@ -183,11 +177,11 @@ void ResultScreen::AddRowSteps(Row row){
         return progress >= 1.0f;
     });
     if ( data_.achieved[row] ) {
-        rows_.AddCall("スタンプを押す", [row, audio](ResultScreen& screen){
+        rows_.AddCall("星が出る", [row, audio](ResultScreen& screen){
             screen.stampShown_[row] = 0.0f;
-            audio->PlayWave(screen.sounds_.stamp, false, kStampVolume);
+            audio->PlayWave(screen.sounds_.star, false, kStarVolume);
         });
-        rows_.AddTimed("スタンプの間", layout_.stampTime);
+        rows_.AddTimed("星の間", layout_.stampTime);
     }
     rows_.AddTimed("行の間", layout_.rowGap);
 }
@@ -250,27 +244,8 @@ void ResultScreen::Update(float deltaTime, bool decide){
         if ( rows_.IsFinished() ) { phase_ = Phase::Waiting; }
         break;
     case Phase::Waiting:
-        if ( decide ) {
-            phase_ = Phase::Adding;
-            addTime_ = 0.0f;
-            lastTick_ = data_.ownedBefore;
-        }
+        if ( decide ) { phase_ = Phase::Finished; }
         break;
-    case Phase::Adding: {
-        addTime_ += deltaTime;
-        // 足す数が無い時は、数え込まずにすぐ終わる。決定ボタンで数え終える
-        const float duration = ( data_.newStamps > 0 ) ? layout_.addTime : 0.0f;
-        if ( decide ) { addTime_ = ( std::max )( addTime_, duration ); }
-        const float progress = ( duration > 0.0f ) ? Easing::Clamp01(addTime_ / duration) : 1.0f;
-        ownedValue_ = static_cast<float>( data_.ownedBefore ) + static_cast<float>( data_.newStamps ) * progress;
-        const int shown = static_cast<int>( ownedValue_ + 0.001f );
-        if ( shown != lastTick_ ) {
-            lastTick_ = shown;
-            AudioManager::GetInstance()->PlayWave(sounds_.add, false, kAddVolume);
-        }
-        if ( addTime_ >= duration + kAddHold ) { phase_ = Phase::Finished; }
-        break;
-    }
     default:
         break;
     }
@@ -350,15 +325,13 @@ void ResultScreen::Draw(){
             const float bloom = layout_.flowerSize * Pop(flowerShown_[i]);
             Sprite* flower = hiddenFlowers ? hiddenFlowers_[i].get() : comboFlowers_[i].get();
             Place(flower, x, y, bloom, bloom);
-            const float mark = bloom * kFlowerStampScale;
-            Place(flowerStamps_[i].get(), x + layout_.flowerSize * 0.36f, y + layout_.flowerSize * 0.3f, mark, mark);
         }
         // 花を並べ切れない数の時は、見つけた数をそのまま出す
         if ( flowerShown_.size() < static_cast<size_t>( data_.bandTotal ) ) { lit = data_.bandFound; }
         DrawNumberRight(std::to_string(lit) + "/" + std::to_string(data_.bandTotal), layout_.valueRight, y, layout_.valueHeight);
     }
 
-    // 3 行：絵・名前・数・卵スタンプ
+    // 3 行：絵・名前・数・星
     for ( int row = 0; row < Row_Count; ++row ) {
         const size_t slot = static_cast<size_t>( row ) + 1;
         if ( rowShown_[slot] < 0.0f || slot >= layout_.rowYs.size() ) { continue; }
@@ -368,12 +341,17 @@ void ResultScreen::Draw(){
         Place(icons_[row].get(), layout_.iconX, y, layout_.iconSize * pop, layout_.iconSize * pop);
         PlaceNatural(labels_[slot].get(), labelSizes_[slot], layout_.labelX, y, pop);
         DrawNumberRight(RowText(static_cast<Row>( row )), layout_.valueRight, y, layout_.valueHeight * pop);
-        Place(stampEmpty_[row].get(), layout_.stampX, y, layout_.stampSize * pop, layout_.stampSize * pop);
+        // 空欄（点線の星）：星が出きったら描かない（星の下から点線がはみ出して、ずれて見えないように）
+        const bool starDone = stampShown_[row] >= layout_.stampTime;
+        if ( !starDone ) { Place(stampEmpty_[row].get(), layout_.stampX, y, layout_.stampSize * pop, layout_.stampSize * pop); }
         if ( stampShown_[row] >= 0.0f ) {
-            // ぺたん：大きい所から縮んで押される
-            const float press = ( layout_.stampTime > 0.0f ) ? Easing::Clamp01(stampShown_[row] / layout_.stampTime) : 1.0f;
-            const float size = layout_.stampSize * ( 1.0f + kStampPunch * ( 1.0f - Easing::EaseOutCubic(press) ) );
-            Place(stamps_[row].get(), layout_.stampX, y, size, size, Easing::Clamp01(stampShown_[row] / kStampFadeIn));
+            // 今回取った星：くるっと回りながら、ぽんと大きくなって止まる
+            const float spin = ( layout_.stampTime > 0.0f ) ? Easing::Clamp01(stampShown_[row] / layout_.stampTime) : 1.0f;
+            const float size = layout_.stampSize * Pop(stampShown_[row]);
+            Place(stamps_[row].get(), layout_.stampX, y, size, size, 1.0f, kStarSpin * ( 1.0f - Easing::EaseOutCubic(spin) ));
+        } else if ( data_.hadBefore[row] ) {
+            // 前のプレイで取った星（今回は取れなかった）：うすく出す（取ったまま残っている）
+            Place(stamps_[row].get(), layout_.stampX, y, layout_.stampSize * pop, layout_.stampSize * pop, kStarHadAlpha);
         }
     }
 
@@ -387,17 +365,12 @@ void ResultScreen::Draw(){
         hanamaru_->Draw();
     }
 
-    // 決定ボタンの案内（ふわふわ上下する）と、左上の持っている卵スタンプ
+    // 決定ボタンの案内（ふわふわ上下する）
     if ( promptShown_ >= 0.0f ) {
         const float pop = Pop(promptShown_);
         if ( phase_ != Phase::Finished ) {
             const float bob = std::sin(time_ * 2.0f * Easing::kPi * kPromptBobRate) * kPromptBob;
             PlaceNatural(prompt_.get(), promptSize_, layout_.prompt.x, layout_.prompt.y + bob, pop);
         }
-        PlaceNatural(ownedTag_.get(), ownedSize_, layout_.owned.x, layout_.owned.y, pop);
-        const std::string owned = "x" + std::to_string(static_cast<int>( ownedValue_ + 0.001f ));
-        const float height = layout_.ownedNumberHeight * pop * scale_;
-        const float right = offsetX_ + ( layout_.owned.x + layout_.ownedNumberX ) * scale_;
-        digits_.Draw(owned, right - digits_.Width(owned, height), layout_.owned.y * scale_, height);
     }
 }

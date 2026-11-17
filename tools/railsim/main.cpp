@@ -254,7 +254,7 @@ static void Train(const std::string& script, int boardKind){
     rails[1].type = rails[2].type = SplineRail::RailType::Horizontal;
     SplineRail& car = rails[1];
     car.motionType = 3; car.guideRail = 2; car.motionPeriod = 3.0f;
-    car.train = 1; car.trainDepart = 0.5f; car.trainReturn = 2.0f; car.trainEngine = 1;
+    car.train = 1; car.trainDepart = 0.5f; car.trainReturn = 2.0f; car.trainEngine = 1; car.trainSpeed = 12.0f;
     car.animPivot = car.GetPositionByDistance(car.GetLength() * 0.5f);
     car.restYaw = std::atan2(1.0f, 0.0f);
     rails[2].visible = 0; rails[2].roadMode = 1;

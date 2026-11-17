@@ -29,7 +29,7 @@ public:
     struct Counts {
         int coins = 0;                       // いちばんためたコイン
         int comboFound = 0, comboTotal = 0;  // 見つけたコンボ花 / 全体
-        int stamps = 0, stampTotal = 0;      // 取った卵スタンプ / 全体（全体が 0＝まだクリアしていない）
+        int stars = 0, starTotal = 0;        // 取った星 / 全体（3。全体が 0＝まだクリアしていない）
     };
     void SetContent(const std::string& stage, bool unlocked, const Counts& counts);
     // shown＝出す（左からすべり込む）／隠す

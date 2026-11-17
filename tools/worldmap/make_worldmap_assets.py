@@ -3,6 +3,7 @@
 ワールドマップ（ステージ選択）の置き場所と画像を作る（ステージ選択・飛び込み演出 企画書）。
 
   python tools/worldmap/make_worldmap_assets.py
+  python tools/worldmap/make_worldmap_assets.py --panel   … 横のパネルの絵（panel.png / panel_locked.png）だけ作り直す
 
   project/resources/worldmap/worldmap.json        マス（ステージ）・道・台座・プレビューのカメラ
   project/resources/worldmap/worldmap_backdrop.json  まわりの地面・木・丘・雲・空（StageBackdrop で描く）
@@ -18,12 +19,14 @@ import json
 import math
 import os
 import random
+import sys
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.normpath(os.path.join(HERE, "..", "..", "project"))
 OUT = os.path.join(PROJECT, "resources", "worldmap")
+PANEL_ONLY = "--panel" in sys.argv  # パネルの絵だけ（worldmap.json などは書き換えない）
 TEX = os.path.join(PROJECT, "resources", "craft", "textures")
 os.makedirs(OUT, exist_ok=True)
 FONT = r"C:\Windows\Fonts\UDDigiKyokashoN-B.ttc"
@@ -69,7 +72,8 @@ for s, n in zip(STAGES, nodes):
         "window": {"depth": 24.0},   # 台座の幅に対して、箱庭が占める割合
         "preview": {"distance": 5.6, "height": 4.8, "orbitSeconds": 10.0},  # 布の道をなぞる所を追い、左右にゆっくり振れる
     })
-json.dump(world, open(os.path.join(OUT, "worldmap.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+if not PANEL_ONLY:
+    json.dump(world, open(os.path.join(OUT, "worldmap.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
 # --- 飛び込みの時刻（企画書の5段。仮の値・調整前提） ----------------------------
 dive = {
@@ -86,7 +90,8 @@ dive = {
         "dive": [0.7, 1.2, -1.9],   # 着地：小さな恐竜へ寄る
     },
 }
-json.dump(dive, open(os.path.join(OUT, "dive.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+if not PANEL_ONLY:
+    json.dump(dive, open(os.path.join(OUT, "dive.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
 # --- まわりの地面・木・丘・雲・空（ステージの背景と同じキット） ---------------------
 rng = random.Random(3)
@@ -144,7 +149,8 @@ x = x0 - 20
 while x < x1 + 30:
     add("sky_backdrop", [x, -20, 36], [5.0, 8.0, 5.0])
     x += 90
-json.dump({"objects": objects}, open(os.path.join(OUT, "worldmap_backdrop.json"), "w", encoding="utf-8"), separators=(",", ":"))
+if not PANEL_ONLY:
+    json.dump({"objects": objects}, open(os.path.join(OUT, "worldmap_backdrop.json"), "w", encoding="utf-8"), separators=(",", ":"))
 
 
 # --- 画像 --------------------------------------------------------------------
@@ -202,13 +208,16 @@ def panel(path, locked):
             d.ellipse([px - 10, py - 10, px + 10, py + 10], fill=(250, 200, 50), outline=BROWN, width=3)
         d.ellipse([60, best_y - 12, 84, best_y + 12], fill=(240, 140, 50), outline=BROWN, width=3)
         text(d, (118, best_y), "コンボ花", 40, anchor="lm")
-        # 卵スタンプ（クリアのリザルトでためる。取った数 / 全部の数）。クリーム色の丸に、赤いインクの卵
-        stamp_y = 380
-        d.ellipse([44, stamp_y - 28, 100, stamp_y + 28], fill=(250, 244, 230), outline=BROWN, width=4)
-        d.ellipse([58, stamp_y - 19, 86, stamp_y + 19], outline=(214, 52, 44), width=5)
-        for dx, dy in ((-4, -6), (5, 2), (-3, 8)):
-            d.ellipse([72 + dx - 3, stamp_y + dy - 3, 72 + dx + 3, stamp_y + dy + 3], fill=(214, 52, 44))
-        text(d, (118, stamp_y), "スタンプ", 40, anchor="lm")
+        # 星（クリアのリザルトで取る。1 ステージに 3 つ。取った数 / 3）。金色の星（リザルトの star_full.png と同じ色）
+        star_y = 380
+        pts = []
+        for k in range(10):
+            a = -math.pi / 2 + k * math.pi / 5
+            r = 30 if k % 2 == 0 else 13
+            pts.append((72 + r * math.cos(a), star_y + 2 + r * math.sin(a)))
+        d.polygon([(x + 2, y + 3) for x, y in pts], fill=(214, 112, 30))
+        d.polygon(pts, fill=(252, 206, 58), outline=BROWN, width=3)
+        text(d, (118, star_y), "ほし", 40, anchor="lm")
     # 操作の案内
     y = H - 62
     if not locked:
@@ -246,10 +255,11 @@ def digits(path):
     img.save(os.path.join(OUT, path))
 
 
-digits("digits.png")
 panel("panel.png", False)
 panel("panel_locked.png", True)
-for s in STAGES:
-    label("label_%s.png" % s["label"], s["label"])
-label("label_lock.png", "？")
+if not PANEL_ONLY:
+    digits("digits.png")
+    for s in STAGES:
+        label("label_%s.png" % s["label"], s["label"])
+    label("label_lock.png", "？")
 print("wrote", OUT, len(objects), "backdrop objects")

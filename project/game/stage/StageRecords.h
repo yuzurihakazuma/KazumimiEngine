@@ -4,7 +4,7 @@
 //   ・bestCoins     … 1回のプレイでためたコインのいちばん多い数
 //   ・comboFlowers  … 見つけたコンボ花（コンボの的ごとの名前）。一度見つけたら、やり直しても残る
 //   ・clearCount    … クリアした回数（2 回目からクリア演出を縮める・ワールドマップで次のマスへ道が伸びる）
-//   ・stamps        … 取った卵スタンプ（リザルトの帯・行ごとの名前）。持ち越してためていく
+//   ・stars         … 取った星（リザルトの 3 行ごとの名前。1 ステージに 3 つ）。一度取ったら残る
 //   本編（GamePlayScene / EggCombo / ClearFlow）が書き、ワールドマップ（StageSelectScene → WorldMapPanel）が読む
 //   ヘッダだけ（.cpp は無い）
 // =====================================================================
@@ -22,8 +22,7 @@ struct StageRecord {
     int bestCoins = 0;
     std::set<std::string> comboFlowers;
     int clearCount = 0;             // クリアした回数
-    std::set<std::string> stamps;   // 取った卵スタンプ（"band0"…・"combo"・"health"・"enemies"）
-    int stampTotal = 0;             // このステージで取れる卵スタンプの数（リザルトを出した時に決まる。0＝まだ分からない）
+    std::set<std::string> stars;    // 取った星（"combo"・"health"・"enemies"）
     bool hanamaru = false;          // 全部そろえて、花丸をもらった
 };
 
@@ -62,30 +61,24 @@ public:
         stage.swap(justCleared_);
         return stage;
     }
-    // 卵スタンプを足す。ids＝今回取れた分の名前、total＝このステージで取れる数。新しく増えた数を返す
-    int AddStamps(const std::string& stage, const std::vector<std::string>& ids, int total, bool hanamaru){
+    // 1 ステージで取れる星の数（リザルトの 3 行）
+    static constexpr int kStarsPerStage = 3;
+    // 星を足す。ids＝今回取れた星の名前。新しく増えた数を返す
+    int AddStars(const std::string& stage, const std::vector<std::string>& ids, bool hanamaru){
         StageRecord& record = records_[stage];
         int added = 0;
-        for ( const std::string& id : ids ) { added += record.stamps.insert(id).second ? 1 : 0; }
-        record.stampTotal = ( std::max )( record.stampTotal, total );
+        for ( const std::string& id : ids ) { added += record.stars.insert(id).second ? 1 : 0; }
         record.hanamaru = record.hanamaru || hanamaru;
         return added;
     }
-    int StampCount(const std::string& stage) const{
+    bool HasStar(const std::string& stage, const std::string& id) const{
         auto found = records_.find(stage);
-        return found == records_.end() ? 0 : ( int ) found->second.stamps.size();
+        return found != records_.end() && found->second.stars.count(id) > 0;
     }
-    int StampTotal(const std::string& stage) const{
+    int StarCount(const std::string& stage) const{
         auto found = records_.find(stage);
-        return found == records_.end() ? 0 : found->second.stampTotal;
+        return found == records_.end() ? 0 : ( int ) found->second.stars.size();
     }
-    // 持っている卵スタンプ（全部のステージの合計）
-    int TotalStamps() const{
-        int total = 0;
-        for ( const auto& [stage, record] : records_ ) { total += ( int ) record.stamps.size(); }
-        return total;
-    }
-
     // ステージにあるコンボの的の数（＝コンボ花の数）。背景の自動配置と手直しのファイルから数える（ワールドマップ用）
     static int CountComboTargets(const std::string& stage){
         using json = nlohmann::json;

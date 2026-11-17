@@ -21,6 +21,8 @@
   ・ずっと下（落ちてミスになる高さより下）に、裏返したブロックで段ボールの底を敷く
           （穴をのぞくと、深い穴の底が見える。何も無いと画面のクリア色が見えてしまう）
   道を直したら、もう一度流せば合う
+  ・列車の線路（列車にしたガイドのレール）の下にも地面を敷き（線路の高さ）、線路が埋まる所は切り通しにする（carve_track.py）
+  ・地面の升目は、今の自動配置と同じ位置にそろえる（作り直しても升目がずれない）。足すだけなら extend_backdrop.py
   最後に make_backdrop_ring.py を呼んで、ステージのまわりを段ボールの書き割りで囲う（ジオラマの舞台）
 """
 import json
@@ -34,6 +36,9 @@ PROJECT = os.path.normpath(os.path.join(HERE, "..", "..", "project"))
 STAGE = sys.argv[1] if len(sys.argv) > 1 else "stage1"
 MAP = os.path.join(PROJECT, "resources", "map", STAGE + ".json")
 OUT = os.path.join(PROJECT, "resources", "map", STAGE + "_backdrop.json")
+BASE = OUT  # 今の自動配置（地面の升目の位置 grid をそろえるのに読む）
+# 環境変数 BACKDROP_OUT＝別のファイルへ書く（extend_backdrop.py が新しい所だけを足すのに使う）、BACKDROP_NO_RING=1＝囲いを足さない
+OUT = os.environ.get("BACKDROP_OUT", OUT)
 
 SUB = 1.2                 # 地面を敷く升目(m)。ブロックは 1〜3升（1.2 / 2.4 / 3.6m 角）
 FRONT, BACK = 9.0, 16.0   # 道の手前・奥に地面を敷く幅(m)
@@ -65,6 +70,18 @@ def at(key, i, default):
 def is_moving(i):
     """動く道（往復・円・ガイド追従。種類 0 でも振れ幅があれば往復する）"""
     return at("railMotionTypes", i, 0) != 0 or list(at("railMotions", i, [0, 0, 0]))[:3] != [0, 0, 0]
+
+
+def is_track(i):
+    """列車の線路（列車にしたガイド追従の足場の、ガイドのレール）。見えない線でも、線路の高さに地面を敷く"""
+    for j, train in enumerate(level.get("railTrains", [])):
+        if train.get("use") and at("railMotionTypes", j, 0) == 3 and at("railGuideRails", j, -1) == i:
+            return True
+    return False
+
+
+# 線路の地面の上面は、ガイド（客車の屋根の上の面＝歩く高さ）からこれだけ下（game/rail/ToyTrain の屋根の高さ 2.07 ＋枕木 0.14）
+TRACK_DROP = 2.07 + 0.14
 
 
 def is_ground_rail(i):
@@ -141,9 +158,13 @@ for i, line in enumerate(lines):
     points, _ = sample(i)
     for p, _, _ in points:
         every.append(p)
-    if not is_ground_rail(i):
+    track = is_track(i)
+    if not is_ground_rail(i) and not track:
         continue
-    spans = hole_spans(i, points)
+    if track:  # 線路：枕木の下の高さに地面（ガイドの高さから TRACK_DROP 下。地面は道より GROUND_DROP 下に敷くのでその分を足す）
+        drop = TRACK_DROP - GROUND_DROP
+        points = [([q[0], q[1] - drop, q[2]], d, tt) for q, d, tt in points]
+    spans = hole_spans(i, points) if not track else []
     for p, d, _ in points:
         if any(d0 <= d <= d1 for d0, d1 in spans):
             gap_points.append(p)
@@ -321,6 +342,14 @@ min_x = min(g[0] for g in ground) - BACK
 max_x = max(g[0] for g in ground) + BACK
 min_z = min(g[2] for g in ground) - FRONT
 max_z = max(g[2] for g in ground) + BACK
+# 地面の升目は、今の自動配置と同じ位置にそろえる（広がっても升目がずれない＝背景エディタで塗った地面・手直しが合ったまま）
+if os.path.exists(BASE) and os.environ.get("BACKDROP_KEEP_GRID", "1") == "1":
+    try:
+        old_x, old_z = json.load(open(BASE, encoding="utf-8"))["grid"]["origin"]
+        min_x = old_x - math.ceil((old_x - min_x) / SUB - 1e-6) * SUB
+        min_z = old_z - math.ceil((old_z - min_z) / SUB - 1e-6) * SUB
+    except (KeyError, ValueError, TypeError):
+        pass
 cols = int((max_x - min_x) / SUB) + 1
 rows = int((max_z - min_z) / SUB) + 1
 height = {}  # (列, 行) → 地面の上面
@@ -611,6 +640,12 @@ with open(OUT, "w", encoding="utf-8") as f:
               f, ensure_ascii=False, separators=(",", ":"))
 print("wrote", OUT, len(objects), "objects", counts)
 
+# 列車の線路が地面（奥の段々など）に埋まらないように、線路の下を線路の高さまで下げる
+sys.path.insert(0, HERE)
+import carve_track  # noqa: E402
+carve_track.main(STAGE, OUT)
+
 # ステージのまわりの段ボールの囲い（手前・左・右の空の板・丘・雲と、囲いの内側の底）を足し直す
-import make_backdrop_ring  # noqa: E402
-make_backdrop_ring.main()
+if os.environ.get("BACKDROP_NO_RING") != "1":
+    import make_backdrop_ring  # noqa: E402
+    make_backdrop_ring.main()

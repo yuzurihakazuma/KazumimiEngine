@@ -1,9 +1,9 @@
 {
   "full": {
-    "gate": 2.0,
-    "goal": 10.0,
-    "toResult": 1.0,
-    "leave": 0.6
+    "gate": 1.8,
+    "goal": 4.5,
+    "toResult": 0.8,
+    "leave": 0.5
   },
   "short": {
     "gate": 1.4,
@@ -191,13 +191,13 @@
       "numberX": 150,
       "numberHeight": 62
     },
-    "matIn": 0.5,
+    "matIn": 0.4,
     "itemIn": 0.3,
-    "flowerInterval": 0.4,
-    "countTime": 0.9,
+    "flowerInterval": 0.3,
+    "countTime": 0.6,
     "stampTime": 0.35,
-    "rowGap": 0.25,
-    "hanamaruTime": 1.25,
+    "rowGap": 0.15,
+    "hanamaruTime": 1.0,
     "addTime": 1.4
   }
 }
