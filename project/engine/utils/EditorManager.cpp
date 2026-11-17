@@ -2177,6 +2177,11 @@ const std::vector<LevelCameraZone>& EditorManager::GetEditorCameraZones() const{
     return levelEditor_ ? levelEditor_->GetRailEditor()->GetCameraZones() : kEmpty;
 }
 
+const std::vector<RailCamera>& EditorManager::GetEditorRailCameras() const{
+    static const std::vector<RailCamera> kEmpty;
+    return levelEditor_ ? levelEditor_->GetRailEditor()->GetRailCameras() : kEmpty;
+}
+
 // 敵の配置データ（マップ保存に乗せる）を levelEditor_ へ委譲
 void EditorManager::SetEditorEnemyData(const std::vector<LevelEnemyData>& e){
     if ( levelEditor_ ) levelEditor_->SetEnemyData(e);

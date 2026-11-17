@@ -4,6 +4,7 @@
 #include "engine/base/Input.h"
 #include "engine/base/TimeManager.h"
 #include "engine/camera/Camera.h"
+#include "engine/math/MathUtil.h"
 #include "engine/math/VectorMath.h"
 #include "engine/rail/SplineRail.h"
 #include "game/egg/EggCombo.h"
@@ -48,11 +49,11 @@ void ClearFlow::Initialize(const Context& context, const std::string& stage, uin
     settings_.Load();
     stageSettings_.Load(stage_);
 
-    ring_.Initialize();
+    gate_.Initialize();
     props_.Initialize(settings_);
     result_.Initialize(settings_, stage_);
     paperFx_.Initialize(noiseSrv);
-    AudioManager::GetInstance()->LoadWave(settings_.sounds.ring);
+    AudioManager::GetInstance()->LoadWave(settings_.sounds.gate);
 
     // 場面が使う物（ずっと同じ物）
     context_ = {};
@@ -61,7 +62,7 @@ void ClearFlow::Initialize(const Context& context, const std::string& stage, uin
     context_.railField = scene_.railField;
     context_.camera = scene_.camera;
     context_.eggSystem = scene_.eggSystem;
-    context_.ring = &ring_;
+    context_.gate = &gate_;
     context_.clearCamera = &camera_;
     context_.props = &props_;
     context_.result = &result_;
@@ -80,20 +81,20 @@ void ClearFlow::Finalize(){
 
 void ClearFlow::OnRailsSynced(){
     if ( !scene_.railField ) { return; }
-    ring_.Place(*scene_.railField, settings_.ring, stageSettings_.ringOffset);
+    gate_.Place(*scene_.railField, settings_.gate, stageSettings_.gateOffset, stageSettings_.gateTurn);
     hasPrevious_ = false;
 }
 
 void ClearFlow::OnPlayStart(int enemyTotal){
     if ( active_ ) { Abort(); }
     tally_.Reset(enemyTotal);
-    ring_.Close();
+    gate_.Close();
     hasPrevious_ = false;
 }
 
 void ClearFlow::OnEditStart(){
     if ( active_ ) { Abort(); }
-    ring_.Close();
+    gate_.Close();
     hasPrevious_ = false;
 }
 
@@ -116,10 +117,10 @@ void ClearFlow::Abort(){
 //  ゴールの判定 → 演出の開始
 // ---------------------------------------------------------------------
 bool ClearFlow::CheckGoal(){
-    if ( active_ || !scene_.player || !ring_.IsPlaced() ) { return false; }
+    if ( active_ || !scene_.player || !gate_.IsPlaced() ) { return false; }
     const Vector3 foot = scene_.player->GetPosition();
     float direction = 1.0f;
-    const bool passed = hasPrevious_ && ring_.CheckPass(previousFoot_, foot, direction);
+    const bool passed = hasPrevious_ && gate_.CheckPass(previousFoot_, foot, direction);
     previousFoot_ = foot;
     hasPrevious_ = true;
     if ( !passed ) { return false; }
@@ -127,23 +128,31 @@ bool ClearFlow::CheckGoal(){
     return true;
 }
 
-// 着地する所（輪から、くぐった向きへ landAhead）と、そこから演出カメラの方（＝くぐった向き）
+// 着地する所（門から、くぐった向きへ landAhead）・くぐった向き・演出カメラを回す側
 void ClearFlow::BuildStage(float direction){
     const auto& rails = scene_.railField->GetRails();
-    const SplineRail& rail = rails[ring_.Rail()];
-    context_.landRail = ring_.Rail();
-    context_.landDistance = std::clamp(ring_.RailDistance() + stageSettings_.landAhead * direction, kEndMargin,
+    const SplineRail& rail = rails[gate_.Rail()];
+    context_.landRail = gate_.Rail();
+    context_.landDistance = std::clamp(gate_.RailDistance() + stageSettings_.landAhead * direction, kEndMargin,
                                        ( std::max )( rail.GetLength() - kEndMargin, kEndMargin ));
     context_.landPoint = rail.GetPositionByDistance(context_.landDistance);
-    context_.toCamera = ring_.Forward() * direction;
+    context_.forward = gate_.Forward() * direction;
+    context_.facingSign = ( VectorMath::Dot(gate_.Front(), context_.forward) >= 0.0f ) ? 1.0f : -1.0f;
+    // 演出カメラは、遊んでいる時のカメラがいた側へ回り込む（反対へ回ると、道の向こうの何もない所から写す）
+    const Vector3 side { context_.forward.z, 0.0f, -context_.forward.x };
+    const Vector3 fromLand = scene_.camera ? scene_.camera->GetWorldPosition() - context_.landPoint : side * -1.0f;
+    cameraSide_ = ( VectorMath::Dot(fromLand, side) >= 0.0f ) ? side : side * -1.0f;
 }
 
 void ClearFlow::ApplyStageCamera(){
-    // 終点：着地する所から、くぐった向きの先へ distance・上へ height・画面の右へ side。見る点は着地する所の上
-    const Vector3 right = VectorMath::Cross({ 0.0f, 1.0f, 0.0f }, context_.toCamera * -1.0f);
+    // 終点：着地する所から、くぐった向きを遊んでいる時のカメラの側へ yaw 度回した方へ distance・上へ height。
+    //   見る点は、恐竜から門の方へ lookBack 戻った所の上（恐竜と、後ろの門の両方が入る）
+    const float yaw = Math::ToRadians(stageSettings_.cameraYaw);
+    context_.toCamera = VectorMath::NormalizeSafe(context_.forward * std::cos(yaw) + cameraSide_ * std::sin(yaw), context_.forward);
     const Vector3 endPosition = context_.landPoint + context_.toCamera * stageSettings_.cameraDistance
-                              + Vector3 { 0.0f, stageSettings_.cameraHeight, 0.0f } + right * stageSettings_.cameraSide;
-    const Vector3 endLook = context_.landPoint + Vector3 { 0.0f, stageSettings_.lookHeight, 0.0f };
+                              + Vector3 { 0.0f, stageSettings_.cameraHeight, 0.0f };
+    const Vector3 endLook = context_.landPoint - context_.forward * stageSettings_.lookBack
+                          + Vector3 { 0.0f, stageSettings_.lookHeight, 0.0f };
     camera_.SetEnd(endPosition, endLook, stageSettings_.fovY);
 }
 
@@ -194,7 +203,7 @@ ResultScreen::Data ClearFlow::MakeResult(bool& outShort){
 }
 
 void ClearFlow::Begin(float direction){
-    if ( !scene_.player || !scene_.railField || !ring_.IsPlaced() ) { return; }
+    if ( !scene_.player || !scene_.railField || !gate_.IsPlaced() ) { return; }
     // 後始末：空中・構えの途中・ベロを出している途中でも破綻しないよう、シーンに片付けてもらう（敵は、シーンが時間を止める）
     if ( scene_.onGoal ) { scene_.onGoal(); }
     Time::GetInstance()->SetTimeScale(1.0f); // ヒットストップ・スローの途中でも、ふつうの速さから
@@ -240,7 +249,7 @@ void ClearFlow::UpdateAfterPlayer(float deltaTime){
 }
 
 void ClearFlow::UpdateVisuals(float deltaTime){
-    ring_.Update(deltaTime);
+    gate_.Update(deltaTime);
     paperFx_.Update(deltaTime, scene_.camera);
 }
 
@@ -248,7 +257,7 @@ void ClearFlow::UpdateVisuals(float deltaTime){
 //  描画
 // ---------------------------------------------------------------------
 void ClearFlow::DrawOpaque(){
-    ring_.Draw();
+    gate_.Draw();
 }
 
 void ClearFlow::DrawInstanced(const Camera* camera){
@@ -266,12 +275,12 @@ bool ClearFlow::DrawUI(){
 }
 
 // ---------------------------------------------------------------------
-//  インスペクター：その場で試す・輪の場所とカメラの終点を直して保存する
+//  インスペクター：その場で試す・門の場所とカメラの終点を直して保存する
 // ---------------------------------------------------------------------
 void ClearFlow::DrawInspector(bool playing){
 #ifdef USE_IMGUI
     if ( !ImGui::CollapsingHeader("クリア演出") ) { return; }
-    if ( !ring_.IsPlaced() ) {
+    if ( !gate_.IsPlaced() ) {
         ImGui::TextDisabled("このマップにはゴールがありません（レールエディタでゴールの点を決める）");
         return;
     }
@@ -279,12 +288,12 @@ void ClearFlow::DrawInspector(bool playing){
     ImGui::Checkbox("短縮版で試す（2 回目からの長さ）", &previewShort_);
     if ( playing && !active_ ) {
         if ( ImGui::Button("ここでゴールした事にする") ) {
-            // 輪の所に立たせてから始める（どこにいても試せるように）
-            scene_.player->DebugPlaceAt(ring_.Rail(), ring_.RailDistance());
+            // 門の所に立たせてから始める（どこにいても試せるように）
+            scene_.player->DebugPlaceAt(gate_.Rail(), gate_.RailDistance());
             Begin(1.0f);
         }
     } else if ( active_ ) {
-        if ( ImGui::Button("演出をやめる") ) { Abort(); ring_.Close(); }
+        if ( ImGui::Button("演出をやめる") ) { Abort(); gate_.Close(); }
         ImGui::SameLine();
         ImGui::Text("場面：%s  %.1f 秒", sequence_.CurrentName().c_str(), sequence_.CurrentElapsed());
     } else {
@@ -295,25 +304,27 @@ void ClearFlow::DrawInspector(bool playing){
 
     // --- ステージごとの値（輪・着地・カメラの終点・目標）---
     ImGui::SeparatorText("このステージの置き場所");
-    bool ringMoved = false;
-    ringMoved |= ImGui::DragFloat("輪の場所（ゴールの点から m。マイナス＝手前）", &stageSettings_.ringOffset, 0.05f, -30.0f, 30.0f, "%.2f");
-    ImGui::DragFloat("着地する所（輪から先へ m）", &stageSettings_.landAhead, 0.02f, 0.0f, 6.0f, "%.2f");
-    ImGui::DragFloat("カメラ：正面の距離(m)", &stageSettings_.cameraDistance, 0.05f, 2.0f, 20.0f, "%.2f");
+    bool gateMoved = false;
+    gateMoved |= ImGui::DragFloat("門の場所（ゴールの点から m。マイナス＝手前）", &stageSettings_.gateOffset, 0.05f, -30.0f, 30.0f, "%.2f");
+    gateMoved |= ImGui::DragFloat("門の向き（入口をカメラへ回す 度）", &stageSettings_.gateTurn, 0.5f, -45.0f, 45.0f, "%.1f");
+    ImGui::DragFloat("着地する所（門から先へ m）", &stageSettings_.landAhead, 0.02f, 0.0f, 6.0f, "%.2f");
+    ImGui::DragFloat("カメラ：回り込む角度(度)", &stageSettings_.cameraYaw, 0.5f, -80.0f, 80.0f, "%.1f");
+    ImGui::DragFloat("カメラ：距離(m)", &stageSettings_.cameraDistance, 0.05f, 2.0f, 20.0f, "%.2f");
     ImGui::DragFloat("カメラ：高さ(m)", &stageSettings_.cameraHeight, 0.02f, 0.0f, 8.0f, "%.2f");
-    ImGui::DragFloat("カメラ：横(m)", &stageSettings_.cameraSide, 0.02f, -6.0f, 6.0f, "%.2f");
     ImGui::DragFloat("カメラ：見る点の高さ(m)", &stageSettings_.lookHeight, 0.02f, 0.0f, 6.0f, "%.2f");
+    ImGui::DragFloat("カメラ：見る点を門の方へ(m)", &stageSettings_.lookBack, 0.02f, -3.0f, 4.0f, "%.2f");
     ImGui::DragFloat("カメラ：画角(rad)", &stageSettings_.fovY, 0.005f, 0.3f, 1.4f, "%.3f");
     ImGui::DragInt("1 行目の目標のコンボ", &stageSettings_.comboTarget, 0.1f, 1, 8);
-    if ( ringMoved && !active_ ) { OnRailsSynced(); } // 輪を置き直す（演出の途中では動かさない）
+    if ( gateMoved && !active_ ) { OnRailsSynced(); } // 門を置き直す（演出の途中では動かさない）
 
     // --- 小道具（どのステージでも同じ値）---
     ImGui::SeparatorText("切り文字と星");
     ImGui::DragFloat("文字：真ん中の高さ(m)", &settings_.letters.centerHeight, 0.02f, 0.5f, 6.0f, "%.2f");
     ImGui::DragFloat("文字：間(m)", &settings_.letters.spacing, 0.01f, 0.5f, 2.5f, "%.2f");
-    ImGui::DragFloat("文字：輪の方へ下げる(m)", &settings_.letters.back, 0.02f, -2.0f, 4.0f, "%.2f");
+    ImGui::DragFloat("文字：アーチより手前へ(m)", &settings_.letters.front, 0.02f, -1.0f, 3.0f, "%.2f");
     ImGui::DragFloat("星：根元の横(m)", &settings_.stars.pivotSide, 0.02f, 1.0f, 8.0f, "%.2f");
     ImGui::DragFloat("星：根元の高さ(m)", &settings_.stars.pivotHeight, 0.02f, -3.0f, 3.0f, "%.2f");
-    ImGui::DragFloat("星：輪の方へ下げる(m)", &settings_.stars.back, 0.02f, -2.0f, 5.0f, "%.2f");
+    ImGui::DragFloat("星：門より手前へ(m)", &settings_.stars.front, 0.02f, -2.0f, 5.0f, "%.2f");
 
     if ( ImGui::Button("保存（ステージの置き場所と、文字・星）") ) {
         stageSettings_.Save(stage_);

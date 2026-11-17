@@ -11,7 +11,7 @@ namespace {
 
     void ReadTiming(const json& root, const char* key, ClearTiming& out){
         const json node = JsonFile::Child(root, key);
-        JsonFile::Read(node, "ring", out.ring);
+        JsonFile::Read(node, "gate", out.gate);
         JsonFile::Read(node, "goal", out.goal);
         JsonFile::Read(node, "toResult", out.toResult);
         JsonFile::Read(node, "leave", out.leave);
@@ -73,40 +73,38 @@ bool ClearSettings::Load(){
     JsonFile::Read(jumpNode, "land", jump.land);
     JsonFile::Read(jumpNode, "pose", jump.pose);
 
-    const json ringNode = JsonFile::Child(root, "ring");
-    JsonFile::Read(ringNode, "hinge", ring.hinge);
-    JsonFile::Read(ringNode, "halfWidth", ring.halfWidth);
-    JsonFile::Read(ringNode, "height", ring.height);
-    JsonFile::Read(ringNode, "innerHalfWidth", ring.innerHalfWidth);
-    JsonFile::Read(ringNode, "innerHeight", ring.innerHeight);
-    const json openNode = JsonFile::Child(root, "ringOpen");
-    JsonFile::Read(openNode, "time", ring.openTime);
-    JsonFile::Read(openNode, "angle", ring.openAngle);
-    JsonFile::Read(openNode, "hop", ring.openHop);
+    const json gateNode = JsonFile::Child(root, "gate");
+    JsonFile::Read(gateNode, "innerHalfWidth", gate.innerHalfWidth);
+    JsonFile::Read(gateNode, "innerHeight", gate.innerHeight);
+    JsonFile::Read(gateNode, "archCenterHeight", gate.archCenterHeight);
+    JsonFile::Read(gateNode, "archOuterRadius", gate.archOuterRadius);
+    JsonFile::Read(gateNode, "archFront", gate.archFront);
+    JsonFile::Read(gateNode, "eggHinge", gate.eggHinge);
+    JsonFile::Read(gateNode, "tapePivot", gate.tapePivot);
+    JsonFile::Read(gateNode, "height", gate.height);
+    const json openNode = JsonFile::Child(root, "gateOpen");
+    JsonFile::Read(openNode, "time", gate.openTime);
+    JsonFile::Read(openNode, "eggAngle", gate.eggAngle);
+    JsonFile::Read(openNode, "hop", gate.hop);
+    JsonFile::Read(openNode, "tapeAngle", gate.tapeAngle);
 
     const json lettersNode = JsonFile::Child(root, "letters");
     JsonFile::Read(lettersNode, "count", letters.count);
-    JsonFile::Read(lettersNode, "textureSize", letters.textureSize);
     JsonFile::Read(lettersNode, "height", letters.height);
-    JsonFile::Read(lettersNode, "string", letters.string);
     JsonFile::Read(lettersNode, "spacing", letters.spacing);
     JsonFile::Read(lettersNode, "centerHeight", letters.centerHeight);
-    JsonFile::Read(lettersNode, "back", letters.back);
+    JsonFile::Read(lettersNode, "front", letters.front);
     JsonFile::Read(lettersNode, "start", letters.start);
     JsonFile::Read(lettersNode, "interval", letters.interval);
     JsonFile::Read(lettersNode, "dropTime", letters.dropTime);
-    JsonFile::Read(lettersNode, "dropHeight", letters.dropHeight);
     JsonFile::Read(lettersNode, "swing", letters.swing);
     JsonFile::Read(lettersNode, "sway", letters.sway);
 
     const json starsNode = JsonFile::Child(root, "stars");
-    JsonFile::Read(starsNode, "textureSize", stars.textureSize);
-    JsonFile::Read(starsNode, "height", stars.height);
-    JsonFile::Read(starsNode, "stick", stars.stick);
     JsonFile::Read(starsNode, "perSide", stars.perSide);
     JsonFile::Read(starsNode, "pivotSide", stars.pivotSide);
     JsonFile::Read(starsNode, "pivotHeight", stars.pivotHeight);
-    JsonFile::Read(starsNode, "back", stars.back);
+    JsonFile::Read(starsNode, "front", stars.front);
     JsonFile::Read(starsNode, "angles", stars.angles);
     JsonFile::Read(starsNode, "start", stars.start);
     JsonFile::Read(starsNode, "interval", stars.interval);
@@ -122,7 +120,7 @@ bool ClearSettings::Load(){
     ReadResult(root, result);
 
     const json soundsNode = JsonFile::Child(root, "sounds");
-    JsonFile::Read(soundsNode, "ring", sounds.ring);
+    JsonFile::Read(soundsNode, "gate", sounds.gate);
     JsonFile::Read(soundsNode, "letter", sounds.letter);
     JsonFile::Read(soundsNode, "star", sounds.star);
     JsonFile::Read(soundsNode, "count", sounds.count);
@@ -138,23 +136,25 @@ bool ClearSettings::SaveProps() const{
     JsonFile::Load(kSharedFile, root); // ほかの項目を残すため、今のファイルに書き足す
     root["letters"]["centerHeight"] = letters.centerHeight;
     root["letters"]["spacing"] = letters.spacing;
-    root["letters"]["back"] = letters.back;
+    root["letters"]["front"] = letters.front;
     root["stars"]["pivotSide"] = stars.pivotSide;
     root["stars"]["pivotHeight"] = stars.pivotHeight;
-    root["stars"]["back"] = stars.back;
+    root["stars"]["front"] = stars.front;
     return JsonFile::Save(kSharedFile, root);
 }
 
 bool ClearStageSettings::Load(const std::string& stage){
     json root;
     if ( !JsonFile::Load(StageFile(stage), root) ) { return false; }
-    JsonFile::Read(root, "ringOffset", ringOffset);
+    JsonFile::Read(root, "gateOffset", gateOffset);
+    JsonFile::Read(root, "gateTurn", gateTurn);
     JsonFile::Read(root, "landAhead", landAhead);
     const json cameraNode = JsonFile::Child(root, "camera");
+    JsonFile::Read(cameraNode, "yaw", cameraYaw);
     JsonFile::Read(cameraNode, "distance", cameraDistance);
     JsonFile::Read(cameraNode, "height", cameraHeight);
-    JsonFile::Read(cameraNode, "side", cameraSide);
     JsonFile::Read(cameraNode, "lookHeight", lookHeight);
+    JsonFile::Read(cameraNode, "lookBack", lookBack);
     JsonFile::Read(cameraNode, "fovY", fovY);
     JsonFile::Read(root, "comboTarget", comboTarget);
     JsonFile::Read(root, "band", band);
@@ -164,10 +164,11 @@ bool ClearStageSettings::Load(const std::string& stage){
 
 bool ClearStageSettings::Save(const std::string& stage) const{
     json root;
-    root["ringOffset"] = ringOffset;
+    root["gateOffset"] = gateOffset;
+    root["gateTurn"] = gateTurn;
     root["landAhead"] = landAhead;
-    root["camera"] = { { "distance", cameraDistance }, { "height", cameraHeight }, { "side", cameraSide },
-                       { "lookHeight", lookHeight }, { "fovY", fovY } };
+    root["camera"] = { { "yaw", cameraYaw }, { "distance", cameraDistance }, { "height", cameraHeight },
+                       { "lookHeight", lookHeight }, { "lookBack", lookBack }, { "fovY", fovY } };
     root["comboTarget"] = comboTarget;
     root["band"] = band;
     root["healthRule"] = healthRule;

@@ -7,7 +7,7 @@
 #include "engine/utils/Easing.h"
 #include "game/clear/ClearCamera.h"
 #include "game/clear/GoalProps.h"
-#include "game/clear/GoalRing.h"
+#include "game/clear/GoalGate.h"
 #include "game/egg/EggSystem.h"
 #include "game/player/Player.h"
 #include "game/player/PlayerAvatar.h"
@@ -26,8 +26,9 @@ namespace {
     constexpr const char* kPoseClip = "GoalPose";   // 着地からの決めポーズ（最後の形で止まる）
     constexpr const char* kDanceClip = "GoalDance"; // 喜びの踊り（くり返し）
     constexpr float kArriveDistance = 0.03f;        // 着地する所にこれより近ければ、着いた扱い(m)
-    constexpr float kRingVolume = 0.9f;
-    constexpr float kConfettiSpeed = 4.2f;          // 輪をくぐった瞬間の紙吹雪が舞い上がる速さ(m/秒)
+    constexpr float kGateVolume = 0.9f;
+    constexpr float kConfettiSpeed = 4.2f;          // 門をくぐった瞬間、卵から紙吹雪が舞い上がる速さ(m/秒)
+    constexpr int   kTapeConfetti = 14;             // テープが切れた所から出る紙吹雪の枚数
     constexpr float kConfettiSize = 0.11f;          // 紙吹雪 1 枚の大きさ(m)
     constexpr float kRainSpeed = 0.5f;              // 降らせる紙吹雪の、最初の上向きの速さ(m/秒)
     constexpr float kRainLife = 2.6f;               // 降らせる紙吹雪の、消えるまでの長さ（ふつうの紙吹雪に対する倍）
@@ -59,31 +60,28 @@ namespace {
         if ( context.avatar ) { context.avatar->PlayIntroClip(kPoseClip); }
     }
 
-    // --- 輪をくぐる：殻が割れて開く。恐竜は高く跳び、カメラが横から正面へ回り込む ---
-    class RingStep : public Sequence::TimedStep {
+    // --- 門をくぐる：テープが切れ、てっぺんの卵が割れて紙吹雪。恐竜は高く跳び、カメラが横から正面へ回り込む ---
+    class GateStep : public Sequence::TimedStep {
     public:
-        explicit RingStep(float duration) : TimedStep(duration) {}
+        explicit GateStep(float duration) : TimedStep(duration) {}
 
         void Enter(ClearContext& context) override{
             const ClearSettings& settings = *context.settings;
-            AudioManager::GetInstance()->PlayWave(settings.sounds.ring, false, kRingVolume);
-            if ( context.ring ) {
-                context.ring->Open();
-                // 割れ目から殻のかけら、輪の真ん中から紙吹雪
-                const Vector3 ringCenter = context.ring->Position() + Vector3 { 0.0f, settings.ring.hinge.y, 0.0f };
-                if ( context.eggSystem ) {
-                    const Vector3 side { context.ring->Forward().z, 0.0f, -context.ring->Forward().x };
-                    for ( const float direction : { -1.0f, 1.0f } ) {
-                        context.eggSystem->SpawnBreakFx(ringCenter + side * ( settings.ring.hinge.x * direction ), context.toCamera * -1.0f);
-                    }
+            AudioManager::GetInstance()->PlayWave(settings.sounds.gate, false, kGateVolume);
+            if ( context.gate ) {
+                context.gate->Open();
+                const Vector3 egg = context.gate->EggCenter();
+                if ( context.eggSystem ) { // 割れた卵から殻のかけら
+                    context.eggSystem->SpawnBreakFx(egg, context.toCamera);
                 }
                 if ( context.paperFx ) {
-                    context.paperFx->Confetti(ringCenter, settings.confetti.burst, kConfettiSpeed, kConfettiSize);
+                    context.paperFx->Confetti(egg, settings.confetti.burst, kConfettiSpeed, kConfettiSize);
+                    context.paperFx->Confetti(context.gate->TapeCenter(), kTapeConfetti, kConfettiSpeed * 0.5f, kConfettiSize);
                 }
             }
             if ( context.avatar ) { context.avatar->PlayIntroClip(kJumpClip); }
             if ( context.player ) { // 跳んでいる間は、進む向きのまま
-                context.player->SetFaceOverride(true, std::atan2(context.toCamera.x, context.toCamera.z));
+                context.player->SetFaceOverride(true, std::atan2(context.forward.x, context.forward.z));
             }
         }
         void Exit(ClearContext& context) override{
@@ -105,7 +103,11 @@ namespace {
 
         void Enter(ClearContext& context) override{
             context.propsTime = 0.0f;
-            if ( context.props ) { context.props->Begin(context.landPoint, context.toCamera); }
+            // 文字と星は、門の表（くぐって抜けた側）に出す
+            if ( context.props && context.gate ) {
+                context.props->Begin(context.gate->Position(), context.gate->Right() * context.facingSign,
+                                     context.gate->Front() * context.facingSign, context.toCamera);
+            }
             rainTimer_ = 0.0f;
         }
 
@@ -148,7 +150,7 @@ namespace {
 void ClearSequence::Build(Sequence& sequence, const ClearContext& context){
     const ClearTiming& timing = context.timing;
     sequence.Clear();
-    sequence.Add<RingStep>("輪をくぐる", timing.ring);
+    sequence.Add<GateStep>("門をくぐる", timing.gate);
     sequence.Add<GoalStep>("「ゴール！」", timing.goal);
     sequence.AddCall("リザルトを出す", [](ClearContext& c){
         c.resultOpen = true;

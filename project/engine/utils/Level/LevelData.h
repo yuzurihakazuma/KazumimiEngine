@@ -60,6 +60,17 @@ struct LevelCameraZone{
     float   fovDeg    = 45.0f;          // 視野角（度）。45=標準
 };
 
+// レールごとのカメラ（railLines と同じ並び）。enabled のレールに乗った時、追従カメラがこの向き・距離・高さ・画角へ動く。
+//   enabled でないレールに乗ると、いつもの追従（横から）へ戻る。カメラ演出ゾーンは、これより後に効く（ゾーンに入った時に上書き）
+struct RailCamera {
+    int   enabled = 0;      // 1＝このレールのカメラを使う
+    float yawDeg  = 0.0f;   // 回り込む角度（0＝いつもの横から。＋で進む先（+X）の方へ回り込む）
+    float dist    = 10.0f;  // プレイヤーからの距離 (m)
+    float height  = 3.5f;   // プレイヤーからの高さ (m)
+    float fovDeg  = 45.0f;  // 視野角（度）
+    bool operator==(const RailCamera&) const = default;
+};
+
 // マップ全体のデータ
 // 収集物（コイン）1枚：レール上の距離と高さで配置する
 struct CoinData {
@@ -151,6 +162,9 @@ struct LevelData{
 
     // 各レールの道の見た目（布ロード：土台のみ/布のみ/布＋土台/見せない と布の幅・色など。railLines と同じ並び）
     std::vector<RailSkin> railSkins;
+
+    // 各レールのカメラ（そのレールに乗っている間の追従カメラ。railLines と同じ並び）
+    std::vector<RailCamera> railCameras;
 
     // スタート地点（レール番号＋ノード番号。プレイヤーの開始・リスポーン先）
     int startRailIndex = 0;

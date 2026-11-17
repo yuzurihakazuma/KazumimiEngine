@@ -4,6 +4,7 @@
 #include "engine/3d/model/ModelManager.h"
 #include "engine/3d/model/Model.h"
 #include "engine/particle/ParticleManager.h"
+#include <utility>
 #include "game/stage/StageBackdrop.h"
 #include "externals/nlohmann/json.hpp"
 
@@ -107,12 +108,19 @@ namespace {
 
     // クリア演出：卵の殻のゴールの輪（上のふた・下のうつわ。tools/clear/make_clear_assets.py）。
     //   切り文字・星の板は GoalProps が、リザルト画面の絵は ResultScreen が自分で用意する
+    // クリア演出：ゴールの門・立体の切り文字・棒付きの星（tools/clear/make_goal_set.py が Blender で作る。テクスチャはクラフトの共有）
     void LoadClearModels(ModelManager* modelManager){
-        modelManager->LoadModel("goalRingTop", "resources/clear", "goal_ring_top.obj", true);
-        modelManager->LoadModel("goalRingBottom", "resources/clear", "goal_ring_bottom.obj", true);
-        for ( const char* name : { "goalRingTop", "goalRingBottom" } ) {
-            if ( Model* ring = modelManager->FindModel(name) ) {
-                if ( ring->GetMaterial() ) { ring->GetMaterial()->matte = 1.0f; } // 紙なので照り返しなし
+        const std::pair<const char*, const char*> models[] = {
+            { "goalGate", "goal_gate.gltf" }, { "goalEggBottom", "goal_egg_bottom.gltf" }, { "goalEggTop", "goal_egg_top.gltf" },
+            { "goalTapeLeft", "goal_tape_left.gltf" }, { "goalTapeRight", "goal_tape_right.gltf" }, { "goalString", "goal_string.gltf" },
+            { "goalLetter0", "goal_letter_0.gltf" }, { "goalLetter1", "goal_letter_1.gltf" },
+            { "goalLetter2", "goal_letter_2.gltf" }, { "goalLetter3", "goal_letter_3.gltf" },
+            { "goalStar0", "goal_star_0.gltf" }, { "goalStar1", "goal_star_1.gltf" }, { "goalStar2", "goal_star_2.gltf" },
+        };
+        for ( const auto& [name, file] : models ) {
+            modelManager->LoadModel(name, "resources/craft/models", file, true);
+            if ( Model* model = modelManager->FindModel(name) ) {
+                if ( model->GetMaterial() ) { model->GetMaterial()->matte = 1.0f; } // 紙と段ボールなので照り返しなし
             }
         }
     }

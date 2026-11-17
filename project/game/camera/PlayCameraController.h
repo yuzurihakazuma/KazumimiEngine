@@ -15,12 +15,20 @@ class SplineRail;
 //   ・向き切替トリガー(mode=1)：通過した瞬間に追従の向きが切り替わり、
 //     プレイヤーの周りを回り込んで新しい向きへ（180度なら正面へ回転）。次のトリガーまで維持
 //   ・固定カメラ(mode=0)：半径内にいる間だけ「アンカー+オフセット」に固定。離れると追従へ戻る
+//   ・レールごとのカメラ：カメラを決めたレールに乗った時、追従の向き・距離・高さ・画角がそのレールの値へ動く。
+//     決めていないレールに乗ると、いつもの追従へ戻る（ゾーンは、入った時にこれより優先して上書きする）
 //  シーンから分離した理由：カメラ演出はゲーム進行と独立した関心事で、他シーンでも再利用できる。
 // =====================================================================
 class PlayCameraController {
 public:
     // マップのカメラゾーン設定を実行用へ変換して受け取る（ノード番号→レール上の距離）
     void Sync(const std::vector<LevelCameraZone>& zones, const std::vector<SplineRail>& rails);
+
+    // マップのレールごとのカメラを受け取る（railLines と同じ並び）
+    void SyncRailCameras(const std::vector<RailCamera>& cameras){ railCameras_ = cameras; lastRail_ = -1; }
+    // プレイヤーが今乗っているレール（Update の前に毎フレーム。乗り換えた時だけ、そのレールのカメラへ切り替える）。
+    //   ステージ開始の演技の間も呼ぶ（演技の終わりに戻る追従の位置 FollowTargetPosition が、始まりのレールのカメラになる）
+    void SetPlayerRail(int rail){ playerRail_ = rail; ApplyRailCamera(); }
 
     // 追従の向き/距離/画角を初期状態へ戻す（プレイ開始時に呼ぶ。前回の向きを持ち越さない）
     void Reset();
@@ -97,4 +105,11 @@ private:
 
     // 追従の目標を通常（followOffset_ 基準）へ戻す（Cur は補間で滑らかに追いつく）
     void SetDefaultTargets();
+
+    // レールごとのカメラ：乗り換えた時だけ目標を切り替える（最初の 1 回は補間せずに置く）
+    void ApplyRailCamera();
+    std::vector<RailCamera> railCameras_;
+    int  playerRail_ = -1;       // 今乗っているレール（-1＝空中など）
+    int  lastRail_ = -1;         // 前に切り替えを決めたレール（-1＝まだ。次は補間せずに置く）
+    bool railCameraActive_ = false; // 今、レールのカメラの値を使っている
 };

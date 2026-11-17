@@ -2,8 +2,9 @@
 // =====================================================================
 //  ClearSettings：クリア演出の調整値（クリア演出 企画書）。コードに数字を埋め込まず、ファイルから読む。
 //   resources/clear/clear.json     … 場面の秒数（フル版・短縮版）・小道具の置き場所・リザルトの置き場所（どのステージでも同じ）
-//   resources/clear/<stage>.json   … ステージごと：輪の場所・着地する所・演出カメラの終点・目標連鎖数
-//   どちらも tools/clear/make_clear_assets.py が最初の値を作る。ステージごとの値は、インスペクターの「クリア演出」で直して保存できる
+//   resources/clear/<stage>.json   … ステージごと：門の場所・着地する所・演出カメラの終点・目標連鎖数
+//   どちらも tools/clear/make_clear_assets.py が最初の値を作る（門の寸法 "gate" は、モデルと一緒に tools/clear/make_goal_set.py が書く）。
+//   ステージごとの値は、インスペクターの「クリア演出」で直して保存できる
 //   ファイルが無い・項目が無い時は、ここに書いた値のまま動く
 // =====================================================================
 #include "engine/math/struct.h"
@@ -13,7 +14,7 @@
 
 // 場面の長さ（秒）
 struct ClearTiming {
-    float ring = 2.0f;      // 輪をくぐる：恐竜が高く跳び、カメラが横から正面へ回り込む
+    float gate = 2.0f;      // 門をくぐる：卵が割れ、恐竜が高く跳び、カメラが横から正面へ回り込む
     float goal = 10.0f;     // 「ゴール！」：切り文字・星・紙吹雪。恐竜は決めポーズから喜びの踊り
     float toResult = 1.0f;  // 景色が暗い緑に沈み、リザルトのマットが出る
     float leave = 0.6f;     // 所持数へ数え終わってから、幕が出るまで
@@ -26,45 +27,44 @@ struct ClearJump {
     float pose = 1.0f;      // 決めポーズ（GoalPose）の長さ。この後、喜びの踊り
 };
 
-// 卵の殻の輪（モデルの寸法と、ふたの開き方）
-struct ClearRing {
-    Vector2 hinge { 1.0f, 2.0f };  // ふたのちょうつがい（輪の真ん中の足元から。x＝横・y＝高さ）
-    float halfWidth = 1.3f;        // 輪の外側の半幅
-    float height = 3.2f;           // 輪の高さ
-    float innerHalfWidth = 0.96f;  // くぐる所の半幅
-    float innerHeight = 2.86f;     // くぐる所の高さ
-    float openTime = 0.7f;         // ふたが開く秒数
-    float openAngle = 1.15f;       // 開く角度(rad)
-    float openHop = 0.35f;         // 開く時にぽんと跳ねる高さ(m)
+// たまごの門（モデルの寸法。tools/clear/make_goal_set.py がモデルと一緒に書く）。長さは m、門の真ん中の足元から
+struct ClearGate {
+    float innerHalfWidth = 1.28f;   // くぐる所の半幅（柱の内側）
+    float innerHeight = 3.93f;      // くぐる所の高さ
+    float archCenterHeight = 2.7f;  // アーチの円の中心の高さ（切り文字の糸をつなぐ所を求める）
+    float archOuterRadius = 2.17f;  // アーチの外の半径
+    float archFront = 0.37f;        // アーチの表の面（門の真ん中から、恐竜が抜けていく向きへ）
+    Vector3 eggHinge { 0.0f, 5.84f, 0.5f };  // 卵のふたのちょうつがい（横・高さ・入口の側へ）
+    Vector2 tapePivot { 1.33f, 1.05f };      // ゴールテープの根元（横・高さ）
+    float height = 6.33f;           // いちばん上
+    // くぐった時の動き（clear.json の "gateOpen"）
+    float openTime = 0.8f;          // 卵のふたが開く秒数
+    float eggAngle = 1.25f;         // ふたが後ろへ倒れる角度(rad)
+    float hop = 0.45f;              // 開く時にぽんと跳ねる高さ(m)
+    float tapeAngle = 1.45f;        // テープが根元を軸に垂れる角度(rad)
 };
 
-// 「ゴール！」の切り文字（上から糸で下がる）
+// 「ゴール！」の切り文字（白い紙の札に色紙の文字。門のアーチから糸で下がる）
 struct ClearLetters {
     int   count = 4;
-    Vector2 textureSize { 340.0f, 1224.0f };
-    float height = 1.25f;        // 文字のマスの高さ(m)
-    float string = 2.6f;         // 糸の長さ（文字のマスの高さに対して）
-    float spacing = 1.12f;       // 文字の間(m)
-    float centerHeight = 3.5f;   // 文字の真ん中の高さ（着地する所の地面から）
-    float back = 0.9f;           // 着地する所から、輪の方へ下げる(m)
+    float height = 1.05f;        // 札の高さ(m)（モデルと同じ）
+    float spacing = 1.16f;       // 札の間(m)
+    float centerHeight = 2.6f;   // 下がり切った時の、札の真ん中の高さ（門の足元から）
+    float front = 0.05f;         // アーチの表の面から、さらに手前へ(m)
     float start = 0.15f;         // 場面に入ってから、最初の文字が下り始めるまで(秒)
     float interval = 0.14f;      // 文字ごとの遅れ(秒)
     float dropTime = 0.75f;      // 下りる時間(秒)
-    float dropHeight = 4.6f;     // 画面の上の外からの高さ(m)
     float swing = 0.28f;         // 下りた時の揺れ(rad)
     float sway = 0.035f;         // その後の、ゆっくりした揺れ(rad)
 };
 
-// 棒付きの紙の星（左右から扇状に飛び出す）
+// 棒付きの紙の星（門の両わきの足元から、外へ扇状に飛び出す）
 struct ClearStars {
-    Vector2 textureSize { 348.0f, 1128.0f };
-    float height = 0.95f;        // 星の絵の高さ(m)
-    float stick = 2.6f;          // 棒の長さ（星の絵の高さに対して）
     int   perSide = 3;
-    float pivotSide = 4.3f;      // 棒の根元：真ん中から横へ(m)
-    float pivotHeight = -0.6f;   // 棒の根元の高さ(m)
-    float back = 1.3f;
-    std::vector<float> angles { 0.42f, 0.78f, 1.14f }; // 扇の角度（真上から内側へ rad）
+    float pivotSide = 2.55f;     // 棒の根元：門の真ん中から横へ(m)
+    float pivotHeight = 0.0f;    // 棒の根元の高さ(m)
+    float front = 0.7f;          // 門の面から手前へ(m)
+    std::vector<float> angles { 0.3f, 0.68f, 1.05f }; // 扇の角度（真上から外へ rad）
     float start = 0.75f;         // 場面に入ってから(秒)
     float interval = 0.09f;
     float popTime = 0.5f;
@@ -109,7 +109,7 @@ struct ClearResultLayout {
 };
 
 struct ClearSounds {
-    std::string ring = "resources/clear/se_ring.wav";
+    std::string gate = "resources/clear/se_gate.wav";
     std::string letter = "resources/clear/se_letter.wav";
     std::string star = "resources/clear/se_star.wav";
     std::string count = "resources/clear/se_count.wav";
@@ -124,7 +124,7 @@ struct ClearSettings {
     ClearTiming full;          // 初めてのクリア
     ClearTiming shortVersion;  // 同じステージの 2 回目から（「ゴール！」を縮める）
     ClearJump jump;
-    ClearRing ring;
+    ClearGate gate;
     ClearLetters letters;
     ClearStars stars;
     ClearConfetti confetti;
@@ -139,14 +139,17 @@ struct ClearSettings {
 
 // ステージごとの値（<stage>.json）
 struct ClearStageSettings {
-    float ringOffset = -3.2f;       // ゴールの点から、レールに沿って輪を置く所(m)。マイナス＝手前
-    float landAhead = 1.4f;         // 輪をくぐってから着地する所（輪から先へ m）
-    // 演出カメラの終点（着地する所から見て）
-    float cameraDistance = 7.2f;    // 進む向きの先へ（ここから恐竜を正面に見る）
-    float cameraHeight = 1.7f;
-    float cameraSide = 0.0f;        // 横へずらす（画面の右が＋）
-    float lookHeight = 1.9f;        // 見る点の高さ
-    float fovY = 0.72f;
+    float gateOffset = -3.2f;       // ゴールの点から、レールに沿って門を置く所(m)。マイナス＝手前
+    float gateTurn = 15.0f;         // 門の入口の面を、遊んでいる時のカメラの方へ回す角度(度)。横から近づく時に、門の表が見える
+    float landAhead = 1.4f;         // 門をくぐってから着地する所（門から先へ m）
+    // 演出カメラの終点（着地する所から見て）。くぐった向きから、遊んでいる時のカメラの側へ cameraYaw 度回した方へ置く
+    //   （真正面だと、来た道をまっすぐ見通してしまう。少し横からにすると、門と恐竜が重ならずに並ぶ）
+    float cameraYaw = 28.0f;
+    float cameraDistance = 8.6f;
+    float cameraHeight = 2.0f;
+    float lookHeight = 2.4f;        // 見る点の高さ
+    float lookBack = 0.7f;          // 見る点を、恐竜から門の方へずらす(m)（恐竜と門のまん中あたりを見る）
+    float fovY = 0.82f;
     int   comboTarget = 5;          // 1 行目：奥投げコンボの目標
     std::string band = "comboFlowers"; // 帯に出す集める物：comboFlowers＝コンボ花 / flowers＝かくれ花 / none＝帯なし
     std::string healthRule = "full";   // 2 行目：full＝満タンでゴール / noDamage＝1 回もダメージを受けない

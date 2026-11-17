@@ -48,6 +48,28 @@ void PlayCameraController::SetDefaultTargets(){
     camFovTgt_  = 0.78f;
 }
 
+// レールごとのカメラ：乗り換えた時だけ目標を切り替える。空中（レールが -1）の間は、前のレールのまま
+void PlayCameraController::ApplyRailCamera(){
+    if ( playerRail_ < 0 || playerRail_ == lastRail_ ) { return; }
+    const bool first = ( lastRail_ < 0 ); // プレイを始めた直後：補間せずに置く（始まりに回り込まない）
+    lastRail_ = playerRail_;
+    const bool has = playerRail_ < ( int ) railCameras_.size() && railCameras_[playerRail_].enabled != 0;
+    if ( has ) {
+        const RailCamera& camera = railCameras_[playerRail_];
+        camYawTgt_  = camera.yawDeg * Math::kDegToRad;
+        camDistTgt_ = ( std::max )( camera.dist, 0.5f );
+        camHgtTgt_  = camera.height;
+        camFovTgt_  = camera.fovDeg * Math::kDegToRad;
+        railCameraActive_ = true;
+    } else if ( railCameraActive_ ) {
+        SetDefaultTargets(); // カメラを決めていないレールへ：いつもの追従へ戻る
+        railCameraActive_ = false;
+    }
+    if ( first ) {
+        camYawCur_ = camYawTgt_; camDistCur_ = camDistTgt_; camHgtCur_ = camHgtTgt_; camFovCur_ = camFovTgt_;
+    }
+}
+
 // 追従カメラの向き/距離/高さ/画角を初期状態（followOffset_ 基準）へ戻す
 void PlayCameraController::Reset(){
     SetDefaultTargets();
@@ -56,6 +78,8 @@ void PlayCameraController::Reset(){
     camHgtCur_  = camHgtTgt_;
     camFovCur_  = camFovTgt_;
     lastZone_ = -1;
+    lastRail_ = -1;           // 次の Update で、乗っているレールのカメラを補間せずに置く
+    railCameraActive_ = false;
     heightReady_ = false; // 次の Update でプレイヤーの高さに合わせ直す
     flipYaw_ = 0.0f;
     flipDistScale_ = 1.0f;
@@ -90,6 +114,9 @@ void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool
                                   bool debugCamActive, float dt){
     if ( !followCam_ || !camera ) return;
     if ( debugCamActive ) return; // デバッグカメラ優先
+
+    // レールごとのカメラ（乗り換えた時だけ。この後のゾーンの切り替えの方が優先される）
+    ApplyRailCamera();
 
     // --- ゾーンの入退場判定（ヒステリシス付き）---
     //   入り=半径ちょうど / 出=半径×1.25。境界ぴったりに立った時に「入った/出た」が

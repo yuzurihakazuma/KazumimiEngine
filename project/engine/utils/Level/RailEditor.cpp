@@ -101,6 +101,7 @@ void RailEditor::OnMapChanged(){
     data_->railMotionPhases.resize(data_->railLines.size(), 0.0f);
     data_->railOneWay.resize(data_->railLines.size(), 0);
     data_->railSpeedMuls.resize(data_->railLines.size(), 1.0f);
+    data_->railCameras.resize(data_->railLines.size());
     data_->railSkins.resize(data_->railLines.size());
     initialLines_   = data_->railLines;
     initialTypes_   = data_->railTypes;
@@ -719,6 +720,7 @@ void RailEditor::SyncRailArraySizes(){
 	data_->railAppearTriggers.resize(n, -1);
 	data_->railOneWay.resize(n, 0);
 	data_->railSpeedMuls.resize(n, 1.0f);
+	data_->railCameras.resize(n);
 	data_->railSkins.resize(n);
 
 	// レールが短くなって範囲外に取り残されたブロックを末尾セルへ寄せる。
@@ -785,6 +787,7 @@ int RailEditor::AppendRail(std::vector<Vector3> line, const std::string& group){
 	data_->railAppearTriggers.push_back(-1);
 	data_->railOneWay.push_back(0);
 	data_->railSpeedMuls.push_back(1.0f);
+	data_->railCameras.push_back(RailCamera {});
 	data_->railSkins.push_back(RailSkin {});
 	return ( int ) data_->railLines.size() - 1;
 }
@@ -839,6 +842,7 @@ void RailEditor::EraseRail(int idx){
 	data_->railAppearTriggers.erase(data_->railAppearTriggers.begin() + idx);
 	data_->railOneWay.erase(data_->railOneWay.begin() + idx);
 	data_->railSpeedMuls.erase(data_->railSpeedMuls.begin() + idx);
+	data_->railCameras.erase(data_->railCameras.begin() + idx);
 	data_->railSkins.erase(data_->railSkins.begin() + idx);
 	// ガイド参照の付け替え：消した番号より後ろは1つ前へ、消した本人を指していたら解除
 	for ( auto& guideRef : data_->railGuideRails ) {
@@ -1615,6 +1619,7 @@ void RailEditor::DuplicateRail(int railIdx){
 	data_->railAppearTriggers.push_back(( railIdx < ( int ) data_->railAppearTriggers.size() ) ? data_->railAppearTriggers[railIdx] : -1);
 	data_->railOneWay.push_back(( railIdx < ( int ) data_->railOneWay.size() ) ? data_->railOneWay[railIdx] : 0);
 	data_->railSpeedMuls.push_back(( railIdx < ( int ) data_->railSpeedMuls.size() ) ? data_->railSpeedMuls[railIdx] : 1.0f);
+	data_->railCameras.push_back(( railIdx < ( int ) data_->railCameras.size() ) ? data_->railCameras[railIdx] : RailCamera {});
 	data_->railSkins.push_back(( railIdx < ( int ) data_->railSkins.size() ) ? data_->railSkins[railIdx] : RailSkin {});
 	SelectWholeRail(( int ) data_->railLines.size() - 1);
 	RebuildRailPoints();
@@ -1974,6 +1979,7 @@ RailEditor::RailSettings RailEditor::CaptureRailSettings() const{
 	settings.oneWay         = data_->railOneWay;
 	settings.motionPhases   = data_->railMotionPhases;
 	settings.speedMuls      = data_->railSpeedMuls;
+	settings.cameras        = data_->railCameras;
 	settings.skins          = data_->railSkins;
 	return settings;
 }
@@ -1998,6 +2004,7 @@ void RailEditor::ApplyRailSettings(const RailSettings& settings){
 	data_->railOneWay         = settings.oneWay;
 	data_->railMotionPhases   = settings.motionPhases;
 	data_->railSpeedMuls      = settings.speedMuls;
+	data_->railCameras        = settings.cameras;
 	data_->railSkins          = settings.skins;
 	SyncRailArraySizes(); // 古い履歴（配列が足りない）でも数だけは必ずそろえる
 }
@@ -2924,6 +2931,7 @@ void RailEditor::DrawSelectedRailSection(){
 					data_->railAppearTriggers.resize(railTotal, -1);
 					data_->railOneWay.resize(railTotal, 0);
 					data_->railSpeedMuls.resize(railTotal, 1.0f);
+					data_->railCameras.resize(railTotal);
 					data_->railSkins.resize(railTotal);
 					data_->railGuideRails.resize(railTotal, -1);
 					data_->railGuideStarts.resize(railTotal, 0.0f);
@@ -2944,6 +2952,7 @@ void RailEditor::DrawSelectedRailSection(){
 						data_->railAppearTriggers[g] = data_->railAppearTriggers[currentEditRailIndex_];
 						data_->railOneWay[g]      = data_->railOneWay[currentEditRailIndex_];
 						data_->railSpeedMuls[g]   = data_->railSpeedMuls[currentEditRailIndex_];
+						data_->railCameras[g]     = data_->railCameras[currentEditRailIndex_];
 						data_->railSkins[g]       = data_->railSkins[currentEditRailIndex_];
 						data_->railGuideRails[g]  = data_->railGuideRails[currentEditRailIndex_];
 						data_->railGuideStarts[g] = data_->railGuideStarts[currentEditRailIndex_];
@@ -3010,6 +3019,8 @@ void RailEditor::DrawSelectedRailSection(){
 		if ( ImGui::SliderFloat("速度倍率", &sm, 0.25f, 3.0f, "%.2fx") ) { ++railVersion_; }
 		ImGui::Separator();
 
+		DrawRailCameraSettings();
+
 		// --- 道の見た目（布ロード）：移動はレールのまま、見た目だけを選ぶ ---
 		data_->railSkins.resize(data_->railLines.size());
 		{
@@ -3069,6 +3080,62 @@ void RailEditor::DrawSelectedRailSection(){
 		ImGui::Separator();
 
 	}
+#endif
+}
+
+// 管理タブ：このレールのカメラ（乗っている間の追従カメラの向き・距離・高さ・画角）
+void RailEditor::DrawRailCameraSettings(){
+#ifdef USE_IMGUI
+	if ( currentEditRailIndex_ < 0 || currentEditRailIndex_ >= ( int ) data_->railLines.size() ) { return; }
+	data_->railCameras.resize(data_->railLines.size());
+	RailCamera& camera = data_->railCameras[currentEditRailIndex_];
+	bool use = ( camera.enabled != 0 );
+	if ( ImGui::Checkbox("このレールのカメラを決める", &use) ) { camera.enabled = use ? 1 : 0; ++railVersion_; }
+	if ( ImGui::IsItemHovered() ) {
+		ImGui::SetTooltip("このレールに乗った時、カメラがここで決めた向き・距離・高さへ動く。\n"
+			"決めていないレールに乗ると、いつもの横からのカメラへ戻る。\n"
+			"（カメラ演出ゾーンに入った時は、ゾーンの方が優先）");
+	}
+	if ( !use ) { return; }
+	// よく使う向き
+	struct Preset { const char* label; float yaw, dist, height; };
+	const Preset presets[] = { { "横から", 0.0f, 10.0f, 3.5f }, { "斜め前", 35.0f, 9.0f, 3.2f }, { "斜め後ろ", -35.0f, 9.0f, 3.2f },
+	                           { "進む先から", 90.0f, 8.0f, 3.0f }, { "後ろから", -90.0f, 8.0f, 3.0f }, { "上から", 0.0f, 6.0f, 9.0f } };
+	for ( int i = 0; i < IM_ARRAYSIZE(presets); ++i ) {
+		if ( i > 0 ) { ImGui::SameLine(); }
+		if ( ImGui::SmallButton(presets[i].label) ) {
+			camera.yawDeg = presets[i].yaw; camera.dist = presets[i].dist; camera.height = presets[i].height;
+			++railVersion_;
+		}
+	}
+	bool changed = false;
+	ImGui::SetNextItemWidth(180.0f);
+	changed |= ImGui::SliderFloat("回り込む角度##railCam", &camera.yawDeg, -180.0f, 180.0f, "%.0f°");
+	if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("0＝いつもの横から。＋で進む先（+X）の方へ、－で来た方へ回り込む"); }
+	ImGui::SetNextItemWidth(180.0f);
+	changed |= ImGui::SliderFloat("距離##railCam", &camera.dist, 3.0f, 30.0f, "%.1fm");
+	ImGui::SetNextItemWidth(180.0f);
+	changed |= ImGui::SliderFloat("高さ##railCam", &camera.height, -2.0f, 15.0f, "%.1fm");
+	ImGui::SetNextItemWidth(180.0f);
+	changed |= ImGui::SliderFloat("視野角##railCam", &camera.fovDeg, 20.0f, 90.0f, "%.0f°");
+	if ( changed ) { ++railVersion_; }
+	// 今の値で、このレールのまん中を写してみる（エディタのカメラを動かすだけ）
+	if ( ImGui::Button("この角度で見てみる##railCam") ) {
+		const auto& line = data_->railLines[currentEditRailIndex_];
+		if ( !line.empty() ) {
+			const Vector3 center = line[line.size() / 2];
+			const float yaw = Math::ToRadians(camera.yawDeg);
+			camPreviewPos_ = { center.x + std::sin(yaw) * camera.dist, center.y + camera.height, center.z - std::cos(yaw) * camera.dist };
+			// 追従カメラと同じ向き（プレイヤーの足元から 1m 上を見る）
+			const Vector3 look { center.x - camPreviewPos_.x, center.y + 1.0f - camPreviewPos_.y, center.z - camPreviewPos_.z };
+			const float horizontal = std::sqrt(look.x * look.x + look.z * look.z);
+			camPreviewRot_ = { std::atan2(-look.y, horizontal), std::atan2(look.x, look.z), 0.0f };
+			camPreviewPending_ = true;
+		}
+	}
+	ImGui::SameLine();
+	ImGui::TextDisabled("（レールのまん中に立った時の見え方）");
+	ImGui::Separator();
 #endif
 }
 

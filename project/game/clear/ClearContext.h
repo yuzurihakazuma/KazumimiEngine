@@ -2,8 +2,8 @@
 // =====================================================================
 //  ClearContext：クリア演出の場面（ClearSequence）が読み書きする物をまとめた型。
 //   ・シーンの部品（恐竜・カメラ・卵のエフェクト）… 持たない。シーンの方が長生き
-//   ・クリア演出の部品（輪・演出カメラ・小道具・リザルト画面・紙吹雪）… ClearFlow が持つ
-//   ・調整値と、輪をくぐった時に決まる舞台（着地する所・カメラの方）
+//   ・クリア演出の部品（門・演出カメラ・小道具・リザルト画面・紙吹雪）… ClearFlow が持つ
+//   ・調整値と、門をくぐった時に決まる舞台（着地する所・くぐった向き・カメラの方）
 //   ・このフレームの入力と、場面から ClearFlow への知らせ
 //   場面どうしは互いを知らず、ここを通してだけやりとりする
 // =====================================================================
@@ -17,7 +17,7 @@ class Camera;
 class ClearCamera;
 class EggSystem;
 class GoalProps;
-class GoalRing;
+class GoalGate;
 class PaperFx;
 class Player;
 class PlayerAvatar;
@@ -32,7 +32,7 @@ struct ClearContext {
     EggSystem*       eggSystem = nullptr;
 
     // --- クリア演出の部品 ---
-    GoalRing*     ring = nullptr;
+    GoalGate*     gate = nullptr;
     ClearCamera*  clearCamera = nullptr;
     GoalProps*    props = nullptr;
     ResultScreen* result = nullptr;
@@ -43,9 +43,11 @@ struct ClearContext {
     const ClearStageSettings* stage = nullptr;
     ClearTiming timing;              // 今回の場面の長さ（フル版か短縮版）
 
-    // --- 舞台（輪をくぐった時に決まる）---
+    // --- 舞台（門をくぐった時に決まる）---
     Vector3 landPoint {};            // 恐竜が着地する所（地面）
-    Vector3 toCamera { 1.0f, 0.0f, 0.0f }; // そこから演出カメラの方（水平・長さ 1。くぐった向き）
+    Vector3 forward { 1.0f, 0.0f, 0.0f };  // くぐった向き（水平・長さ 1）
+    Vector3 toCamera { 1.0f, 0.0f, 0.0f }; // 着地する所から演出カメラの方（水平・長さ 1）
+    float   facingSign = 1.0f;       // 門の表（文字を下げる面）が、くぐった向きと同じなら +1
     int     landRail = -1;           // 着地する所のレール
     float   landDistance = 0.0f;     // そのレールの上の距離
     ResultScreen::Data resultData;   // リザルト画面に出す中身

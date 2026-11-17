@@ -63,6 +63,7 @@ public:
     const std::vector<float>& GetRailGuideDwells() const{ return data_->railGuideDwells; } // 停車時間(秒)
     const std::vector<int>&   GetRailOneWay() const{ return data_->railOneWay; }
     const std::vector<float>& GetRailSpeedMuls() const{ return data_->railSpeedMuls; }
+    const std::vector<RailCamera>& GetRailCameras() const{ return data_->railCameras; }
     const std::vector<RailSkin>& GetRailSkins() const{ return data_->railSkins; } // 道の見た目（布ロード）
     int GetStartRail() const{ return data_->startRailIndex; }
     int GetStartNode() const{ return data_->startNodeIndex; }
@@ -410,6 +411,7 @@ private:
     void DrawRailListSection();      //   路線の一覧（選ぶ・複製・削除・グループで絞る）
     void DrawSelectedRailSection();  //   選んだレールの設定（操作の向き・地面・表示・道の見た目・スタートとゴール）
     void DrawNodeListSection();      //   ノードの一覧（足す・はさむ・消す・座標を打つ）
+    void DrawRailCameraSettings();   //   （選んだレールの設定の中）このレールに乗っている間のカメラ
     void DrawCreateTab();            // 「作成」タブ：下の 4 つ＋小さい道具（空の路線・マウスで描く・方向ボタン）
     void DrawShapeStampSection();    //   形を選んで作る（形・向き・長さを決めて、Game View でクリックして置く）
     void DrawTemplateSection();      //   テンプレート（のぼり足場・らせんのぼり・動くリフト一式）
@@ -530,6 +532,7 @@ private:
         std::vector<std::vector<int>> nodeHoles;
         std::vector<int>   motionTypes, motionTriggers, appearTriggers, oneWay;
         std::vector<float> motionPhases, speedMuls;
+        std::vector<RailCamera> cameras;
         std::vector<RailSkin> skins;
     };
     RailSettings CaptureRailSettings() const;

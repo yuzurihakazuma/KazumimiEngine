@@ -172,6 +172,15 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
     rootJson["railOneWay"]         = oneWayArray;
     rootJson["railSpeedMuls"]      = speedMulArray;
 
+    // レールごとのカメラ。railLines と数を合わせて保存
+    json cameraArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        const RailCamera camera = ( i < levelData.railCameras.size() ) ? levelData.railCameras[i] : RailCamera {};
+        cameraArray.push_back({ { "use", camera.enabled }, { "yaw", camera.yawDeg }, { "dist", camera.dist },
+                                { "height", camera.height }, { "fov", camera.fovDeg } });
+    }
+    rootJson["railCameras"] = cameraArray;
+
     // 道の見た目（布ロード）。railLines と数を合わせて保存
     json skinArray = json::array();
     for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
@@ -439,6 +448,19 @@ LevelData LevelManager::Load(const std::string& fileName){
     if ( rootJson.contains("railSpeedMuls") && rootJson["railSpeedMuls"].is_array() ) {
         for ( const auto& speedMulJson : rootJson["railSpeedMuls"] ) { levelData.railSpeedMuls.push_back(speedMulJson.get<float>()); }
     }
+    if ( rootJson.contains("railCameras") && rootJson["railCameras"].is_array() ) {
+        for ( const auto& cameraJson : rootJson["railCameras"] ) {
+            RailCamera camera;
+            if ( cameraJson.is_object() ) {
+                camera.enabled = cameraJson.value("use", camera.enabled);
+                camera.yawDeg  = cameraJson.value("yaw", camera.yawDeg);
+                camera.dist    = cameraJson.value("dist", camera.dist);
+                camera.height  = cameraJson.value("height", camera.height);
+                camera.fovDeg  = cameraJson.value("fov", camera.fovDeg);
+            }
+            levelData.railCameras.push_back(camera);
+        }
+    }
     if ( rootJson.contains("railSkins") && rootJson["railSkins"].is_array() ) {
         for ( const auto& skinJson : rootJson["railSkins"] ) {
             RailSkin skin;
@@ -534,6 +556,7 @@ LevelData LevelManager::Load(const std::string& fileName){
     levelData.railAppearTriggers.resize(levelData.railLines.size(), -1);
     levelData.railOneWay.resize(levelData.railLines.size(), 0);
     levelData.railSpeedMuls.resize(levelData.railLines.size(), 1.0f);
+    levelData.railCameras.resize(levelData.railLines.size());
     levelData.railSkins.resize(levelData.railLines.size());
     levelData.railNodeHoles.resize(levelData.railLines.size());
     // 各レールの穴配列をノード数に合わせる（足りない分は0=穴なし）

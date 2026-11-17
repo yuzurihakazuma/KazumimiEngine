@@ -1,12 +1,14 @@
 {
-  "ringOffset": -3.2,
+  "gateOffset": -3.2,
+  "gateTurn": 15.0,
   "landAhead": 1.4,
   "camera": {
-    "distance": 7.2,
-    "height": 1.7,
-    "side": 0.0,
-    "lookHeight": 1.9,
-    "fovY": 0.72
+    "yaw": 28.0,
+    "distance": 8.6,
+    "height": 2.0,
+    "lookHeight": 2.4,
+    "lookBack": 0.7,
+    "fovY": 0.82
   },
   "comboTarget": 5,
   "band": "comboFlowers",

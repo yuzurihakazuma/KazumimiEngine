@@ -458,6 +458,7 @@ void GamePlayScene::SyncRailsFromEditor(bool simple){
 
 	// カメラ演出ゾーン・コイン・ブロックもエディタの配置から作り直す
 	camCtrl_.Sync(editorManager->GetEditorCameraZones(), railField_.GetRails());
+	camCtrl_.SyncRailCameras(editorManager->GetEditorRailCameras()); // レールごとのカメラ
 	coinSystem_.Sync(editorManager->GetEditorCoins(), railField_.GetRails());
 	blockSystem_.Sync(editorManager->GetEditorBlocks(), &railField_.GetRails());
 	lastBlockVersion_ = editorManager->GetEditorBlockVersion();
@@ -589,6 +590,7 @@ void GamePlayScene::UpdatePlayMode(){
 		const float yaw = player_->GetRotation().y;
 		UpdateEggFollowGround();
 		eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・土ぼこり
+		camCtrl_.SetPlayerRail(player_->GetCurrentRail()); // 演技の後に戻る追従の位置を、始まりのレールのカメラに
 		intro_.UpdateCamera(GetCamera(), context, deltaTime);
 		hitFeel_.NotifyCameraOverridden();
 		return;
@@ -674,6 +676,7 @@ void GamePlayScene::UpdatePlayMode(){
 
 	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
 	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true); } // 撮影のテイクの始め：補間せずに置く
+	camCtrl_.SetPlayerRail(player_->GetCurrentRail());
 	camCtrl_.Update(GetCamera(), player_->GetPosition(), player_->IsGrounded(), railField_.GetRails(),
 		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
 	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, false); snapCameraOnce_ = false; }

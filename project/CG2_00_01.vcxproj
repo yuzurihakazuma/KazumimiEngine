@@ -194,7 +194,6 @@ exit 0</Command>
     <ClCompile Include="game\clear\ClearSequence.cpp" />
     <ClCompile Include="game\clear\ClearSettings.cpp" />
     <ClCompile Include="game\clear\GoalProps.cpp" />
-    <ClCompile Include="game\clear\GoalRing.cpp" />
     <ClCompile Include="game\clear\ResultScreen.cpp" />
     <ClCompile Include="game\clear\StageTally.cpp" />
     <ClCompile Include="game\ui\DigitStrip.cpp" />
@@ -376,6 +375,7 @@ exit 0</Command>
     <ClCompile Include="engine\particle\GPUParticleEditor.cpp" />
     <ClCompile Include="engine\3d\Skybox.cpp" />
     <ClCompile Include="engine\rail\SplineRail.cpp" />
+    <ClCompile Include="game\clear\GoalGate.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\particle\GPUParticleEmitterData.h" />
@@ -404,7 +404,6 @@ exit 0</Command>
     <ClInclude Include="game\clear\ClearSequence.h" />
     <ClInclude Include="game\clear\ClearSettings.h" />
     <ClInclude Include="game\clear\GoalProps.h" />
-    <ClInclude Include="game\clear\GoalRing.h" />
     <ClInclude Include="game\clear\ResultScreen.h" />
     <ClInclude Include="game\clear\StageTally.h" />
     <ClInclude Include="game\ui\DigitStrip.h" />
@@ -599,6 +598,7 @@ exit 0</Command>
     <ClInclude Include="engine\rail\RailSkin.h" />
     <ClInclude Include="engine\utils\RenderStats.h" />
     <ClInclude Include="game\ui\UiScale.h" />
+    <ClInclude Include="game\clear\GoalGate.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

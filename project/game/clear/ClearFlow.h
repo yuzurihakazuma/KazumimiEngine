@@ -1,14 +1,14 @@
 #pragma once
 // =====================================================================
 //  ClearFlow：クリア（ゴール）の流れを 1 つにまとめた物（クリア演出 企画書）。ゲームシーンはこれを決まった所で呼ぶだけ。
-//   ・ゴールの輪（GoalRing）を置き、くぐったことを判定する
+//   ・ゴールの門（GoalGate）を置き、くぐったことを判定する
 //   ・くぐったら：操作と敵を止め（シーンがゲームの時間を進めない）、集計（StageTally）を確定して記録（StageRecords）へ足し、
-//     場面の列（ClearSequence）を始める：輪をくぐる → 「ゴール！」→ リザルト → 加算 → 幕 → ステージ選択へ
+//     場面の列（ClearSequence）を始める：門をくぐる → 「ゴール！」→ リザルト → 加算 → 幕 → ステージ選択へ
 //   ・演出の間：恐竜は自動操縦と演技のクリップ、カメラは演出カメラ（ClearCamera）、小道具（GoalProps）・紙吹雪・リザルト画面
 //   ・同じステージの 2 回目からは短縮版（「ゴール！」を縮める）
-//   ・インスペクターの「クリア演出」：その場で試す・輪の場所とカメラの終点を直して保存する
+//   ・インスペクターの「クリア演出」：その場で試す・門の場所とカメラの終点を直して保存する
 //  部品はそれぞれのクラスが持ち、ここは「いつ・どの順で呼ぶか」だけを決める：
-//     StageTally（数える）/ GoalRing（輪）/ ClearCamera（カメラ）/ GoalProps（文字と星）/ ResultScreen（リザルト）/ ClearSequence（場面の列）
+//     StageTally（数える）/ GoalGate（門）/ ClearCamera（カメラ）/ GoalProps（文字と星）/ ResultScreen（リザルト）/ ClearSequence（場面の列）
 //  演出の時間は、ゲームの時間（止まる）とは別の、止まらない時間で進める
 // =====================================================================
 #include "engine/math/struct.h"
@@ -17,7 +17,7 @@
 #include "game/clear/ClearSequence.h"
 #include "game/clear/ClearSettings.h"
 #include "game/clear/GoalProps.h"
-#include "game/clear/GoalRing.h"
+#include "game/clear/GoalGate.h"
 #include "game/clear/ResultScreen.h"
 #include "game/clear/StageTally.h"
 #include "game/effect/PaperFx.h"
@@ -99,7 +99,7 @@ private:
     ClearSettings      settings_;
     ClearStageSettings stageSettings_;
     StageTally   tally_;
-    GoalRing     ring_;
+    GoalGate     gate_;
     ClearCamera  camera_;
     GoalProps    props_;
     ResultScreen result_;
@@ -112,4 +112,5 @@ private:
     bool    hasPrevious_ = false;  // 前のフレームの足元を持っているか（くぐった判定）
     Vector3 previousFoot_ {};
     bool    previewShort_ = false; // インスペクター：短縮版で試す
+    Vector3 cameraSide_ { 0.0f, 0.0f, -1.0f }; // 演出カメラを回す側（遊んでいる時のカメラがいた側。水平・長さ 1）
 };

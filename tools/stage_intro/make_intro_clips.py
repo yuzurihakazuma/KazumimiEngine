@@ -229,12 +229,16 @@ GOAL_JUMP_HEIGHT = float(os.environ.get("GOAL_JUMP_HEIGHT", "1.7"))   # 大ジ�
 GOAL_TAKE_OFF, GOAL_LAND = 0.2, 1.3                                   # 跳び上がる・着地する時刻（resources/clear/clear.json の jump と合わせる）
 
 
+VICTORY_RAISE = float(os.environ.get("VICTORY_RAISE", "130"))  # 決めポーズの腕を上げる角度(°)。150° だと大きな頭の後ろに隠れた
+VICTORY_SWING = float(os.environ.get("VICTORY_SWING", "-45"))  # 決めポーズの腕を横へ開く角度(°)。マイナス＝外へ（プラスは胸の前へ寄る）
+
+
 def victory(amount, kick=1.0):
     """決めポーズ：両手を上へ V の字・少しのけぞって顔を上げる・片足をぴょんと上げる（amount＝0〜1 で立ち姿から）"""
-    return {"rot": {"Arm_L": [(ARM_RAISE["Arm_L"], amount * 150.0)], "Arm_R": [(ARM_RAISE["Arm_R"], amount * 150.0)],
+    return {"rot": {"Arm_L": [(ARM_RAISE["Arm_L"], amount * VICTORY_RAISE)], "Arm_R": [(ARM_RAISE["Arm_R"], amount * VICTORY_RAISE)],
                     "Head": [(LEAN, -amount * 14.0)], "Body": [(LEAN, -amount * 7.0)],
                     "Foot_R": [(FOOT, -amount * kick * 38.0)], "Tail": [(LEAN, amount * 18.0)]},
-            "parent_rot": {"Arm_L": [(ARM_SWING["Arm_L"], amount * 24.0)], "Arm_R": [(ARM_SWING["Arm_R"], amount * 24.0)]}}
+            "parent_rot": {"Arm_L": [(ARM_SWING["Arm_L"], amount * VICTORY_SWING)], "Arm_R": [(ARM_SWING["Arm_R"], amount * VICTORY_SWING)]}}
 
 
 def goal_jump(t):
@@ -247,14 +251,14 @@ def goal_jump(t):
     stretch = bump(t, GOAL_TAKE_OFF, GOAL_TAKE_OFF + 0.1, GOAL_TAKE_OFF + 0.36)
     land = bump(t, GOAL_LAND - 0.04, GOAL_LAND + 0.05, GOAL_LAND + 0.2)
     kick = math.sin((t - GOAL_TAKE_OFF) * 2 * math.pi * 2.6) * air            # 空中で足をばたばた
-    arms = air * 158.0 - crouch * 20.0
+    arms = air * VICTORY_RAISE - crouch * 20.0   # 決めポーズと同じ V の字（頭の後ろへ隠れない角度）
     return pose({"Arm_L": [(ARM_RAISE["Arm_L"], arms)], "Arm_R": [(ARM_RAISE["Arm_R"], arms)],
                  "Head": [(LEAN, crouch * 10.0 - air * 14.0 + land * 8.0)],
                  "Body": [(LEAN, crouch * 8.0 - air * 6.0)],
                  "Foot_L": [(FOOT, -air * 22.0 + kick * 24.0)], "Foot_R": [(FOOT, -air * 22.0 - kick * 24.0)],
                  "Tail": [(LEAN, air * 26.0), (TILT, kick * 10.0)]},
                 root_up=height, body_up=-0.07 * crouch - 0.05 * land,
-                parent_rot={"Arm_L": [(ARM_SWING["Arm_L"], air * 26.0)], "Arm_R": [(ARM_SWING["Arm_R"], air * 26.0)]},
+                parent_rot={"Arm_L": [(ARM_SWING["Arm_L"], air * VICTORY_SWING)], "Arm_R": [(ARM_SWING["Arm_R"], air * VICTORY_SWING)]},
                 body_scale=(1.0 + 0.11 * (crouch + land) - 0.06 * stretch, 1.0 - 0.2 * (crouch + land) + 0.12 * stretch,
                             1.0 + 0.11 * (crouch + land) - 0.06 * stretch))
 

@@ -353,3 +353,4 @@ tools/*/obj/
 tools/*/*.exe
 tools/*/build.txt
 tools/*/preview_*.png
+tools/*/pose_*.png

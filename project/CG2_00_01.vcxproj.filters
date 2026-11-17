@@ -423,10 +423,10 @@
     <ClCompile Include="game\clear\ClearSettings.cpp">
       <Filter>game\clear</Filter>
     </ClCompile>
-    <ClCompile Include="game\clear\GoalProps.cpp">
+    <ClCompile Include="game\clear\GoalGate.cpp">
       <Filter>game\clear</Filter>
     </ClCompile>
-    <ClCompile Include="game\clear\GoalRing.cpp">
+    <ClCompile Include="game\clear\GoalProps.cpp">
       <Filter>game\clear</Filter>
     </ClCompile>
     <ClCompile Include="game\clear\ResultScreen.cpp">
@@ -1058,10 +1058,10 @@
     <ClInclude Include="game\clear\ClearSettings.h">
       <Filter>game\clear</Filter>
     </ClInclude>
-    <ClInclude Include="game\clear\GoalProps.h">
+    <ClInclude Include="game\clear\GoalGate.h">
       <Filter>game\clear</Filter>
     </ClInclude>
-    <ClInclude Include="game\clear\GoalRing.h">
+    <ClInclude Include="game\clear\GoalProps.h">
       <Filter>game\clear</Filter>
     </ClInclude>
     <ClInclude Include="game\clear\ResultScreen.h">

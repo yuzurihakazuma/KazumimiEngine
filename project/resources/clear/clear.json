@@ -1,12 +1,12 @@
 {
   "full": {
-    "ring": 2.0,
+    "gate": 2.0,
     "goal": 10.0,
     "toResult": 1.0,
     "leave": 0.6
   },
   "short": {
-    "ring": 1.4,
+    "gate": 1.4,
     "goal": 2.6,
     "toResult": 0.7,
     "leave": 0.4
@@ -16,54 +16,51 @@
     "land": 1.3,
     "pose": 1.0
   },
-  "ring": {
-    "hinge": [
-      0.9723,
-      1.7714
+  "gate": {
+    "innerHalfWidth": 1.28,
+    "innerHeight": 3.93,
+    "archCenterHeight": 2.7,
+    "archOuterRadius": 2.17,
+    "archFront": 0.37,
+    "eggHinge": [
+      0.0,
+      5.841,
+      0.504
     ],
-    "halfWidth": 1.3,
-    "height": 2.86,
-    "innerHalfWidth": 0.96,
-    "innerHeight": 2.52
+    "tapePivot": [
+      1.33,
+      1.05
+    ],
+    "height": 6.326,
+    "halfWidth": 4.8
   },
-  "ringOpen": {
-    "time": 0.7,
-    "angle": 1.15,
-    "hop": 0.35
+  "gateOpen": {
+    "time": 0.8,
+    "eggAngle": 1.25,
+    "hop": 0.45,
+    "tapeAngle": 1.45
   },
   "letters": {
     "count": 4,
-    "textureSize": [
-      340,
-      1224
-    ],
-    "height": 1.25,
-    "string": 2.6,
-    "spacing": 1.12,
-    "centerHeight": 3.5,
-    "back": 0.9,
+    "height": 1.05,
+    "spacing": 1.16,
+    "centerHeight": 2.6,
+    "front": 0.05,
     "start": 0.15,
     "interval": 0.14,
     "dropTime": 0.75,
-    "dropHeight": 4.6,
     "swing": 0.28,
     "sway": 0.035
   },
   "stars": {
-    "textureSize": [
-      348,
-      1128
-    ],
-    "height": 0.95,
-    "stick": 2.6,
     "perSide": 3,
-    "pivotSide": 4.3,
-    "pivotHeight": -0.6,
-    "back": 1.3,
+    "pivotSide": 2.55,
+    "pivotHeight": 0.0,
+    "front": 0.7,
     "angles": [
-      0.42,
-      0.78,
-      1.14
+      0.3,
+      0.68,
+      1.05
     ],
     "start": 0.75,
     "interval": 0.09,
@@ -140,7 +137,7 @@
     "addTime": 1.4
   },
   "sounds": {
-    "ring": "resources/clear/se_ring.wav",
+    "gate": "resources/clear/se_gate.wav",
     "letter": "resources/clear/se_letter.wav",
     "star": "resources/clear/se_star.wav",
     "count": "resources/clear/se_count.wav",
