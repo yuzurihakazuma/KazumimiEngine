@@ -71,6 +71,7 @@ private:
 	void OnUpdate() override;         // Edit↔Play の切替・プレイ中の進行・見た目
 	bool GetSdfViewerPosition(Vector3& outPos) const override;
 	void OnDrawBackground(ID3D12GraphicsCommandList* commandList) override;
+	float PlayerRailProgress() const; // プレイヤーの、今のレールの上の進み具合（0〜1。だんだん変わるレールのカメラ）
 	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawInstanced() override;
 	void OnDrawTransparent(ID3D12GraphicsCommandList* commandList) override;
@@ -173,6 +174,7 @@ private:
 	void SetupCaptureTakes();
 	void RestartForTake(int rail, float dist);
 	bool snapCameraOnce_ = false; // 次のプレイの更新で、カメラを補間せずに追従の位置へ置く
+	bool retryNearGoal_ = false;  // 提出用・プレイ会用：クリアしたステージに入り直した＝ゴールの手前から始める（押す演出なし）
 	void ResetStageForRetry(); // やりなおし：敵・コイン・？ブロック・卵・構え・舌をプレイ開始の時と同じに戻す
 	void SetupClear();         // ゴールとクリア演出の用意・集計係へプレイの出来事をつなぐ
 	void OnGoalReached();      // ゴールの輪をくぐった瞬間の後始末（構え・ベロをやめる、♡を隠す）

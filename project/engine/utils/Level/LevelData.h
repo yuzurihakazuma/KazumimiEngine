@@ -68,6 +68,12 @@ struct RailCamera {
     float dist    = 10.0f;  // プレイヤーからの距離 (m)
     float height  = 3.5f;   // プレイヤーからの高さ (m)
     float fovDeg  = 45.0f;  // 視野角（度）
+    // だんだん変える：レールの始め（上の値）から終わり（下の値）へ、プレイヤーの進み具合でなめらかに変える
+    int   blend      = 0;
+    float yawEndDeg  = 0.0f;
+    float distEnd    = 10.0f;
+    float heightEnd  = 3.5f;
+    float fovEndDeg  = 45.0f;
     bool operator==(const RailCamera&) const = default;
 };
 

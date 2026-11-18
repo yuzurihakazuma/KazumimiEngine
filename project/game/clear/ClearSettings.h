@@ -112,6 +112,13 @@ struct ClearResultLayout {
     float addTime = 1.4f;        // 所持数へ数え込む
 };
 
+// 提出用・プレイ会用の切り替え（clear.json の "playSession"）。終わったら false に戻す
+struct ClearPlaySession {
+    bool  allStars = false;       // リザルトの星を、条件に関係なく全部そろえる
+    bool  retryNearGoal = false;  // クリアしたステージにもう一度入ると、ゴールの手前から始める（ステージ開始の押す演出はしない）
+    float retryBack = 15.0f;      // ゴールの点から、レールに沿ってこれだけ手前(m)
+};
+
 struct ClearSounds {
     std::string gate = "resources/clear/se_gate.wav";
     std::string letter = "resources/clear/se_letter.wav";
@@ -145,6 +152,7 @@ struct ClearSettings {
     std::vector<ClearBackdropItem> backdrop; // クリアの間だけ、門の後ろに立てる書き割り
     ClearResultLayout result;
     ClearSounds sounds;
+    ClearPlaySession playSession; // 提出用・プレイ会用
 
     bool Load();
     // 切り文字と星の置き場所だけを clear.json へ書き戻す（インスペクターで直した分。ほかの項目はファイルのまま）

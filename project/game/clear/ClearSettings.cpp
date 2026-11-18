@@ -68,6 +68,11 @@ bool ClearSettings::Load(){
     ReadTiming(root, "full", full);
     ReadTiming(root, "short", shortVersion);
 
+    const json sessionNode = JsonFile::Child(root, "playSession");
+    JsonFile::Read(sessionNode, "allStars", playSession.allStars);
+    JsonFile::Read(sessionNode, "retryNearGoal", playSession.retryNearGoal);
+    JsonFile::Read(sessionNode, "retryBack", playSession.retryBack);
+
     const json jumpNode = JsonFile::Child(root, "jump");
     JsonFile::Read(jumpNode, "takeOff", jump.takeOff);
     JsonFile::Read(jumpNode, "land", jump.land);

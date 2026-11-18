@@ -176,8 +176,16 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
     json cameraArray = json::array();
     for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
         const RailCamera camera = ( i < levelData.railCameras.size() ) ? levelData.railCameras[i] : RailCamera {};
-        cameraArray.push_back({ { "use", camera.enabled }, { "yaw", camera.yawDeg }, { "dist", camera.dist },
-                                { "height", camera.height }, { "fov", camera.fovDeg } });
+        json entry = { { "use", camera.enabled }, { "yaw", camera.yawDeg }, { "dist", camera.dist },
+                       { "height", camera.height }, { "fov", camera.fovDeg } };
+        if ( camera.blend ) {
+            entry["blend"] = camera.blend;
+            entry["yawEnd"] = camera.yawEndDeg;
+            entry["distEnd"] = camera.distEnd;
+            entry["heightEnd"] = camera.heightEnd;
+            entry["fovEnd"] = camera.fovEndDeg;
+        }
+        cameraArray.push_back(entry);
     }
     rootJson["railCameras"] = cameraArray;
 
@@ -467,6 +475,11 @@ LevelData LevelManager::Load(const std::string& fileName){
                 camera.dist    = cameraJson.value("dist", camera.dist);
                 camera.height  = cameraJson.value("height", camera.height);
                 camera.fovDeg  = cameraJson.value("fov", camera.fovDeg);
+                camera.blend     = cameraJson.value("blend", camera.blend);
+                camera.yawEndDeg = cameraJson.value("yawEnd", camera.yawDeg);
+                camera.distEnd   = cameraJson.value("distEnd", camera.dist);
+                camera.heightEnd = cameraJson.value("heightEnd", camera.height);
+                camera.fovEndDeg = cameraJson.value("fovEnd", camera.fovDeg);
             }
             levelData.railCameras.push_back(camera);
         }

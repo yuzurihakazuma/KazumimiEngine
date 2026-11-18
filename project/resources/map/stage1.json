@@ -809,6 +809,15 @@
             "rail": 22,
             "side": 0.0,
             "type": 5
+        },
+        {
+            "anchor": 1,
+            "anchorOff": 1.5,
+            "dist": 8.0,
+            "level": 0,
+            "rail": 21,
+            "side": 2.0,
+            "type": 0
         }
     ],
     "cameraZones": [],
@@ -1314,11 +1323,16 @@
             "yaw": 0.0
         },
         {
+            "blend": 1,
             "dist": 10.0,
+            "distEnd": 9.0,
             "fov": 45.0,
+            "fovEnd": 48.0,
             "height": 3.5,
-            "use": 0,
-            "yaw": 0.0
+            "heightEnd": 3.0,
+            "use": 1,
+            "yaw": 0.0,
+            "yawEnd": -55.0
         },
         {
             "dist": 10.0,
@@ -1364,7 +1378,7 @@
         0,
         0,
         0,
-        1,
+        0,
         3,
         0,
         0
@@ -1391,7 +1405,7 @@
         1,
         0,
         1,
-        1,
+        0,
         0,
         0,
         1
@@ -3272,6 +3286,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3280,6 +3296,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3288,6 +3306,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3296,6 +3316,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3304,6 +3326,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3312,6 +3336,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3320,6 +3346,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3328,6 +3356,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3336,6 +3366,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3344,6 +3376,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3352,6 +3386,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3360,6 +3396,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3368,6 +3406,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3376,6 +3416,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3384,6 +3426,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3392,6 +3436,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3400,6 +3446,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3408,6 +3456,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3416,6 +3466,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3424,6 +3476,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 1
         },
         {
@@ -3432,6 +3486,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3440,6 +3496,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3448,6 +3506,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3456,6 +3516,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         },
         {
@@ -3464,6 +3526,8 @@
             "depart": 0.800000011920929,
             "engine": 1,
             "return": 4.0,
+            "speed": 5.0,
+            "speedMuls": [],
             "use": 0
         }
     ],
@@ -3522,5 +3586,5 @@
         1
     ],
     "startNodeIndex": 0,
-    "startRailIndex": 21
+    "startRailIndex": 0
 }

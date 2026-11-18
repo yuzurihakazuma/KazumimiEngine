@@ -67,6 +67,7 @@ public:
 
     // 演出中か（true の間、シーンはゲームの時間＝敵・動くレール・当たり判定を進めない）
     bool IsActive() const{ return active_; }
+    const ClearSettings& Settings() const{ return settings_; } // clear.json の値（提出用・プレイ会用の切り替えも）
     // HUD を隠すか
     bool IsHudHidden() const{ return active_; }
 

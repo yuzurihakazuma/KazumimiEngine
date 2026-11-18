@@ -3132,6 +3132,30 @@ void RailEditor::DrawRailCameraSettings(){
 	changed |= ImGui::SliderFloat("高さ##railCam", &camera.height, -2.0f, 15.0f, "%.1fm");
 	ImGui::SetNextItemWidth(180.0f);
 	changed |= ImGui::SliderFloat("視野角##railCam", &camera.fovDeg, 20.0f, 90.0f, "%.0f°");
+	// だんだん変える：レールの終わりで、別の向き・距離・高さ・視野角になる（ゴールへ向かう所でゴールの方を向くなど）
+	bool blend = ( camera.blend != 0 );
+	if ( ImGui::Checkbox("レールの終わりへ、だんだん変える##railCamBlend", &blend) ) {
+		camera.blend = blend ? 1 : 0;
+		if ( blend ) { camera.yawEndDeg = camera.yawDeg; camera.distEnd = camera.dist; camera.heightEnd = camera.height; camera.fovEndDeg = camera.fovDeg; }
+		changed = true;
+	}
+	if ( ImGui::IsItemHovered() ) {
+		ImGui::SetTooltip("上の値＝レールの始め、下の値＝レールの終わり。\n"
+			"プレイヤーがレールを進むのに合わせて、なめらかに変わる（戻れば戻る）。\n"
+			"例：ゴールへ向かうレールで、終わりの角度を －60° にすると、だんだん後ろからゴールの方を見るカメラになる");
+	}
+	if ( blend ) {
+		ImGui::Indent();
+		ImGui::SetNextItemWidth(180.0f);
+		changed |= ImGui::SliderFloat("終わりの角度##railCamEnd", &camera.yawEndDeg, -180.0f, 180.0f, "%.0f°");
+		ImGui::SetNextItemWidth(180.0f);
+		changed |= ImGui::SliderFloat("終わりの距離##railCamEnd", &camera.distEnd, 3.0f, 30.0f, "%.1fm");
+		ImGui::SetNextItemWidth(180.0f);
+		changed |= ImGui::SliderFloat("終わりの高さ##railCamEnd", &camera.heightEnd, -2.0f, 15.0f, "%.1fm");
+		ImGui::SetNextItemWidth(180.0f);
+		changed |= ImGui::SliderFloat("終わりの視野角##railCamEnd", &camera.fovEndDeg, 20.0f, 90.0f, "%.0f°");
+		ImGui::Unindent();
+	}
 	if ( changed ) { ++railVersion_; }
 	// 今の値で、このレールのまん中を写してみる（エディタのカメラを動かすだけ）
 	if ( ImGui::Button("この角度で見てみる##railCam") ) {

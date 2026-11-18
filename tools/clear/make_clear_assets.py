@@ -474,7 +474,9 @@ def make_settings():
         # 場面の長さ(秒)。企画書の配分：輪をくぐる 0〜2 → 「ゴール！」2〜12 → リザルトへ 12〜13 → リザルト 13〜28 → 加算 28〜36 → 幕
         "full":  {"gate": 1.8, "goal": 4.5, "toResult": 0.8, "leave": 0.5},   # 長すぎて待たせていたので短く（「ゴール！」まで約 6 秒）
         "short": {"gate": 1.4, "goal": 2.6, "toResult": 0.7, "leave": 0.4},   # 同じステージの 2 回目から（「ゴール！」まで約 4 秒）
-        "jump": {"takeOff": 0.2, "land": 1.3, "pose": 1.0},     # GoalJump クリップの中の時刻・GoalPose の長さ（make_intro_clips.py と合わせる）
+        "jump": {"takeOff": 0.2, "land": 1.3, "pose": 1.0},
+        # 提出用・プレイ会用：星を全部そろえる・クリアしたステージに入り直すとゴールの手前から（押す演出なし）。終わったら false
+        "playSession": {"allStars": False, "retryNearGoal": False, "retryBack": 15.0},     # GoalJump クリップの中の時刻・GoalPose の長さ（make_intro_clips.py と合わせる）
         "gateOpen": {"time": 0.8, "eggAngle": 1.25, "hop": 0.45, "tapeAngle": 1.45},  # 卵が割れて開く秒・角度(rad)・跳ねる高さ(m)・テープが垂れる角度
         "letters": {                 # 立体の切り文字（モデルは make_goal_set.py。門のアーチから糸で下がる）
             "count": 4,
@@ -514,15 +516,15 @@ def make_settings():
         "result": {
             "dim": [0.03, 0.13, 0.08, 0.74],       # 景色を沈める色（暗い緑）
             "mat": {"x": 960, "y": 566, "scale": 1.0},
-            "title": {"x": 470, "y": 230, "scale": 1.0},
-            "name": {"x": 1010, "y": 230, "width": 600},
-            "hanamaru": {"x": 1532, "y": 246, "size": 236},
-            "rowX": 960, "rowYs": [404, 540, 676, 812],   # 帯・1 行目・2 行目・3 行目
+            "title": {"x": 492, "y": 258, "scale": 1.0},   # 内側の点線（y 186）より下に収める
+            "name": {"x": 1010, "y": 266, "width": 580},   # ふりがなも点線より下
+            "hanamaru": {"x": 1520, "y": 292, "size": 190},
+            "rowX": 960, "rowYs": [420, 552, 684, 816],   # 帯・1 行目・2 行目・3 行目
             "iconX": 366, "iconSize": 92, "labelX": 430,
             "valueRight": 1330, "valueHeight": 78,
             "stampX": 1516, "stampSize": 112,
             "flowerX": 800, "flowerGap": 124, "flowerSize": 100,
-            "prompt": {"x": 1560, "y": 1034},
+            "prompt": {"x": 1560, "y": 1000},   # 画面の下のはしに寄せすぎない（タスクバーに隠れた）
             "owned": {"x": 200, "y": 64, "numberX": 150, "numberHeight": 62},
             "matIn": 0.4, "itemIn": 0.3, "flowerInterval": 0.3, "countTime": 0.6, "stampTime": 0.35, "rowGap": 0.15,
             "hanamaruTime": 1.0, "addTime": 1.4,

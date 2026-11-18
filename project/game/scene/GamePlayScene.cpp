@@ -50,6 +50,7 @@
 #include "engine/utils/ScreenCapture.h"
 #include "game/stage/StageRecords.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -155,6 +156,8 @@ void GamePlayScene::SetupClear(){
 	clearContext.health    = &gameOver_;
 	clearContext.onGoal    = [this]{ OnGoalReached(); };
 	clear_.Initialize(clearContext, kStageName, textures_["uvChecker"].srvIndex);
+	// 提出用・プレイ会用：クリアしたステージに入り直したら、ゴールの手前から（clear.json の playSession）
+	retryNearGoal_ = clear_.Settings().playSession.retryNearGoal && StageRecords::GetInstance()->IsCleared(kStageName);
 	// 集計係は、出来事を受け取って数えるだけ（卵・体力・敵の処理と、クリア演出を直接つながない）
 	eggCombo_.OnComboChanged().Connect([this](int combo){ clear_.Tally().NoteCombo(combo); });
 	gameOver_.OnDamaged().Connect([this]{ clear_.Tally().NoteDamage(); });
@@ -193,6 +196,14 @@ void GamePlayScene::BuildBackdrop(){
 	editorTools_.LoadBackdropThumbnails();
 }
 
+// プレイヤーの、今のレールの上の進み具合（0＝始め・1＝終わり）
+float GamePlayScene::PlayerRailProgress() const{
+	const auto& rails = railField_.GetRails();
+	const int rail = player_ ? player_->GetCurrentRail() : -1;
+	if ( rail < 0 || rail >= ( int ) rails.size() || rails[rail].GetLength() <= 0.0f ) { return 0.0f; }
+	return std::clamp(player_->GetCurrentDistance() / rails[rail].GetLength(), 0.0f, 1.0f);
+}
+
 StageIntroSequence::Context GamePlayScene::IntroContext(){
 	StageIntroSequence::Context context;
 	context.player    = player_.get();
@@ -212,7 +223,8 @@ void GamePlayScene::OnTransitionCue(const std::string& cue){
 		EditorManager::GetInstance()->RequestPlay();
 		HandleModeTransition(EngineMode::Play);
 	}
-	intro_.OnCue(cue, IntroContext());
+	// ゴールの手前から入り直した時は、ステージ開始の演技（手を振る・ロールを押す）をしない（カードが開いたらすぐ遊べる）
+	if ( !retryNearGoal_ ) { intro_.OnCue(cue, IntroContext()); }
 	if ( cue == "introEnd" ) { startCuePending_ = true; } // 演技が終わった：キーが効くようになったら合図
 }
 
@@ -543,6 +555,11 @@ void GamePlayScene::OnPlayStart(){
 	editorTools_.ConsumeTestPlayRequest(testPlayRail_, testPlayDist_);
 	if ( testPlayRail_ >= 0 && testPlayRail_ < ( int ) railField_.GetRails().size() ) {
 		player_->SetSpawn(testPlayRail_, testPlayDist_);
+	} else if ( retryNearGoal_ && railField_.HasGoal() ) {
+		// 提出用・プレイ会用：ゴールの手前から（落ちた時の戻り先もここ）。カメラは補間せずに置く
+		const float back = clear_.Settings().playSession.retryBack;
+		player_->SetSpawn(railField_.GetGoalRail(), ( std::max )( 0.0f, railField_.GetGoalDistance() - back ));
+		snapCameraOnce_ = true;
 	}
 	player_->Initialize();
 	player_->SetMovementLocked(false);
@@ -609,7 +626,7 @@ void GamePlayScene::UpdatePlayMode(){
 		const float yaw = player_->GetRotation().y;
 		UpdateEggFollowGround();
 		eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・土ぼこり
-		camCtrl_.SetPlayerRail(player_->GetCurrentRail()); // 演技の後に戻る追従の位置を、始まりのレールのカメラに
+		camCtrl_.SetPlayerRail(player_->GetCurrentRail(), PlayerRailProgress()); // 演技の後に戻る追従の位置を、始まりのレールのカメラに
 		intro_.UpdateCamera(GetCamera(), context, deltaTime);
 		hitFeel_.NotifyCameraOverridden();
 		return;
@@ -698,7 +715,7 @@ void GamePlayScene::UpdatePlayMode(){
 
 	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
 	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true); } // 撮影のテイクの始め：補間せずに置く
-	camCtrl_.SetPlayerRail(player_->GetCurrentRail());
+	camCtrl_.SetPlayerRail(player_->GetCurrentRail(), PlayerRailProgress()); // レールの上の進み具合（だんだん変わるカメラ）
 	camCtrl_.Update(GetCamera(), player_->GetPosition(), player_->IsGrounded(), railField_.GetRails(),
 		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
 	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, false); snapCameraOnce_ = false; }

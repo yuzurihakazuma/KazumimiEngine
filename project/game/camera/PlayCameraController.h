@@ -28,7 +28,8 @@ public:
     void SyncRailCameras(const std::vector<RailCamera>& cameras){ railCameras_ = cameras; lastRail_ = -1; }
     // プレイヤーが今乗っているレール（Update の前に毎フレーム。乗り換えた時だけ、そのレールのカメラへ切り替える）。
     //   ステージ開始の演技の間も呼ぶ（演技の終わりに戻る追従の位置 FollowTargetPosition が、始まりのレールのカメラになる）
-    void SetPlayerRail(int rail){ playerRail_ = rail; ApplyRailCamera(); }
+    //   progress＝そのレールの上の進み具合（0＝始め・1＝終わり）。「だんだん変える」レールのカメラが使う
+    void SetPlayerRail(int rail, float progress = 0.0f){ playerRail_ = rail; railProgress_ = progress; ApplyRailCamera(); }
 
     // 追従の向き/距離/画角を初期状態へ戻す（プレイ開始時に呼ぶ。前回の向きを持ち越さない）
     void Reset();
@@ -110,6 +111,7 @@ private:
     void ApplyRailCamera();
     std::vector<RailCamera> railCameras_;
     int  playerRail_ = -1;       // 今乗っているレール（-1＝空中など）
+    float railProgress_ = 0.0f;  // そのレールの上の進み具合（0〜1）
     int  lastRail_ = -1;         // 前に切り替えを決めたレール（-1＝まだ。次は補間せずに置く）
     bool railCameraActive_ = false; // 今、レールのカメラの値を使っている
 };

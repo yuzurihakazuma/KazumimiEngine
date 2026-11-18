@@ -150,26 +150,26 @@
       "scale": 1.0
     },
     "title": {
-      "x": 470,
-      "y": 230,
+      "x": 492,
+      "y": 258,
       "scale": 1.0
     },
     "name": {
       "x": 1010,
-      "y": 230,
-      "width": 600
+      "y": 266,
+      "width": 580
     },
     "hanamaru": {
-      "x": 1532,
-      "y": 246,
-      "size": 236
+      "x": 1520,
+      "y": 292,
+      "size": 190
     },
     "rowX": 960,
     "rowYs": [
-      404,
-      540,
-      676,
-      812
+      420,
+      552,
+      684,
+      816
     ],
     "iconX": 366,
     "iconSize": 92,
@@ -183,7 +183,7 @@
     "flowerSize": 100,
     "prompt": {
       "x": 1560,
-      "y": 1034
+      "y": 1000
     },
     "owned": {
       "x": 200,
@@ -199,5 +199,10 @@
     "rowGap": 0.15,
     "hanamaruTime": 1.0,
     "addTime": 1.4
+  },
+  "playSession": {
+    "allStars": false,
+    "retryNearGoal": false,
+    "retryBack": 15.0
   }
 }

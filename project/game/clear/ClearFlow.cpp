@@ -185,6 +185,10 @@ ResultScreen::Data ClearFlow::MakeResult(bool& outShort){
     data.achieved[ResultScreen::Row_Health] = ( stageSettings_.healthRule == "noDamage" )
         ? ( tally.damageCount == 0 ) : ( data.healthMax > 0 && data.health >= data.healthMax );
     data.achieved[ResultScreen::Row_Enemy] = tally.enemiesDefeated >= tally.enemyTotal;
+    if ( settings_.playSession.allStars ) { // 提出用・プレイ会用：星もコンボ花も全部そろえる（花丸まで見せる）
+        data.achieved.fill(true);
+        data.bandFound = data.bandTotal;
+    }
     data.hanamaru = data.bandFound >= data.bandTotal && data.achieved[ResultScreen::Row_Combo]
         && data.achieved[ResultScreen::Row_Health] && data.achieved[ResultScreen::Row_Enemy];
 

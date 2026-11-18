@@ -61,6 +61,9 @@ namespace {
 	constexpr const char* kRollModel = "introRoll"; // 巻いた布のロール（X が筒の軸）
 	constexpr float kRoadPastNode = 1.8f;     // 布の道は、行けるマスの立つ所から、これだけ先まで敷く(m)
 	constexpr float kRoadOpenTime = 1.5f;     // 伸びる時間(秒)
+	// 提出用・プレイ会用（今だけ）：同じステージを何度クリアしても、戻って来るたびに道が伸びる演出をする。
+	//   false＝初めてクリアした時だけ（ふつうの動き）
+	constexpr bool  kRoadOpenEveryClear = false;
 	constexpr float kRoadOpenWait = 0.35f;    // 円が開いてから、伸び始めるまで(秒)
 	constexpr float kRollRadius = 0.36f;      // ロールの太さ（半径 m）
 	constexpr float kRollShrink = 0.45f;      // 伸び切るまでに、ロールが細くなる割合
@@ -182,7 +185,8 @@ void StageSelectScene::SetupProgress(){
 	reachable_ = CountReachable("");
 	roadOpenPending_ = false;
 	// 初めてクリアして戻って来た：そのステージをクリアする前の所まで敷いておき、円が開いたら次のマスへ伸ばす
-	if ( !justCleared.empty() && records->ClearCount(justCleared) == 1 ) {
+	//   （kRoadOpenEveryClear の間は、2 回目からのクリアでも毎回）
+	if ( !justCleared.empty() && ( kRoadOpenEveryClear || records->ClearCount(justCleared) == 1 ) ) {
 		const int before = CountReachable(justCleared);
 		if ( before < reachable_ ) {
 			roadOpenTo_ = reachable_;

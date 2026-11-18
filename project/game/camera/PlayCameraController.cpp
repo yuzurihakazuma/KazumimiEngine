@@ -50,16 +50,30 @@ void PlayCameraController::SetDefaultTargets(){
 
 // レールごとのカメラ：乗り換えた時だけ目標を切り替える。空中（レールが -1）の間は、前のレールのまま
 void PlayCameraController::ApplyRailCamera(){
-    if ( playerRail_ < 0 || playerRail_ == lastRail_ ) { return; }
+    if ( playerRail_ < 0 ) { return; }
+    const bool has = playerRail_ < ( int ) railCameras_.size() && railCameras_[playerRail_].enabled != 0;
+    // 「だんだん変える」レールの上：進み具合に合わせて、毎フレーム目標を決め直す（今の値はいつもの補間で追う）
+    if ( has && railCameras_[playerRail_].blend && playerRail_ == lastRail_ ) {
+        const RailCamera& camera = railCameras_[playerRail_];
+        const float t = std::clamp(railProgress_, 0.0f, 1.0f);
+        const float w = t * t * ( 3.0f - 2.0f * t ); // なめらかに
+        camYawTgt_  = Math::Lerp(camera.yawDeg, camera.yawEndDeg, w) * Math::kDegToRad;
+        camDistTgt_ = ( std::max )( Math::Lerp(camera.dist, camera.distEnd, w), 0.5f );
+        camHgtTgt_  = Math::Lerp(camera.height, camera.heightEnd, w);
+        camFovTgt_  = Math::Lerp(camera.fovDeg, camera.fovEndDeg, w) * Math::kDegToRad;
+        return;
+    }
+    if ( playerRail_ == lastRail_ ) { return; }
     const bool first = ( lastRail_ < 0 ); // プレイを始めた直後：補間せずに置く（始まりに回り込まない）
     lastRail_ = playerRail_;
-    const bool has = playerRail_ < ( int ) railCameras_.size() && railCameras_[playerRail_].enabled != 0;
     if ( has ) {
         const RailCamera& camera = railCameras_[playerRail_];
-        camYawTgt_  = camera.yawDeg * Math::kDegToRad;
-        camDistTgt_ = ( std::max )( camera.dist, 0.5f );
-        camHgtTgt_  = camera.height;
-        camFovTgt_  = camera.fovDeg * Math::kDegToRad;
+        const float w = camera.blend ? std::clamp(railProgress_, 0.0f, 1.0f) : 0.0f;
+        const float s = w * w * ( 3.0f - 2.0f * w );
+        camYawTgt_  = Math::Lerp(camera.yawDeg, camera.blend ? camera.yawEndDeg : camera.yawDeg, s) * Math::kDegToRad;
+        camDistTgt_ = ( std::max )( Math::Lerp(camera.dist, camera.blend ? camera.distEnd : camera.dist, s), 0.5f );
+        camHgtTgt_  = Math::Lerp(camera.height, camera.blend ? camera.heightEnd : camera.height, s);
+        camFovTgt_  = Math::Lerp(camera.fovDeg, camera.blend ? camera.fovEndDeg : camera.fovDeg, s) * Math::kDegToRad;
         railCameraActive_ = true;
     } else if ( railCameraActive_ ) {
         SetDefaultTargets(); // カメラを決めていないレールへ：いつもの追従へ戻る
