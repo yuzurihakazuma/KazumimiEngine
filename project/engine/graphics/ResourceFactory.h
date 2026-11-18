@@ -8,6 +8,8 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 using Microsoft::WRL::ComPtr;
 
 
@@ -61,3 +63,4 @@ private:
     ComPtr<ID3D12Device> device_ = nullptr;  // バッファ作成に使用する D3D12 デバイス
 };
 
+} // namespace KazumimiEngine

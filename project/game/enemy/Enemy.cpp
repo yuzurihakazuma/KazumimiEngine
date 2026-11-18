@@ -1,4 +1,5 @@
 #include "Enemy.h"
+#include "game/enemy/EnemyBehavior.h"
 #include "engine/base/TimeManager.h"
 #include "engine/math/MathUtil.h"
 
@@ -12,7 +13,10 @@
 #include "game/stage/BlockSystem.h"
 
 #include <algorithm>
+#include <iterator>
 #include <cmath>
+
+using namespace KazumimiEngine;
 
 namespace {
     constexpr float kMeltTime = 0.7f;        // 倒されてから溶け切るまで(秒)
@@ -21,20 +25,24 @@ namespace {
 }
 
 namespace {
-    // 種類ごとのモデル
-    struct TypeModel {
+    // 種類ごとのデータ（モデルと既定値）。EnemyType の並びと同じ順番の表。
+    //   種類を足す時は、EnemyType に 1 つ足して、この表に 1 行足す（種類ごとの分岐は書かない）。
+    //   体の寸法はモデル（glb）の実寸から取った値＝見た目と判定が一致する
+    struct TypeData {
         const char* modelName;
         const char* modelFile;
+        EnemyTypeSpec spec; // 速度・浮遊・下端・上端・横半径
     };
-    const TypeModel& ModelOf(EnemyType type){
-        static const TypeModel kZako   { "enemyGround", "enemy_ground.glb" }; // ドングリン
-        static const TypeModel kStrong { "enemyPlant",  "enemy_plant.glb" };  // カミバナ
-        static const TypeModel kAir    { "enemyAir",    "enemy_air.glb" };    // フワリン
-        switch ( type ) {
-        case EnemyType::Strong: return kStrong;
-        case EnemyType::Air:    return kAir;
-        default:                return kZako;
-        }
+    constexpr TypeData kTypeTable[] = {
+        //  モデル名        ファイル             速度  浮遊  下端   上端   横半径
+        { "enemyGround", "enemy_ground.glb", { 2.0f, 0.0f, 0.00f, 0.77f, 0.36f } }, // Zako   ドングリン
+        { "enemyPlant",  "enemy_plant.glb",  { 1.0f, 0.0f, 0.00f, 1.15f, 0.32f } }, // Strong カミバナ
+        { "enemyAir",    "enemy_air.glb",    { 1.6f, 1.4f, 0.15f, 0.77f, 0.40f } }, // Air    フワリン
+    };
+    // 種類 → 表の行（保存データが知らない番号だった時は、いちばん基本の種類）
+    const TypeData& DataOf(EnemyType type){
+        const size_t index = static_cast<size_t>( type );
+        return kTypeTable[index < std::size(kTypeTable) ? index : 0];
     }
 
     // 点 p と縦線分（x,z 固定・y0〜y1）の距離の2乗
@@ -48,14 +56,9 @@ namespace {
 Enemy::Enemy() = default;
 Enemy::~Enemy() = default;
 
-// 種類ごとの既定値。体の寸法はモデル（glb）の実寸から取った値＝見た目と判定が一致する
+// 種類ごとの既定値（表 kTypeTable から）
 EnemyTypeSpec Enemy::TypeSpecOf(EnemyType type){
-    //                     速度  浮遊  下端   上端   横半径
-    switch ( type ) {
-    case EnemyType::Strong: return { 1.0f, 0.0f, 0.00f, 1.15f, 0.32f }; // カミバナ
-    case EnemyType::Air:    return { 1.6f, 1.4f, 0.15f, 0.77f, 0.40f }; // フワリン
-    default:                return { 2.0f, 0.0f, 0.00f, 0.77f, 0.36f }; // ドングリン
-    }
+    return DataOf(type).spec;
 }
 
 float Enemy::HoverOf(const EnemySpawnData& spawn){
@@ -110,7 +113,7 @@ void Enemy::ApplySpawn(const EnemySpawnData& spawn){
     moving_       = false;
     waitTimer_    = 0.0f;
     turnCooldown_ = 0.0f;
-    biteTimer_    = 0.0f;
+    if ( behavior_ ) { behavior_->Reset(); } // 噛みつきの途中などを捨てる
     bobPhase_     = std::fmod(spawn.distance * 0.61f, Math::kTwoPi); // 個体ごとに揺れの位相をずらす
 
     if ( skinnedObj_ ) {
@@ -125,10 +128,9 @@ void Enemy::ApplySpawn(const EnemySpawnData& spawn){
 }
 
 void Enemy::Initialize(const EnemySpawnData& spawn){
-    const TypeModel& spec = ModelOf(spawn.type);
-    const char* startClip = "Idle";
-    if ( spawn.type == EnemyType::Zako ) { startClip = spawn.patrol ? "Walk" : "Idle"; }
-    if ( spawn.type == EnemyType::Air )  { startClip = "Fly"; }
+    const TypeData& spec = DataOf(spawn.type);
+    behavior_ = EnemyBehavior::Create(spawn.type); // 種類ごとのふるまい（この後は、種類を見て分岐しない）
+    const char* startClip = behavior_->StartClip(spawn.patrol);
 
     // 見た目：リグ付きモデルを生成（未登録などで失敗したら従来のsphereへフォールバック）
     obj_.reset();
@@ -156,10 +158,7 @@ bool Enemy::Reapply(const EnemySpawnData& spawn){
     if ( spawn.type != type_ ) return false;          // モデルが違う
     if ( !skinnedObj_ && !obj_ ) return false;        // まだ生成されていない
     ApplySpawn(spawn);
-    if ( skinnedObj_ ) {
-        if ( type_ == EnemyType::Air )         { skinnedObj_->SetClip("Fly", true); }
-        else if ( type_ == EnemyType::Strong ) { skinnedObj_->SetClip("Idle", true); }
-    }
+    if ( skinnedObj_ && behavior_ ) { behavior_->OnReapplied(*skinnedObj_); }
     return true;
 }
 
@@ -172,7 +171,7 @@ void Enemy::Update(const std::vector<SplineRail>& rails, const Vector3& playerPo
     if ( swallowing_ ) return; // 吸い込み中は TickSwallow が動かすのでレール移動はしない
     if ( railIndex_ < 0 || railIndex_ >= ( int ) rails.size() ) return;
     const SplineRail& rail = rails[railIndex_];
-    if ( rail.nodes.size() < 2 ) return;
+    if ( rail.Nodes().size() < 2 ) return;
 
     const float railLength = rail.GetLength();
 
@@ -279,31 +278,17 @@ void Enemy::Update(const std::vector<SplineRail>& rails, const Vector3& playerPo
         rotation_.y = std::atan2(tangent.x * dir_, tangent.z * dir_);
     }
 
-    // --- 種類ごとのアニメ制御 ---
-    if ( skinnedObj_ ) {
-        if ( type_ == EnemyType::Zako ) {
-            // 歩いている時だけ Walk、それ以外は Idle（SetClipは同名なら何もしないので毎フレーム呼んでよい）。
-            //   エディット中(dt=0)は動く設定の敵を Walk で見せる
-            bool walk = ( dt > 0.0f ) ? moving_ : ( patrol_ || chaseRange_ > 0.0f );
-            skinnedObj_->SetClip(walk ? "Walk" : "Idle", true);
-        } else if ( type_ == EnemyType::Strong && dt > 0.0f ) {
-            // カミバナ：プレイヤーが近づくと噛みつく（終わったらIdleへ戻る）。近くでは体も向ける
-            float dx = playerPos.x - position_.x;
-            float dz = playerPos.z - position_.z;
-            float distXZ = std::sqrt(dx * dx + dz * dz);
-            float dy = std::abs(playerPos.y - position_.y);
-            if ( biteTimer_ > 0.0f ) {
-                biteTimer_ -= dt;
-                if ( biteTimer_ <= 0.0f ) { skinnedObj_->SetClip("Idle", true); }
-            } else if ( biteRange_ > 0.0f && distXZ < biteRange_ && dy < 2.0f ) {
-                skinnedObj_->SetClip("Bite", false);
-                skinnedObj_->SetAnimationTime(0.0f);
-                biteTimer_ = 1.5f; // Bite(24f)＋ひと呼吸
-            }
-            if ( distXZ < biteRange_ + 1.4f && ( std::abs(dx) > 1e-4f || std::abs(dz) > 1e-4f ) ) {
-                rotation_.y = std::atan2(dx, dz); // プレイヤーの方を向く（鉢は不動でも上体が向く）
-            }
-        }
+    // --- 種類ごとのふるまい（アニメーションの切り替え・プレイヤーへの反応）：EnemyBehavior の派生が決める ---
+    if ( skinnedObj_ && behavior_ ) {
+        EnemyBehavior::Frame frame;
+        frame.deltaTime = dt;
+        frame.moving    = moving_;
+        frame.canMove   = ( patrol_ || chaseRange_ > 0.0f );
+        frame.position  = position_;
+        frame.playerPos = playerPos;
+        frame.biteRange = biteRange_;
+        float yaw = rotation_.y;
+        if ( behavior_->Update(*skinnedObj_, frame, yaw) ) { rotation_.y = yaw; }
     }
 
     // 当たり判定と見た目を追従（モデルは足元原点なので footPos に置く）

@@ -8,8 +8,10 @@
 #include "game/stage/BlockRenderer.h"
 #include "game/stage/BlockWorldShapes.h"
 
+namespace KazumimiEngine {
 class SplineRail;
 class Camera;
+}
 
 // =====================================================================
 //  BlockSystem（乗れる/ぶつかる1m角ブロック）
@@ -43,9 +45,9 @@ public:
     void Initialize(uint32_t noiseSrvIndex){ renderer_.Initialize(noiseSrvIndex); }
 
     // エディタのブロック配置とレールから実体を作り直す
-    void Sync(const std::vector<BlockData>& blockDatas, const std::vector<SplineRail>* rails);
+    void Sync(const std::vector<KazumimiEngine::BlockData>& blockDatas, const std::vector<KazumimiEngine::SplineRail>* rails);
     void Update();                 // 位置・向きの更新（動くレール追従＋インスタンス行列の収集＋ワールドの箱）
-    void Draw(const Camera* camera){ renderer_.Draw(camera); }
+    void Draw(const KazumimiEngine::Camera* camera){ renderer_.Draw(camera); }
     // 裏から見ている間、カメラ側（minZ より +z）の、minY より上に出ているブロックを隠す
     void SetViewCut(bool active, float minZ, float minY){ renderer_.SetViewCut(active, minZ, minY); }
 
@@ -69,30 +71,30 @@ public:
 
     // --- ワールド空間の当たり判定（卵・吐き出し弾など、レールに乗らずに飛ぶ物が使う）---
     // 球が from→to へ動いた間にブロックへ触れたか。触れたら outHitPos に当たる直前の位置を返す
-    bool  SweepSphere(const Vector3& from, const Vector3& to, float radius, Vector3* outHitPos = nullptr) const{
+    bool  SweepSphere(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, float radius, KazumimiEngine::Vector3* outHitPos = nullptr) const{
         return shapes_.SweepSphere(from, to, radius, outHitPos);
     }
 
     // --- エディタ用：マウスのレイが最初に当たるブロックと、その面 ---
     struct RayHit {
-        BlockData cell;          // 当たったブロック（rail/dist/level/side/type）
+        KazumimiEngine::BlockData cell;          // 当たったブロック（rail/dist/level/side/type）
         float distance = 0.0f;   // レイの始点からの距離
         int   faceAxis = 1;      // 当たった面の軸（0=道幅方向 / 1=上下 / 2=進行方向）
         int   faceSign = 1;      // 面の向き（+1/-1）
         float halfAlong = 0.5f;  // 当たったブロックの進行方向の半幅（隣のセルを求める用）
         float halfSide  = 0.5f;  // 当たったブロックの道幅方向の半幅
     };
-    bool  Raycast(const Vector3& origin, const Vector3& direction, RayHit& outHit) const;
+    bool  Raycast(const KazumimiEngine::Vector3& origin, const KazumimiEngine::Vector3& direction, RayHit& outHit) const;
 
     // 当たり判定の箱をワイヤーで描く（デバッグ表示用）
-    void  DrawHitShapes(const Vector4& color) const{ shapes_.DrawAll(color); }
+    void  DrawHitShapes(const KazumimiEngine::Vector4& color) const{ shapes_.DrawAll(color); }
 
     // エディタ用：指定セルに type のブロックを置いた時の形を、道に沿った向きのワイヤーで描く
     //   （配置のゴースト表示。実際のブロックと同じ位置・向き・大きさになる）。inflate で少し膨らませる
     void  DrawCellGhost(int rail, float dist, int level, float side, int type,
-                        const Vector4& color, float inflate = 0.0f) const;
+                        const KazumimiEngine::Vector4& color, float inflate = 0.0f) const;
     // セルの中心のワールド座標（レールが無効なら false）
-    bool  CellCenter(int rail, float dist, int level, float side, Vector3& outCenter) const;
+    bool  CellCenter(int rail, float dist, int level, float side, KazumimiEngine::Vector3& outCenter) const;
 
     // --- エディタの2D表示用：ブロックの形の決まりを公開する ---
     // 見た目の進行方向の半分の長さ（ゆるい斜面・横長・台座は1m、他は0.5m）
@@ -107,7 +109,7 @@ public:
     // ジャンプ台で跳ねた（足元のばねを縮めて戻す見た目）
     void  NotifySpringBounce(int rail, float dist, float footY);
     // 頭突きで出たコインのワールド位置（1フレーム分。シーンが取り出して演出とカウントに使う）
-    bool  ConsumeBumpCoin(Vector3& outPos);
+    bool  ConsumeBumpCoin(KazumimiEngine::Vector3& outPos);
     // Play開始時：？ブロックを全部未使用に戻す
     void  ResetPlay();
 
@@ -120,9 +122,9 @@ private:
     void  RebuildLooks(){ renderer_.Rebuild(blocks_, grid_); }
 
     std::vector<PlacedBlock> blocks_;
-    const std::vector<SplineRail>* rails_ = nullptr; // シーンの RailField が所有（借り物）
+    const std::vector<KazumimiEngine::SplineRail>* rails_ = nullptr; // シーンの RailField が所有（借り物）
     BlockGrid        grid_;
     BlockRenderer    renderer_;
     BlockWorldShapes shapes_;
-    std::vector<Vector3> bumpCoinQueue_; // 頭突きで出たコインの位置（シーンが ConsumeBumpCoin で取り出す）
+    std::vector<KazumimiEngine::Vector3> bumpCoinQueue_; // 頭突きで出たコインの位置（シーンが ConsumeBumpCoin で取り出す）
 };

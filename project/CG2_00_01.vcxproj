@@ -83,7 +83,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
@@ -106,6 +106,7 @@ exit 0</Command>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -115,10 +116,11 @@ exit 0</Command>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
@@ -141,6 +143,7 @@ exit 0</Command>
          _DEBUG は付けない（デバッグレイヤー・リソースリーク検査・R キーのリロードは Debug だけ）。DEVELOPMENT_BUILD で見分けられる -->
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -152,9 +155,10 @@ exit 0</Command>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)engine\graphics;$(ProjectDir)engine\base;$(ProjectDir)engine\audio;$(ProjectDir)engine\2d;$(ProjectDir)engine\3d\obj;$(ProjectDir)engine\3d\model;$(ProjectDir)engine\3d;$(ProjectDir)engine\math;$(ProjectDir)engine\particle;$(ProjectDir)engine\utils;$(ProjectDir)game\scene;$(ProjectDir)game;$(ProjectDir)game\base;$(ProjectDir)externals\assimp\include;$(ProjectDir)engine\collision;$(ProjectDir)engine\postEffect;$(ProjectDir)engine\3d\animation;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
@@ -379,6 +383,7 @@ exit 0</Command>
     <ClCompile Include="game\clear\ClearBackdrop.cpp" />
     <ClCompile Include="game\rail\TrainVisuals.cpp" />
     <ClCompile Include="game\rail\ToyTrain.cpp" />
+    <ClCompile Include="game\enemy\EnemyBehavior.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\particle\GPUParticleEmitterData.h" />
@@ -447,7 +452,6 @@ exit 0</Command>
     <ClInclude Include="engine\utils\GlobalVariables.h" />
     <ClInclude Include="engine\utils\Easing.h" />
     <ClInclude Include="engine\utils\Random.h" />
-    <ClInclude Include="engine\utils\Tween.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -605,6 +609,7 @@ exit 0</Command>
     <ClInclude Include="game\clear\ClearBackdrop.h" />
     <ClInclude Include="game\rail\TrainVisuals.h" />
     <ClInclude Include="game\rail\ToyTrain.h" />
+    <ClInclude Include="game\enemy\EnemyBehavior.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

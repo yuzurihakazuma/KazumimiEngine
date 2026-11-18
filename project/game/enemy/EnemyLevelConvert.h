@@ -11,9 +11,9 @@
 #include <vector>
 
 namespace EnemyLevelConvert {
-    LevelEnemyData ToLevelEnemy(const EnemySpawnData& spawn);
-    EnemySpawnData ToSpawnData(const LevelEnemyData& data);
+    KazumimiEngine::LevelEnemyData ToLevelEnemy(const EnemySpawnData& spawn);
+    EnemySpawnData ToSpawnData(const KazumimiEngine::LevelEnemyData& data);
 
-    std::vector<LevelEnemyData> ToLevelEnemies(const std::vector<EnemySpawnData>& spawnDatas);
-    std::vector<EnemySpawnData> ToSpawnDatas(const std::vector<LevelEnemyData>& datas);
+    std::vector<KazumimiEngine::LevelEnemyData> ToLevelEnemies(const std::vector<EnemySpawnData>& spawnDatas);
+    std::vector<EnemySpawnData> ToSpawnDatas(const std::vector<KazumimiEngine::LevelEnemyData>& datas);
 }

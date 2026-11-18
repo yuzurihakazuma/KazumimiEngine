@@ -11,6 +11,8 @@
 #include <cmath>
 #include <filesystem>
 
+using namespace KazumimiEngine;
+
 using json = nlohmann::json;
 
 namespace {

@@ -3,6 +3,8 @@
 #include <vector>
 #include <cstdint>
 
+namespace KazumimiEngine {
+
 class GPUParticleEmitter;
 
 // =====================================================================
@@ -74,6 +76,7 @@ private:
         GameParam,        // 登録されたゲームの変数（プレイヤー速度・卵の投げ初速など）に反映
     };
 
+    // ノードエディタのノード 1 つ（番号・種類・キャンバス上の位置・値）
     struct Node {
         int      id = 0;
         NodeType type = NodeType::Value;
@@ -151,3 +154,5 @@ private:
     char fileBuf_[128] = "resources/nodes/graph01.json";
     std::string status_;
 };
+
+} // namespace KazumimiEngine

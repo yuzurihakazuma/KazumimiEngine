@@ -15,6 +15,8 @@
 #include "engine/graphics/GraphicsPipelineBuilder.h"
 #include "engine/graphics/RenderTexture.h"
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 void SDFManager::Initialize() {
@@ -844,3 +846,5 @@ void SDFManager::DrawDebugUI() {
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

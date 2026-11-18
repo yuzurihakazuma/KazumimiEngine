@@ -5,6 +5,8 @@
 #include <source_location>
 #include <string>
 
+namespace KazumimiEngine {
+
 inline void SetD3DDebugName(ID3D12Object* object, const wchar_t* kind, const std::source_location& where){
 #ifdef _DEBUG
 	if ( !object ) return;
@@ -20,3 +22,5 @@ inline void SetD3DDebugName(ID3D12Object* object, const wchar_t* kind, const std
 	( void )object; ( void )kind; ( void )where;
 #endif
 }
+
+} // namespace KazumimiEngine

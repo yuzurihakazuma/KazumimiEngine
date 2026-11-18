@@ -9,7 +9,7 @@
 
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 namespace BlockShape {
     constexpr float kSize = 1.0f;          // 1ブロック = 1m角
@@ -56,11 +56,11 @@ namespace BlockShape {
     // ブロックの基準位置（底面中心）・向き(yaw)・道の勾配(pitch) をワールドで求める。
     //   動くレールの現在位置（animOffset込み）を反映するので、リフト上のブロックも一緒に動く。
     //   レールが無効なら false
-    bool PoseOnRail(const std::vector<SplineRail>& rails, const PlacedBlock& block,
-                    Vector3& outPos, float& outYaw, float* outPitch = nullptr);
+    bool PoseOnRail(const std::vector<KazumimiEngine::SplineRail>& rails, const PlacedBlock& block,
+                    KazumimiEngine::Vector3& outPos, float& outYaw, float* outPitch = nullptr);
     // そのレールの道の半幅(m)：布の道は布の幅の半分、土台だけの道は土台の幅（1.0）
-    float RoadHalfWidth(const SplineRail& rail);
+    float RoadHalfWidth(const KazumimiEngine::SplineRail& rail);
     // 道幅方向の半幅(m)：ふつうは 0.5。道幅いっぱいの種類（斜面・台座）は、置くレールの道の幅に合わせる（最大 1.0＝モデルの実寸）。
     //   描画（横に縮める）・ワールドの箱（卵の当たり）が同じ値を使う
-    float SideHalf(const std::vector<SplineRail>& rails, const PlacedBlock& block);
+    float SideHalf(const std::vector<KazumimiEngine::SplineRail>& rails, const PlacedBlock& block);
 }

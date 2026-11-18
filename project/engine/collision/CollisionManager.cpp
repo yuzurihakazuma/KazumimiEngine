@@ -6,6 +6,8 @@
 #include "engine/collision/Collision.h"
 #include "engine/graphics/DebugDraw.h"
 
+namespace KazumimiEngine {
+
 void CollisionManager::Register(Collider* collider){
     if ( !collider ) return;
     if ( std::find(colliders_.begin(), colliders_.end(), collider) == colliders_.end() ) {
@@ -71,3 +73,5 @@ void CollisionManager::DrawDebug(const Vector4& color){
         }
     }
 }
+
+} // namespace KazumimiEngine

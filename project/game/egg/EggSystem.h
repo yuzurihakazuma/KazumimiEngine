@@ -6,8 +6,8 @@
 #include <string>
 #include <unordered_map>
 
-class Obj3d;            // トレイル煙パフ用（実体で確実に表示する）
-class SDFVolumeObject;  // 産卵エロージョン演出用（SDFの卵が芯から育つ）
+namespace KazumimiEngine { class Obj3d; }            // トレイル煙パフ用（実体で確実に表示する）
+namespace KazumimiEngine { class SDFVolumeObject; }  // 産卵エロージョン演出用（SDFの卵が芯から育つ）
 struct ID3D12GraphicsCommandList;
 
 // =====================================================================
@@ -29,7 +29,7 @@ public:
 
     // 毎フレーム更新。保持中の卵に「後ろのスロット」を割り当てて整列・追従させ、各卵の状態を進める。
     //   playerPos : プレイヤー位置 / facing : プレイヤーの向き(水平単位ベクトル)
-    void Update(const Vector3& playerPos, const Vector3& facing, float dt);
+    void Update(const KazumimiEngine::Vector3& playerPos, const KazumimiEngine::Vector3& facing, float dt);
     void Draw() const;
 
     // 敵を飲み込んだ → お腹(stomach)に1匹ためる（まだ卵にはしない）。
@@ -39,7 +39,7 @@ public:
 
     // しゃがみ等で「産む」：お腹が1以上なら1匹を卵(Held)にして birthPos に生む。産んだら true。
     //   持っている卵が満杯なら一番古い卵を割って捨ててから生む（常に産める）。
-    bool LayEgg(const Vector3& birthPos);
+    bool LayEgg(const KazumimiEngine::Vector3& birthPos);
     // 産卵演出中か（プレイヤーの EggLay アニメ切り替えに使う）
     bool IsBirthActive() const{ return birthTimer_ >= 0.0f; }
 
@@ -50,27 +50,27 @@ public:
         followGrounded_ = playerGrounded; followHasGround_ = hasGround; followGroundY_ = groundY;
     }
     // カメラから見て奥の向き（水平・長さ1）。重ねた卵を少しずつ奥へずらす・後ろに場所が無い時に奥へよける向き
-    void SetFollowAway(const Vector3& away){ followAway_ = away; }
+    void SetFollowAway(const KazumimiEngine::Vector3& away){ followAway_ = away; }
     // index 番目（0＝一番近い）の卵が並ぶ所。卵を産む場所にも使う。
     //   動いている時は足あとを一列に付いてくる・止まったら恐竜の後ろにまとまる（並び方が変わると近い卵から 1 個ずつ動く）
-    Vector3 FollowSlot(int index) const;
+    KazumimiEngine::Vector3 FollowSlot(int index) const;
 
     // 保持中の卵を1個、指定方向へ投げる（Held → Flying）。speed=初速。投げられたら true。
-    bool TryThrow(const Vector3& playerPos, const Vector3& dir, float speed = 12.0f);
+    bool TryThrow(const KazumimiEngine::Vector3& playerPos, const KazumimiEngine::Vector3& dir, float speed = 12.0f);
     // TryThrow と同じ。投げた卵を返す（無ければ nullptr）。奥投げコンボ（EggCombo）が卵を追うのに使う
-    class Egg* ThrowEgg(const Vector3& playerPos, const Vector3& dir, float speed);
+    class Egg* ThrowEgg(const KazumimiEngine::Vector3& playerPos, const KazumimiEngine::Vector3& dir, float speed);
     // その卵がまだあるか（割れて消えた卵を指したままにしない）
     bool Contains(const class Egg* egg) const;
 
     // お腹の敵を1匹、指定方向へ吐き出す（ヨッシーの吐き出し攻撃）。吐けたら true。
     //   from=口元の位置 / dir=プレイヤーの向いている水平方向
-    bool SpitOut(const Vector3& from, const Vector3& dir, float speed = 13.0f);
+    bool SpitOut(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& dir, float speed = 13.0f);
 
     // 当たり判定の問い合わせ：球が from→to へ動いた間に何かへ触れたか。
     //   1フレームに動いた区間まるごとで判定するので、速い弾でも薄い物をすり抜けない
-    using SweepHit = std::function<bool(const Vector3& from, const Vector3& to, float radius)>;
+    using SweepHit = std::function<bool(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, float radius)>;
     // 壁・ブロック・道への問い合わせ。当たったら outHitPos に当たる直前の位置を返す
-    using ObstacleQuery = std::function<bool(const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos)>;
+    using ObstacleQuery = std::function<bool(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, float radius, KazumimiEngine::Vector3& outHitPos)>;
 
     // 卵と吐き出し弾が壁・ブロック・道に当たるようにする（シーンが一度渡す。
     //   ブロックやレールを知っているのはシーンなので、判定の中身は外から貰う）。
@@ -86,14 +86,14 @@ public:
     void ResolveHits(const SweepHit& onHit);
 
     // 飛んでいる卵・吐き出し弾の当たり判定の形をワイヤーで描く（デバッグ表示用）
-    void DrawHitShapes(const Vector4& color) const;
+    void DrawHitShapes(const KazumimiEngine::Vector4& color) const;
 
     // --- イベント別の演出（実体パフ。踏みつけのリングとは別物にして使い回しに見せない）---
-    void SpawnSwallowFx(const Vector3& pos); // 飲み込み：緑がふわっと上へ吸い込まれる
-    void SpawnLayFx(const Vector3& pos);     // 産卵：白＆緑がぽわっと広がる（生まれた感）
-    void SpawnHitFx(const Vector3& pos);     // 命中：黄＆オレンジが鋭く飛び散る（衝撃）
+    void SpawnSwallowFx(const KazumimiEngine::Vector3& pos); // 飲み込み：緑がふわっと上へ吸い込まれる
+    void SpawnLayFx(const KazumimiEngine::Vector3& pos);     // 産卵：白＆緑がぽわっと広がる（生まれた感）
+    void SpawnHitFx(const KazumimiEngine::Vector3& pos);     // 命中：黄＆オレンジが鋭く飛び散る（衝撃）
     // 卵が割れた：殻のかけら（白と緑＝卵の模様の色）が、飛んで来た方へはね返って落ちる。flightDir＝飛んでいた向き（0 なら真上へ）
-    void SpawnBreakFx(const Vector3& pos, const Vector3& flightDir);
+    void SpawnBreakFx(const KazumimiEngine::Vector3& pos, const KazumimiEngine::Vector3& flightDir);
 
     int HeldCount() const;    // 保持中の卵の数
     int TotalCount() const { return ( int ) eggs_.size(); }
@@ -113,7 +113,7 @@ private:
     ObstacleQuery obstacleQuery_; // 壁・ブロック・道への問い合わせ（シーンが渡す）
 
     // --- 産卵エロージョン演出の状態 ---
-    std::unique_ptr<SDFVolumeObject> birthFx_; // SDFの卵（1個を使い回す）
+    std::unique_ptr<KazumimiEngine::SDFVolumeObject> birthFx_; // SDFの卵（1個を使い回す）
     bool birthLookReady_ = false;              // SDF の卵に、実体の卵と同じ見た目（テクスチャ・光）を設定したか
     Egg*  birthEgg_   = nullptr;               // 演出対象（eggs_ 内に存在するか毎フレーム検証）
     float birthTimer_ = -1.0f;                 // 経過秒。負=演出していない
@@ -121,18 +121,18 @@ private:
     bool  aimHolding_ = false;                 // 構え中（列の先頭の卵を手に持っている扱いで非表示）
     // 後ろの卵は、恐竜が通った所（足あと）を少し遅れて付いてくる。
     //   前は「今の向きの真後ろ・恐竜と同じ高さ」に並べていたので、壁を背にした時・階段を降りる時に卵がブロックの中に入っていた
-    struct TrailPoint { Vector3 pos; float groundY; bool hasGround; };
+    struct TrailPoint { KazumimiEngine::Vector3 pos; float groundY; bool hasGround; };
     std::vector<TrailPoint> trail_;            // 新しい順（[0] が一番新しい）
-    Vector3 trailHead_ { 0.0f, 0.0f, 0.0f };   // 今の恐竜の足元
-    Vector3 trailFacing_ { 0.0f, 0.0f, 1.0f };
+    KazumimiEngine::Vector3 trailHead_ { 0.0f, 0.0f, 0.0f };   // 今の恐竜の足元
+    KazumimiEngine::Vector3 trailFacing_ { 0.0f, 0.0f, 1.0f };
     bool  trailReady_ = false;
     bool  followGrounded_ = false, followHasGround_ = false;
     float followGroundY_ = 0.0f;
-    void UpdateTrail(const Vector3& playerPos, const Vector3& facing, float dt);
-    void TrailPointAt(float along, Vector3& outPos, Vector3& outDir, TrailPoint* outGround) const;
-    Vector3 followAway_ { 0.0f, 0.0f, 1.0f };  // カメラから見て奥の向き
+    void UpdateTrail(const KazumimiEngine::Vector3& playerPos, const KazumimiEngine::Vector3& facing, float dt);
+    void TrailPointAt(float along, KazumimiEngine::Vector3& outPos, KazumimiEngine::Vector3& outDir, TrailPoint* outGround) const;
+    KazumimiEngine::Vector3 followAway_ { 0.0f, 0.0f, 1.0f };  // カメラから見て奥の向き
     float FlatLengthBehind() const;
-    bool  StandingPointBehind(float fromAlong, float maxAlong, Vector3& outPos) const;
+    bool  StandingPointBehind(float fromAlong, float maxAlong, KazumimiEngine::Vector3& outPos) const;
     bool  followStopped_ = true;               // 恐竜が止まっている（卵は後ろにまとまる）
     float stillTime_ = 0.0f;                   // 横に動いていない秒
     float modeTime_ = 0.0f;                    // 並び方（一列／まとまる）が変わってからの秒
@@ -146,12 +146,12 @@ private:
     // --- 飛行中の卵が残す「煙パフ」---
     //   加算パーティクルは明るい背景で見えないので、実体(Obj3d)の小球で表示する（縮んで消える）。
     struct TrailPuff {
-        std::unique_ptr<Obj3d> obj;
+        std::unique_ptr<KazumimiEngine::Obj3d> obj;
         std::string model;                     // プール返却先のキー（モデル名）
-        Vector3 pos { 0.0f, 0.0f, 0.0f };
-        Vector3 vel { 0.0f, 0.0f, 0.0f };
-        Vector3 rot { 0.0f, 0.0f, 0.0f };      // 姿勢（欠片が舞うように回す）
-        Vector3 rotSpeed { 0.0f, 0.0f, 0.0f };
+        KazumimiEngine::Vector3 pos { 0.0f, 0.0f, 0.0f };
+        KazumimiEngine::Vector3 vel { 0.0f, 0.0f, 0.0f };
+        KazumimiEngine::Vector3 rot { 0.0f, 0.0f, 0.0f };      // 姿勢（欠片が舞うように回す）
+        KazumimiEngine::Vector3 rotSpeed { 0.0f, 0.0f, 0.0f };
         float   life    = 0.0f;
         float   maxLife = 0.4f;
         float   baseScale = 0.3f;
@@ -162,15 +162,15 @@ private:
 
     // パフ用 Obj3d のプール（モデル名ごと）。粒1個ごとの生成/破棄は
     // GPUリソース確保を伴い、敵を倒した瞬間などの一斉発生でカクつく原因になる
-    std::unordered_map<std::string, std::vector<std::unique_ptr<Obj3d>>> puffPool_;
+    std::unordered_map<std::string, std::vector<std::unique_ptr<KazumimiEngine::Obj3d>>> puffPool_;
     float trailTimer_ = 0.0f; // 一定間隔でトレイルを出すためのタイマー
 
     // --- 吐き出し弾（飲んだ敵をそのまま前方へ発射。モンスターボール柄の球）---
     struct SpitBall {
-        std::unique_ptr<Obj3d> obj;
-        Vector3 pos { 0.0f, 0.0f, 0.0f };
-        Vector3 prevPos { 0.0f, 0.0f, 0.0f }; // 直前の更新で動く前の位置（区間での当たり判定用）
-        Vector3 vel { 0.0f, 0.0f, 0.0f };
+        std::unique_ptr<KazumimiEngine::Obj3d> obj;
+        KazumimiEngine::Vector3 pos { 0.0f, 0.0f, 0.0f };
+        KazumimiEngine::Vector3 prevPos { 0.0f, 0.0f, 0.0f }; // 直前の更新で動く前の位置（区間での当たり判定用）
+        KazumimiEngine::Vector3 vel { 0.0f, 0.0f, 0.0f };
         float   life   = 2.0f;   // 保険の寿命(秒)
         float   radius = 0.45f;  // 当たり判定＆見た目の半径
         float   spin   = 0.0f;   // 転がり回転
@@ -189,7 +189,7 @@ public:
     //   "eggShell" 等の専用モデルは自前の色をそのまま見せる。
     //   ？ブロックのコイン演出など、外部のちょっとした粒エフェクトにも使える
     // 殻のかけらを 1 個（green＝緑のかけら）。重く落ちて、終わりの方でだけ縮む
-    void SpawnShell(const Vector3& pos, const Vector3& vel, float scale, float life, bool green);
-    void SpawnPuff(const Vector3& pos, const Vector3& vel, const Vector4& color, float scale, float life,
+    void SpawnShell(const KazumimiEngine::Vector3& pos, const KazumimiEngine::Vector3& vel, float scale, float life, bool green);
+    void SpawnPuff(const KazumimiEngine::Vector3& pos, const KazumimiEngine::Vector3& vel, const KazumimiEngine::Vector4& color, float scale, float life,
                    const std::string& modelName = "fxSphere");
 };

@@ -8,6 +8,7 @@
 #include "engine/graphics/BlendMode.h"
 #include <dxcapi.h>
 
+namespace KazumimiEngine {
 
 // グラフィックスパイプラインを簡単に構築するためのビルダー
 class GraphicsPipelineBuilder{
@@ -41,3 +42,5 @@ private:
 	// PipelineManagerにあったGetBlendDescをこっちに移動させるとスッキリします
 	D3D12_BLEND_DESC GetBlendDesc(BlendMode blendMode);
 };
+
+} // namespace KazumimiEngine

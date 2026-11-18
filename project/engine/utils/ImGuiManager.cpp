@@ -10,7 +10,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #include "engine/base/WindowProc.h"
 #include "engine/graphics/SrvManager.h"
 
-
+namespace KazumimiEngine {
 
 void ImGuiManager::Initialize([[maybe_unused]] WindowProc* windowProc, [[maybe_unused]] DirectXCommon* dxCommon){
 
@@ -164,3 +164,5 @@ bool ImGuiManager::WndProcHandler([[maybe_unused]] HWND hwnd, [[maybe_unused]] U
 	return false; // ImGuiが処理しない場合はfalseを返す
 #endif
 }
+
+} // namespace KazumimiEngine

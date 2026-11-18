@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+
+namespace KazumimiEngine {
+
 // =====================================================================
 //  WindowProc：ゲームのウィンドウ。
 //   作成・メッセージの処理・大きさの変更・フルスクリーンの切り替え・ドロップされたファイルの受け取りを受け持つ
@@ -117,3 +120,4 @@ private:
 	static inline std::vector<std::string> droppedFiles_;
 };
 
+} // namespace KazumimiEngine

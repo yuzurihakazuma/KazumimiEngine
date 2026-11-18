@@ -4,10 +4,11 @@
 #include "game/title/TitleAssets.h"
 
 #include "engine/3d/obj/Obj3d.h"
-#include "engine/math/VectorMath.h"
 #include "engine/utils/Easing.h"
 
 #include <cmath>
+
+using namespace KazumimiEngine;
 
 namespace {
     constexpr float kPi = Math::kPi;

@@ -6,6 +6,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     // 1セグメント（十字リボン2枚=4三角形）を out へ追加する。
     //   断面は「横リボン＋縦リボン」の十字型で、どの方向から見ても線に見える
@@ -50,8 +52,8 @@ void RailMarkers::Build(const std::vector<SplineRail>& rails, Camera* camera, ui
     for ( int railIdx = 0; railIdx < ( int ) rails.size(); ++railIdx ) {
         const SplineRail& rail = rails[railIdx];
         float len = rail.GetLength();
-        if ( len <= 0.0f || rail.nodes.size() < 2 ) continue;
-        if ( !rail.visible ) continue; // 非表示レール（連結用）は線を描かない
+        if ( len <= 0.0f || rail.Nodes().size() < 2 ) continue;
+        if ( !rail.Config().visible ) continue; // 非表示レール（連結用）は線を描かない
 
         const auto holes = rail.GetHoleIntervals();
         auto isHole = [&](float s) -> bool{
@@ -116,16 +118,16 @@ void RailMarkers::UpdatePositions(const std::vector<SplineRail>& rails){
         Slot& slot = *slots_[k];
         if ( slot.rail < 0 || slot.rail >= ( int ) rails.size() ) continue;
         const SplineRail& rail = rails[slot.rail];
-        if ( rail.animYaw != 0.0f ) {
-            float sinYaw = std::sin(rail.animYaw), cosYaw = std::cos(rail.animYaw);
-            const Vector3& pivot = rail.animPivot;
+        if ( rail.Motion().animYaw != 0.0f ) {
+            float sinYaw = std::sin(rail.Motion().animYaw), cosYaw = std::cos(rail.Motion().animYaw);
+            const Vector3& pivot = rail.Motion().animPivot;
             Vector3 rotatedPivot { pivot.x * cosYaw + pivot.z * sinYaw, pivot.y, -pivot.x * sinYaw + pivot.z * cosYaw };
-            slot.obj->SetRotation({ 0.0f, rail.animYaw, 0.0f });
-            slot.obj->SetTranslation({ pivot.x - rotatedPivot.x + rail.animOffset.x, rail.animOffset.y,
-                                       pivot.z - rotatedPivot.z + rail.animOffset.z });
+            slot.obj->SetRotation({ 0.0f, rail.Motion().animYaw, 0.0f });
+            slot.obj->SetTranslation({ pivot.x - rotatedPivot.x + rail.Motion().animOffset.x, rail.Motion().animOffset.y,
+                                       pivot.z - rotatedPivot.z + rail.Motion().animOffset.z });
         } else {
             slot.obj->SetRotation({ 0.0f, 0.0f, 0.0f });
-            slot.obj->SetTranslation(rail.animOffset);
+            slot.obj->SetTranslation(rail.Motion().animOffset);
         }
     }
 }

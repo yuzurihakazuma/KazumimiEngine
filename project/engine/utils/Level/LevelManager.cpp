@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cassert>
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 void LevelManager::Save(const std::string& fileName, const LevelData& levelData){
@@ -608,3 +610,5 @@ LevelData LevelManager::Load(const std::string& fileName){
 
     return levelData;
 }
+
+} // namespace KazumimiEngine

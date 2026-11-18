@@ -19,6 +19,8 @@
 #include <cmath>
 #include <random>
 
+using namespace KazumimiEngine;
+
 namespace {
     using Sequence = ClearSequence::Sequence;
 
@@ -199,7 +201,7 @@ void ClearSequence::UpdateActor(ClearContext& context, float deltaTime){
             // レールの進む向き（距離が増える向き）が、世界のどちら向きか
             const SplineRail& railData = ( *rails )[rail];
             const Vector3 tangent = railData.GetTangentByDistance(player.GetRailDistance());
-            const bool horizontal = ( railData.type == SplineRail::RailType::Horizontal );
+            const bool horizontal = ( railData.Config().type == SplineRail::RailType::Horizontal );
             const float axis = horizontal ? tangent.x : tangent.z;
             const float alongRail = ( remaining > 0.0f ) ? 1.0f : -1.0f;
             const float world = alongRail * ( axis >= 0.0f ? 1.0f : -1.0f ) * amount;

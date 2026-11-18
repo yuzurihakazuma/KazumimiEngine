@@ -1,4 +1,16 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "game/title/TitleTopple.h"
+
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class Model;
+class Obj3d;
+}
+
 // =====================================================================
 //  TitleAmbience：タイトルの背景を「生きている」ように見せる動き。
 //   物を増やすのではなく、もう置いてある物を少しずつ動かす：
@@ -10,25 +22,15 @@
 //  表示だけを動かすので、エディタで保存しても揺れが書き込まれることはない。
 //  エディタを出している間は止める（物をつかんで動かす時に揺れていると作業しづらいため）
 // =====================================================================
-#include "engine/math/struct.h"
-#include "game/title/TitleTopple.h"
-
-#include <memory>
-#include <vector>
-
-class Camera;
-class Model;
-class Obj3d;
-
 class TitleAmbience {
 public:
     TitleAmbience();
     ~TitleAmbience();
 
-    void Initialize(Camera* camera);
+    void Initialize(KazumimiEngine::Camera* camera);
     void Finalize();
     // dinoPosition：恐竜の足元（草・花が押される中心）
-    void Update(float deltaTime, const Vector3& dinoPosition);
+    void Update(float deltaTime, const KazumimiEngine::Vector3& dinoPosition);
     void Draw(); // 紙の波（草・花などはマップの物なのでエディタ側が描く）
 
     // インスペクターから切り替える
@@ -39,7 +41,7 @@ public:
 
     // --- 倒す（紙芝居遷移の退場）---
     // マップに置いた段ボール（地面と空以外）と紙の波を、origin から近い順に奥へ倒し始める
-    void BeginTopple(const Vector3& origin);
+    void BeginTopple(const KazumimiEngine::Vector3& origin);
     bool IsToppling() const{ return toppling_; }
     float GetToppleDuration() const{ return toppleDuration_; } // 全部が寝るまでの秒数
     int  ConsumeLandings();  // 前回から地面に着いた物の数（パタンの音用）
@@ -47,6 +49,7 @@ public:
 private:
     // 動かす物の種類（マップの type 名から決める）
     enum class Kind { Grass, Flower, Tree, Cloud };
+    // 動かす配置物 1 つ（草・花・木・雲）。恐竜に押された角度と、ゆれの状態
     struct Mover {
         int   index = 0;       // マップの配置物の番号
         Kind  kind = Kind::Grass;
@@ -55,17 +58,17 @@ private:
     };
     // 紙の波1列
     struct WaveRow {
-        std::unique_ptr<Model> model;
-        std::unique_ptr<Obj3d> object;
-        Vector3 basePosition {};
+        std::unique_ptr<KazumimiEngine::Model> model;
+        std::unique_ptr<KazumimiEngine::Obj3d> object;
+        KazumimiEngine::Vector3 basePosition {};
         float   slide = 0.0f;  // 左右に動く幅(m)
         float   speed = 0.0f;  // 動く速さ
         float   phase = 0.0f;
     };
 
     void BindMapObjects();                 // マップの配置物から、動かす物を探し直す
-    void UpdateMapObjects(float deltaTime, const Vector3& dinoPosition, bool moving);
-    void CreateWaves(Camera* camera);
+    void UpdateMapObjects(float deltaTime, const KazumimiEngine::Vector3& dinoPosition, bool moving);
+    void CreateWaves(KazumimiEngine::Camera* camera);
     void UpdateTopple(float deltaTime);
 
     // 倒す物（マップの配置物の番号と、倒れ始めるまでの遅れ）

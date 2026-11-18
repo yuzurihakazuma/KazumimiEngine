@@ -12,6 +12,8 @@
 #include <cmath>
 #include <cstdio>
 
+using namespace KazumimiEngine;
+
 using namespace MatrixMath;
 using namespace VectorMath;
 
@@ -111,8 +113,8 @@ bool BlockPaintTool::PickByScreen(const SceneEditContext& context, const PickOpt
 	for ( int railIndex = 0; railIndex < ( int ) rails.size(); ++railIndex ) {
 		if ( options.onlyRail >= 0 && railIndex != options.onlyRail ) continue;
 		const SplineRail& rail = rails[railIndex];
-		if ( rail.nodes.size() < 2 ) continue;
-		if ( !rail.visible ) continue; // 見えない骨組み（リフトのガイド等）には置かない
+		if ( rail.Nodes().size() < 2 ) continue;
+		if ( !rail.Config().visible ) continue; // 見えない骨組み（リフトのガイド等）には置かない
 		float length = rail.GetLength();
 		int steps = std::clamp(( int ) ( length / 0.25f ), 2, 800);
 		for ( int s = 0; s <= steps; ++s ) {

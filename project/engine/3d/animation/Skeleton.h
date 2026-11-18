@@ -13,6 +13,9 @@
 #include <string>
 #include <optional>
 
+namespace KazumimiEngine {
+
+// モデルファイルのノード（親子の木）。読み込んだままの階層を持つ
 struct Node {
     QuaternionTransform transform;
     Matrix4x4 localMatrix;        // このノード自身のローカル変換行列
@@ -21,6 +24,7 @@ struct Node {
 };
 
 
+// 骨 1 本（ローカル行列・スケルトン空間の行列・親の番号など）
 struct Joint {
     QuaternionTransform transform;
     Matrix4x4 localMatrix;            // ローカル変換行列（アニメーションで毎フレーム更新）
@@ -32,6 +36,7 @@ struct Joint {
     std::optional<int32_t> parent;    // 親ジョイントのインデックス（ルートはnullopt）
 };
 
+// 骨の集まり（ルートの番号・名前から番号を引く表・全部の骨）
 struct Skeleton {
     int32_t root;                            // ルートジョイントの index
     std::map<std::string, int32_t> jointMap; // ジョイント名 → インデックスの辞書
@@ -46,3 +51,5 @@ Skeleton CreateSkeleton(const Node& rootNode);
 
 // Skeletonのジョイント配列をアニメーションのノードアニメーションと照らし合わせて、各ジョイントのローカル変換行列を更新する関数
 void UpdateSkeleton(Skeleton& skeleton, const Animation& animation, float time);
+
+} // namespace KazumimiEngine

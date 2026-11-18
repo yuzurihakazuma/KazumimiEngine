@@ -1,4 +1,16 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "game/player/PlayerInput.h"
+#include "game/player/PlayerJump.h"
+#include "game/player/PlayerBlockContact.h"
+#include "game/player/PlayerFacing.h"
+#include "game/player/PlayerKnockback.h"
+
+#include <vector>
+
+namespace KazumimiEngine { class SplineRail; }
+class BlockSystem;
+
 // =====================================================================
 //  Player：レール上を「距離」で動くプレイヤー。レールのタイプで操作キーが変わる。
 //   - 横レール(Horizontal) … A/D で移動、W/S で縦レールへ乗り換え
@@ -11,27 +23,15 @@
 //    PlayerInput（キー）/ PlayerJump（縦の動き）/ PlayerBlockContact（ブロックとの当たり）/
 //    PlayerFacing（向き）/ PlayerKnockback（被弾）/ PlayerRailQuery（次に乗るレール探し）
 // =====================================================================
-#include "engine/math/struct.h"
-#include "game/player/PlayerInput.h"
-#include "game/player/PlayerJump.h"
-#include "game/player/PlayerBlockContact.h"
-#include "game/player/PlayerFacing.h"
-#include "game/player/PlayerKnockback.h"
-
-#include <vector>
-
-class SplineRail;
-class BlockSystem;
-
 class Player{
 public:
     void Initialize();
     // 複数のレール情報を受け取って、自動で移動や乗り換えを行う
-    void Update(const std::vector<SplineRail>& allRails);
+    void Update(const std::vector<KazumimiEngine::SplineRail>& allRails);
 
-    const Vector3& GetPosition() const{ return position_; } // 足元
-    const Vector3& GetRotation() const{ return rotation_; }
-    void SetRotation(const Vector3& rot){ rotation_ = rot; }
+    const KazumimiEngine::Vector3& GetPosition() const{ return position_; } // 足元
+    const KazumimiEngine::Vector3& GetRotation() const{ return rotation_; }
+    void SetRotation(const KazumimiEngine::Vector3& rot){ rotation_ = rot; }
 
     // 接地状態（空中判定、および踏みつけ判定に使用）
     bool IsGrounded() const{ return jump_.grounded; }
@@ -39,7 +39,7 @@ public:
     bool ConsumeWallBump(){ const bool bumped = wallBumped_; wallBumped_ = false; return bumped; }
     static constexpr float kBumpRunTime  = 0.15f; // これだけ走ってから壁に当たった時だけ、ぶつかる
     // 今いる所の真下の地面（道の上面・ブロックの上面）の高さ。空中状態・穴の上は false（後ろの卵を地面に置くのに使う）
-    bool GetGroundBelow(const std::vector<SplineRail>& rails, float& outY) const;
+    bool GetGroundBelow(const std::vector<KazumimiEngine::SplineRail>& rails, float& outY) const;
     // ふんばり中（足バタバタアニメの切り替え用）
     bool IsFluttering() const{ return jump_.fluttering; }
     // 今乗っているレール番号（「乗ったら動き出すレール」の発動判定に使用）
@@ -52,12 +52,12 @@ public:
 
     // 向いている方向に、足元の道の坂を足した向き（長さ1）。坂道で前へ物を出す時に使う
     //   （水平の向きのまま出すと、上り坂では出した直後に道へぶつかってしまう）
-    Vector3 GetFacingAlongGround() const{ return facing_.FacingAlongGround(rotation_.y, inAir_); }
+    KazumimiEngine::Vector3 GetFacingAlongGround() const{ return facing_.FacingAlongGround(rotation_.y, inAir_); }
 
     // 踏みつけ成功時にプレイヤーを上へ跳ね上がらせる
     void Bounce();
     // 敵にぶつかった時：awayDir（敵→自分の水平方向）へ小さく跳ねながら弾かれる
-    void Knockback(const Vector3& awayDir);
+    void Knockback(const KazumimiEngine::Vector3& awayDir);
     bool IsInvincible() const{ return knock_.IsInvincible(); }
 
     // 卵を構えている間など、移動・ジャンプを止める（その場で待機）
@@ -102,22 +102,24 @@ public:
     // ===== レール乗り換えデバッガ用（RailTransferDebugger が毎フレーム読む）=====
     //   乗り換えの種類：連結へ持ち越し / 端の先の本体へ合流 / 乗り換えキー / T字の分岐 / 空中から着地 / 空中へ
     enum class TransferKind { None, Continue, Join, Switch, Branch, Land, ToAir };
+    // 直前の乗り移りの記録（種類・移る前と後のレールと距離・はみ出した量）。乗り換えデバッガ用
     struct DebugTransfer {
         TransferKind kind = TransferKind::None;
         int   fromRail = -1;  float fromDist = 0.0f;
         int   toRail = -1;    float toDist = 0.0f;
         float overshoot = 0.0f;   // 端からはみ出した距離（持ち越した分は carried に入る）
         float carried = 0.0f;     // 次のレールへ持ち越した距離
-        Vector3 fromPos {};       // 乗り換える直前のレール上の点（はみ出しを含めない端の点）
-        Vector3 toPos {};         // 乗り換えた直後のレール上の点
+        KazumimiEngine::Vector3 fromPos {};       // 乗り換える直前のレール上の点（はみ出しを含めない端の点）
+        KazumimiEngine::Vector3 toPos {};         // 乗り換えた直後のレール上の点
     };
+    // 1 フレームぶんの確かめ用の記録（空中か・レールと距離・高さ・位置など）。乗り換えデバッガ用
     struct DebugStep {
         bool    inAir = false;
         int     rail = -1;   float dist = 0.0f;
         float   height = 0.0f;     // レール面からの足の高さ
-        Vector3 base {};           // 見た目の平滑化を入れる前の位置（レール上の点＋高さ）
-        Vector3 position {};       // 最終的な位置（GetPosition と同じ）
-        Vector3 smooth {};         // 見た目の平滑化（乗り換えのワープを隠すずらし）
+        KazumimiEngine::Vector3 base {};           // 見た目の平滑化を入れる前の位置（レール上の点＋高さ）
+        KazumimiEngine::Vector3 position {};       // 最終的な位置（GetPosition と同じ）
+        KazumimiEngine::Vector3 smooth {};         // 見た目の平滑化（乗り換えのワープを隠すずらし）
         float   dsSign = 0.0f;
         bool    clampedAtEnd = false;  // 端で止められた（はみ出しを捨てた）
         float   clampedLoss = 0.0f;    // 捨てた距離
@@ -133,41 +135,41 @@ public:
 private:
     // --- レールの上 ---
     // 今のレールを距離で進める（進行方向の記憶つき。ブロックの壁で止まる）
-    void MoveAlongRail(const SplineRail& rail, bool horizontalRail, float moveInput, float dt);
+    void MoveAlongRail(const KazumimiEngine::SplineRail& rail, bool horizontalRail, float moveInput, float dt);
     // ノックバック中はレールに沿って押し戻す。押し戻した向き（±1。ノックバック中でなければ0）を返す
-    float PushBackAlongRail(const SplineRail& rail, float dt);
+    float PushBackAlongRail(const KazumimiEngine::SplineRail& rail, float dt);
     // レール終端の処理（持ち越し/合流/落下/クランプ）。空中へ飛び出したら true（呼び出し側は return）
-    bool HandleRailEnds(const std::vector<SplineRail>& rails, const SplineRail& rail, bool& transitioned);
+    bool HandleRailEnds(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::SplineRail& rail, bool& transitioned);
     // 連結している端へ地続きで持ち越す（成功:true）
-    bool TryContinueToConnected(const std::vector<SplineRail>& rails, const SplineRail& rail,
+    bool TryContinueToConnected(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::SplineRail& rail,
                                 int connectedIndex, bool enterFront, float overshoot);
     // 端のすぐ前にある別レール本体へ合流（動的ドッキング。成功:true）
-    bool TryJoinNearbyBody(const std::vector<SplineRail>& rails, const SplineRail& rail, float edgeDistance);
+    bool TryJoinNearbyBody(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::SplineRail& rail, float edgeDistance);
     // 乗り換えキー：T字路の途中分岐を優先 → 無ければ別タイプの近接レールへ（成功:true）
-    bool TrySwitchOrBranch(const std::vector<SplineRail>& rails, bool horizontalRail, int switchDir);
+    bool TrySwitchOrBranch(const std::vector<KazumimiEngine::SplineRail>& rails, bool horizontalRail, int switchDir);
     // 別のレールへ乗り移る。空中なら見た目のワールドYが飛ばないよう高さを補正する
-    void TransferTo(const std::vector<SplineRail>& rails, int rail, float dist);
+    void TransferTo(const std::vector<KazumimiEngine::SplineRail>& rails, int rail, float dist);
     // ジャンプ＋ふんばり＋着地。穴の上で降りてきて空中状態になったら true（呼び出し側は return）
-    bool UpdateJumpAndLand(const SplineRail& rail, const std::vector<SplineRail>& rails, float dt);
+    bool UpdateJumpAndLand(const KazumimiEngine::SplineRail& rail, const std::vector<KazumimiEngine::SplineRail>& rails, float dt);
     // 最終的な座標・向きを確定（乗り移りの見た目平滑化つき。落下死ならリスポーン）
-    void FinalizePosition(const SplineRail& rail, const Vector3& worldBefore, bool transitioned, float dt);
+    void FinalizePosition(const KazumimiEngine::SplineRail& rail, const KazumimiEngine::Vector3& worldBefore, bool transitioned, float dt);
     // 今のレール上の足元（高さを足す前のレール面の点）
-    Vector3 FootOnRail(const std::vector<SplineRail>& rails) const;
+    KazumimiEngine::Vector3 FootOnRail(const std::vector<KazumimiEngine::SplineRail>& rails) const;
     // デバッガへ乗り換えを知らせる（このフレームの記録に入れる）
-    void NoteTransfer(TransferKind kind, int fromRail, float fromDist, const Vector3& fromPos, float overshoot, float carried,
-                      const std::vector<SplineRail>& rails);
+    void NoteTransfer(TransferKind kind, int fromRail, float fromDist, const KazumimiEngine::Vector3& fromPos, float overshoot, float carried,
+                      const std::vector<KazumimiEngine::SplineRail>& rails);
 
     // --- 空中（レールの外） ---
     // レールを離れて空中(弾道)状態へ移行する。landCooldown=元のレールへすぐ再着地しない猶予
-    void EnterAir(const Vector3& startPos, const Vector3& tangent, float upVelocity, float landCooldown);
+    void EnterAir(const KazumimiEngine::Vector3& startPos, const KazumimiEngine::Vector3& tangent, float upVelocity, float landCooldown);
     // 端から空中へ飛び出す（Gap レール用）。飛び出す端は今の高さを保つ
-    void DetachToAir(const SplineRail& rail, float edgeDistance);
+    void DetachToAir(const KazumimiEngine::SplineRail& rail, float edgeDistance);
     // 自由落下・着地判定・落下死
-    void UpdateAir(const std::vector<SplineRail>& rails, float dt);
+    void UpdateAir(const std::vector<KazumimiEngine::SplineRail>& rails, float dt);
     // 空中でも真下のレールのブロックと当たる（側面・天井・上面）。ブロックの上に着地したら true
-    bool CollideAirWithBlocks(const std::vector<SplineRail>& rails, const Vector3& prevPos);
+    bool CollideAirWithBlocks(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::Vector3& prevPos);
     // 空中からレールの dist へ着地する（footHeight=レール面からの足の高さ）
-    void LandFromAir(const std::vector<SplineRail>& rails, int rail, float dist, float footHeight);
+    void LandFromAir(const std::vector<KazumimiEngine::SplineRail>& rails, int rail, float dist, float footHeight);
     // 落下死 → スタートへリスポーン
     void RespawnAfterFall();
 
@@ -179,8 +181,8 @@ private:
     PlayerFacing       facing_;
     PlayerKnockback    knock_;
 
-    Vector3 position_ { 0.0f, 0.0f, 0.0f };
-    Vector3 rotation_ { 0.0f, 0.0f, 0.0f };
+    KazumimiEngine::Vector3 position_ { 0.0f, 0.0f, 0.0f };
+    KazumimiEngine::Vector3 rotation_ { 0.0f, 0.0f, 0.0f };
     float   moveSpeed_ = 5.0f;        // 移動速度 (m/s)
     float   moveSpeedScale_ = 1.0f;   // 歩く速さの倍率（SetMoveSpeedScale）
 
@@ -217,22 +219,22 @@ private:
     bool    wallPressed_ = false;               // 前のフレームも壁へ歩いて止められていた（押し続けている間は 1 回だけぶつかる）
     bool    wallBumped_ = false;                // 壁にぶつかった（見た目が読むまで残す）
     float   runTime_ = 0.0f;                    // 壁に止められずに歩き続けている秒
-    Vector3 airVelocity_ { 0.0f, 0.0f, 0.0f };  // 空中の速度 (m/s)
+    KazumimiEngine::Vector3 airVelocity_ { 0.0f, 0.0f, 0.0f };  // 空中の速度 (m/s)
     float   airLandCooldown_ = 0.0f;            // 飛び出した直後に "元のレール" へ即着地しない猶予 (秒)
     int     airFromRail_ = -1;                  // 飛び出した元のレール番号
-    Vector3 airDir_ { 0.0f, 0.0f, 0.0f };       // 空中に出た時の進行方向(水平・単位)。前後だけ操作できる
+    KazumimiEngine::Vector3 airDir_ { 0.0f, 0.0f, 0.0f };       // 空中に出た時の進行方向(水平・単位)。前後だけ操作できる
 
     // ---- 乗り移り時の見た目補間（ワープ隠し）----
     //   別レールへドッキング/乗り換え/着地でレール座標が飛ぶと見た目が瞬間移動する。
     //   飛んだ差分をこのオフセットに入れ、毎フレーム0へ減衰させて滑らかに繋ぐ
-    Vector3 posSmooth_ { 0.0f, 0.0f, 0.0f };
+    KazumimiEngine::Vector3 posSmooth_ { 0.0f, 0.0f, 0.0f };
     // このフレームの乗り換えで、レール上の点が実際に飛んだ量（前のレールで進んだ先 − 新しいレールの点）。
     //   見た目の平滑化にはこれだけを入れる。以前は「フレーム開始時の位置との差」を入れていたため、
     //   そのフレームに普通に進んだ分（約8cm）まで平滑化に回り、乗り換えのたびに一瞬遅れて
     //   追いかける（約0.15秒、速度が 5→1.2m/s に落ちて見える）＝レールから離れたように見えていた
-    Vector3 transferWarp_ { 0.0f, 0.0f, 0.0f };
+    KazumimiEngine::Vector3 transferWarp_ { 0.0f, 0.0f, 0.0f };
     // 乗り換えで飛んだ量を足す（expected＝前のレールのまま進んでいたらいた所、レール面の点）
-    void AddTransferWarp(const Vector3& expected, float expectedHeight, const std::vector<SplineRail>& rails);
+    void AddTransferWarp(const KazumimiEngine::Vector3& expected, float expectedHeight, const std::vector<KazumimiEngine::SplineRail>& rails);
 
     DebugStep debugStep_; // このフレームの記録（デバッガ用）
 };

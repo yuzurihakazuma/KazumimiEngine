@@ -1,12 +1,12 @@
 #pragma once
+#include "engine/math/struct.h"
+
 // =====================================================================
 //  PlayerInput：プレイヤーの入力（キー → レール上の移動・乗り換え・空中の前後・ジャンプ）。
 //   キーは「ワールド方向の意思」で読む（D=世界+X / W=世界+Z）。
 //   カメラが回り込んだ時（180°向き切替など）は割り当てごと90°単位で回すので、
 //   どの向きでも「Dを押せば画面の右へ進む」。
 // =====================================================================
-#include "engine/math/struct.h"
-
 class PlayerInput {
 public:
     // カメラの向き(yaw)。シーンが毎フレーム渡す
@@ -33,7 +33,7 @@ public:
     RailInput ReadRail(bool horizontalRail) const;
 
     // 空中の前後入力：押しているワールド方向を、空中に出た時の進行方向 forwardDir へ射影した値（+前/-後）
-    float ReadAirForward(const Vector3& forwardDir) const;
+    float ReadAirForward(const KazumimiEngine::Vector3& forwardDir) const;
 
     // 今のキーを「ワールド方向の意思」（自動操縦と同じ形）として読む。入力の記録・再生に使う
     AutoPilot CaptureIntent() const;

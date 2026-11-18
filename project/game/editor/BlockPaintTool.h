@@ -1,4 +1,7 @@
 #pragma once
+struct SceneEditContext;
+namespace KazumimiEngine { class RailEditor; }
+
 // =====================================================================
 //  BlockPaintTool：ブロック配置モード（マリオメーカー風：クリックで置く/消す）。
 //   ・キー操作（Game View にマウスがある時だけ）：B＝配置モードの切替 /
@@ -9,9 +12,6 @@
 //   ・ゴースト（緑=置く / 水色=道の脇 / 赤=消す / 黄=塗り替え）と、マウス横の説明
 //  配置先は「レール × 距離(1mセル) × 段 × 横ずれ」。結果は RailEditor のブロック配置へ入る
 // =====================================================================
-struct SceneEditContext;
-class RailEditor;
-
 class BlockPaintTool {
 public:
     // B / 数字キー。エディット中に毎フレーム呼ぶ

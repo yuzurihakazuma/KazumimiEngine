@@ -15,6 +15,7 @@
 
 #include <cmath>
 
+namespace KazumimiEngine {
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -150,3 +151,5 @@ void DebugCamera::SetActive(bool active){
     }
     isActive_ = active;
 }
+
+} // namespace KazumimiEngine

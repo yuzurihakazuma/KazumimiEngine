@@ -7,6 +7,8 @@
 #include <filesystem>
 #include <chrono>
 
+namespace KazumimiEngine {
+
 	void logs::LogManager::Initialize(){
 
 		// ログのディレクトリを用意
@@ -68,3 +70,5 @@
 		}
 		OutputDebugStringW(message.c_str());
 	}
+
+} // namespace KazumimiEngine

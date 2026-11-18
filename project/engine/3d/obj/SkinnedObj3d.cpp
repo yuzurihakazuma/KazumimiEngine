@@ -20,6 +20,8 @@
 #include "engine/graphics/PipelineType.h"
 #include <externals/imgui/imgui.h>
 
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
 // --------------------------------------------------
@@ -368,3 +370,5 @@ D3D12_GPU_VIRTUAL_ADDRESS SkinnedObj3d::PrepareMaterialOverride(){
 	*static_cast< Model::Material* >( materialOverrideData_ ) = material;
 	return materialOverrideResource_->GetGPUVirtualAddress();
 }
+
+} // namespace KazumimiEngine

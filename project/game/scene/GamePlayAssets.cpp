@@ -8,6 +8,8 @@
 #include "game/stage/StageBackdrop.h"
 #include "externals/nlohmann/json.hpp"
 
+using namespace KazumimiEngine;
+
 
 namespace {
     void LoadSounds(const std::string& bgmFile){

@@ -10,8 +10,8 @@
 // =====================================================================
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 namespace RailConnections {
-    void Build(std::vector<SplineRail>& rails);
+    void Build(std::vector<KazumimiEngine::SplineRail>& rails);
 }

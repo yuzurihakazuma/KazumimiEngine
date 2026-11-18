@@ -11,6 +11,8 @@
 #include <cmath>
 #include <string>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr int   kCells = 48;              // 格子の細かさ（片側）
     constexpr float kShrink = 0.42f;          // いちばん縮んだ時に、真ん中へ寄る割合

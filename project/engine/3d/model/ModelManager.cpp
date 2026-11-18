@@ -3,10 +3,11 @@
 // 基盤システムのヘッダー
 #include "Model.h"
 #include "ModelCommon.h"
-#include "DirectXCommon.h"
+#include "engine/base/DirectXCommon.h"
 
 #include <algorithm>
 
+namespace KazumimiEngine {
 
 ModelManager::ModelManager(){}
 
@@ -299,3 +300,5 @@ Model* ModelManager::FindModel(const std::string& filePath){
 	// マップから検索
 	return nullptr;
 }
+
+} // namespace KazumimiEngine

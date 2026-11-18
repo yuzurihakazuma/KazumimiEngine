@@ -2,7 +2,7 @@
 #include "engine/math/struct.h"
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 class RoadMeshBuilder;
 
 // =====================================================================
@@ -21,7 +21,7 @@ public:
     struct Range { float s0, s1; };
 
     // extraLift：重なり順の高さ（つなぎ目で相手と同じ高さにならないよう、呼ぶ側が決める）
-    void Build(const std::vector<SplineRail>& rails, int railIndex, const std::vector<Range>& visible,
+    void Build(const std::vector<KazumimiEngine::SplineRail>& rails, int railIndex, const std::vector<Range>& visible,
                float extraLift, RoadMeshBuilder& out) const;
 
     static constexpr float kUvPerMeter = 1.0f / 1.2f; // 布の柄の繰り返し（1.2m ごと）
@@ -30,5 +30,5 @@ private:
     // corner：端どうしでつながった相手が、30°以上曲がって続く（延長を水平にして、斜めに突き出さない）
     // partner＝角でないつなぎ目の相手のレール（-1＝無い・角）。partnerFront＝相手の始点側でつながっている
     struct EndInfo { bool connected; bool plaza; bool corner; int partner = -1; bool partnerFront = false; };
-    static EndInfo EndOf(const std::vector<SplineRail>& rails, int railIndex, bool front);
+    static EndInfo EndOf(const std::vector<KazumimiEngine::SplineRail>& rails, int railIndex, bool front);
 };

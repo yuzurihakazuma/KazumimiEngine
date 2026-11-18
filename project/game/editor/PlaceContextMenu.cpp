@@ -9,6 +9,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
 	const char* kPopupId = "GameViewPlaceMenu";
 }

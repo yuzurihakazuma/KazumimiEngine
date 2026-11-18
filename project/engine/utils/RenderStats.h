@@ -1,4 +1,9 @@
 #pragma once
+#include <cstdint>
+#include "engine/base/Singleton.h"
+
+namespace KazumimiEngine {
+
 // =============================================================
 //  RenderStats : 1フレームの描画統計（ドローコール数など）
 //  - ヘッダオンリー（.vcxproj への追加不要）
@@ -6,9 +11,6 @@
 //  - 各描画クラス（Obj3d / SkinnedObj3d / Sprite 等）の Draw() で AddDrawCall()
 //  - エディタの性能モニタで表示する
 // =============================================================
-#include <cstdint>
-#include "engine/base/Singleton.h"
-
 class RenderStats : public Singleton<RenderStats> {
 	friend class Singleton<RenderStats>; // 土台（Singleton）だけが作れる
 public:
@@ -34,3 +36,5 @@ private:
 	uint32_t drawCalls_ = 0;
 	uint32_t triangles_ = 0;
 };
+
+} // namespace KazumimiEngine

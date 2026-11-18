@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 namespace {
@@ -71,6 +73,7 @@ void Player::Update(const std::vector<SplineRail>& allRails){
     debugStep_.transfer = {};
     debugStep_.clampedAtEnd = false;
     debugStep_.clampedLoss = 0.0f;
+    // 更新の終わりに、確かめ用の記録（debugStep_）へ今の状態を書き込む（関数を抜ける時に自動で）
     struct StepWriter {
         Player& p;
         ~StepWriter(){
@@ -101,7 +104,7 @@ void Player::Update(const std::vector<SplineRail>& allRails){
     const Vector3 worldBefore = position_;
 
     const SplineRail& currentRail = allRails[currentRailIndex_];
-    if ( currentRail.nodes.size() < 2 ) return;
+    if ( currentRail.Nodes().size() < 2 ) return;
 
     // 穴の上に来たら、レールを離れて自由落下（弾道）。下の別レールへ着地できる。
     //   ただしブロックの上に立っている時は落ちない（穴を渡す橋・足場が作れるように）
@@ -111,7 +114,7 @@ void Player::Update(const std::vector<SplineRail>& allRails){
         return;
     }
 
-    const bool horizontalRail = ( currentRail.type == SplineRail::RailType::Horizontal );
+    const bool horizontalRail = ( currentRail.Config().type == SplineRail::RailType::Horizontal );
 
     // 1. 入力 → 2. 移動（構え中・弾かれている間は操作不可）
     PlayerInput::RailInput railInput = input_.ReadRail(horizontalRail);
@@ -136,7 +139,7 @@ void Player::Update(const std::vector<SplineRail>& allRails){
 
     // 5. 距離クランプ（ループはラップ）
     const SplineRail& rail = allRails[currentRailIndex_];
-    if ( rail.isLoop && rail.GetLength() > 0.0f ) {
+    if ( rail.Links().isLoop && rail.GetLength() > 0.0f ) {
         while ( currentDistance_ > rail.GetLength() ) currentDistance_ -= rail.GetLength();
         while ( currentDistance_ < 0.0f )             currentDistance_ += rail.GetLength();
     } else {
@@ -150,7 +153,7 @@ void Player::Update(const std::vector<SplineRail>& allRails){
     {
         const float kWallSlideSpeed = 4.0f; // m/秒
         const float slid = blockContact_.SlideOutOfWall(currentRailIndex_, currentDistance_, jump_.height, kWallSlideSpeed * dt, jump_.grounded);
-        if ( slid != currentDistance_ && !rail.isLoop ) { currentDistance_ = std::clamp(slid, 0.0f, rail.GetLength()); }
+        if ( slid != currentDistance_ && !rail.Links().isLoop ) { currentDistance_ = std::clamp(slid, 0.0f, rail.GetLength()); }
     }
 
     // 7. 座標・向きを確定（乗り移りの平滑化つき）
@@ -230,15 +233,15 @@ void Player::MoveAlongRail(const SplineRail& rail, bool horizontalRail, float mo
         }
     }
     // 片方向レール：許可されていない向きへは進めない（ジェットコースター区間など）
-    if ( rail.oneWay == 1 && dsSign_ < 0.0f ) dsSign_ = 0.0f; // 正方向(front→back)のみ
-    if ( rail.oneWay == 2 && dsSign_ > 0.0f ) dsSign_ = 0.0f; // 逆方向(back→front)のみ
+    if ( rail.Config().oneWay == 1 && dsSign_ < 0.0f ) dsSign_ = 0.0f; // 正方向(front→back)のみ
+    if ( rail.Config().oneWay == 2 && dsSign_ > 0.0f ) dsSign_ = 0.0f; // 逆方向(back→front)のみ
 
     // レールごとの速度倍率（加速/減速レール）を掛ける
     const float prevDistance = currentDistance_;
     const float oldFootY = rail.GetPositionByDistance(currentDistance_).y;
     // 入力の大きさ（キーは常に1。自動操縦は目標の手前で1未満にして、ぴったり止まる）を速さに掛ける
     const float inputScale = ( std::min )( std::abs(moveInput), 1.0f );
-    currentDistance_ += dsSign_ * inputScale * moveSpeed_ * moveSpeedScale_ * rail.speedMul * dt;
+    currentDistance_ += dsSign_ * inputScale * moveSpeed_ * moveSpeedScale_ * rail.Config().speedMul * dt;
     if ( !jump_.grounded ) {
         // 空中（ジャンプ中）はワールド空間の弾道を保つ：
         //   最終位置は「レール上の点 + 高さ」なので、何もしないと
@@ -280,7 +283,7 @@ float Player::PushBackAlongRail(const SplineRail& rail, float dt){
 //   空中へ飛び出したら true を返す（呼び出し側は return する）。
 bool Player::HandleRailEnds(const std::vector<SplineRail>& rails, const SplineRail& rail, bool& transitioned){
     const float len = rail.GetLength();
-    if ( rail.isLoop ) {
+    if ( rail.Links().isLoop ) {
         // ループ：端が無い。距離を周回でラップ
         if ( len > 0.0f ) {
             while ( currentDistance_ > len )  currentDistance_ -= len;
@@ -309,8 +312,8 @@ bool Player::HandleRailEnds(const std::vector<SplineRail>& rails, const SplineRa
 
     // 越えた側の端（終点 or 始点）の情報
     const float edge        = pastBack ? len : 0.0f;
-    const int   connected   = pastBack ? rail.backConnIndex : rail.frontConnIndex;
-    const bool  connToFront = pastBack ? rail.backConnToFront : rail.frontConnToFront;
+    const int   connected   = pastBack ? rail.Links().backConnIndex : rail.Links().frontConnIndex;
+    const bool  connToFront = pastBack ? rail.Links().backConnToFront : rail.Links().frontConnToFront;
     const float overshoot   = pastBack ? ( currentDistance_ - len ) : -currentDistance_;
 
     if ( TryContinueToConnected(rails, rail, connected, connToFront, overshoot)
@@ -318,7 +321,7 @@ bool Player::HandleRailEnds(const std::vector<SplineRail>& rails, const SplineRa
         transitioned = true;
         return false;
     }
-    if ( rail.groundType == SplineRail::GroundType::Gap && kFallOffEdges ) {
+    if ( rail.Config().groundType == SplineRail::GroundType::Gap && kFallOffEdges ) {
         DetachToAir(rail, edge); // Gap レール：明示的に「落ちてよい端」（キーを離した瞬間でも飛び出せる）
         return true;
     }
@@ -338,7 +341,7 @@ bool Player::TryContinueToConnected(const std::vector<SplineRail>& rails, const 
     if ( next.HasMotion() || rail.HasMotion() ) return false;
     if ( next.IsRideBlocked() ) return false; // まだ出現していない道へは渡れない
     // 型が違うレールへ渡った場合は switchCooldown_ で即乗り換えを防ぐ
-    if ( next.type != rail.type ) { switchCooldown_ = 0.25f; }
+    if ( next.Config().type != rail.Config().type ) { switchCooldown_ = 0.25f; }
     const float nextLength = next.GetLength();
     const int   fromRail = currentRailIndex_;
     const float fromDist = ( currentDistance_ > rail.GetLength() ) ? rail.GetLength() : 0.0f;

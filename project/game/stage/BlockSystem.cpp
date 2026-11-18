@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     const float kHalf = BlockShape::kHalf;
     const float kPlayerRadius  = 0.30f; // 道の中心線から横へずらしたブロックに当たる幅（OverlapsCenterLine）
@@ -29,7 +31,7 @@ void BlockSystem::Sync(const std::vector<BlockData>& blockDatas, const std::vect
         for ( const auto& data : blockDatas ) {
             if ( data.rail < 0 || data.rail >= ( int ) rails_->size() ) continue;
             const SplineRail& rail = ( *rails_ )[data.rail];
-            if ( rail.nodes.size() < 2 ) continue;
+            if ( rail.Nodes().size() < 2 ) continue;
             // レールが短くなって範囲外に残ったブロックは末尾セルへ寄せる。
             //   見た目と当たり判定が同じ dist を使う（食い違うと「見えるのに当たらない」が起きる）
             float dist = data.dist;

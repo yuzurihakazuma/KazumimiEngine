@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 // =====================================================================
 //  EnemyEditor : エネミーのレール配置データを管理し、ImGui UI を提供する
@@ -33,7 +33,7 @@ public:
     // ImGui ウィンドウの描画。
     //   pickRail/pickDist: レールエディタで選択中ノードのレール番号と距離（「選択ノードに配置」用）。
     //   hasPick=false なら未選択（ボタンはグレーアウト）
-    void DrawWindow(const std::vector<SplineRail>& splineRails,
+    void DrawWindow(const std::vector<KazumimiEngine::SplineRail>& splineRails,
                     int pickRail = -1, float pickDist = 0.0f, bool hasPick = false);
 
     // Game View ハイライト用：一覧でホバー中/選択中のエントリ番号（-1=なし）
@@ -45,7 +45,7 @@ public:
 
     // 敵を別の場所へ動かす（Game View のドラッグ・「選択ノードへ移動」共通の入口）。
     //   行動範囲を指定している敵は、範囲ごと一緒に動かす（置き直した先で範囲外へ瞬間移動しない）
-    void MoveEntry(int index, int railIndex, float distance, const std::vector<SplineRail>& splineRails) {
+    void MoveEntry(int index, int railIndex, float distance, const std::vector<KazumimiEngine::SplineRail>& splineRails) {
         model_.MoveEntry(index, railIndex, distance, splineRails);
     }
 
@@ -53,7 +53,7 @@ public:
     //   どれも選択状態の付け替えと変更通知まで行う
     int  AddEntry(const EnemySpawnData& spawn) { return model_.AddEntry(spawn); } // 追加して選択する。追加した番号を返す
     void RemoveEntry(int index) { model_.RemoveEntry(index); }                    // 削除（選択中の番号がずれないよう付け替える）
-    int  DuplicateEntry(int index, const std::vector<SplineRail>& splineRails) {  // 2m先へ複製。新しい番号を返す（失敗=-1）
+    int  DuplicateEntry(int index, const std::vector<KazumimiEngine::SplineRail>& splineRails) {  // 2m先へ複製。新しい番号を返す（失敗=-1）
         return model_.DuplicateEntry(index, splineRails);
     }
 

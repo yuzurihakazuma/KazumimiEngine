@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 
+namespace KazumimiEngine {
+
 class Camera;
 
 // ヒットの種類（state で見た目を切り替える）。同じ立体エフェクトを色違いで使い分ける。
@@ -98,3 +100,5 @@ private:
 
     bool isDead_ = false;
 };
+
+} // namespace KazumimiEngine

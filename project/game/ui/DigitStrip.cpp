@@ -3,6 +3,8 @@
 #include "engine/2d/Sprite.h"
 #include "engine/graphics/TextureManager.h"
 
+using namespace KazumimiEngine;
+
 DigitStrip::DigitStrip() = default;
 DigitStrip::~DigitStrip() = default;
 

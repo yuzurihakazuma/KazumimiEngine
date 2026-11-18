@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <string>
 
+namespace KazumimiEngine {
+
 void AnimationEditor::Initialize() {
     // 現時点では追加の初期化なし
     // AddTarget() で対象オブジェクトを外から登録してもらう
@@ -608,3 +610,5 @@ void AnimationEditor::DrawDebugUI() {
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

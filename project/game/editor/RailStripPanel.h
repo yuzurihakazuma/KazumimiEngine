@@ -1,4 +1,10 @@
 #pragma once
+#include "game/editor/strip/StripCanvas.h"
+#include "game/editor/strip/StripContext.h"
+#include "game/editor/strip/StripControls.h"
+#include "game/editor/strip/StripRailSelector.h"
+#include "game/editor/strip/StripState.h"
+
 // =====================================================================
 //  RailStripPanel：配置ビュー（レール展開図）
 //   ブロック・敵・コインを ImGui のパネルの中だけで配置するための2Dエディタ。
@@ -18,12 +24,6 @@
 //     StripRenderer（描画）/ StripBlockTool・StripEnemyTool・StripCoinTool（道具）
 //   に分けてあり、部品どうしは StripState（共有の状態）を参照で受け渡す
 // =====================================================================
-#include "game/editor/strip/StripCanvas.h"
-#include "game/editor/strip/StripContext.h"
-#include "game/editor/strip/StripControls.h"
-#include "game/editor/strip/StripRailSelector.h"
-#include "game/editor/strip/StripState.h"
-
 class RailStripPanel {
 public:
     // ウィンドウ名。EditorManager のパネル表（kPanelIcons）の名前と必ず一致させること

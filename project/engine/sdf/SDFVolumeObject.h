@@ -7,6 +7,8 @@
 #include <wrl.h>
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  SDFVolumeObject
 //   SDF3DPrintf.py が出力した .sdf3d（3Dボリューム距離場）を読み込み、
@@ -166,3 +168,5 @@ private:
     // 生存インスタンス（Load 成功時に登録 / デストラクタで解除。ホットリロード巡回用）
     static std::vector<SDFVolumeObject*> sInstances_;
 };
+
+} // namespace KazumimiEngine

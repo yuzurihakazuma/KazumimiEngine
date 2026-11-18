@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr float kBodyCenter = 0.55f;   // 回る軸の高さ（足元から。恐竜の体の真ん中）

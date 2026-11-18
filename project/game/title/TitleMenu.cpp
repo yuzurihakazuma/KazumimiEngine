@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr float kFacingYaw     = kPi;    // モデルの正面(+Z)をカメラ（-Z側）へ向ける

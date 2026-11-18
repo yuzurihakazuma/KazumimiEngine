@@ -1,15 +1,17 @@
 #include "InstancedGroup.h"
-#include "Engine/3D/Model/ModelManager.h"
-#include "Model.h"
-#include "Engine/Base/DirectXCommon.h"
-#include "Engine/Graphics/ResourceFactory.h"
-#include "Engine/Graphics/PipelineManager.h"
-#include "Engine/3D/Obj/Obj3dCommon.h"
-#include "Engine/Camera/Camera.h"
-#include "Engine/Graphics/SrvManager.h"
+#include "engine/3d/model/ModelManager.h"
+#include "engine/3d/model/Model.h"
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/ResourceFactory.h"
+#include "engine/graphics/PipelineManager.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/camera/Camera.h"
+#include "engine/graphics/SrvManager.h"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+
+namespace KazumimiEngine {
 
 void InstancedGroup::Initialize(const std::string& modelName, uint32_t maxInstanceCount) {
 	maxInstanceCount_ = maxInstanceCount;
@@ -91,3 +93,5 @@ void InstancedGroup::Draw(const Camera* camera) {
 	// 4. いざ、一括描画！！ (集めた個数だけ一気に描く！)
 	model_->Draw(currentInstanceCount_);
 }
+
+} // namespace KazumimiEngine

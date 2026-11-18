@@ -1,4 +1,17 @@
 #pragma once
+#include "engine/math/struct.h"
+
+#include <memory>
+#include <string>
+
+namespace KazumimiEngine { class Camera; }
+class EggSystem;
+namespace KazumimiEngine { class Obj3d; }
+class Player;
+class PlayerAvatar;
+class PlayCameraController;
+class RailField;
+
 // =====================================================================
 //  StageIntroSequence：ステージ開始時のプレイヤーの演技（ステージ開始演出 実装企画書（プレイヤーの演技））。
 //   ステージ開始カードが上へ抜けたあと、たまごザウルスが
@@ -15,19 +28,6 @@
 //     introEnd    … 操作開始
 //   イントロカメラとロールの置き場所はステージごと（resources/stage_intro/<stage>.json）
 // =====================================================================
-#include "engine/math/struct.h"
-
-#include <memory>
-#include <string>
-
-class Camera;
-class EggSystem;
-class Obj3d;
-class Player;
-class PlayerAvatar;
-class PlayCameraController;
-class RailField;
-
 class StageIntroSequence {
 public:
     // 演技に使う、シーンの部品
@@ -59,7 +59,7 @@ public:
     // プレイヤーの更新の前：入力の代わり（何も押さない）と、演技の途中の向き・土ぼこり
     void UpdateInput(const Context& context, float dt);
     // プレイヤーの更新の後：カメラ
-    void UpdateCamera(Camera* camera, const Context& context, float dt);
+    void UpdateCamera(KazumimiEngine::Camera* camera, const Context& context, float dt);
     // ロール（操作開始の後も、画面の外へ出るまで転がり続ける）
     void UpdateRoll(float dt);
     // 布の展開（布ロード）：ロールが転がった所まで布の道が敷かれていく。
@@ -72,14 +72,14 @@ private:
     enum class State { None, Waiting, Wave, Push, Action, Returning };
     enum class Roll { Hidden, Placed, Pushed, Rolling };
 
-    void PlaceCamera(const Vector3& playerPosition, PlayCameraController& camCtrl);
+    void PlaceCamera(const KazumimiEngine::Vector3& playerPosition, PlayCameraController& camCtrl);
     void UpdateDrop(const Context& context, float dt);
-    void SpawnDust(EggSystem* eggSystem, const Vector3& at, float spread) const;
-    float YawToCamera(const Vector3& position) const;
+    void SpawnDust(EggSystem* eggSystem, const KazumimiEngine::Vector3& at, float spread) const;
+    float YawToCamera(const KazumimiEngine::Vector3& position) const;
 
     State   state_ = State::None;
     float   forwardYaw_ = 0.0f;     // 進む向き（スタートのレールの向き）
-    Vector3 introCamera_ {};        // イントロカメラの位置
+    KazumimiEngine::Vector3 introCamera_ {};        // イントロカメラの位置
     bool    cameraPlaced_ = false;  // イントロカメラの位置を決めたか（プレイヤーがスタートに立ってから決める）
     float   actionTime_ = 0.0f;     // ジャンプを始めてからの秒数
     bool    tookOff_ = false;       // ジャンプで跳び上がったか
@@ -96,9 +96,9 @@ private:
     float   dropTime_ = 0.0f;
 
     // ロール（巻いた布）
-    std::unique_ptr<Obj3d> roll_;
+    std::unique_ptr<KazumimiEngine::Obj3d> roll_;
     Roll    rollState_ = Roll::Hidden;
-    Vector3 rollOrigin_ {};         // 置いた位置（道の上面の高さ）
+    KazumimiEngine::Vector3 rollOrigin_ {};         // 置いた位置（道の上面の高さ）
     float   rollDistance_ = 0.0f;   // 転がった距離
     float   rollSpeed_ = 0.0f;
     float   rollAngle_ = 0.0f;      // 回った角度（転がった距離 ÷ 半径を足していく）

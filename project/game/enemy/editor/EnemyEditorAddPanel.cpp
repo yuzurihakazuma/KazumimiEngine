@@ -4,6 +4,8 @@
 #include "engine/rail/SplineRail.h"
 #include <algorithm>
 
+using namespace KazumimiEngine;
+
 void EnemyEditorAddPanel::Reset(){
     // 新規配置のひな形。距離0だとレール始点＝プレイヤー開始位置に重なるので離しておく
     newTemplate_ = EnemySpawnData {};

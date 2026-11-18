@@ -1,7 +1,7 @@
 #pragma once
 
 // --- エンジン側のファイル ---
-#include "struct.h"
+#include "engine/math/struct.h"
 
 
 
@@ -10,7 +10,7 @@
 #include <string>
 #include <map>
 
-
+namespace KazumimiEngine {
 
 // キーフレームを表す構造体
 template<typename tValue>
@@ -30,6 +30,7 @@ struct AnimationCurve{
 	std::vector<Keyframe<tValue>> keyframes;
 };
 
+// ノード 1 つぶんのアニメーション（移動・回転・拡大縮小のカーブ）
 struct NodeAnimation{
 	AnimationCurve<Vector3> translate; // 移動（位置）のカーブ
 	AnimationCurve<Quaternion> rotate; // 回転のカーブ
@@ -56,3 +57,5 @@ Vector3 CalculateValue(const std::vector<KeyFrameVector3>& keyframes, float time
 
 // 指定した時刻（time）の Quaternion の値を計算する関数（回転用）
 Quaternion CalculateValue(const std::vector<KeyFrameQuaternion>& keyframes, float time);
+
+} // namespace KazumimiEngine

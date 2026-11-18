@@ -16,6 +16,8 @@
 #include <cmath>
 #include <limits>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 using namespace RoadProfile;
 
@@ -36,7 +38,7 @@ void RoadMesh::PlaceJointPiece(const std::vector<SplineRail>& rails, int railIdx
         bakeJoints_.AppendModel(jointM->GetModelData(), p, yaw);
         return;
     }
-    slots_.PlaceMovingJoint(jointM, p, yaw, railIdx, rails[railIdx].animOffset);
+    slots_.PlaceMovingJoint(jointM, p, yaw, railIdx, rails[railIdx].Motion().animOffset);
 }
 
 // ジャンクションの各入口に凸を中心へ向けてジョイントを置く（2本溶接は中央に1個）
@@ -118,9 +120,9 @@ void RoadMesh::Build(const std::vector<SplineRail>& rails, Camera* camera, bool 
         //     穴の切り口と同じ「平らな暗色フタ」で統一する（RoadSweepBuilder 内で生成。
         //     端がジャンクションや穴に食われている場合は自動でスキップされる）
         bool capFront = false, capBack = false;
-        if ( !simple && !rail.isLoop ) {
-            capFront = ( rail.frontConnIndex < 0 || !RoadJunctionDetector::IsRoadRail(rails, rail.frontConnIndex) );
-            capBack  = ( rail.backConnIndex < 0  || !RoadJunctionDetector::IsRoadRail(rails, rail.backConnIndex) );
+        if ( !simple && !rail.Links().isLoop ) {
+            capFront = ( rail.Links().frontConnIndex < 0 || !RoadJunctionDetector::IsRoadRail(rails, rail.Links().frontConnIndex) );
+            capBack  = ( rail.Links().backConnIndex < 0  || !RoadJunctionDetector::IsRoadRail(rails, rail.Links().backConnIndex) );
         }
 
         // 掃引メッシュ本体（ジャンクションの切り詰め範囲は張らない）
@@ -165,23 +167,23 @@ void RoadMesh::ComputePathDistances(const std::vector<SplineRail>& rails){
         auto relax = [&](float& target, float value){ if ( value < target - 1e-4f ) { target = value; changed = true; } };
         for ( int r = 0; r < ( int ) n; ++r ) {
             const SplineRail& rail = rails[r];
-            if ( rail.nodes.size() < 2 ) continue;
+            if ( rail.Nodes().size() < 2 ) continue;
             const float len = rail.GetLength();
             // レールの中：始点と終点
             if ( pathFront_[r] != inf ) relax(pathBack_[r], pathFront_[r] + len);
             if ( pathBack_[r] != inf ) relax(pathFront_[r], pathBack_[r] + len);
             // 端どうし
             for ( int end = 0; end < 2; ++end ) {
-                const int other = end == 0 ? rail.frontConnIndex : rail.backConnIndex;
+                const int other = end == 0 ? rail.Links().frontConnIndex : rail.Links().backConnIndex;
                 if ( other < 0 || other >= ( int ) n ) continue;
-                const bool toFront = end == 0 ? rail.frontConnToFront : rail.backConnToFront;
+                const bool toFront = end == 0 ? rail.Links().frontConnToFront : rail.Links().backConnToFront;
                 float& mine = end == 0 ? pathFront_[r] : pathBack_[r];
                 float& theirs = toFront ? pathFront_[other] : pathBack_[other];
                 if ( theirs != inf ) relax(mine, theirs);
                 if ( mine != inf ) relax(theirs, mine);
             }
             // T字（このレールの途中から別のレールの端が出ている）
-            for ( const auto& branch : rail.branchPoints ) {
+            for ( const auto& branch : rail.Links().branchPoints ) {
                 const int other = branch.targetRail;
                 if ( other < 0 || other >= ( int ) n ) continue;
                 const bool otherFront = branch.targetDist < 0.5f * rails[other].GetLength();
@@ -225,19 +227,19 @@ void RoadMesh::BuildCloth(const std::vector<SplineRail>& rails, Camera* camera){
     // 重なりの高さ：つながっている隣とは違う段にする（色分け。重なり順 layer が大きい方を上に）
     std::vector<int> color(n, -1);
     for ( size_t r = 0; r < n; ++r ) {
-        if ( !rails[r].skin.HasCloth() ) continue;
+        if ( !rails[r].Config().skin.HasCloth() ) continue;
         bool used[4] = {};
         auto mark = [&](int other){ if ( other >= 0 && other < ( int ) n && color[other] >= 0 ) used[color[other]] = true; };
-        mark(rails[r].frontConnIndex);
-        mark(rails[r].backConnIndex);
-        for ( const auto& branch : rails[r].branchPoints ) mark(branch.targetRail);
+        mark(rails[r].Links().frontConnIndex);
+        mark(rails[r].Links().backConnIndex);
+        for ( const auto& branch : rails[r].Links().branchPoints ) mark(branch.targetRail);
         for ( size_t j = 0; j < n; ++j ) {
-            for ( const auto& branch : rails[j].branchPoints ) { if ( branch.targetRail == ( int ) r ) mark(( int ) j); }
+            for ( const auto& branch : rails[j].Links().branchPoints ) { if ( branch.targetRail == ( int ) r ) mark(( int ) j); }
         }
         int pick = 0;
         while ( pick < 3 && used[pick] ) ++pick;
         color[r] = pick;
-        clothLift_[r] = ( float ) rails[r].skin.layer * 0.006f + ( float ) pick * 0.0025f;
+        clothLift_[r] = ( float ) rails[r].Config().skin.layer * 0.006f + ( float ) pick * 0.0025f;
     }
     ComputePathDistances(rails);
 
@@ -247,7 +249,7 @@ void RoadMesh::BuildCloth(const std::vector<SplineRail>& rails, Camera* camera){
     const RoadClothBuilder builder;
     for ( size_t r = 0; r < n; ++r ) {
         const SplineRail& rail = rails[r];
-        if ( !rail.skin.HasCloth() || !rail.visible || rail.nodes.size() < 2 || rail.GetLength() <= 0.0f ) continue;
+        if ( !rail.Config().skin.HasCloth() || !rail.Config().visible || rail.Nodes().size() < 2 || rail.GetLength() <= 0.0f ) continue;
         std::vector<float> shown;
         ClothRanges(rails, ( int ) r, shown);
         std::vector<RoadClothBuilder::Range> ranges;
@@ -255,10 +257,10 @@ void RoadMesh::BuildCloth(const std::vector<SplineRail>& rails, Camera* camera){
         RoadMeshBuilder mesh;
         builder.Build(rails, ( int ) r, ranges, clothLift_[r], mesh);
         // 画像は白っぽいフェルト（0.72）なので、色を少し明るく掛けてフェルトの所がちょうど指定の色になるように
-        const Vector3& c = rail.skin.color;
+        const Vector3& c = rail.Config().skin.color;
         const float gain = 1.0f / 0.72f;
         const Vector4 tint { ToLinear(c.x) * gain, ToLinear(c.y) * gain, ToLinear(c.z) * gain, 1.0f };
-        clothSlotOfRail_[r] = ( int ) clothSlots_.EmitMeshSlot(mesh.Data(), ( int ) r, rail.skin.stitch ? stitched : plain, tint);
+        clothSlotOfRail_[r] = ( int ) clothSlots_.EmitMeshSlot(mesh.Data(), ( int ) r, rail.Config().skin.stitch ? stitched : plain, tint);
         clothShown_[r] = shown;
     }
     clothSlots_.EndBuild();

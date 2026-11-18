@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <filesystem>
 
+namespace KazumimiEngine {
+
 // resources/particles/ の .json を列挙する
 void GPUParticleEditor::ScanFiles(){
 	fileList_.clear();
@@ -316,3 +318,4 @@ void GPUParticleEditor::DrawDebugUI(){
 #endif
 }
 
+} // namespace KazumimiEngine

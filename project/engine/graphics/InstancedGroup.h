@@ -4,8 +4,10 @@
 #include <string>
 #include <wrl.h>
 #include <d3d12.h>
-#include "Engine/3D/Obj/Obj3d.h"
-#include "Engine/3D/model/Model.h"
+#include "engine/3d/obj/Obj3d.h"
+#include "engine/3d/model/Model.h"
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class Model;
@@ -44,3 +46,5 @@ private:
 	uint32_t noiseTextureIndex_ = 0;
 
 };
+
+} // namespace KazumimiEngine

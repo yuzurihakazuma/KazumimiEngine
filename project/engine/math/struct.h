@@ -1,5 +1,7 @@
 #pragma once
 
+namespace KazumimiEngine {
+
 // -------------------------------------------------
 // 構造体の定義 (データ型のみ)
 // -------------------------------------------------
@@ -116,3 +118,5 @@ inline constexpr Vector4 operator-(const Vector4& v1, const Vector4& v2) noexcep
 inline constexpr Vector4 operator*(const Vector4& v, float s) noexcept {
 	return { v.x * s, v.y * s, v.z * s, v.w * s };
 }
+
+} // namespace KazumimiEngine

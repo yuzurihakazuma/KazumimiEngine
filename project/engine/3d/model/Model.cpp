@@ -24,6 +24,8 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
 
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
 void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, bool keepOrigin){
@@ -853,3 +855,5 @@ void Model::UpdateMesh(const std::vector<VertexData>& vertices, const std::vecto
 	if ( !indices.empty() )  { std::memcpy(indexMap_,  indices.data(),  sizeof(uint32_t)   * indices.size()); }
 	drawIndexCount_ = static_cast< uint32_t >( indices.size() );
 }
+
+} // namespace KazumimiEngine

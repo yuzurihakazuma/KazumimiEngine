@@ -23,6 +23,8 @@
 #include <cmath>
 #include <algorithm>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 namespace {

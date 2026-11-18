@@ -3,6 +3,8 @@
 
 #include "externals/nlohmann/json.hpp"
 
+using namespace KazumimiEngine;
+
 
 using json = nlohmann::json;
 

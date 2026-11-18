@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 bool BlockDragTool::CellCenter(const SceneEditContext& context, int rail, float dist, int level, float side, Vector3& out){
 	// 実際のブロックと同じ箱（道に沿って傾いた箱）の中心
 	return context.blockSystem && context.blockSystem->CellCenter(rail, dist, level, side, out);

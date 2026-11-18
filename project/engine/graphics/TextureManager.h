@@ -14,7 +14,7 @@
 
 #include "engine/utils/LogManager.h"
 
-
+namespace KazumimiEngine {
 
 // 前方宣言 
 class DirectXCommon;
@@ -22,6 +22,7 @@ class SrvManager;
 class ResourceFactory;
 
 
+// 読み込んだテクスチャ 1 枚（リソース・SRV の番号・大きさ）
 struct TextureData{
     Microsoft::WRL::ComPtr<ID3D12Resource> resource;
     uint32_t srvIndex;
@@ -167,3 +168,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

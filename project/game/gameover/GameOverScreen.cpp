@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     // 1920×1080 での置き場所

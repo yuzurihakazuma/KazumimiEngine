@@ -3,6 +3,8 @@
 
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // GPUパーティクルエミッタのデータ構造体
 struct GPUParticleEmitterData{
 	
@@ -38,3 +40,5 @@ struct GPUParticleEmitterData{
 
 	int burstCount = 10;
 };
+
+} // namespace KazumimiEngine

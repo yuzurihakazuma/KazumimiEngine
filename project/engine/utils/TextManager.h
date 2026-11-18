@@ -15,6 +15,8 @@
 #include <DescriptorHeap.h>
 #include <GraphicsMemory.h>
 
+namespace KazumimiEngine {
+
 // テキストデータの構造体
 struct TextData{
 	std::string text = "New Text";
@@ -66,3 +68,5 @@ private:
 	std::unique_ptr<DirectX::SpriteBatch> spriteBatch_;
 	std::unique_ptr<DirectX::SpriteFont> spriteFont_;
 };
+
+} // namespace KazumimiEngine

@@ -8,6 +8,8 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
 class Camera;
@@ -28,6 +30,7 @@ public:
 		float intensity;   // 輝度
 	};
 
+	// 平行光源の定数バッファ（ライトの配列と有効な数）。GPU へ送る形
 	struct DirectionalLightData{
 		DirectionalLight lights[MAX_DIRECTIONAL_LIGHTS];
 		int32_t activeCount; // 現在有効なライトの数
@@ -126,3 +129,4 @@ private:
 	const Camera* defaultCamera_ = nullptr;
 };
 
+} // namespace KazumimiEngine

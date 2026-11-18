@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr int   kPoolSize = 48;          // 用意する枚数（同時に出せる上限）
     constexpr int   kDriftCount = 9;         // ただよう紙の枚数（控えめ）

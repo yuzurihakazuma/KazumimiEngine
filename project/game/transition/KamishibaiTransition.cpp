@@ -23,6 +23,8 @@
 #include <cstring>
 #include <fstream>
 
+using namespace KazumimiEngine;
+
 using json = nlohmann::json;
 
 namespace {

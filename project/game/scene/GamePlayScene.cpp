@@ -2,7 +2,6 @@
 #include "game/ui/UiScale.h"
 #include "engine/math/MathUtil.h"
 // --- ゲーム固有のファイル ---
-#include "TitleScene.h"
 #include "game/player/Player.h"
 #include "game/enemy/EnemyEditor.h"
 #include "game/enemy/EnemyLevelConvert.h"
@@ -18,16 +17,16 @@
 #endif
 
 // --- エンジン側のファイル ---
-#include "Engine/Particle/ParticleManager.h"
-#include "Engine/Graphics/PipelineManager.h"
-#include "Engine/Scene/SceneManager.h"
-#include "Engine/Camera/Camera.h"
-#include "Engine/Camera/DebugCamera.h"
-#include "Engine/Base/Input.h"
-#include "Engine/2D/SpriteCommon.h"
-#include "Engine/3D/Obj/Obj3dCommon.h"
-#include "Engine/Base/DirectXCommon.h"
-#include "Engine/Base/TimeManager.h"
+#include "engine/particle/ParticleManager.h"
+#include "engine/graphics/PipelineManager.h"
+#include "engine/scene/SceneManager.h"
+#include "engine/camera/Camera.h"
+#include "engine/camera/DebugCamera.h"
+#include "engine/base/Input.h"
+#include "engine/2d/SpriteCommon.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/base/DirectXCommon.h"
+#include "engine/base/TimeManager.h"
 #include "engine/2d/Sprite.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/base/WindowProc.h"
@@ -43,7 +42,7 @@
 #include "engine/utils/Level/BlenderImporter.h"
 #include "engine/utils/Level/LevelEditor.h"
 #include "engine/utils/Level/RailEditor.h"
-#include "Bloom.h"
+#include "engine/postEffect/Bloom.h"
 
 #include "externals/nlohmann/json.hpp"
 
@@ -54,6 +53,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+
+using namespace KazumimiEngine;
 
 GamePlayScene::GamePlayScene(){
 	features_.railEditing  = true; // レール・道・敵の配置を編集する

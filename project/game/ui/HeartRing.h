@@ -1,4 +1,14 @@
 #pragma once
+#include "engine/math/struct.h"
+
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class Sprite;
+}
+
 // =====================================================================
 //  HeartRing：体力の♡（ヨッシー クラフトワールドの HP の出し方）。
 //   ふだんは出さず、ダメージを受けた時（や回復・やり直しの時）だけ、恐竜のまわりに
@@ -6,14 +16,6 @@
 //   輪の大きさは、画面に映った恐竜の大きさに合わせる。残りが少ない時は、ずっと出したまま脈打つ。
 //   体力の数そのものもここで持つ（ダメージ・満タンに戻す・ゼロになったか）
 // =====================================================================
-#include "engine/math/struct.h"
-
-#include <memory>
-#include <vector>
-
-class Camera;
-class Sprite;
-
 class HeartRing {
 public:
     HeartRing();
@@ -32,12 +34,13 @@ public:
     int  Max() const{ return max_; }
 
     // feet＝恐竜の足元、height＝背の高さ(m)。画面へ投影して、そのまわりに輪を作る
-    void Update(float deltaTime, const Vector3& feet, float height, const Camera& camera);
+    void Update(float deltaTime, const KazumimiEngine::Vector3& feet, float height, const KazumimiEngine::Camera& camera);
     void Draw();
 
 private:
+    // ♡ 1 個（スプライト・減ったか・はじけてからの時間・飛ぶ向き）
     struct Heart {
-        std::unique_ptr<Sprite> sprite;
+        std::unique_ptr<KazumimiEngine::Sprite> sprite;
         bool  broken = false;    // 減った
         float breakTime = 0.0f;  // はじけてからの秒数（負＝はじけるまでの待ち）
         float driftX = 0.0f;     // はじけて飛ぶ横の向き
@@ -46,7 +49,7 @@ private:
     int   max_ = 12;
     int   count_ = 12;
     float showTime_ = -1.0f; // 見せ始めてからの秒数（負＝隠れている）
-    Vector2 center_ {};      // 輪の真ん中（画面）
+    KazumimiEngine::Vector2 center_ {};      // 輪の真ん中（画面）
     float radius_ = 80.0f;   // 輪の半径（画面の画素）
     bool  valid_ = false;
     float pulse_ = 0.0f;

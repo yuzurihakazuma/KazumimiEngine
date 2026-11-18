@@ -2,6 +2,8 @@
 #include "TitleScene.h"
 #include "GamePlayScene.h"
 #include "StageSelectScene.h"
+
+using namespace KazumimiEngine;
 // シーン生成
 std::unique_ptr<IScene> SceneFactory::CreateScene(const std::string& sceneName) {
 

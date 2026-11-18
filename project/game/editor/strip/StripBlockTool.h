@@ -1,4 +1,9 @@
 #pragma once
+#include "engine/utils/Level/LevelData.h"
+#include "game/editor/strip/StripContext.h"
+#include "game/editor/strip/StripLayout.h"
+#include "game/editor/strip/StripState.h"
+
 // =====================================================================
 //  StripBlockTool：展開図の道具「ブロック」
 //   左クリック/ドラッグ=置く（置いてあるブロックの上では塗り替え）・右=消す・
@@ -6,11 +11,6 @@
 //   編集先は RailEditor のブロック（元に戻す はレールの履歴に入る）。
 //   置ける/置けないの判定（占有幅の重なり・ループのつなぎ目・半マスずらし）もここに持つ
 // =====================================================================
-#include "engine/utils/Level/LevelData.h"
-#include "game/editor/strip/StripContext.h"
-#include "game/editor/strip/StripLayout.h"
-#include "game/editor/strip/StripState.h"
-
 class StripBlockTool {
 public:
     void Update(const StripContext& context, const StripState& state, const StripLayout& layout, bool hovered);
@@ -52,7 +52,7 @@ private:
 
     // ブロックの移動（Ctrl＋ドラッグ）
     int       moveIndex_ = -1;        // 動かしているブロック（GetBlocks の番号）
-    BlockData moveOrig_ {};           // つかんだ時の中身（途中で配列が変わっていないかの照合用）
+    KazumimiEngine::BlockData moveOrig_ {};           // つかんだ時の中身（途中で配列が変わっていないかの照合用）
     float     moveDist_ = 0.0f;       // 移動先の距離
     int       moveLevel_ = 0;         // 移動先の段
     bool      moveValid_ = false;     // 移動先に置けるか

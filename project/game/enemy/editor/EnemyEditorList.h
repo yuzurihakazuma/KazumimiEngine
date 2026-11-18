@@ -2,7 +2,7 @@
 #include "game/enemy/Enemy.h" // EnemySpawnData
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 class EnemySpawnModel;
 
 // =====================================================================
@@ -13,7 +13,7 @@ class EnemySpawnModel;
 // =====================================================================
 class EnemyEditorList {
 public:
-    void Draw(EnemySpawnModel& model, const std::vector<SplineRail>& splineRails);
+    void Draw(EnemySpawnModel& model, const std::vector<KazumimiEngine::SplineRail>& splineRails);
 
     // Game View ハイライト用：一覧でホバー中のエントリ番号（-1=なし）
     int HoveredEntry() const { return hoveredEntry_; }
@@ -22,7 +22,7 @@ public:
     void RemapRailFilter(const std::vector<int>& oldToNew);
 
 private:
-    void DrawFilter(const std::vector<EnemySpawnData>& spawns, const std::vector<SplineRail>& splineRails);
+    void DrawFilter(const std::vector<EnemySpawnData>& spawns, const std::vector<KazumimiEngine::SplineRail>& splineRails);
     void DrawRow(EnemySpawnModel& model, int index); // 一覧の1行
     bool PassesFilter(const EnemySpawnData& spawn) const;
 

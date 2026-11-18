@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <vector>
 
+using namespace KazumimiEngine;
+
 using namespace railstrip;
 
 namespace {
@@ -57,7 +59,7 @@ int StripControls::DrawHeader(const StripContext& context, StripState& state) co
     const SplineRail& rail = rails[currentRail];
 
     auto typeText = [](const SplineRail& target) -> const char* {
-        return ( target.type == SplineRail::RailType::Horizontal ) ? "横" : "縦";
+        return ( target.Config().type == SplineRail::RailType::Horizontal ) ? "横" : "縦";
     };
 
     const float rowRight = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
@@ -85,7 +87,7 @@ int StripControls::DrawHeader(const StripContext& context, StripState& state) co
                 std::snprintf(label, sizeof(label), "Rail %d  [%s] %.1fm   ブロック%d 敵%d コイン%d%s",
                     i, typeText(rails[i]), rails[i].GetLength(),
                     blockCount[i], enemyCount[i], coinCount[i],
-                    rails[i].visible ? "" : "  (見えないレール)");
+                    rails[i].Config().visible ? "" : "  (見えないレール)");
             } else {
                 std::snprintf(label, sizeof(label), "Rail %d  (点が足りない)", i);
             }
@@ -130,10 +132,10 @@ int StripControls::DrawHeader(const StripContext& context, StripState& state) co
         firstTag = false;
         ImGui::TextColored(color, "%s", text);
     };
-    tag(!rail.visible,      kPlain, "見えないレール");
-    tag(rail.roadMode != 0, kPlain, "道なし");
+    tag(!rail.Config().visible,      kPlain, "見えないレール");
+    tag(rail.Config().roadMode != 0, kPlain, "道なし");
     tag(rail.HasMotion(),   kBlue,  "動くレール");
-    tag(rail.isLoop,        kBlue,  "ループ");
+    tag(rail.Links().isLoop,        kBlue,  "ループ");
 #else
     ( void ) context; ( void ) state;
 #endif

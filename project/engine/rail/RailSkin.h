@@ -1,4 +1,8 @@
 #pragma once
+#include "engine/math/struct.h"
+
+namespace KazumimiEngine {
+
 // =====================================================================
 //  RailSkin：レール1本の「道の見た目」（布ロード企画書）。
 //   レールは移動の骨格のまま残し、見た目だけをここで選ぶ（移動・当たり判定はレールで行う）。
@@ -8,8 +12,6 @@
 //     3 = 見せない … カメラ用・演出用など、見た目を出さないレール（移動はできる）
 //   保存は LevelData::railSkins（railLines と同じ並び）。マップ JSON の "railSkins"
 // =====================================================================
-#include "engine/math/struct.h"
-
 struct RailSkin {
     enum Style { Base = 0, Cloth = 1, ClothOnBase = 2, Hidden = 3 };
     int     style = Base;
@@ -29,3 +31,5 @@ struct RailSkin {
     }
     bool operator!=(const RailSkin& o) const{ return !( *this == o ); }
 };
+
+} // namespace KazumimiEngine

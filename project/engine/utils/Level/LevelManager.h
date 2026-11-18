@@ -5,7 +5,7 @@
 #include "engine/base/Singleton.h"
 #include <string>
 
-
+namespace KazumimiEngine {
 
 // レベルマネージャー（シングルトン）
 class LevelManager : public Singleton<LevelManager> {
@@ -22,3 +22,5 @@ private:
 	LevelManager() = default;// コンストラクタはprivateにしてシングルトンを実現
 	~LevelManager() = default; // デストラクタもデフォルトでOK
 };
+
+} // namespace KazumimiEngine

@@ -10,11 +10,12 @@
 #include <vector>
 
 namespace ToyTrain {
+    // 車両の部品 1 つ（形・色・車両の中の位置・大きさ・寝かせる角度）
     struct Part {
         const char* shape;  // "box"＝1m の箱 / "tube"＝直径1m・高さ1m の筒 / "ball"＝球
-        Vector3 color;      // sRGB
-        Vector3 offset;     // 車両の中の位置
-        Vector3 size;       // 見た目の大きさ（球は直径）
+        KazumimiEngine::Vector3 color;      // sRGB
+        KazumimiEngine::Vector3 offset;     // 車両の中の位置
+        KazumimiEngine::Vector3 size;       // 見た目の大きさ（球は直径）
         float   pitch;      // 筒を前後に寝かせる時 π/2
     };
 
@@ -22,9 +23,9 @@ namespace ToyTrain {
     std::vector<Part> Coach(int index);  // 客車（0＝黄色に赤い屋根 / 1＝水色に黄色い屋根 をくり返す）
 
     // 形と色のフェルトのモデルを用意して、その名前を返す（同じ物は1回だけ作る）
-    std::string FeltModel(const char* shape, const Vector3& color);
+    std::string FeltModel(const char* shape, const KazumimiEngine::Vector3& color);
     // モデルに掛ける大きさ（球のモデルは半径1m なので半分）
-    Vector3 ModelScale(const Part& part);
+    KazumimiEngine::Vector3 ModelScale(const Part& part);
 
     // 寸法
     constexpr float kEngineFront   = 1.75f; // 機関車の真ん中から前のはし（ライト）まで
@@ -33,5 +34,5 @@ namespace ToyTrain {
     constexpr float kCoachGap      = 0.3f;  // 車両のすき間
     constexpr float kCoachRoofTop  = 2.07f; // 客車の屋根の上の面（ステージの列車ではここを歩く）
     constexpr float kWheelX        = 0.8f;  // 車輪の横の位置
-    const Vector3   kChimneyTop { 0.0f, 2.45f, 1.0f }; // 煙突の口（機関車の中）
+    const KazumimiEngine::Vector3   kChimneyTop { 0.0f, 2.45f, 1.0f }; // 煙突の口（機関車の中）
 }

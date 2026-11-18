@@ -7,6 +7,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     // 部品のモデル（材質の色はモデルごとなので、色ごとに別の名前）

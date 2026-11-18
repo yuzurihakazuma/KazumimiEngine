@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     // 線路（ワールドマップの箱庭と同じ作り：段ボールの枕木と、灰色のフェルトのレール）
     constexpr const char* kSleeperModel = "craftLayer"; // 1m 角の段ボール層（原点＝底）
@@ -87,9 +89,9 @@ void TrainVisuals::Build(const std::vector<SplineRail>& rails, uint32_t noiseSrv
     trains_.clear();
     boards_.clear();
     for ( int i = 0; i < ( int ) rails.size(); ++i ) {
-        if ( rails[i].isTrack ) { AddTrack(rails[i]); }
+        if ( rails[i].Train().isTrack ) { AddTrack(rails[i]); }
         if ( rails[i].IsTrain() ) { TrainState state; state.rail = i; trains_.push_back(state); }
-        if ( rails[i].IsBoard() ) { BoardState state; state.rail = i; state.lastOpen = rails[i].boardOpen; boards_.push_back(state); }
+        if ( rails[i].IsBoard() ) { BoardState state; state.rail = i; state.lastOpen = rails[i].Board().boardOpen; boards_.push_back(state); }
     }
     // 列車・渡し板の部品の数を数えて、入れ物の大きさを決める（1回置いてみる。矢印も出した形で）
     for ( TrainState& state : trains_ ) { AddTrain(rails, state); }
@@ -163,8 +165,8 @@ void TrainVisuals::AddTrain(const std::vector<SplineRail>& rails, TrainState& st
     };
 
     // 客車：足場の長さに合う両数。1両の長さを伸び縮みさせて、ちょうど足場いっぱいに並べる
-    const Vector3 center { rail.animPivot.x + rail.animOffset.x, rail.animPivot.y + rail.animOffset.y, rail.animPivot.z + rail.animOffset.z };
-    const float yaw = rail.restYaw + rail.animYaw;
+    const Vector3 center { rail.Motion().animPivot.x + rail.Motion().animOffset.x, rail.Motion().animPivot.y + rail.Motion().animOffset.y, rail.Motion().animPivot.z + rail.Motion().animOffset.z };
+    const float yaw = rail.Motion().restYaw + rail.Motion().animYaw;
     const Matrix4x4 car = Place({ 1.0f, 1.0f, 1.0f }, { 0.0f, yaw, 0.0f }, center);
     const float gap = ToyTrain::kCoachGap;
     const int coaches = ( std::max )( 1, static_cast< int >( std::round(( length + gap ) / ( ToyTrain::kCoachLength + gap )) ) );
@@ -177,11 +179,11 @@ void TrainVisuals::AddTrain(const std::vector<SplineRail>& rails, TrainState& st
 
     // 機関車：ガイドの上、向こうの駅の側（前＝足場から離れる向き）
     state.hasChimney = false;
-    if ( !rail.trainEngine || rail.guideRail < 0 || rail.guideRail >= ( int ) rails.size() ) { return; }
-    const SplineRail& guide = rails[rail.guideRail];
+    if ( !rail.Train().trainEngine || rail.Motion().guideRail < 0 || rail.Motion().guideRail >= ( int ) rails.size() ) { return; }
+    const SplineRail& guide = rails[rail.Motion().guideRail];
     const RailMotion::TrainLayout layout = RailMotion::MakeTrainLayout(rail, rails);
     if ( !layout.valid ) { return; }
-    const float engineDist = rail.trainDist + layout.engineSign * ( length * 0.5f + RailMotion::kTrainCoupling + RailMotion::kTrainEngineBack );
+    const float engineDist = rail.Train().trainDist + layout.engineSign * ( length * 0.5f + RailMotion::kTrainCoupling + RailMotion::kTrainEngineBack );
     const Vector3 enginePos = GuidePoint(guide, engineDist);
     const Vector3 tangent = guide.GetTangentByDistance(std::clamp(engineDist, 0.0f, guide.GetLength()));
     const float engineYaw = YawOf({ tangent.x * layout.engineSign, 0.0f, tangent.z * layout.engineSign });
@@ -208,8 +210,8 @@ void TrainVisuals::AddBoardPlanks(const Matrix4x4& frame, float length, float vi
 //   ころころ：巻いた草のマットが転がりながら、後ろに草の板が伸びる
 void TrainVisuals::AddBoard(const std::vector<SplineRail>& rails, BoardState& state, const Camera* camera, float deltaTime, int playerRail, bool countAll){
     const SplineRail& rail = rails[state.rail];
-    if ( rail.nodes.size() < 2 ) { return; }
-    const float open = countAll ? 1.0f : std::clamp(rail.boardOpen, 0.0f, 1.0f);
+    if ( rail.Nodes().size() < 2 ) { return; }
+    const float open = countAll ? 1.0f : std::clamp(rail.Board().boardOpen, 0.0f, 1.0f);
     const bool events = !countAll && deltaTime > 0.0f;
 
     if ( rail.IsRollBoard() ) {
@@ -235,8 +237,8 @@ void TrainVisuals::AddBoard(const std::vector<SplineRail>& rails, BoardState& st
         return;
     }
 
-    const Vector3 hinge = rail.boardHingeFront ? rail.nodes.front() : rail.nodes.back();
-    const Vector3 tip = rail.boardHingeFront ? rail.nodes.back() : rail.nodes.front();
+    const Vector3 hinge = rail.Board().boardHingeFront ? rail.Nodes().front() : rail.Nodes().back();
+    const Vector3 tip = rail.Board().boardHingeFront ? rail.Nodes().back() : rail.Nodes().front();
     const Vector3 along { tip.x - hinge.x, 0.0f, tip.z - hinge.z };
     const float length = std::sqrt(along.x * along.x + along.z * along.z);
     if ( length < 0.05f ) { return; }
@@ -253,7 +255,7 @@ void TrainVisuals::AddBoard(const std::vector<SplineRail>& rails, BoardState& st
     state.lastOpen = open;
 
     // 開いている間：板の先の上に、黄色い矢印（下向き）が弾む（その列車・板に乗っている間は出さない）
-    const bool riding = playerRail == state.rail || playerRail == rail.boardTrain;
+    const bool riding = playerRail == state.rail || playerRail == rail.Board().boardTrain;
     if ( !countAll && ( open < 0.99f || riding ) ) { state.time = 0.0f; return; }
     state.time += deltaTime;
     const float bob = 0.12f * std::abs(std::sin(state.time * 4.0f));

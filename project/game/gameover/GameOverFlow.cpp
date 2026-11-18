@@ -22,6 +22,8 @@
 #include <cmath>
 #include <cstdlib>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kHeartHeight = 1.4f; // ♡の輪の高さ（恐竜の背の高さ）
     // とどめ：仰け反る間のスロー
@@ -56,7 +58,7 @@ void GameOverFlow::Initialize(const Context& context, const StageBackdrop& backd
     if ( context_.railField ) {
         const auto& rails = context_.railField->GetRails();
         const int startRail = context_.railField->GetStartRail();
-        if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].nodes.size() >= 2 ) {
+        if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].Nodes().size() >= 2 ) {
             groundTop = rails[startRail].GetPositionByDistance(context_.railField->GetStartDistance()).y;
         }
     }
@@ -190,7 +192,7 @@ void GameOverFlow::RestoreCheckpoint(){
     Vector3 start = player->GetPosition();
     const auto& rails = railField->GetRails();
     const int startRail = railField->GetStartRail();
-    if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].nodes.size() >= 2 ) {
+    if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].Nodes().size() >= 2 ) {
         start = rails[startRail].GetPositionByDistance(railField->GetStartDistance());
     }
     resumeCamera_->SetAspectRatio(( float ) WindowProc::GetInstance()->GetClientWidth() / ( float ) ( std::max )( 1, WindowProc::GetInstance()->GetClientHeight() ));

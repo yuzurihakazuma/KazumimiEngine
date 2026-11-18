@@ -4,6 +4,8 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
 SkinCluster CreateSkinCluster(
@@ -51,3 +53,5 @@ void UpdateSkinCluster(SkinCluster& cluster, const Skeleton& skeleton, const std
     }
     std::copy(cluster.matrixPalette.begin(), cluster.matrixPalette.end(), cluster.mappedPalette);
 }
+
+} // namespace KazumimiEngine

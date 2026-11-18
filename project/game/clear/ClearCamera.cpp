@@ -7,6 +7,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 ClearCamera::Orbit ClearCamera::ToOrbit(const Vector3& position, const Vector3& pivot){
     const Vector3 offset = position - pivot;
     Orbit orbit;

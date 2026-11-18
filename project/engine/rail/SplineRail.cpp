@@ -4,6 +4,8 @@
 #include <cmath>
 #include <algorithm>
 
+namespace KazumimiEngine {
+
 // 共通の数学関数（Length/Cross/Dot/Lerp/NormalizeSafe）は VectorMath に一本化した
 using namespace VectorMath;
 
@@ -12,9 +14,9 @@ using namespace VectorMath;
 // （Catmull-Rom スプラインを使用して滑らかな曲線を計算します）
 // ========================================================
 Vector3 SplineRail::EvaluatePosition(float t) const{
-    if ( nodes.empty() ) return { 0.0f, 0.0f, 0.0f };
-    if ( nodes.size() == 1 ) {
-        return { nodes[0].x + animOffset.x, nodes[0].y + animOffset.y, nodes[0].z + animOffset.z };
+    if ( nodes_.empty() ) return { 0.0f, 0.0f, 0.0f };
+    if ( nodes_.size() == 1 ) {
+        return { nodes_[0].x + motion_.animOffset.x, nodes_[0].y + motion_.animOffset.y, nodes_[0].z + motion_.animOffset.z };
     }
 
     // tの整数部分(インデックス)と小数部分(ローカルt)を分ける
@@ -22,22 +24,22 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
     float localT = t - p1_index;
 
     // 中央2点(p1,p2)のインデックスを安全にクランプ
-    int maxIndex = static_cast< int >( nodes.size() - 1 );
+    int maxIndex = static_cast< int >( nodes_.size() - 1 );
     if ( p1_index < 0 ) p1_index = 0;
     if ( p1_index > maxIndex ) p1_index = maxIndex;
     int p2_index = p1_index + 1;
     if ( p2_index > maxIndex ) p2_index = maxIndex;
 
-    Vector3 p1 = nodes[p1_index];
-    Vector3 p2 = nodes[p2_index];
+    Vector3 p1 = nodes_[p1_index];
+    Vector3 p2 = nodes_[p2_index];
 
     // 直線モード（カクカク）：制御点を使わず p1→p2 を線形補間するだけ。
     //   ノードの位置はスプラインと同じで「つなぎ方」だけが変わる。
     //   距離テーブル・等速移動・接続などの仕組みは共通のままそのまま働く。
-    if ( lineMode == 1 ) {
-        return { p1.x + ( p2.x - p1.x ) * localT + animOffset.x,
-                 p1.y + ( p2.y - p1.y ) * localT + animOffset.y,
-                 p1.z + ( p2.z - p1.z ) * localT + animOffset.z };
+    if ( config_.lineMode == 1 ) {
+        return { p1.x + ( p2.x - p1.x ) * localT + motion_.animOffset.x,
+                 p1.y + ( p2.y - p1.y ) * localT + motion_.animOffset.y,
+                 p1.z + ( p2.z - p1.z ) * localT + motion_.animOffset.z };
     }
 
     // 端の制御点(p0,p3)は配列外なら「鏡映(reflection)」で補う。
@@ -46,17 +48,17 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
     // ループ（front==backに溶接済み）の場合は反対側のノードを使い、継ぎ目も滑らかな円にする
     Vector3 p0;
     if ( p1_index - 1 >= 0 ) {
-        p0 = nodes[p1_index - 1];
-    } else if ( isLoop && maxIndex >= 2 ) {
-        p0 = nodes[maxIndex - 1]; // 末尾の1つ手前（front==back なので物理的に手前のノード）
+        p0 = nodes_[p1_index - 1];
+    } else if ( links_.isLoop && maxIndex >= 2 ) {
+        p0 = nodes_[maxIndex - 1]; // 末尾の1つ手前（front==back なので物理的に手前のノード）
     } else {
         p0 = { 2.0f * p1.x - p2.x, 2.0f * p1.y - p2.y, 2.0f * p1.z - p2.z };
     }
     Vector3 p3;
     if ( p1_index + 2 <= maxIndex ) {
-        p3 = nodes[p1_index + 2];
-    } else if ( isLoop && maxIndex >= 2 ) {
-        p3 = nodes[1];            // 先頭の次（front==back なので物理的に次のノード）
+        p3 = nodes_[p1_index + 2];
+    } else if ( links_.isLoop && maxIndex >= 2 ) {
+        p3 = nodes_[1];            // 先頭の次（front==back なので物理的に次のノード）
     } else {
         p3 = { 2.0f * p2.x - p1.x, 2.0f * p2.y - p1.y, 2.0f * p2.z - p1.z };
     }
@@ -75,11 +77,11 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
     Vector3 m1 = clampTangent({ ( p2.x - p0.x ) * 0.5f, ( p2.y - p0.y ) * 0.5f, ( p2.z - p0.z ) * 0.5f });
     Vector3 m2 = clampTangent({ ( p3.x - p1.x ) * 0.5f, ( p3.y - p1.y ) * 0.5f, ( p3.z - p1.z ) * 0.5f });
     // 端どうしでつながった端：つながった相手と共通の向きにする（長さはこの区間の長さ＝折り返しで作る時と同じ）
-    if ( !isLoop && p1_index == 0 && hasFrontTangent ) {
-        m1 = { frontTangent.x * segmentLength, frontTangent.y * segmentLength, frontTangent.z * segmentLength };
+    if ( !links_.isLoop && p1_index == 0 && links_.hasFrontTangent ) {
+        m1 = { links_.frontTangent.x * segmentLength, links_.frontTangent.y * segmentLength, links_.frontTangent.z * segmentLength };
     }
-    if ( !isLoop && p1_index + 1 >= maxIndex && hasBackTangent ) {
-        m2 = { backTangent.x * segmentLength, backTangent.y * segmentLength, backTangent.z * segmentLength };
+    if ( !links_.isLoop && p1_index + 1 >= maxIndex && links_.hasBackTangent ) {
+        m2 = { links_.backTangent.x * segmentLength, links_.backTangent.y * segmentLength, links_.backTangent.z * segmentLength };
     }
     const float t2 = localT * localT, t3 = t2 * localT;
     const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f, h10 = t3 - 2.0f * t2 + localT;
@@ -89,19 +91,19 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
     result.y = h00 * p1.y + h10 * m1.y + h01 * p2.y + h11 * m2.y;
     result.z = h00 * p1.z + h10 * m1.z + h01 * p2.z + h11 * m2.z;
 
-    // 列車式の回転（ガイド追従で経路の向きに合わせる）：animPivot 中心のY軸回転。
+    // 列車式の回転（ガイド追従で経路の向きに合わせる）：motion_.animPivot 中心のY軸回転。
     //   剛体回転なので距離テーブルは不変。接線(GetTangentByDistance)は位置の差分から
     //   求めているため、ここで回せばプレイヤーの進行方向・ブロックの向きも自動で追従する
-    if ( animYaw != 0.0f ) {
-        float sinYaw = std::sin(animYaw), cosYaw = std::cos(animYaw);
-        float dx = result.x - animPivot.x, dz = result.z - animPivot.z;
-        result.x = animPivot.x + dx * cosYaw + dz * sinYaw; // 行ベクトル×Ry と同じ回り
-        result.z = animPivot.z - dx * sinYaw + dz * cosYaw;
+    if ( motion_.animYaw != 0.0f ) {
+        float sinYaw = std::sin(motion_.animYaw), cosYaw = std::cos(motion_.animYaw);
+        float dx = result.x - motion_.animPivot.x, dz = result.z - motion_.animPivot.z;
+        result.x = motion_.animPivot.x + dx * cosYaw + dz * sinYaw; // 行ベクトル×Ry と同じ回り
+        result.z = motion_.animPivot.z - dx * sinYaw + dz * cosYaw;
     }
     // 動くレール：現在のアニメオフセットを加算（剛体移動なので距離テーブルは不変）
-    result.x += animOffset.x;
-    result.y += animOffset.y;
-    result.z += animOffset.z;
+    result.x += motion_.animOffset.x;
+    result.y += motion_.animOffset.y;
+    result.z += motion_.animOffset.z;
 
     return result;
 }
@@ -111,11 +113,11 @@ Vector3 SplineRail::EvaluatePosition(float t) const{
 //   1.5倍以上必要（少し奥に向けただけで操作キーが W/S に切り替わるのを防ぐ）。
 //   ※どうしても縦にしたい/横にしたい時はエディタの 横/縦 ボタンで手動指定できる
 void SplineRail::AutoDetectType(){
-    if ( nodes.size() < 2 ) { type = RailType::Horizontal; return; }
-    float deltaX = nodes.back().x - nodes.front().x;
-    float deltaZ = nodes.back().z - nodes.front().z;
+    if ( nodes_.size() < 2 ) { config_.type = RailType::Horizontal; return; }
+    float deltaX = nodes_.back().x - nodes_.front().x;
+    float deltaZ = nodes_.back().z - nodes_.front().z;
     const float kVerticalBias = 1.5f; // 縦判定に必要な Z/X 比
-    type = ( std::abs(deltaZ) > std::abs(deltaX) * kVerticalBias ) ? RailType::Vertical : RailType::Horizontal;
+    config_.type = ( std::abs(deltaZ) > std::abs(deltaX) * kVerticalBias ) ? RailType::Vertical : RailType::Horizontal;
 }
 
 // ① レールの長さを計測してテーブルを作る
@@ -124,10 +126,10 @@ void SplineRail::BuildDistanceTable(){
     tTable_.clear();
     totalLength_ = 0.0f;
 
-    if ( nodes.size() < 2 ) return;
+    if ( nodes_.size() < 2 ) return;
 
     // 全体のtの最大値（ノード数 - 1 など、既存の実装に合わせてください）
-    float maxT = static_cast< float >( nodes.size() - 1 );
+    float maxT = static_cast< float >( nodes_.size() - 1 );
 
     // 1つの区間を何分割して距離を測るか（精度）
     // 大きいほど弧長(=等速移動)が正確になる。曲がりの強いレールでもブレにくくする
@@ -164,7 +166,7 @@ void SplineRail::BuildDistanceTable(){
 //   接線が水平寄り(|T.y|<0.7)の間は「理想のright（水平）」へ15%/stepだけ戻す（ロール回復）
 void SplineRail::BuildFrameCache(){
     frameCache_.clear();
-    if ( nodes.size() < 2 || totalLength_ <= 0.0f ) return;
+    if ( nodes_.size() < 2 || totalLength_ <= 0.0f ) return;
 
     const Vector3 worldUp = { 0.0f, 1.0f, 0.0f };
     const int count = static_cast< int >( totalLength_ / kFrameStep ) + 2; // 終端を必ず含む
@@ -192,10 +194,10 @@ void SplineRail::BuildFrameCache(){
         }
         // 端どうしでつながった端：相手と共通の向きをそのまま使う。
         //   前後 0.1m から測る向きは、端では片側しか見られず、曲がっている所で相手と 2° ほど食い違う
-        const bool jointFront = !isLoop && hasFrontTangent && frameDistance <= 1e-5f;
-        const bool jointBack  = !isLoop && hasBackTangent && frameDistance >= totalLength_ - 1e-5f;
-        if ( jointFront ) { frame.tangent = frontTangent; }
-        if ( jointBack )  { frame.tangent = backTangent; }
+        const bool jointFront = !links_.isLoop && links_.hasFrontTangent && frameDistance <= 1e-5f;
+        const bool jointBack  = !links_.isLoop && links_.hasBackTangent && frameDistance >= totalLength_ - 1e-5f;
+        if ( jointFront ) { frame.tangent = links_.frontTangent; }
+        if ( jointBack )  { frame.tangent = links_.backTangent; }
         const Vector3& T = frame.tangent;
 
         Vector3 right;
@@ -292,7 +294,7 @@ float SplineRail::GetTFromDistance(float targetDistance) const{
 
 Vector3 SplineRail::EvaluateTangent(float t) const{
     float delta = 0.01f;
-    float maxT = nodes.empty() ? 0.0f : static_cast< float >( nodes.size() - 1 );
+    float maxT = nodes_.empty() ? 0.0f : static_cast< float >( nodes_.size() - 1 );
 
     float t1, t2;
     if ( t + delta <= maxT ) {
@@ -333,7 +335,7 @@ Vector3 SplineRail::GetTangentByDistance(float distance) const{
     float distBehind = distance - sampleOffset;
     float distAhead = distance + sampleOffset;
 
-    if ( isLoop && totalLength_ > sampleOffset * 4.0f ) {
+    if ( links_.isLoop && totalLength_ > sampleOffset * 4.0f ) {
         // ループは継ぎ目をまたいでラップしてサンプル（シームでも向きが滑らか）
         auto wrap = [&](float dist) -> float{
             while ( dist < 0.0f )          dist += totalLength_;
@@ -403,16 +405,16 @@ float SplineRail::GetClosestDistance(const Vector3& worldPos) const{
 //   全く同じ範囲になる（＝この置き換えでゲームプレイは変わらない）。
 std::vector<SplineRail::HoleInterval> SplineRail::GetHoleIntervals() const{
     std::vector<HoleInterval> intervals;
-    int nodeCount = static_cast< int >( nodes.size() );
-    if ( nodeCount < 2 || nodeHole.empty() ) return intervals;
-    int flagCount = std::min(nodeCount, static_cast< int >( nodeHole.size() ));
+    int nodeCount = static_cast< int >( nodes_.size() );
+    if ( nodeCount < 2 || config_.nodeHole.empty() ) return intervals;
+    int flagCount = std::min(nodeCount, static_cast< int >( config_.nodeHole.size() ));
 
     // ノード i の弧長距離（t=i に対応）
     auto nodeDist = [&](int i) -> float{ return GetDistanceFromT(static_cast< float >( i )); };
 
     int runStart = -1;
     for ( int i = 0; i <= flagCount; ++i ) {
-        bool hole = ( i < flagCount ) && ( nodeHole[i] != 0 );
+        bool hole = ( i < flagCount ) && ( config_.nodeHole[i] != 0 );
         if ( hole && runStart < 0 ) { runStart = i; }
         if ( !hole && runStart >= 0 ) {
             int runEnd = i - 1;
@@ -451,3 +453,5 @@ float SplineRail::GetDistanceFromT(float t) const{
     float ratio = ( segmentT > 0.0f ) ? ( t - tTable_[lowerIndex] ) / segmentT : 0.0f;
     return distanceTable_[lowerIndex] + ( distanceTable_[upperIndex] - distanceTable_[lowerIndex] ) * ratio;
 }
+
+} // namespace KazumimiEngine

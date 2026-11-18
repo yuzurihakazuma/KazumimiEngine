@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <filesystem>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kPanelTexture = "resources/worldmap/panel.png";
     constexpr const char* kLockedTexture = "resources/worldmap/panel_locked.png";

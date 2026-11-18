@@ -34,8 +34,8 @@ struct ClearGate {
     float archCenterHeight = 2.7f;  // アーチの円の中心の高さ（切り文字の糸をつなぐ所を求める）
     float archOuterRadius = 2.17f;  // アーチの外の半径
     float archFront = 0.37f;        // アーチの表の面（門の真ん中から、恐竜が抜けていく向きへ）
-    Vector3 eggHinge { 0.0f, 5.84f, 0.5f };  // 卵のふたのちょうつがい（横・高さ・入口の側へ）
-    Vector2 tapePivot { 1.33f, 1.05f };      // ゴールテープの根元（横・高さ）
+    KazumimiEngine::Vector3 eggHinge { 0.0f, 5.84f, 0.5f };  // 卵のふたのちょうつがい（横・高さ・入口の側へ）
+    KazumimiEngine::Vector2 tapePivot { 1.33f, 1.05f };      // ゴールテープの根元（横・高さ）
     float height = 6.33f;           // いちばん上
     // くぐった時の動き（clear.json の "gateOpen"）
     float openTime = 0.8f;          // 卵のふたが開く秒数
@@ -85,12 +85,12 @@ struct ClearConfetti {
 
 // リザルト画面の置き場所（1920×1080 の画素。x・y は真ん中）と、出し方の秒数
 struct ClearResultLayout {
-    Vector4 dim { 0.03f, 0.13f, 0.08f, 0.74f };  // 景色を沈める色
-    Vector2 mat { 960.0f, 566.0f };
-    Vector2 title { 470.0f, 230.0f };
-    Vector2 name { 1010.0f, 230.0f };
+    KazumimiEngine::Vector4 dim { 0.03f, 0.13f, 0.08f, 0.74f };  // 景色を沈める色
+    KazumimiEngine::Vector2 mat { 960.0f, 566.0f };
+    KazumimiEngine::Vector2 title { 470.0f, 230.0f };
+    KazumimiEngine::Vector2 name { 1010.0f, 230.0f };
     float   nameWidth = 600.0f;
-    Vector2 hanamaru { 1532.0f, 246.0f };
+    KazumimiEngine::Vector2 hanamaru { 1532.0f, 246.0f };
     float   hanamaruSize = 236.0f;
     float   rowX = 960.0f;
     std::vector<float> rowYs { 404.0f, 540.0f, 676.0f, 812.0f }; // 帯・1 行目・2 行目・3 行目
@@ -98,8 +98,8 @@ struct ClearResultLayout {
     float valueRight = 1330.0f, valueHeight = 78.0f;
     float stampX = 1516.0f, stampSize = 112.0f;
     float flowerX = 800.0f, flowerGap = 124.0f, flowerSize = 100.0f;
-    Vector2 prompt { 1560.0f, 1034.0f };
-    Vector2 owned { 200.0f, 64.0f };
+    KazumimiEngine::Vector2 prompt { 1560.0f, 1034.0f };
+    KazumimiEngine::Vector2 owned { 200.0f, 64.0f };
     float ownedNumberX = 150.0f, ownedNumberHeight = 62.0f;
     // 秒数
     float matIn = 0.5f;          // マットがすべり込む
@@ -119,6 +119,7 @@ struct ClearPlaySession {
     float retryBack = 15.0f;      // ゴールの点から、レールに沿ってこれだけ手前(m)
 };
 
+// クリア演出の音のファイル名（clear.json の "sounds"）
 struct ClearSounds {
     std::string gate = "resources/clear/se_gate.wav";
     std::string letter = "resources/clear/se_letter.wav";
@@ -136,7 +137,7 @@ struct ClearBackdropItem {
     float back = 20.0f;
     float side = 0.0f;
     float up = 0.0f;
-    Vector3 scale { 1.0f, 1.0f, 1.0f };
+    KazumimiEngine::Vector3 scale { 1.0f, 1.0f, 1.0f };
     float turn = 0.0f;            // カメラへ向けた後に、さらに回す(rad)
 };
 

@@ -12,7 +12,7 @@
 
 namespace GamePlayAssets {
     // bgmFile は BGM のパス。textures には名前 → 読み込んだテクスチャを入れる
-    void Load(const std::string& bgmFile, std::unordered_map<std::string, TextureData>& textures);
+    void Load(const std::string& bgmFile, std::unordered_map<std::string, KazumimiEngine::TextureData>& textures);
     // ステージ選択の箱庭（本物のステージを小さく載せる）に要る物だけ：道・布・ブロック・敵・クラフトのキット
     void LoadForDiorama();
 }

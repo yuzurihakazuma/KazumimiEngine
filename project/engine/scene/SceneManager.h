@@ -4,6 +4,9 @@
 #include "engine/base/Singleton.h"
 #include <string>
 #include <chrono>
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class IScene;
 class AbstractSceneFactory;
@@ -74,3 +77,5 @@ private:
 	void EnsureFadeSprite();   // フェード用スプライトを必要時に生成
 	void DrawFadeOverlay();    // 黒オーバーレイ描画
 };
+
+} // namespace KazumimiEngine

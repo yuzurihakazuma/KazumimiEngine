@@ -1,4 +1,15 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "externals/nlohmann/json.hpp"
+
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace KazumimiEngine { class Sprite; }
+
 // =====================================================================
 //  StageIntroCard：段ボールのカード（読み込み中のカードとステージ開始カードで共通）。
 //   段ボールの台紙に、色紙の星とキャラの切り絵が「ポン」と貼られ、巻いた布が転がって広がり、
@@ -13,17 +24,6 @@
 //   ・中身：名前の画像・帯と星の色・出す敵 → resources/stage_intro/<中身>.json
 //       （ステージ開始＝ステージ名、読み込み中＝ card_<行き先のシーン>）。書いていない色は置き場所の既定の色
 // =====================================================================
-#include "engine/math/struct.h"
-#include "externals/nlohmann/json.hpp"
-
-#include <cstdint>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
-class Sprite;
-
 class StageIntroCard {
 public:
     StageIntroCard();
@@ -55,16 +55,18 @@ public:
     bool IsCardVisible() const{ return cardVisible_; }
 
 private:
+    // 切り絵の 1 枚ぶんの層（スプライト・画像の大きさ・色を掛ける層かどうか）
     struct Layer {
-        std::unique_ptr<Sprite> sprite;
+        std::unique_ptr<KazumimiEngine::Sprite> sprite;
         float width = 0.0f, height = 0.0f; // 画像の大きさ(px)
         bool  tinted = false;              // 部品の色を掛ける層か（白いふち・影・縫い目には掛けない）
     };
+    // カードに置く切り絵 1 つ（名前・層の重なり・色）
     struct Element {
         std::string id;
         std::vector<Layer> layers;
-        Vector3 color { 1.0f, 1.0f, 1.0f };
-        Vector3 defaultColor { 1.0f, 1.0f, 1.0f }; // 置き場所に書いた色（中身に色が無い時）
+        KazumimiEngine::Vector3 color { 1.0f, 1.0f, 1.0f };
+        KazumimiEngine::Vector3 defaultColor { 1.0f, 1.0f, 1.0f }; // 置き場所に書いた色（中身に色が無い時）
         // 置き場所
         float baseX = 0.0f, baseY = 0.0f, baseScale = 1.0f, baseAngle = 0.0f; // 角度は rad
         float swayAmount = 0.035f, swaySpeed = 1.6f, swayPhase = 0.0f;        // 待機中のゆれ
@@ -85,9 +87,9 @@ private:
     void Configure(const nlohmann::json& layout);
     void AddLayer(Element& element, const std::string& file, bool tinted);
     // カードの中の点 → 切れ目で分かれた後の位置（上の部分・下の帯それぞれの中心のまわりに回って、上・下へずれる）
-    Vector2 Split(float x, float y, bool bottom) const;
+    KazumimiEngine::Vector2 Split(float x, float y, bool bottom) const;
     // カードの座標（1920x1080）の点 → 画面の座標（倒れる・抜ける・分かれる、と画面の大きさ）
-    Vector2 Project(float x, float y, bool bottom, float width, float height) const;
+    KazumimiEngine::Vector2 Project(float x, float y, bool bottom, float width, float height) const;
     void DrawElement(const Element& element, float width, float height, float time);
     void DrawRoll(float width, float height);
     void DrawSlit(float width, float height);
@@ -98,8 +100,8 @@ private:
     std::string enemy_ = "enemy_ground";
 
     // 巻いた布（名前の帯の右の端で転がる）
-    std::unique_ptr<Sprite> roll_;
-    std::unique_ptr<Sprite> rollShade_;
+    std::unique_ptr<KazumimiEngine::Sprite> roll_;
+    std::unique_ptr<KazumimiEngine::Sprite> rollShade_;
     bool  rollVisible_ = false;
     float rollX_ = 0.0f;        // 中心（カードの座標）
     float rollDiameter_ = 0.0f;
@@ -107,8 +109,8 @@ private:
     float rollBounce_ = 0.0f;   // 端で止まった時の跳ね(px)
 
     // 切れ目とはさみ（寸法は intro_layout.json の cut / scissors。カードの px）
-    std::unique_ptr<Sprite> slit_;
-    std::unique_ptr<Sprite> scissors_;
+    std::unique_ptr<KazumimiEngine::Sprite> slit_;
+    std::unique_ptr<KazumimiEngine::Sprite> scissors_;
     float margin_ = 0.0f;       // カードの左右の、段ボールの切れ目（ギザギザ）の幅
     float cutY_ = 0.0f, topHeight_ = 0.0f, bottomTop_ = 0.0f, bottomHeight_ = 0.0f;
     float slitTop_ = 0.0f, slitHeight_ = 0.0f, slitImageWidth_ = 0.0f;
@@ -120,8 +122,8 @@ private:
     float bottomDrop_ = 0.0f, bottomTurn_ = 0.0f; // 下の帯：下へのずれと回り
 
     // 上下の帯
-    std::unique_ptr<Sprite> barTop_;
-    std::unique_ptr<Sprite> barBottom_;
+    std::unique_ptr<KazumimiEngine::Sprite> barTop_;
+    std::unique_ptr<KazumimiEngine::Sprite> barBottom_;
     float bars_ = 0.0f;
 
     float fall_ = 0.0f;         // 倒れる角度(rad)

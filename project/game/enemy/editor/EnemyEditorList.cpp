@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <string>
 
+using namespace KazumimiEngine;
+
 void EnemyEditorList::RemapRailFilter(const std::vector<int>& oldToNew){
     if ( filterRail_ >= 0 && filterRail_ < ( int ) oldToNew.size() ) { filterRail_ = oldToNew[filterRail_]; }
 }

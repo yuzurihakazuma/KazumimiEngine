@@ -1,4 +1,8 @@
 #pragma once
+#include "game/editor/strip/StripContext.h"
+#include "game/editor/strip/StripLayout.h"
+#include "game/editor/strip/StripState.h"
+
 // =====================================================================
 //  StripEnemyTool：展開図の道具「敵」
 //   何もない所を左クリック=置く / 敵をドラッグ=移動（フワリンは上下で浮く高さ）/
@@ -7,10 +11,6 @@
 //   このパネルの中で敵の選択を変えた時は StripState::lastSelectedEnemy も合わせて更新する
 //   （「外から選ばれた」と取り違えてレールを開き直さないように）
 // =====================================================================
-#include "game/editor/strip/StripContext.h"
-#include "game/editor/strip/StripLayout.h"
-#include "game/editor/strip/StripState.h"
-
 class StripEnemyTool {
 public:
     // 戻り値 true = ドラッグ中の敵が消えていた等で、途中の操作を全部やめる必要がある

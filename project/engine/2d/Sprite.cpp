@@ -8,20 +8,21 @@
 #include <utility>
 
 // --- エンジン内部ヘッダー ---
-#include "Engine/2D/SpriteCommon.h"
-#include "Engine/Base/DirectXCommon.h"
+#include "engine/2d/SpriteCommon.h"
+#include "engine/base/DirectXCommon.h"
 #include "engine/utils/RenderStats.h"
-#include "Engine/Math/Matrix4x4.h"
-#include "Engine/Graphics/SrvManager.h"
-#include "Engine/Graphics/TextureManager.h"
+#include "engine/math/Matrix4x4.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/TextureManager.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/base/WindowProc.h"
 
+namespace KazumimiEngine {
 
 using namespace MatrixMath;
 
 
-std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 position, const Vector4& color, Vector2 anchorpoint) {
 	// コマンドリストが必要なら取得（TextureManagerの仕様による）
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
@@ -32,7 +33,7 @@ std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 p
 	return Create(data.srvIndex, position, color, anchorpoint);
 }
 // 静的生成関数
-std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, const Vector4& color, Vector2 anchorpoint) {
 	// 1. インスタンス生成
 	std::unique_ptr<Sprite> sprite = std::make_unique<Sprite>();
 	if (sprite == nullptr) {
@@ -353,3 +354,5 @@ void Sprite::SetTextureRect(float startX, float startY, float width, float heigh
 
 	UpdateVertexData();
 }
+
+} // namespace KazumimiEngine

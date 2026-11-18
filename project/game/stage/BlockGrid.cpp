@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 int BlockGrid::CellOf(float dist){ return ( int ) std::lround(dist); }
 
 void BlockGrid::Rebuild(const std::vector<PlacedBlock>& blocks){

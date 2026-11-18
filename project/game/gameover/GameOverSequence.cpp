@@ -28,6 +28,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr const char* kSettingsFile = "resources/gameover/gameover.json";
@@ -105,8 +107,290 @@ namespace {
     }
 }
 
-GameOverSequence::GameOverSequence() = default;
+// =====================================================================
+//  段ごとの状態クラス（State パターン）。
+//   GameOverSequence は「今の段の状態」を 1 つ指していて、段に入った時（Enter）と毎フレーム（Update）を呼ぶだけ。
+//   段の長さ・やる事・次にどの段へ進むかは、状態クラス自身が決める（進行の本体に、段ごとの分岐を書かない）。
+//   状態クラスは GameOverSequence の中のクラスなので、演出の持ち物（カメラ・紙・画面）を直接動かせる
+// =====================================================================
+
+// 段の基底：何もしない段は、これをそのまま継ぐ
+class GameOverSequence::PhaseState {
+public:
+    virtual ~PhaseState() = default;
+    // この段の長さ(秒)。0＝時間では終わらない段（合図を待つ・選ぶのを待つ）
+    virtual float Length(const GameOverSequence& /*s*/) const{ return 0.0f; }
+    // この段に入った時
+    virtual void Enter(GameOverSequence& /*s*/) {}
+    // 毎フレーム。t＝段の進み（0〜1）、dt＝早送りを掛けた経過秒。次の段へは s.Enter(...) で進む
+    virtual void Update(GameOverSequence& /*s*/, float /*t*/, float /*dt*/) {}
+
+protected:
+    // 今使っている秒数の組（フル版か短縮版）
+    static const Timing& TimingOf(const GameOverSequence& s){ return s.short_ ? s.shortTiming_ : s.full_; }
+};
+
+// P0 止まる：ぶつかった瞬間に画面が少し揺れる。恐竜はやられの演技
+class GameOverSequence::FreezeState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).freeze; }
+    void Enter(GameOverSequence& s) override{
+        AudioManager::GetInstance()->PlayWave(kFreezeSe, false, 0.9f); // ぶつかった
+        s.defeatPrev_ = 0.0f;
+        s.starAngle_ = 0.0f;
+    }
+    void Update(GameOverSequence& s, float t, float /*dt*/) override{
+        // ぶつかった瞬間：画面が少しだけ揺れる
+        const float hit = Easing::Clamp01(t / kHitEnd);
+        const float shake = 0.05f * ( 1.0f - hit ) * std::sin(s.time_ * 80.0f);
+        s.camPos_ = Add(s.startPos_, Multiply(s.right_, shake));
+        if ( t >= 1.0f ) { s.camPos_ = s.startPos_; s.Enter(Phase::Reveal); }
+    }
+};
+
+// P1 種明かし：カメラが手前へ引いて上がり、段ボール箱のふちが見える（長さ 0＝種明かしをしない時は、すぐ次へ）
+class GameOverSequence::RevealState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).reveal; }
+    void Enter(GameOverSequence& s) override{
+        if ( Length(s) <= 0.0f ) { s.Enter(Phase::Capture); return; }
+        AudioManager::GetInstance()->PlayWave(kRevealSe, false, 0.7f);
+    }
+    void Update(GameOverSequence& s, float t, float /*dt*/) override{
+        // 注視点はそのまま、手前へ引いて上がり、画角を広げる → 箱のふちが見える
+        const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
+        const float e = Easing::EaseInOutSine(t);
+        s.camPos_ = Add(Add(s.startPos_, Multiply(s.forward_, -s.revealBack_ * e)), Multiply(worldUp, s.revealUp_ * e));
+        s.camFov_ = s.startFov_ + s.revealFov_ * e;
+        if ( t >= 1.0f ) { s.Enter(Phase::Capture); }
+    }
+};
+
+// P4 写し取る：その瞬間の画面を 1 回だけ写す（写し終わるのを待つ）
+class GameOverSequence::CaptureState final : public PhaseState {
+public:
+    void Enter(GameOverSequence& s) override{
+        s.captureRequested_ = true; // この描画で写し取る（まだ 3D のまま）
+        s.captured_ = false;
+    }
+    void Update(GameOverSequence& s, float /*t*/, float /*dt*/) override{
+        if ( s.captured_ ) { s.Enter(Phase::Crumple); }
+    }
+};
+
+// P3/P5 丸める：画面が、ふちから真ん中へ丸まって紙玉になる
+class GameOverSequence::CrumpleState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).crumple; }
+    void Enter(GameOverSequence& s) override{
+        // 写し取った時のカメラの前に、画面ぴったりの紙を置く（見た目は途切れない）
+        const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
+        s.forward_ = Normalize(Subtract(s.camLook_, s.camPos_));
+        s.right_ = Normalize(Cross(worldUp, s.forward_));
+        s.up_ = Cross(s.forward_, s.right_);
+        s.sheetHeight_ = 2.0f * s.sheetDistance_ * std::tan(s.camFov_ * 0.5f);
+        s.sheetWidth_ = s.sheetHeight_ * s.aspect_;
+        s.PlaceSheetFull();
+        s.SetBall(0.0f, 0.0f);
+        s.sheet_.SetCoverAlpha(1.0f);
+        s.sheet_.SetVisible(true);
+        if ( s.board_ ) {
+            // シールの下の紫のフェルト：少し奥に、画面ぴったりの大きさで（ゲームオーバーの画面の地と同じ見え方）
+            const float spread = ( s.sheetDistance_ + kBoardBehind ) / s.sheetDistance_;
+            s.board_->SetTranslation(Add(s.camPos_, Multiply(s.forward_, s.sheetDistance_ + kBoardBehind)));
+            s.board_->SetRotation(RotationOf(s.forward_));
+            s.board_->SetScale({ s.sheetWidth_ * spread, s.sheetHeight_ * spread, 0.05f });
+        }
+        s.restoreRequested_ = true; // 見えていない間に、シーンはチェックポイントへ戻す
+        AudioManager::GetInstance()->PlayWave(kCrumpleSe, false, 1.0f);
+    }
+    void Update(GameOverSequence& s, float t, float /*dt*/) override{
+        // 画面が、ふちから真ん中へ丸まって紙玉になる（アイリスアウトのように）。写したままの色から、陰影の付いた紙へ
+        const float e = Easing::EaseInOutCubic(t);
+        s.SetBall(e, kBallSpin * e);
+        s.sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
+        // グシャッとした瞬間に、画面が少し揺れる
+        const float shake = kShake * ( 1.0f - Easing::Clamp01(t / 0.4f) ) * std::sin(s.time_ * 70.0f);
+        s.camPos_ = Add(s.startPos_, Add(Multiply(s.right_, shake), Multiply(s.up_, shake * 0.6f)));
+        if ( t >= 1.0f ) { s.camPos_ = s.startPos_; s.Enter(Phase::Open); }
+    }
+};
+
+// 開く：紙玉がポンと弾んで、開くとゲームオーバーの看板になっている
+class GameOverSequence::OpenState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).open; }
+    void Enter(GameOverSequence& s) override{
+        // 紙玉の中身を看板の絵に替える（丸まり切って見えない間に）。大きさも看板に合わせる（紙玉の大きさは変わらない）
+        s.sheet_.SetFrontTexture(s.boardSrv_);
+        s.sheet_.SetCoverTexture(s.boardSrv_);
+        s.sheet_.SetCoverAlpha(0.0f);
+        s.PlaceSheetBoard();
+    }
+    void Update(GameOverSequence& s, float t, float dt) override{
+        // 紙玉がポンと弾んで、開くと看板になっている
+        const float length = Length(s);
+        const float hold = Easing::Clamp01(t / kHoldShare);
+        const float open = Easing::Clamp01(( t - kHoldShare ) / ( 1.0f - kHoldShare ));
+        if ( t >= kHoldShare && s.time_ - dt < length * kHoldShare ) { AudioManager::GetInstance()->PlayWave(kBasaSe, false, 0.9f); }
+        const float pop = 1.0f + 0.25f * std::sin(hold * kPi); // 弾む（紙玉が少しふくらむ）
+        const float e = Easing::EaseOutCubic(open);
+        s.sheet_.SetBall(1.0f - e, s.sheetHeight_ * kBallShare * pop, kBallSpin * ( 1.0f - e ));
+        s.sheet_.SetCrumple(( std::min )( ( 1.0f - e ) * 1.6f, 1.0f ));
+        s.sheet_.SetCoverAlpha(Easing::Clamp01(( open - ( 1.0f - kFlatShare ) ) / kFlatShare));
+        if ( t >= 1.0f ) { s.sheet_.SetVisible(false); s.Enter(Phase::Screen); }
+    }
+};
+
+// P7 ゲームオーバーの画面：看板に文字とボタンが出る（出きるのを待つ）
+class GameOverSequence::ScreenState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).screen; }
+    void Enter(GameOverSequence& s) override{
+        s.screen_.SetBackground(0.0f); // 奥のフェルトと同じ絵を、少しずつ重ねる（Update）
+        s.screen_.Open(Length(s), true); // 看板はもう開いている
+        AudioManager::GetInstance()->PlayWave(kScreenSe, false, 0.9f);
+    }
+    void Update(GameOverSequence& s, float /*t*/, float /*dt*/) override{
+        // 画面の地（スプライト）を、奥のフェルトの上に重ねてなじませる（同じ絵なので、切り替わりは見えない）
+        s.screen_.SetBackground(Easing::Clamp01(s.time_ / kScreenFadeIn));
+        if ( s.screen_.IsOpened() ) { s.Enter(Phase::Choose); }
+    }
+};
+
+// 選ぶ：「やりなおす」か「ステージをえらぶ」。早送りの時は「やりなおす」を選んだことにする
+class GameOverSequence::ChooseState final : public PhaseState {
+public:
+    void Update(GameOverSequence& s, float /*t*/, float /*dt*/) override{
+        Input* input = Input::GetInstance();
+        if ( s.speed_ > 1.0f ) { s.choice_ = 0; s.Enter(Phase::ResumeShot); return; }
+        const bool upKey = input->TriggerKey(DIK_W) || input->TriggerKey(DIK_UP) || input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT);
+        const bool downKey = input->TriggerKey(DIK_S) || input->TriggerKey(DIK_DOWN) || input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT);
+        if ( ( upKey && s.choice_ != 0 ) || ( downKey && s.choice_ != 1 ) ) {
+            s.choice_ = upKey ? 0 : 1;
+            s.screen_.SetChoice(s.choice_);
+            AudioManager::GetInstance()->PlayWave(kSelectSe, false, 0.5f);
+        }
+        if ( input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) ) {
+            if ( s.choice_ == 0 ) {
+                s.Enter(Phase::ResumeShot); // まず再開する所の絵を写してから、画面をしまって紙を広げる
+            } else {
+                s.Enter(Phase::Leave);
+                KamishibaiTransition::ChangeSceneWithCard("STAGESELECT"); // 組み上げずにステージ選択へ
+            }
+        }
+    }
+};
+
+// 再開する所の絵を写す：この 1 フレームだけ、再開のカメラで 3D を描いて写す（写し終わるのを待つ）
+class GameOverSequence::ResumeShotState final : public PhaseState {
+public:
+    void Enter(GameOverSequence& s) override{
+        s.resumeShotRequested_ = true;
+        s.resumeShotTaken_ = false;
+    }
+    void Update(GameOverSequence& s, float /*t*/, float /*dt*/) override{
+        // 再開する所の絵を写した（そのフレームは前の画面を出し直したので見えない）
+        if ( s.resumeShotTaken_ ) { s.Enter(Phase::Unscreen); }
+    }
+};
+
+// 文字とボタンをしまう（看板と画面の地は残す）
+class GameOverSequence::UnscreenState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& /*s*/) const override{ return kUnscreenTime; }
+    void Enter(GameOverSequence& s) override{
+        s.screen_.Close(kUnscreenTime, true); // 文字とボタンだけしまう（看板は残す）
+    }
+    void Update(GameOverSequence& s, float t, float /*dt*/) override{
+        if ( t >= 1.0f ) { s.Enter(Phase::Fold); }
+    }
+};
+
+// 看板が真ん中へ丸まって紙玉になる
+class GameOverSequence::FoldState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).crumple * 0.75f; }
+    void Enter(GameOverSequence& s) override{
+        // 看板（スプライト）を、同じ所・同じ大きさの紙に替えてから丸める。画面の地（スプライト）も外す
+        //   （スプライトは 3D の紙より手前に描かれるので、残すと紙が隠れる。奥に同じ絵の板があるので見た目は変わらない）
+        s.screen_.SetBoardVisible(false);
+        s.screen_.SetBackground(0.0f);
+        s.sheet_.SetFrontTexture(s.boardSrv_);
+        s.sheet_.SetCoverTexture(s.boardSrv_);
+        s.sheet_.SetCoverAlpha(1.0f);
+        s.PlaceSheetBoard();
+        s.SetBall(0.0f, 0.0f);
+        s.sheet_.SetVisible(true);
+        AudioManager::GetInstance()->PlayWave(kCrumpleSe, false, 0.9f);
+    }
+    void Update(GameOverSequence& s, float t, float /*dt*/) override{
+        const float e = Easing::EaseInOutCubic(t);
+        s.SetBall(e, kBallSpin * e);
+        s.sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
+        if ( t >= 1.0f ) { s.Enter(Phase::Rebuild); }
+    }
+};
+
+// P8 組み上げ：紙玉がポンと弾んで開くと、再開する所の画面が画面いっぱいに広がる。終わったら操作を返す
+class GameOverSequence::RebuildState final : public PhaseState {
+public:
+    float Length(const GameOverSequence& s) const override{ return TimingOf(s).rebuild; }
+    void Enter(GameOverSequence& s) override{
+        // 紙玉の中身を再開する所の絵に替え、大きさを画面ぴったりに（丸まり切って見えない間に）
+        s.sheet_.SetFrontTexture(s.resume_->GetSrvIndex());
+        s.sheet_.SetCoverTexture(s.resume_->GetSrvIndex());
+        s.sheet_.SetCoverAlpha(0.0f);
+        s.PlaceSheetFull();
+    }
+    void Update(GameOverSequence& s, float t, float dt) override{
+        const float length = Length(s);
+        const float hold = Easing::Clamp01(t / kHoldShare);
+        const float open = Easing::Clamp01(( t - kHoldShare ) / ( 1.0f - kHoldShare ));
+        if ( t >= kHoldShare && s.time_ - dt < length * kHoldShare ) { AudioManager::GetInstance()->PlayWave(kBasaSe, false, 0.9f); }
+        const float pop = 1.0f + 0.25f * std::sin(hold * kPi);
+        const float e = Easing::EaseOutCubic(open);
+        s.sheet_.SetBall(1.0f - e, s.sheetHeight_ * kBallShare * pop, -kBallSpin * ( 1.0f - e ));
+        s.sheet_.SetCrumple(( std::min )( ( 1.0f - e ) * 1.6f, 1.0f ));
+        s.sheet_.SetCoverAlpha(Easing::Clamp01(( open - ( 1.0f - kFlatShare ) ) / kFlatShare));
+        if ( t >= 1.0f ) {
+            // 紙は画面ぴったりで再開の絵になった：再開のカメラへ切り替えて、紙を外す（見た目は同じ）
+            s.sheet_.SetVisible(false);
+            s.camera_->SetTranslation(s.resumePosition_);
+            s.camera_->SetRotation(s.resumeRotation_);
+            s.camera_->SetFovY(s.resumeFov_);
+            s.camera_->Update();
+            s.phase_ = Phase::None; // 終わり
+            s.finished_ = true;
+        }
+    }
+};
+
+// ステージ選択へ出ていく：紙芝居の遷移に任せて、何もしない
+class GameOverSequence::LeaveState final : public PhaseState {};
+
+GameOverSequence::GameOverSequence(){
+    // 段の番号（Phase）と同じ並びで、状態クラスを 1 つずつ持つ（None は状態なし）
+    states_[static_cast<size_t>( Phase::Freeze )]     = std::make_unique<FreezeState>();
+    states_[static_cast<size_t>( Phase::Reveal )]     = std::make_unique<RevealState>();
+    states_[static_cast<size_t>( Phase::Capture )]    = std::make_unique<CaptureState>();
+    states_[static_cast<size_t>( Phase::Crumple )]    = std::make_unique<CrumpleState>();
+    states_[static_cast<size_t>( Phase::Open )]       = std::make_unique<OpenState>();
+    states_[static_cast<size_t>( Phase::Screen )]     = std::make_unique<ScreenState>();
+    states_[static_cast<size_t>( Phase::Choose )]     = std::make_unique<ChooseState>();
+    states_[static_cast<size_t>( Phase::ResumeShot )] = std::make_unique<ResumeShotState>();
+    states_[static_cast<size_t>( Phase::Unscreen )]   = std::make_unique<UnscreenState>();
+    states_[static_cast<size_t>( Phase::Fold )]       = std::make_unique<FoldState>();
+    states_[static_cast<size_t>( Phase::Rebuild )]    = std::make_unique<RebuildState>();
+    states_[static_cast<size_t>( Phase::Leave )]      = std::make_unique<LeaveState>();
+}
 GameOverSequence::~GameOverSequence() = default;
+
+// 段の状態クラス（None・範囲の外は nullptr）
+GameOverSequence::PhaseState* GameOverSequence::StateOf(Phase phase) const{
+    const size_t index = static_cast<size_t>( phase );
+    return index < states_.size() ? states_[index].get() : nullptr;
+}
 
 void GameOverSequence::Initialize(){
     LoadSettings();
@@ -263,18 +547,8 @@ void GameOverSequence::Abort(){
 }
 
 float GameOverSequence::PhaseLength(Phase phase) const{
-    const Timing& t = short_ ? shortTiming_ : full_;
-    switch ( phase ) {
-    case Phase::Freeze:   return t.freeze;
-    case Phase::Reveal:   return t.reveal;
-    case Phase::Crumple:  return t.crumple;
-    case Phase::Open:     return t.open;
-    case Phase::Screen:   return t.screen;
-    case Phase::Unscreen: return kUnscreenTime;
-    case Phase::Fold:     return t.crumple * 0.75f;
-    case Phase::Rebuild:  return t.rebuild;
-    default:              return 0.0f;
-    }
+    const PhaseState* state = StateOf(phase);
+    return state ? state->Length(*this) : 0.0f; // 長さは、段の状態クラスが決める
 }
 
 // 紙を、写し取った時のカメラの前（画面の真ん中）に、幅 width・高さ height(m) で置く
@@ -304,86 +578,7 @@ void GameOverSequence::Enter(Phase phase){
     time_ = 0.0f;
     startPos_ = camPos_;
     startFov_ = camFov_;
-    AudioManager* audio = AudioManager::GetInstance();
-    switch ( phase ) {
-    case Phase::Freeze:
-        audio->PlayWave(kFreezeSe, false, 0.9f); // ぶつかった
-        defeatPrev_ = 0.0f;
-        starAngle_ = 0.0f;
-        break;
-    case Phase::Reveal:
-        if ( PhaseLength(Phase::Reveal) <= 0.0f ) { Enter(Phase::Capture); return; }
-        audio->PlayWave(kRevealSe, false, 0.7f);
-        break;
-    case Phase::Capture:
-        captureRequested_ = true; // この描画で写し取る（まだ 3D のまま）
-        captured_ = false;
-        break;
-    case Phase::Crumple: {
-        // 写し取った時のカメラの前に、画面ぴったりの紙を置く（見た目は途切れない）
-        const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
-        forward_ = Normalize(Subtract(camLook_, camPos_));
-        right_ = Normalize(Cross(worldUp, forward_));
-        up_ = Cross(forward_, right_);
-        sheetHeight_ = 2.0f * sheetDistance_ * std::tan(camFov_ * 0.5f);
-        sheetWidth_ = sheetHeight_ * aspect_;
-        PlaceSheetFull();
-        SetBall(0.0f, 0.0f);
-        sheet_.SetCoverAlpha(1.0f);
-        sheet_.SetVisible(true);
-        if ( board_ ) {
-            // シールの下の紫のフェルト：少し奥に、画面ぴったりの大きさで（ゲームオーバーの画面の地と同じ見え方）
-            const float spread = ( sheetDistance_ + kBoardBehind ) / sheetDistance_;
-            board_->SetTranslation(Add(camPos_, Multiply(forward_, sheetDistance_ + kBoardBehind)));
-            board_->SetRotation(RotationOf(forward_));
-            board_->SetScale({ sheetWidth_ * spread, sheetHeight_ * spread, 0.05f });
-        }
-        restoreRequested_ = true; // 見えていない間に、シーンはチェックポイントへ戻す
-        audio->PlayWave(kCrumpleSe, false, 1.0f);
-        break;
-    }
-    case Phase::Open:
-        // 紙玉の中身を看板の絵に替える（丸まり切って見えない間に）。大きさも看板に合わせる（紙玉の大きさは変わらない）
-        sheet_.SetFrontTexture(boardSrv_);
-        sheet_.SetCoverTexture(boardSrv_);
-        sheet_.SetCoverAlpha(0.0f);
-        PlaceSheetBoard();
-        break;
-    case Phase::Screen:
-        screen_.SetBackground(0.0f); // 奥のフェルトと同じ絵を、少しずつ重ねる（Update）
-        screen_.Open(PhaseLength(Phase::Screen), true); // 看板はもう開いている
-        audio->PlayWave(kScreenSe, false, 0.9f);
-        break;
-    case Phase::ResumeShot:
-        resumeShotRequested_ = true; // この1フレームだけ、再開のカメラで 3D を描いて写す
-        resumeShotTaken_ = false;
-        break;
-    case Phase::Unscreen:
-        screen_.Close(kUnscreenTime, true); // 文字とボタンだけしまう（看板は残す）
-        break;
-    case Phase::Fold:
-        // 看板（スプライト）を、同じ所・同じ大きさの紙に替えてから丸める。画面の地（スプライト）も外す
-        //   （スプライトは 3D の紙より手前に描かれるので、残すと紙が隠れる。奥に同じ絵の板があるので見た目は変わらない）
-        screen_.SetBoardVisible(false);
-        screen_.SetBackground(0.0f);
-        sheet_.SetFrontTexture(boardSrv_);
-        sheet_.SetCoverTexture(boardSrv_);
-        sheet_.SetCoverAlpha(1.0f);
-        PlaceSheetBoard();
-        SetBall(0.0f, 0.0f);
-        sheet_.SetVisible(true);
-        audio->PlayWave(kCrumpleSe, false, 0.9f);
-        break;
-    case Phase::Rebuild:
-        // 紙玉の中身を再開する所の絵に替え、大きさを画面ぴったりに（丸まり切って見えない間に）
-        sheet_.SetFrontTexture(resume_->GetSrvIndex());
-        sheet_.SetCoverTexture(resume_->GetSrvIndex());
-        sheet_.SetCoverAlpha(0.0f);
-        PlaceSheetFull();
-        break;
-    default:
-        break;
-    }
+    if ( PhaseState* state = StateOf(phase) ) { state->Enter(*this); } // 入った時にやる事は、段の状態クラスが決める
 }
 
 bool GameOverSequence::HidesScene() const{
@@ -483,132 +678,22 @@ bool GameOverSequence::ConsumeFinished(){
 }
 
 void GameOverSequence::UpdateInput(){
-    Input* input = Input::GetInstance();
-    // 早送り：選ぶ所まで速く進めて、「やりなおす」にする（企画書：決定ボタンで P8 へ）
-    if ( phase_ < Phase::Choose && input->TriggerKey(DIK_RETURN) ) { speed_ = kFastForward; }
-    if ( phase_ != Phase::Choose ) { return; }
-    if ( speed_ > 1.0f ) { choice_ = 0; Enter(Phase::ResumeShot); return; }
-    const bool upKey = input->TriggerKey(DIK_W) || input->TriggerKey(DIK_UP) || input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT);
-    const bool downKey = input->TriggerKey(DIK_S) || input->TriggerKey(DIK_DOWN) || input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT);
-    if ( ( upKey && choice_ != 0 ) || ( downKey && choice_ != 1 ) ) {
-        choice_ = upKey ? 0 : 1;
-        screen_.SetChoice(choice_);
-        AudioManager::GetInstance()->PlayWave(kSelectSe, false, 0.5f);
-    }
-    if ( input->TriggerKey(DIK_SPACE) || input->TriggerKey(DIK_RETURN) ) {
-        if ( choice_ == 0 ) {
-            Enter(Phase::ResumeShot); // まず再開する所の絵を写してから、画面をしまって紙を広げる
-        } else {
-            Enter(Phase::Leave);
-            KamishibaiTransition::ChangeSceneWithCard("STAGESELECT"); // 組み上げずにステージ選択へ
-        }
-    }
+    // 早送り：選ぶ所まで速く進めて、「やりなおす」にする（企画書：決定ボタンで P8 へ）。選ぶ操作そのものは ChooseState
+    if ( phase_ < Phase::Choose && Input::GetInstance()->TriggerKey(DIK_RETURN) ) { speed_ = kFastForward; }
 }
 
 void GameOverSequence::Update(float deltaTime){
     if ( phase_ == Phase::None || !camera_ ) { return; }
     UpdateInput();
-    if ( phase_ == Phase::None ) { return; }
     const float dt = deltaTime * speed_;
     time_ += dt;
     screen_.Update(dt);
     const float length = PhaseLength(phase_);
     const float t = length > 0.0f ? Easing::Clamp01(time_ / length) : 1.0f;
-    const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
 
-    switch ( phase_ ) {
-    case Phase::Freeze: {
-        // ぶつかった瞬間：画面が少しだけ揺れる
-        const float hit = Easing::Clamp01(t / kHitEnd);
-        const float shake = 0.05f * ( 1.0f - hit ) * std::sin(time_ * 80.0f);
-        camPos_ = Add(startPos_, Multiply(right_, shake));
-        if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Reveal); }
-        break;
-    }
-    case Phase::Reveal: {
-        // 注視点はそのまま、手前へ引いて上がり、画角を広げる → 箱のふちが見える
-        const float e = Easing::EaseInOutSine(t);
-        camPos_ = Add(Add(startPos_, Multiply(forward_, -revealBack_ * e)), Multiply(worldUp, revealUp_ * e));
-        camFov_ = startFov_ + revealFov_ * e;
-        if ( t >= 1.0f ) { Enter(Phase::Capture); }
-        break;
-    }
-    case Phase::Capture:
-        if ( captured_ ) { Enter(Phase::Crumple); }
-        break;
-    case Phase::Crumple: {
-        // 画面が、ふちから真ん中へ丸まって紙玉になる（アイリスアウトのように）。写したままの色から、陰影の付いた紙へ
-        const float e = Easing::EaseInOutCubic(t);
-        SetBall(e, kBallSpin * e);
-        sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
-        // グシャッとした瞬間に、画面が少し揺れる
-        const float shake = kShake * ( 1.0f - Easing::Clamp01(t / 0.4f) ) * std::sin(time_ * 70.0f);
-        camPos_ = Add(startPos_, Add(Multiply(right_, shake), Multiply(up_, shake * 0.6f)));
-        if ( t >= 1.0f ) { camPos_ = startPos_; Enter(Phase::Open); }
-        break;
-    }
-    case Phase::Open: {
-        // 紙玉がポンと弾んで、開くと看板になっている
-        const float hold = Easing::Clamp01(t / kHoldShare);
-        const float open = Easing::Clamp01(( t - kHoldShare ) / ( 1.0f - kHoldShare ));
-        if ( t >= kHoldShare && time_ - dt < length * kHoldShare ) { AudioManager::GetInstance()->PlayWave(kBasaSe, false, 0.9f); }
-        const float pop = 1.0f + 0.25f * std::sin(hold * kPi); // 弾む（紙玉が少しふくらむ）
-        const float e = Easing::EaseOutCubic(open);
-        sheet_.SetBall(1.0f - e, sheetHeight_ * kBallShare * pop, kBallSpin * ( 1.0f - e ));
-        sheet_.SetCrumple(( std::min )( ( 1.0f - e ) * 1.6f, 1.0f ));
-        sheet_.SetCoverAlpha(Easing::Clamp01(( open - ( 1.0f - kFlatShare ) ) / kFlatShare));
-        if ( t >= 1.0f ) { sheet_.SetVisible(false); Enter(Phase::Screen); }
-        break;
-    }
-    case Phase::Screen:
-        // 画面の地（スプライト）を、奥のフェルトの上に重ねてなじませる（同じ絵なので、切り替わりは見えない）
-        screen_.SetBackground(Easing::Clamp01(time_ / kScreenFadeIn));
-        if ( screen_.IsOpened() ) { Enter(Phase::Choose); }
-        break;
-    case Phase::ResumeShot:
-        // 再開する所の絵を写した（そのフレームは前の画面を出し直したので見えない）
-        if ( resumeShotTaken_ ) {
-            Enter(Phase::Unscreen);
-        }
-        break;
-    case Phase::Unscreen:
-        // 文字とボタンがしまわれる（看板と画面の地は残す）
-        if ( t >= 1.0f ) { Enter(Phase::Fold); }
-        break;
-    case Phase::Fold: {
-        // 看板が真ん中へ丸まって紙玉になる
-        const float e = Easing::EaseInOutCubic(t);
-        SetBall(e, kBallSpin * e);
-        sheet_.SetCoverAlpha(1.0f - Easing::EaseInOutSine(Easing::Clamp01(t / kCoverFade)));
-        if ( t >= 1.0f ) { Enter(Phase::Rebuild); }
-        break;
-    }
-    case Phase::Rebuild: {
-        // 紙玉がポンと弾んで開くと、再開する所の画面が画面いっぱいに広がる
-        const float hold = Easing::Clamp01(t / kHoldShare);
-        const float open = Easing::Clamp01(( t - kHoldShare ) / ( 1.0f - kHoldShare ));
-        if ( t >= kHoldShare && time_ - dt < length * kHoldShare ) { AudioManager::GetInstance()->PlayWave(kBasaSe, false, 0.9f); }
-        const float pop = 1.0f + 0.25f * std::sin(hold * kPi);
-        const float e = Easing::EaseOutCubic(open);
-        sheet_.SetBall(1.0f - e, sheetHeight_ * kBallShare * pop, -kBallSpin * ( 1.0f - e ));
-        sheet_.SetCrumple(( std::min )( ( 1.0f - e ) * 1.6f, 1.0f ));
-        sheet_.SetCoverAlpha(Easing::Clamp01(( open - ( 1.0f - kFlatShare ) ) / kFlatShare));
-        if ( t >= 1.0f ) {
-            // 紙は画面ぴったりで再開の絵になった：再開のカメラへ切り替えて、紙を外す（見た目は同じ）
-            sheet_.SetVisible(false);
-            camera_->SetTranslation(resumePosition_);
-            camera_->SetRotation(resumeRotation_);
-            camera_->SetFovY(resumeFov_);
-            camera_->Update();
-            phase_ = Phase::None;
-            finished_ = true;
-            return;
-        }
-        break;
-    }
-    default:
-        break;
-    }
+    // 今の段の状態クラスへ任せる（何をするか・次にどの段へ進むかは、状態クラスが決める）
+    if ( PhaseState* state = StateOf(phase_) ) { state->Update(*this, t, dt); }
+    if ( phase_ == Phase::None ) { return; } // 演出が終わった（RebuildState）
 
     UpdateStars(dt);
     ApplyCamera();

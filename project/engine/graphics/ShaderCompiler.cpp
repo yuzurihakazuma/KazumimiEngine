@@ -4,6 +4,9 @@
 #include <cassert>
 #include <strsafe.h>
 #include <format>
+
+namespace KazumimiEngine {
+
 bool ShaderCompiler::Initialize(){
 
 	HRESULT hr;
@@ -108,3 +111,4 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 
 }
 
+} // namespace KazumimiEngine

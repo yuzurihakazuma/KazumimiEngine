@@ -1,4 +1,10 @@
 #pragma once
+#include "engine/math/struct.h"
+
+#include <memory>
+
+namespace KazumimiEngine { class Obj3d; }
+
 // =====================================================================
 //  TitleMenu：タイトルのメニュー（丸い的が3つ：つづき／スタート／せってい）。
 //   ・的は順番にぴょこっと出てくる
@@ -6,12 +12,6 @@
 //   ・ベロが当たると後ろへぐらっと揺れる。まだ中身の無い項目は横にぶるぶる震える
 //  項目の絵は resources/title/menu_*.png（TitleAssets が的の面に貼る）
 // =====================================================================
-#include "engine/math/struct.h"
-
-#include <memory>
-
-class Obj3d;
-
 class TitleMenu {
 public:
     enum Item { Item_Continue, Item_Start, Item_Options, Item_Count };
@@ -32,20 +32,21 @@ public:
     // 選んでいる的（-1＝どれも選んでいない）。恐竜が近づいた的をシーンが選ぶ
     void SetSelected(int item);
     int  GetSelected() const{ return selected_; }
-    int  FindNearest(const Vector3& worldPosition, float maxDistance) const;
-    Vector3 GetTargetCenter(int item) const; // 的の面の中心（ベロの狙い先）
+    int  FindNearest(const KazumimiEngine::Vector3& worldPosition, float maxDistance) const;
+    KazumimiEngine::Vector3 GetTargetCenter(int item) const; // 的の面の中心（ベロの狙い先）
 
     void Hit(int item);      // ベロが当たった
     void Refuse(int item);   // まだ使えない項目を選んだ
     // 倒れている角度と向き（紙芝居遷移の退場。向きは真後ろ=0、右奥が正）
     void SetFall(int item, float angle, float direction){ targets_[item].fallAngle = angle; targets_[item].fallDirection = direction; }
 
-    Vector3& RefPosition(int item){ return targets_[item].position; } // 立てる位置（調整ウィンドウ用）
+    KazumimiEngine::Vector3& RefPosition(int item){ return targets_[item].position; } // 立てる位置（調整ウィンドウ用）
 
 private:
+    // メニューの的 1 つ（見た目・位置・出てくるまでの待ちと、出てからの時間）
     struct Target {
-        std::unique_ptr<Obj3d> object;
-        Vector3 position {};
+        std::unique_ptr<KazumimiEngine::Obj3d> object;
+        KazumimiEngine::Vector3 position {};
         float appearDelay = 0.0f;   // 出始めるまでの待ち(秒)
         float appearTime  = -1.0f;  // 出始めてからの秒数（負＝まだ出ていない）
         float hitTime     = -1.0f;  // ベロが当たってからの秒数（負＝揺れていない）

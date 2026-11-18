@@ -5,6 +5,8 @@
 #include "engine/sdf/SDFAtlas.h"
 #include "engine/math/struct.h"   // Vector4
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  SDFSprite
 //   SDF スプライトアトラスの1画像を描画するアイテム。
@@ -70,6 +72,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> transformBuffer_;
     TransformCB* transformData_ = nullptr;
 
+    // SDF スプライトのシェーダーへ渡す定数バッファ（色・ふち・光り・しきい値）。GPU へ送る形
     struct ParamsCB {
         float baseColor[4];
         float outlineColor[4];
@@ -108,3 +111,5 @@ private:
     uint32_t indexCount_ = 0;
     bool dirty_ = true;
 };
+
+} // namespace KazumimiEngine

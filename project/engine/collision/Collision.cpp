@@ -3,6 +3,8 @@
 #include <cmath>
 #include <algorithm>
 
+namespace KazumimiEngine {
+
 // 1. 球 と 球
 bool Collision::IsCollision(const Sphere& s1, const Sphere& s2) {
     // 2点間の距離の2乗を求める
@@ -82,3 +84,5 @@ bool Collision::IsCollision(const Ray& ray, const Sphere& sphere) {
 
     return false; // 射程外
 }
+
+} // namespace KazumimiEngine

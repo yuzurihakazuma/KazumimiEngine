@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     const uint32_t kMaxPerLook = 4000; // 見た目グループごとの最大インスタンス数
 

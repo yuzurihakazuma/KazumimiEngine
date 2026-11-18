@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 void CoinDragTool::Update(const SceneEditContext& context, bool blockedByOthers){
 	const auto& view = context.View();
 	const auto& coins = context.editor->GetEditorCoins();

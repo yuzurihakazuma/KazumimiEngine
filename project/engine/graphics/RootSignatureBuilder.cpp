@@ -3,6 +3,8 @@
 // --- 標準ライブラリ ---
 #include <cassert>
 
+namespace KazumimiEngine {
+
 // CBVは直接ルートパラメータで追加
 void RootSignatureBuilder::AddCBV(UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility) {
 	D3D12_ROOT_PARAMETER param = {}; // ルートパラメータを初期化
@@ -123,3 +125,5 @@ void RootSignatureBuilder::AddDescriptorTableUAV(
 	ranges_.push_back(std::move(range));
 	parameters_.push_back(param);
 }
+
+} // namespace KazumimiEngine

@@ -8,6 +8,8 @@
 // --- エンジン側のファイル ---
 #include "engine/utils/Level/LevelData.h"
 
+namespace KazumimiEngine {
+
 class LevelEditor;
 
 // =====================================================================
@@ -100,3 +102,5 @@ private:
     std::string lastError_;
     std::string dropMessage_;                 // 最後のD&D取込結果
 };
+
+} // namespace KazumimiEngine

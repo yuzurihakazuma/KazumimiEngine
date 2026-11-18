@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 uint32_t RoadMeshBuilder::AddVertex(const Vector3& pos, const Vector3& normal, float u, float v){
     Model::VertexData vert {};
     vert.position = { pos.x, pos.y, pos.z, 1.0f };

@@ -2,6 +2,8 @@
 
 #include "externals/imgui/imgui.h"
 
+using namespace KazumimiEngine;
+
 bool RailStripPanel::ConsumeFocusRequest(int& outRail, float& outDist, float& outHeight){
     if ( !state_.focusPending ) return false;
     state_.focusPending = false;

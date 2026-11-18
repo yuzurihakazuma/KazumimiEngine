@@ -9,6 +9,8 @@
 
 #include <string>
 
+using namespace KazumimiEngine;
+
 namespace {
     const char* kKitModelDir = "resources/craft/models";
 

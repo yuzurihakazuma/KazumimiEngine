@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 namespace {
@@ -20,9 +22,9 @@ namespace PlayerRailQuery {
 
 bool IsOverHole(const std::vector<SplineRail>& rails, const Vector3& footPos){
     for ( const SplineRail& rail : rails ) {
-        if ( rail.nodes.size() < 2 || rail.nodeHole.empty() ) continue;
+        if ( rail.Nodes().size() < 2 || rail.Config().nodeHole.empty() ) continue;
         if ( rail.IsRideBlocked() ) continue; // 出現前の道の穴では落ちない
-        if ( rail.isTrack ) continue;         // 線路（歩かない）の穴では落ちない
+        if ( rail.Train().isTrack ) continue;         // 線路（歩かない）の穴では落ちない
         float closestDist = rail.GetClosestDistance(footPos);
         if ( !rail.IsHoleAtDistance(closestDist) ) continue;
         Vector3 closestPos = rail.GetPositionByDistance(closestDist);
@@ -41,7 +43,7 @@ bool FindJoin(const std::vector<SplineRail>& rails, int currentRail,
     for ( int j = 0; j < ( int ) rails.size(); ++j ) {
         if ( j == currentRail ) continue;
         const SplineRail& candidateRail = rails[j];
-        if ( candidateRail.nodes.size() < 2 ) continue;
+        if ( candidateRail.Nodes().size() < 2 ) continue;
         if ( candidateRail.IsRideBlocked() ) continue; // まだ出現していない道へは合流しない
         if ( candidateRail.IsUnwalkable() ) continue;  // 線路・走っている列車へは合流しない（列車の足場の端から線路へ降りていた）
         float closestDist = candidateRail.GetClosestDistance(edgePos);
@@ -84,11 +86,11 @@ bool FindSwitch(const std::vector<SplineRail>& rails, int currentRail, const Vec
     for ( int j = 0; j < ( int ) rails.size(); ++j ) {
         if ( j == currentRail ) continue;
         const SplineRail& candidateRail = rails[j];
-        if ( candidateRail.nodes.size() < 2 ) continue;
-        if ( !candidateRail.visible ) continue; // 見えない連結レールへは乗り換えできない（見えない道を歩く混乱防止）
+        if ( candidateRail.Nodes().size() < 2 ) continue;
+        if ( !candidateRail.Config().visible ) continue; // 見えない連結レールへは乗り換えできない（見えない道を歩く混乱防止）
         if ( candidateRail.IsRideBlocked() ) continue; // まだ出現していない道へも乗り換えできない
         if ( candidateRail.IsUnwalkable() ) continue;  // 線路・走っている列車へも乗り換えできない
-        if ( ( candidateRail.type == SplineRail::RailType::Horizontal ) != wantHorizontalTarget ) continue; // 反対タイプのみ
+        if ( ( candidateRail.Config().type == SplineRail::RailType::Horizontal ) != wantHorizontalTarget ) continue; // 反対タイプのみ
 
         float closestDist = candidateRail.GetClosestDistance(footPos);
         Vector3 closestPos = candidateRail.GetPositionByDistance(closestDist);
@@ -100,7 +102,7 @@ bool FindSwitch(const std::vector<SplineRail>& rails, int currentRail, const Vec
         if ( lateral > kLateral ) continue;
 
         float axisMin = 1e30f, axisMax = -1e30f; // 押した方向に伸びているか
-        for ( const auto& node : candidateRail.nodes ) {
+        for ( const auto& node : candidateRail.Nodes() ) {
             float axisValue = currentHorizontal ? node.z : node.x;
             axisMin = ( std::min )( axisMin, axisValue );
             axisMax = ( std::max )( axisMax, axisValue );
@@ -120,7 +122,7 @@ bool FindSwitch(const std::vector<SplineRail>& rails, int currentRail, const Vec
 bool FindBranch(const std::vector<SplineRail>& rails, int currentRail, float currentDist,
                 int switchDir, Spot& out){
     const float kNear = 0.9f; // 分岐点に反応する距離
-    for ( const auto& branchPoint : rails[currentRail].branchPoints ) {
+    for ( const auto& branchPoint : rails[currentRail].Links().branchPoints ) {
         if ( std::abs(currentDist - branchPoint.distance) > kNear ) continue;
         if ( ( switchDir > 0 ) != ( branchPoint.zSign > 0 ) ) continue; // 押した向きと分岐の向きが一致する時だけ
         if ( branchPoint.targetRail < 0 || branchPoint.targetRail >= ( int ) rails.size() ) continue;
@@ -140,7 +142,7 @@ bool FindRailBelow(const std::vector<SplineRail>& rails, const Vector3& pos, Spo
     bool found = false;
     for ( int i = 0; i < ( int ) rails.size(); ++i ) {
         const SplineRail& rail = rails[i];
-        if ( rail.nodes.size() < 2 || !rail.visible || rail.IsRideBlocked() || rail.IsUnwalkable() ) continue;
+        if ( rail.Nodes().size() < 2 || !rail.Config().visible || rail.IsRideBlocked() || rail.IsUnwalkable() ) continue;
         float closestDist = rail.GetClosestDistance(pos);
         Vector3 closestPos = rail.GetPositionByDistance(closestDist);
         float dx = closestPos.x - pos.x, dz = closestPos.z - pos.z;
@@ -162,8 +164,8 @@ bool FindLanding(const std::vector<SplineRail>& rails, const Vector3& pos, float
     for ( int i = 0; i < ( int ) rails.size(); ++i ) {
         if ( i == ignoreRail ) continue;
         const SplineRail& rail = rails[i];
-        if ( rail.nodes.size() < 2 ) continue;
-        if ( !rail.visible ) continue; // 見えない連結レールには着地しない（床ではなく「道」なので）
+        if ( rail.Nodes().size() < 2 ) continue;
+        if ( !rail.Config().visible ) continue; // 見えない連結レールには着地しない（床ではなく「道」なので）
         if ( rail.IsRideBlocked() ) continue; // まだ出現していない道にも着地しない（すり抜けて落ちる）
         if ( rail.IsUnwalkable() ) continue;  // 線路・走っている列車にも着地しない（列車は駅で止まっている時だけ乗る）
 

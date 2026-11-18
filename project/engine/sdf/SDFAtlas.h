@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <d3d12.h>
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  SDFAtlas
 //   Python(SDFPrintf.py) が出力した SDF アトラス（JSON + PNG）1組を表す。
@@ -32,6 +34,7 @@ struct SDFSpriteInfo {
     float offsetX, offsetY;  // オートクロップ補正オフセット (px)
 };
 
+// SDF アトラス（距離の画像 1 枚と、その中の文字・絵の位置の表）。フォント・スプライトで共通
 class SDFAtlas {
 public:
     enum class Type {
@@ -88,3 +91,5 @@ private:
     std::filesystem::file_time_type jsonTime_ {};
     std::filesystem::file_time_type pngTime_ {};
 };
+
+} // namespace KazumimiEngine

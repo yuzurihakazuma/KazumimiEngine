@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstdint>
 
+namespace KazumimiEngine {
+
 class SplineRail; // ブロックのノード錨の更新に使う（実体は engine/rail/SplineRail.h）
 
 // =====================================================================
@@ -540,6 +542,7 @@ private:
     RailSettings CaptureRailSettings() const;
     void ApplyRailSettings(const RailSettings& settings);
 
+    // 元に戻す・やり直し用の、レール編集の 1 手ぶんの写し（線・種類・動き・コインなど）
     struct RailSnapshot{
         std::vector<std::vector<Vector3>> lines;
         std::vector<int>     types;
@@ -584,3 +587,5 @@ private:
     // 編集の世代番号だけを進めて変化を通知する（描画はゲーム側）
     void RebuildRailPoints();
 };
+
+} // namespace KazumimiEngine

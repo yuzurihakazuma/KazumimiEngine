@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     // ここより下へ落ちた卵は割る（どこにも当たらず奈落へ落ちた時の後始末）
     const float kEggKillY = -30.0f;

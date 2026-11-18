@@ -1,6 +1,8 @@
 #include "Skeleton.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
 // Node ツリーを再帰的に走査して Joint 配列を作るヘルパー
@@ -85,3 +87,5 @@ void UpdateSkeleton(Skeleton& skeleton, const Animation& animation, float time) 
         }
     }
 }
+
+} // namespace KazumimiEngine

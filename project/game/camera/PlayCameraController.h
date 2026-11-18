@@ -4,8 +4,10 @@
 #include "engine/utils/Level/LevelData.h" // LevelCameraZone
 #include <vector>
 
+namespace KazumimiEngine {
 class Camera;
 class SplineRail;
+}
 
 // =====================================================================
 //  PlayCameraController：プレイ中のカメラ制御。
@@ -22,10 +24,10 @@ class SplineRail;
 class PlayCameraController {
 public:
     // マップのカメラゾーン設定を実行用へ変換して受け取る（ノード番号→レール上の距離）
-    void Sync(const std::vector<LevelCameraZone>& zones, const std::vector<SplineRail>& rails);
+    void Sync(const std::vector<KazumimiEngine::LevelCameraZone>& zones, const std::vector<KazumimiEngine::SplineRail>& rails);
 
     // マップのレールごとのカメラを受け取る（railLines と同じ並び）
-    void SyncRailCameras(const std::vector<RailCamera>& cameras){ railCameras_ = cameras; lastRail_ = -1; }
+    void SyncRailCameras(const std::vector<KazumimiEngine::RailCamera>& cameras){ railCameras_ = cameras; lastRail_ = -1; }
     // プレイヤーが今乗っているレール（Update の前に毎フレーム。乗り換えた時だけ、そのレールのカメラへ切り替える）。
     //   ステージ開始の演技の間も呼ぶ（演技の終わりに戻る追従の位置 FollowTargetPosition が、始まりのレールのカメラになる）
     //   progress＝そのレールの上の進み具合（0＝始め・1＝終わり）。「だんだん変える」レールのカメラが使う
@@ -37,11 +39,11 @@ public:
     // 毎フレーム（Play中のみ）：追従＋ゾーン切替でカメラを動かす。
     //   debugCamActive=true（デバッグカメラ操作中）は何もしない。
     //   grounded=プレイヤーが着地しているか（カメラの高さは着地した所で決める）
-    void Update(Camera* camera, const Vector3& playerPos, bool grounded, const std::vector<SplineRail>& rails,
+    void Update(KazumimiEngine::Camera* camera, const KazumimiEngine::Vector3& playerPos, bool grounded, const std::vector<KazumimiEngine::SplineRail>& rails,
                 bool debugCamActive, float dt);
 
     // ゾーンの可視化（DebugDraw に積む。編集中も見えるよう毎フレーム呼んでよい）
-    void DrawZoneMarkers(const std::vector<SplineRail>& rails) const;
+    void DrawZoneMarkers(const std::vector<KazumimiEngine::SplineRail>& rails) const;
 
     // デバッグUI（追従ON/OFF・オフセット。呼び出し側のウィンドウ内に描く）
     void DrawDebugUI();
@@ -54,14 +56,14 @@ public:
     float FlipYaw() const { return flipYaw_; }
 
     // 今の追従の向き・距離・高さでの、カメラの目標位置（補間しない）。演出のカメラから戻る先に使う
-    Vector3 FollowTargetPosition(const Vector3& playerPos) const;
+    KazumimiEngine::Vector3 FollowTargetPosition(const KazumimiEngine::Vector3& playerPos) const;
     // 追従カメラが見る点（プレイヤーの足元から少し上）。カメラの角度はこの点を見る向きで固定
     static constexpr float kLookHeight = 1.0f;
 
 private:
     // 追従のON/OFFと基準（yaw0/距離/高さの初期値になる）
     bool    followCam_ = true;
-    Vector3 followOffset_ { 0.0f, 3.5f, -10.0f };
+    KazumimiEngine::Vector3 followOffset_ { 0.0f, 3.5f, -10.0f };
 
     // 追従カメラの「向き」の状態。向き切替トリガーで Tgt が変わり Cur が滑らかに追いつく
     float camYawCur_ = 0.0f,   camYawTgt_ = 0.0f;   // カメラの向き(rad)。0=後ろから
@@ -77,14 +79,14 @@ private:
     float downMargin_ = 1.5f; // 空中でこれより下へ行ったら、カメラも下へ追う(m)（段差を降りた時。穴へ落ちた時は追わない）
     float holeDepth_  = 4.0f; // 着地した所よりこれ以上下へ落ちたら、穴に落ちたとみなして追うのをやめる(m)
     // 追う高さ（ジャンプは無視・着地・はみ出し）を更新する
-    float UpdateFocusHeight(const Vector3& playerPos, bool grounded, float dt);
+    float UpdateFocusHeight(const KazumimiEngine::Vector3& playerPos, bool grounded, float dt);
 
     // 実行用カメラゾーン（Sync 時にノード番号→レール上の距離へ変換して保持）
     struct Zone {
         int   rail = 0; float dist = 0.0f; float radius = 4.0f;
         int   mode = 1;                          // 0=固定カメラ / 1=向き切替
-        Vector3 offset { 0.0f, 3.0f, -6.0f };    // mode0: アンカーからのカメラ位置
-        float yawRad = Math::kPi; float camDist = 10.0f; float camHeight = 3.5f; // mode1
+        KazumimiEngine::Vector3 offset { 0.0f, 3.0f, -6.0f };    // mode0: アンカーからのカメラ位置
+        float yawRad = KazumimiEngine::Math::kPi; float camDist = 10.0f; float camHeight = 3.5f; // mode1
         bool  revert = false;                    // mode1: 半径から出たら通常の向きへ戻る
         bool  freeze = false;                    // mode1: 回転が終わるまで時間を止める
         float fovRad = 0.785f;
@@ -109,7 +111,7 @@ private:
 
     // レールごとのカメラ：乗り換えた時だけ目標を切り替える（最初の 1 回は補間せずに置く）
     void ApplyRailCamera();
-    std::vector<RailCamera> railCameras_;
+    std::vector<KazumimiEngine::RailCamera> railCameras_;
     int  playerRail_ = -1;       // 今乗っているレール（-1＝空中など）
     float railProgress_ = 0.0f;  // そのレールの上の進み具合（0〜1）
     int  lastRail_ = -1;         // 前に切り替えを決めたレール（-1＝まだ。次は補間せずに置く）

@@ -1,4 +1,10 @@
 #pragma once
+#include <chrono>
+#include "engine/base/Singleton.h"
+#include <cstdint>
+
+namespace KazumimiEngine {
+
 // =============================================================
 //  Time : エンジン共通の時間管理（デルタタイム / ポーズ / スロー）
 //  - ヘッダオンリー（.vcxproj への追加不要）
@@ -8,10 +14,6 @@
 //      GetUnscaledDeltaTime() : 実時間（UI やエディタなど止めたくないもの用）
 //  ※ ファイル名は Time.h にすると C標準 <time.h> と衝突するため TimeManager.h
 // =============================================================
-#include <chrono>
-#include "engine/base/Singleton.h"
-#include <cstdint>
-
 class Time : public Singleton<Time> {
 	friend class Singleton<Time>; // 土台（Singleton）だけが作れる
 public:
@@ -81,3 +83,5 @@ private:
 	bool   fixedStep_ = false;
 	uint64_t frameCount_ = 0;
 };
+
+} // namespace KazumimiEngine

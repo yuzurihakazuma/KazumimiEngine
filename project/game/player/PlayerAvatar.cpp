@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 PlayerAvatar::PlayerAvatar() = default;
 PlayerAvatar::~PlayerAvatar() = default;
 
@@ -40,7 +42,7 @@ void PlayerAvatar::Update(const Context& context){
 	} else if ( context.railField ) {
 		const auto& rails = context.railField->GetRails();
 		int startRail = context.railField->GetStartRail();
-		if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].nodes.size() >= 2 ) {
+		if ( startRail >= 0 && startRail < ( int ) rails.size() && rails[startRail].Nodes().size() >= 2 ) {
 			float startDistance = context.railField->GetStartDistance();
 			pos = rails[startRail].GetPositionByDistance(startDistance);
 			Vector3 tangent = rails[startRail].GetTangentByDistance(startDistance);

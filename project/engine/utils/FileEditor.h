@@ -7,6 +7,8 @@
 #include <wrl.h>
 #include <d3d12.h>
 
+namespace KazumimiEngine {
+
 class RenderTexture;
 class Camera;
 class Obj3d;
@@ -31,6 +33,7 @@ public:
     void ProcessPendingThumbnails();
 
 private:
+    // ファイル一覧の 1 行（表示名・フルパス・フォルダかどうか）
     struct Entry {
         std::string name;      // 表示名（ファイル/フォルダ名）
         std::string fullPath;  // ルートからのフルパス（generic 形式）
@@ -80,3 +83,5 @@ private:
     static constexpr int kThumbSize = 128;
     static constexpr int kMaxModelThumbs = 24; // RTVヒープ節約のため上限
 };
+
+} // namespace KazumimiEngine

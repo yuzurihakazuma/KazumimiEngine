@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 void HitFeel::Trigger(float stopSeconds, float shakeMag){
     hitStopTimer_  = stopSeconds;
     camShakeTimer_ = 0.22f;

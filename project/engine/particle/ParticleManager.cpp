@@ -26,6 +26,8 @@ using json = nlohmann::json;
 #include "engine/math/Matrix4x4.h"
 #include "engine/math/VectorMath.h"
 
+namespace KazumimiEngine {
+
 // 名前空間の使用を宣言
 using namespace MatrixMath;
 using namespace VectorMath;
@@ -536,3 +538,5 @@ void ParticleManager::Load(){
 		}
 	}
 }
+
+} // namespace KazumimiEngine

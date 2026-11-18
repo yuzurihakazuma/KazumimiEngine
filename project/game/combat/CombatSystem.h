@@ -1,6 +1,6 @@
 #pragma once
 #include "engine/math/struct.h"
-#include "StompEffect.h"
+#include "engine/particle/StompEffect.h"
 #include <list>
 #include <vector>
 #include <memory>
@@ -11,7 +11,7 @@ class Player;
 class EnemyManager;
 class EggSystem;
 class HitFeel;
-class Camera;
+namespace KazumimiEngine { class Camera; }
 
 // =====================================================================
 //  CombatSystem：プレイヤーと敵の戦闘判定＋ヒット演出（StompEffect）の管理。
@@ -33,10 +33,10 @@ public:
     //   （GPUリソース確保46回）なので、初撃破のフレームで作るとゲームが止まる。
     //   ここで count 体ぶん作ってプールに積んでおき、実戦では使い回すだけにする。
     //   ※ Initialize（テクスチャ受け取り）の後に呼ぶこと
-    void Prewarm(Camera* camera, int count);
+    void Prewarm(KazumimiEngine::Camera* camera, int count);
 
     // 踏みつけ＋卵vs敵の当たり判定（Play中に毎フレーム呼ぶ）
-    void Update(Player& player, EnemyManager& enemies, EggSystem& eggs, HitFeel& hitFeel, Camera* camera);
+    void Update(Player& player, EnemyManager& enemies, EggSystem& eggs, HitFeel& hitFeel, KazumimiEngine::Camera* camera);
 
     void UpdateEffects(float dt); // StompEffect の進行（モード問わず毎フレーム）
     void Draw();                  // StompEffect の描画
@@ -47,18 +47,18 @@ public:
     bool IsContactKnockback() const{ return contactKnockback_; }
 
     // プレイヤーの当たり判定の形をワイヤーで描く（デバッグ表示用）
-    void DrawPlayerHitShape(const Player& player, const Vector4& color) const;
+    void DrawPlayerHitShape(const Player& player, const KazumimiEngine::Vector4& color) const;
 
 private:
-    void SpawnStompEffect(const Vector3& pos, Camera* camera, StompEffectType type);
+    void SpawnStompEffect(const KazumimiEngine::Vector3& pos, KazumimiEngine::Camera* camera, KazumimiEngine::StompEffectType type);
 
-    std::list<std::unique_ptr<StompEffect>> stompEffects_;
+    std::list<std::unique_ptr<KazumimiEngine::StompEffect>> stompEffects_;
     // 使い終わったエフェクトの置き場（Obj3d×23個/体の作り直しを避ける。敵を倒した瞬間のカクつき対策）
-    std::vector<std::unique_ptr<StompEffect>> stompPool_;
+    std::vector<std::unique_ptr<KazumimiEngine::StompEffect>> stompPool_;
     uint32_t circleTex_ = 0;
     uint32_t envTex_    = 0;
 
     bool  contactKnockback_ = true;  // 敵に横からぶつかると弾かれる
-    Vector3 prevPlayerFoot_ { 0.0f, 0.0f, 0.0f }; // 前フレームの足元（落ちてきたか・体の中にいたかの判定用）
+    KazumimiEngine::Vector3 prevPlayerFoot_ { 0.0f, 0.0f, 0.0f }; // 前フレームの足元（落ちてきたか・体の中にいたかの判定用）
     bool    hasPrevPlayerFoot_ = false;           // 前フレームの足元を持っているか（モード切替で捨てる）
 };

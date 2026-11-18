@@ -7,6 +7,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 RoadRenderSlots::RoadRenderSlots() = default;
 RoadRenderSlots::~RoadRenderSlots() = default;
 
@@ -137,9 +139,9 @@ void RoadRenderSlots::Update(const std::vector<SplineRail>& rails, bool playMode
         outHidden = false;
         if ( !playMode || r < 0 || r >= ( int ) rails.size() ) return 0.0f;
         const SplineRail& rail = rails[r];
-        if ( rail.appearTrigger < 0 ) return 0.0f;
-        if ( rail.appearAnim <= 0.001f ) { outHidden = true; return 0.0f; }
-        return -( 1.0f - rail.appearAnim ) * 2.5f; // 出現中：下からせり上がる
+        if ( rail.Motion().appearTrigger < 0 ) return 0.0f;
+        if ( rail.Motion().appearAnim <= 0.001f ) { outHidden = true; return 0.0f; }
+        return -( 1.0f - rail.Motion().appearAnim ) * 2.5f; // 出現中：下からせり上がる
     };
     if ( rootActive_ ) {
         // 箱庭：焼いたメッシュ（ワールド座標）をまとめて縮めて置く。動くレールも止めたまま
@@ -159,14 +161,14 @@ void RoadRenderSlots::Update(const std::vector<SplineRail>& rails, bool playMode
             // 掃引メッシュはワールド座標で焼いてあるので、動くレールぶんだけ平行移動。
             // 列車式（animYaw）は「pivot中心の回転」＝回転＋(pivot - pivot*Ry) の平行移動で表す
             const SplineRail& followRail = rails[s.rail];
-            Vector3 off = followRail.animOffset;
+            Vector3 off = followRail.Motion().animOffset;
             off.y += appearOffset(s.rail, s.hiddenNow);
-            if ( followRail.animYaw != 0.0f ) {
-                float sinYaw = std::sin(followRail.animYaw), cosYaw = std::cos(followRail.animYaw);
-                const Vector3& pivot = followRail.animPivot;
+            if ( followRail.Motion().animYaw != 0.0f ) {
+                float sinYaw = std::sin(followRail.Motion().animYaw), cosYaw = std::cos(followRail.Motion().animYaw);
+                const Vector3& pivot = followRail.Motion().animPivot;
                 Vector3 rotatedPivot { pivot.x * cosYaw + pivot.z * sinYaw, pivot.y,
                                        -pivot.x * sinYaw + pivot.z * cosYaw };
-                s.obj->SetRotation({ 0.0f, followRail.animYaw, 0.0f });
+                s.obj->SetRotation({ 0.0f, followRail.Motion().animYaw, 0.0f });
                 s.obj->SetTranslation({ pivot.x - rotatedPivot.x + off.x, off.y,
                                         pivot.z - rotatedPivot.z + off.z });
             } else {
@@ -182,13 +184,13 @@ void RoadRenderSlots::Update(const std::vector<SplineRail>& rails, bool playMode
         JointSlot& s = *joints_[k];
         if ( s.rail >= 0 && s.rail < ( int ) rails.size() ) {
             const SplineRail& followRail = rails[s.rail];
-            Vector3 off = followRail.animOffset;
+            Vector3 off = followRail.Motion().animOffset;
             off.y += appearOffset(s.rail, s.hiddenNow);
             Vector3 basePos = s.base;
-            if ( followRail.animYaw != 0.0f ) {
+            if ( followRail.Motion().animYaw != 0.0f ) {
                 // ピース（ジョイント）は位置だけpivot中心で公転させる（自身の回転は据え置き）
-                float sinYaw = std::sin(followRail.animYaw), cosYaw = std::cos(followRail.animYaw);
-                const Vector3& pivot = followRail.animPivot;
+                float sinYaw = std::sin(followRail.Motion().animYaw), cosYaw = std::cos(followRail.Motion().animYaw);
+                const Vector3& pivot = followRail.Motion().animPivot;
                 float dx = basePos.x - pivot.x, dz = basePos.z - pivot.z;
                 basePos.x = pivot.x + dx * cosYaw + dz * sinYaw;
                 basePos.z = pivot.z - dx * sinYaw + dz * cosYaw;

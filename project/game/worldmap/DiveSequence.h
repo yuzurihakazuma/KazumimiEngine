@@ -1,4 +1,7 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "game/worldmap/WorldMapData.h"
+
 // =====================================================================
 //  DiveSequence：箱庭への飛び込み（ステージ選択・飛び込み演出 企画書の5段）。
 //    構え(crouch)   … 箱庭の方を向いて、かがむ
@@ -10,16 +13,13 @@
 //   前転は2回転で、着地でちょうど立った向きに戻る
 //   長さ・高さ・カメラの位置は resources/worldmap/dive.json（DiveTiming）
 // =====================================================================
-#include "engine/math/struct.h"
-#include "game/worldmap/WorldMapData.h"
-
 class DiveSequence {
 public:
     // from＝恐竜の立っている所、target＝着地する所（箱庭の中のスタート）、endScale＝着地した時の大きさ
-    void Start(const DiveTiming& timing, const Vector3& from, float yaw, const Vector3& target, float endScale,
-               const Vector3& cameraPosition, const Vector3& cameraLook);
+    void Start(const DiveTiming& timing, const KazumimiEngine::Vector3& from, float yaw, const KazumimiEngine::Vector3& target, float endScale,
+               const KazumimiEngine::Vector3& cameraPosition, const KazumimiEngine::Vector3& cameraLook);
     // 着地する所は箱庭と一緒に動く（正面へ戻る・弾む）ので、毎フレーム渡し直す
-    void SetTarget(const Vector3& target, float endScale);
+    void SetTarget(const KazumimiEngine::Vector3& target, float endScale);
     void Update(float deltaTime);
 
     bool IsActive() const{ return active_; }
@@ -27,13 +27,13 @@ public:
 
     // 恐竜の見た目
     struct Pose {
-        Vector3 position {};
-        Vector3 rotation {};
-        Vector3 scale { 1.0f, 1.0f, 1.0f };
+        KazumimiEngine::Vector3 position {};
+        KazumimiEngine::Vector3 rotation {};
+        KazumimiEngine::Vector3 scale { 1.0f, 1.0f, 1.0f };
     };
     Pose DinoPose() const;
-    void CameraPose(Vector3& outPosition, Vector3& outLook) const;
-    Vector3 Target() const{ return target_; }
+    void CameraPose(KazumimiEngine::Vector3& outPosition, KazumimiEngine::Vector3& outLook) const;
+    KazumimiEngine::Vector3 Target() const{ return target_; }
     // 円の半径（2＝全開）
     float IrisRadius() const;
 
@@ -48,9 +48,9 @@ private:
     DiveTiming timing_;
     bool    active_ = false;
     float   time_ = 0.0f;
-    Vector3 from_ {}, target_ {};
+    KazumimiEngine::Vector3 from_ {}, target_ {};
     float   endScale_ = 0.1f;
     float   yaw_ = 0.0f;
-    Vector3 cameraStart_ {}, lookStart_ {};
+    KazumimiEngine::Vector3 cameraStart_ {}, lookStart_ {};
     bool    jumpTaken_ = false, landTaken_ = false;
 };

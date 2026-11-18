@@ -1,4 +1,27 @@
 #pragma once
+#include "externals/nlohmann/json.hpp"
+#include "engine/base/Singleton.h"
+
+#include <d3d12.h>
+#include <wrl.h>
+
+#include <condition_variable>
+#include <cstdint>
+#include <deque>
+#include <filesystem>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
+
+namespace KazumimiEngine {
+
+class RenderTexture;
+class Camera;
+
 // =====================================================================
 //  ScreenCapture：ゲーム画面をそのまま保存する撮影機能（撮影機能 企画書）
 //   エディタのあるビルド（Debug / Development）だけで動く。Release では初期化もキーの受け付けもしない
@@ -19,27 +42,6 @@
 //  写し取り：フレームのコマンドの中で、写すもの（最終画像 / バックバッファ）を読み出し用のバッファへコピーしておき、
 //   次のフレームの頭（GPU が描き終わった後）に取り出す。PNG の書き出しは別スレッド。GIF・mp4 は tools/capture/make_gif.py
 // =====================================================================
-#include "externals/nlohmann/json.hpp"
-#include "engine/base/Singleton.h"
-
-#include <d3d12.h>
-#include <wrl.h>
-
-#include <condition_variable>
-#include <cstdint>
-#include <deque>
-#include <filesystem>
-#include <functional>
-#include <future>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <thread>
-#include <vector>
-
-class RenderTexture;
-class Camera;
-
 class ScreenCapture : public Singleton<ScreenCapture> {
 	friend class Singleton<ScreenCapture>; // 土台（Singleton）だけが作れる
 public:
@@ -239,3 +241,5 @@ private:
     Preset lockedPreset_ {};
     char presetName_[64] = "shot";
 };
+
+} // namespace KazumimiEngine

@@ -8,6 +8,8 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 void SDFSprite::Initialize() {
     auto factory = ResourceFactory::GetInstance();
     transformBuffer_ = factory->CreateBufferResource(sizeof(TransformCB));
@@ -157,3 +159,5 @@ void SDFSprite::Draw(ID3D12GraphicsCommandList* commandList, const SDFAtlas& atl
     SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(2, atlas.GetSrvIndex());           // t0
     commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);
 }
+
+} // namespace KazumimiEngine

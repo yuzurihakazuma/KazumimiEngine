@@ -9,6 +9,8 @@
 #endif
 #include <d3d12sdklayers.h>
 
+namespace KazumimiEngine {
+
 // リソースリーク（メモリ解放忘れ）をチェックする便利構造体
 struct ResourceLeakChecker {
 
@@ -36,3 +38,5 @@ struct ResourceLeakChecker {
 #endif
     }
 };
+
+} // namespace KazumimiEngine

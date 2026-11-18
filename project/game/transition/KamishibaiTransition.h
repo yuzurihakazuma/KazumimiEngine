@@ -1,4 +1,19 @@
 #pragma once
+#include "engine/scene/ISceneTransition.h"
+#include "engine/base/Singleton.h"
+#include "game/transition/StageIntroCard.h"
+#include "game/transition/TransitionTimeline.h"
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace KazumimiEngine {
+class Sprite;
+class RenderTexture;
+}
+
 // =====================================================================
 //  KamishibaiTransition：紙芝居の遷移（紙芝居遷移システム 企画書）。
 //   シーンマネージャに差し込み（SceneManager::SetTransition）、シーンが変わっても残る舞台として描く。
@@ -11,21 +26,8 @@
 //
 //   遷移中はゲーム側のキー操作を止める（Input::SetLocked）。早送り・飛ばしは無い
 // =====================================================================
-#include "engine/scene/ISceneTransition.h"
-#include "engine/base/Singleton.h"
-#include "game/transition/StageIntroCard.h"
-#include "game/transition/TransitionTimeline.h"
-
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
-class Sprite;
-class RenderTexture;
-
-class KamishibaiTransition : public ISceneTransition, public Singleton<KamishibaiTransition> {
-	friend class Singleton<KamishibaiTransition>; // 土台（Singleton）だけが作れる
+class KamishibaiTransition : public KazumimiEngine::ISceneTransition, public KazumimiEngine::Singleton<KamishibaiTransition> {
+	friend class KazumimiEngine::Singleton<KamishibaiTransition>; // 土台（Singleton）だけが作れる
 public:
 
 	// 画像・音を先に読む（実行中の読み込みは D3D12 のデバッグレイヤーが嫌うので、起動時に）
@@ -57,7 +59,7 @@ public:
 	// --- ISceneTransition ---
 	void Update(float deltaTime) override;
 	bool IsActive() const override{ return active_; }
-	void DrawInto(ID3D12GraphicsCommandList* commandList, RenderTexture* target) override;
+	void DrawInto(ID3D12GraphicsCommandList* commandList, KazumimiEngine::RenderTexture* target) override;
 	void DrawOverlay(ID3D12GraphicsCommandList* commandList) override;
 	void DrawDebugUI() override;
 	void Finalize() override;
@@ -72,7 +74,7 @@ private:
 	bool SaveDefinition() const;
 	void ApplyParts(float deltaTime); // 部品の進み具合から、絵・扉・枠などの見た目を決める
 	void Finish();
-	void Capture(ID3D12GraphicsCommandList* commandList, RenderTexture* target);
+	void Capture(ID3D12GraphicsCommandList* commandList, KazumimiEngine::RenderTexture* target);
 	void DrawLayers(ID3D12GraphicsCommandList* commandList, float width, float height);
 
 	// --- 定義 ---
@@ -109,18 +111,18 @@ private:
 	float valanceDrop_ = 0.0f;    // 上の幕板の下がり具合（0=画面の上の外 / 1=下りている）
 
 	// --- 描く物 ---
-	std::unique_ptr<Sprite> frame_;
-	std::unique_ptr<Sprite> doorLeft_;
-	std::unique_ptr<Sprite> doorRight_;
-	std::unique_ptr<Sprite> banner_;
-	std::unique_ptr<Sprite> egg_;
-	std::unique_ptr<Sprite> picture_;          // 写し取った画面を貼る板
-	std::unique_ptr<Sprite> curtainLeft_;      // 赤い幕（右は同じ絵を左右反転）
-	std::unique_ptr<Sprite> curtainRight_;
-	std::unique_ptr<Sprite> valance_;          // 幕の上の段ボールの幕板と三角旗
+	std::unique_ptr<KazumimiEngine::Sprite> frame_;
+	std::unique_ptr<KazumimiEngine::Sprite> doorLeft_;
+	std::unique_ptr<KazumimiEngine::Sprite> doorRight_;
+	std::unique_ptr<KazumimiEngine::Sprite> banner_;
+	std::unique_ptr<KazumimiEngine::Sprite> egg_;
+	std::unique_ptr<KazumimiEngine::Sprite> picture_;          // 写し取った画面を貼る板
+	std::unique_ptr<KazumimiEngine::Sprite> curtainLeft_;      // 赤い幕（右は同じ絵を左右反転）
+	std::unique_ptr<KazumimiEngine::Sprite> curtainRight_;
+	std::unique_ptr<KazumimiEngine::Sprite> valance_;          // 幕の上の段ボールの幕板と三角旗
 	StageIntroCard stageIntro_;               // カード（読み込み中・ステージ開始で共通。部品 introElement / introCut / letterbox など）
 	std::string    stageIntroContent_;        // 次に再生するカードの中身（ステージ名。空なら行き先のシーンから決める）
-	std::unique_ptr<RenderTexture> snapshot_;  // 写し取った画面
+	std::unique_ptr<KazumimiEngine::RenderTexture> snapshot_;  // 写し取った画面
 	uint32_t snapshotWidth_ = 0;
 	uint32_t snapshotHeight_ = 0;
 	bool loaded_ = false;

@@ -11,6 +11,8 @@
 #include <cmath>
 #include <string>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kLetterModel = "goalLetter";   // ＋番号（goal_letter_0〜3.gltf）
     constexpr const char* kStarModel = "goalStar";       // ＋番号（goal_star_0〜2.gltf）

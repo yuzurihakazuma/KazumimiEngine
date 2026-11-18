@@ -9,11 +9,11 @@
 // =====================================================================
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 namespace RailEditOverlay {
-    void DrawMotionRanges(const std::vector<SplineRail>& rails);
+    void DrawMotionRanges(const std::vector<KazumimiEngine::SplineRail>& rails);
     // skipGuide：このガイドは描かない（選択中の足場のガイドは GuideHandleTool がハンドル付きで描く）
-    void DrawHiddenGuides(const std::vector<SplineRail>& rails, int skipGuide);
-    void DrawAppearRoads(const std::vector<SplineRail>& rails);
+    void DrawHiddenGuides(const std::vector<KazumimiEngine::SplineRail>& rails, int skipGuide);
+    void DrawAppearRoads(const std::vector<KazumimiEngine::SplineRail>& rails);
 }

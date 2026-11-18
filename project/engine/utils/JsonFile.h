@@ -21,6 +21,8 @@
 
 #include <string>
 
+namespace KazumimiEngine {
+
 namespace JsonFile {
 
     // ファイルを読む。無い・壊れている時は false（out は空のオブジェクトになる）
@@ -56,3 +58,5 @@ namespace JsonFile {
     nlohmann::json ToJson(const Vector4& value);
 
 } // namespace JsonFile
+
+} // namespace KazumimiEngine

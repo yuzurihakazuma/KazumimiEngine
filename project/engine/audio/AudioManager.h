@@ -15,10 +15,13 @@
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
+
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mfuuid.lib")
 #pragma comment(lib,"xaudio2.lib")
+
+namespace KazumimiEngine {
 
 // 音声データ
 struct SoundData{
@@ -183,3 +186,5 @@ private:
     float categoryVolume_[2] = { 1.0f, 1.0f }; // [0]=BGM, [1]=SE
 
 };
+
+} // namespace KazumimiEngine

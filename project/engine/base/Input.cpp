@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cmath>
 
+namespace KazumimiEngine {
 
 void Input::Finalize() {
 	// 取得状態を解放
@@ -252,3 +253,5 @@ bool Input::IsActionTriggered(const std::string& action){
 	}
 	return false;
 }
+
+} // namespace KazumimiEngine

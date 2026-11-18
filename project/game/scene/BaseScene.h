@@ -1,4 +1,20 @@
 #pragma once
+#include "engine/scene/IScene.h"
+#include "engine/math/struct.h"
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include <d3d12.h>
+
+namespace KazumimiEngine {
+class Camera;
+class DebugCamera;
+}
+class DemoShowcase;
+namespace KazumimiEngine { class RenderTexture; }
+
 // =====================================================================
 //  BaseScene：全シーン共通の土台。
 //   どのシーンでもゲームプレイシーンと同じ見た目・同じエディタ連携で動くように、
@@ -13,21 +29,7 @@
 //  各シーンは On～ の差し込み口に、そのシーンだけの処理を書く。
 //  レール・敵・ブロックなどのゲームの中身はゲームプレイシーンの差し込み口に置く（他のシーンには出ない）
 // =====================================================================
-#include "engine/scene/IScene.h"
-#include "engine/math/struct.h"
-
-#include <cstdint>
-#include <memory>
-#include <string>
-
-#include <d3d12.h>
-
-class Camera;
-class DebugCamera;
-class DemoShowcase;
-class RenderTexture;
-
-class BaseScene : public IScene {
+class BaseScene : public KazumimiEngine::IScene {
 public:
     BaseScene();
     ~BaseScene() override;
@@ -61,7 +63,7 @@ protected:
     virtual void UpdateCamera();        // 既定：デバッグカメラ → カメラ行列。揺れ等を足す時に上書き
     virtual void OnUpdate() {}          // シーンの進行
     // SDF看板の「近づいた時だけ表示」の基準位置（無ければ false＝常に全表示）
-    virtual bool GetSdfViewerPosition(Vector3& /*outPos*/) const { return false; }
+    virtual bool GetSdfViewerPosition(KazumimiEngine::Vector3& /*outPos*/) const { return false; }
 
     // --- 差し込み口：描画（3Dは MRT の中。呼ばれる順） ---
     virtual void OnDrawBackground(ID3D12GraphicsCommandList* /*commandList*/) {}  // いちばん奥の空（3D の物より先。Obj3d の準備の前）
@@ -72,7 +74,7 @@ protected:
     virtual void OnDrawOverlay2D(ID3D12GraphicsCommandList* /*commandList*/) {}   // 最終画像へ重ねる2D（SDF文字・ロゴ）
     virtual void OnDrawUI(ID3D12GraphicsCommandList* /*commandList*/) {}          // スプライト（画面出力の後）
     // 最終画像（ポストエフェクト・SDF・2D を重ねた後、遷移の演出より前）ができた所。写し取りなどに使う
-    virtual void OnFrameComposed(ID3D12GraphicsCommandList* /*commandList*/, RenderTexture* /*finalTarget*/) {}
+    virtual void OnFrameComposed(ID3D12GraphicsCommandList* /*commandList*/, KazumimiEngine::RenderTexture* /*finalTarget*/) {}
 
     // --- 差し込み口：ImGui ---
     virtual void OnDrawInspector() {}         // 共有の「インスペクター (詳細設定)」ウィンドウの中へ足す項目
@@ -80,8 +82,8 @@ protected:
     virtual void OnDebugUI() {}               // シーン独自のウィンドウ
 
     // --- シーンが使う共通の物 ---
-    Camera*       GetCamera() const { return camera_.get(); }
-    DebugCamera*  GetDebugCamera() const { return debugCamera_.get(); }
+    KazumimiEngine::Camera*       GetCamera() const { return camera_.get(); }
+    KazumimiEngine::DebugCamera*  GetDebugCamera() const { return debugCamera_.get(); }
     DemoShowcase* Demo() const { return demo_.get(); } // features_.demoShowcase=false なら nullptr
     uint32_t      EnvironmentMapSrv() const { return envMapSrv_; }
     bool          IsDemoVisible() const;             // 展示を使っていて、表示メニューで表示中
@@ -94,11 +96,11 @@ private:
     void UpdateCommonVisuals();
     void DrawScene3D(ID3D12GraphicsCommandList* commandList);
     void ComposeFrame(ID3D12GraphicsCommandList* commandList);
-    void DrawOverlayInto(ID3D12GraphicsCommandList* commandList, RenderTexture* target);
+    void DrawOverlayInto(ID3D12GraphicsCommandList* commandList, KazumimiEngine::RenderTexture* target);
     void DrawInspector();
 
-    std::unique_ptr<Camera>       camera_;
-    std::unique_ptr<DebugCamera>  debugCamera_;
+    std::unique_ptr<KazumimiEngine::Camera>       camera_;
+    std::unique_ptr<KazumimiEngine::DebugCamera>  debugCamera_;
     std::unique_ptr<DemoShowcase> demo_;
     uint32_t envMapSrv_ = 0;
 };

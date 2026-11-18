@@ -1,4 +1,8 @@
 #pragma once
+#include "game/enemy/Enemy.h"
+
+enum class StripTool { Block, Enemy, Coin };
+
 // =====================================================================
 //  StripState：配置ビュー（レール展開図）の部品どうしで共有する状態
 //   開いているレール・道具・表示の設定・シーンへの要求など、
@@ -6,10 +10,6 @@
 //   どれか2つ以上が読み書きするものだけをここに置く。1つの部品だけが使う状態はその部品が持つ。
 //   RailStripPanel が1つ持ち、各部品へ参照で渡す
 // =====================================================================
-#include "game/enemy/Enemy.h"
-
-enum class StripTool { Block, Enemy, Coin };
-
 struct StripState {
     // --- 開いているレール ---
     int   currentRail = 0;

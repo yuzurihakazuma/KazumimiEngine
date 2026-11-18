@@ -1,10 +1,11 @@
 #include "CustomAnimation.h"
 #include "engine/utils/JsonFile.h"
 #include <algorithm>
-#include "engine/math/VectorMath.h"
 #include <fstream>
 #include <sstream>
 #include "externals/nlohmann/json.hpp" // JSONライブラリのインクルード
+
+namespace KazumimiEngine {
 
 // --------------------------------------------------
 // キーフレームを追加（または更新）して、時間で並び替える
@@ -180,3 +181,4 @@ void CustomAnimationTrack::LoadFromJson(const std::string& filepath) {
     }
 }
 
+} // namespace KazumimiEngine

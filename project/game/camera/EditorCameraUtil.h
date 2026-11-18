@@ -6,21 +6,23 @@
 // =====================================================================
 #include <vector>
 
+namespace KazumimiEngine {
 class Camera;
 class SplineRail;
+}
 
 namespace EditorCameraUtil {
     // レール上の場所（レール番号・距離・レール面からの高さ）が画面の中央に来るように置く。
     //   向きは変えずに、見ている方向の逆へ引いた位置へ動かす
-    void FocusOnRail(Camera& camera, const std::vector<SplineRail>& rails,
+    void FocusOnRail(KazumimiEngine::Camera& camera, const std::vector<KazumimiEngine::SplineRail>& rails,
                      int railIndex, float distance, float height);
 
     // 真上から見下ろして、レール全体が収まる高さに置く
-    void TopView(Camera& camera, const std::vector<SplineRail>& rails);
+    void TopView(KazumimiEngine::Camera& camera, const std::vector<KazumimiEngine::SplineRail>& rails);
 
     // 既定の斜め視点に戻す
-    void DefaultAngle(Camera& camera);
+    void DefaultAngle(KazumimiEngine::Camera& camera);
 
     // ワールドの (x, z) が画面の中央に来るように水平に動かす（向きと高さは今のまま）
-    void CenterOnXZ(Camera& camera, float worldX, float worldZ);
+    void CenterOnXZ(KazumimiEngine::Camera& camera, float worldX, float worldZ);
 }

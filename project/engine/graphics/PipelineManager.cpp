@@ -10,6 +10,8 @@
 #include "engine/graphics/D3DDebugName.h"
 #include "engine/postEffect/PostEffect.h"
 
+namespace KazumimiEngine {
+
 // 終了処理
 void PipelineManager::Finalize(){
 	// スマートポインタをリセットして、GPUのメモリリークを防ぐ
@@ -721,3 +723,5 @@ void PipelineManager::SetPostEffectPipeline(ID3D12GraphicsCommandList* commandLi
 		commandList->SetPipelineState(postEffectPipelineStates_[index].Get());
 	}
 }
+
+} // namespace KazumimiEngine

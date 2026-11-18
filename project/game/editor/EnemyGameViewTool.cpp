@@ -11,6 +11,8 @@
 #include <cmath>
 #include <cstdio>
 
+using namespace KazumimiEngine;
+
 namespace {
 	// 種類別のピンの色（ドングリン=赤 / カミバナ=紫 / フワリン=水色）
 	Vector4 PinColorOf(EnemyType type){

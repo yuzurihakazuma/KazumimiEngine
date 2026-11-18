@@ -21,6 +21,8 @@
 #include <cmath>
 #include <cstdint>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 using namespace MatrixMath;
 

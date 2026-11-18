@@ -8,6 +8,8 @@
 
 #include "engine/rail/SplineRail.h"
 
+namespace KazumimiEngine {
+
 class Obj3d;
 class Camera;
 class RailEditor;
@@ -145,3 +147,5 @@ private:
     std::unique_ptr<RailEditor> railEditor_ = nullptr;
 
 };
+
+} // namespace KazumimiEngine

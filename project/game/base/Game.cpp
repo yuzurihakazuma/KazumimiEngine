@@ -1,8 +1,7 @@
 #include "Game.h"
 // ---  ゲーム固有のファイル ---
-#include "SceneFactory.h"
-#include "GamePlayScene.h"
-#include "TitleScene.h"
+#include "game/scene/SceneFactory.h"
+#include "game/scene/TitleScene.h"
 
 // ---  エンジン側のファイル ---
 #include "engine/scene/SceneManager.h"
@@ -11,6 +10,8 @@
 #include "engine/utils/EditorManager.h"
 
 #include <Windows.h>
+
+using namespace KazumimiEngine;
 
 void Game::Initialize(){
 	// 基盤システムの初期化 (Window, DirectX, Input, Common類, EditorManager)

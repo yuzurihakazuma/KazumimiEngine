@@ -14,6 +14,8 @@
 #include <cmath>
 #include <cstring>
 
+using namespace KazumimiEngine;
+
 namespace {
     // --- 敷設 ---
     const float kSpacing = 0.7f;    // チェーン点の間隔(m)
@@ -154,9 +156,9 @@ void DissolveRoad::Build(const std::vector<SplineRail>& rails){
     railsRef_ = &rails; // 「後から出現する道」の appeared 判定用（Sync→Build のたびに更新される）
     for ( int railIndex = 0; railIndex < ( int ) rails.size(); ++railIndex ) {
         const auto& rail = rails[railIndex];
-        if ( rail.roadMode != 2 ) continue;      // 溶け道のレールだけ
-        if ( !rail.visible ) continue;
-        if ( rail.nodes.size() < 2 ) continue;
+        if ( rail.Config().roadMode != 2 ) continue;      // 溶け道のレールだけ
+        if ( !rail.Config().visible ) continue;
+        if ( rail.Nodes().size() < 2 ) continue;
         float length = rail.GetLength();
         if ( length <= 0.0f ) continue;
 

@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kAppearTime = 0.35f;       // ぴょこっと現れる時間(秒)
     constexpr float kWalkBaseSpeed = 5.0f;     // この速さ(m/s)で歩くクリップを等速再生する（本編と同じ）

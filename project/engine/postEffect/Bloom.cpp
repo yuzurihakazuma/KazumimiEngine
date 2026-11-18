@@ -7,10 +7,13 @@
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
-#include <RootSignatureBuilder.h>
-#include <GraphicsPipelineBuilder.h>
+#include "engine/graphics/RootSignatureBuilder.h"
+#include "engine/graphics/GraphicsPipelineBuilder.h"
 
 #include "externals/nlohmann/json.hpp"
+
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 // 初期化
@@ -260,3 +263,5 @@ void Bloom::Finalize(){
 	combineRootSignature_.Reset();
 	combinePipelineState_.Reset();
 }
+
+} // namespace KazumimiEngine

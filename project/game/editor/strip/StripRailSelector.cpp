@@ -5,6 +5,8 @@
 #include "game/editor/strip/StripCommon.h"
 #include "game/enemy/EnemyEditor.h"
 
+using namespace KazumimiEngine;
+
 using namespace railstrip;
 
 // =====================================================================

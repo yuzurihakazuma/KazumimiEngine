@@ -23,6 +23,8 @@
 #include <cmath>
 #include <dinput.h>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kNextScene = "STAGESELECT"; // 終わったら戻る先（ステージ選択）
     constexpr float kEndMargin = 0.2f;                // 着地する所は、レールの端からこれより内側(m)

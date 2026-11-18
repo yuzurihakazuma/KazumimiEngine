@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using json = nlohmann::json;
 
 namespace {
@@ -94,36 +96,36 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
     for ( size_t i = 0; i < lines.size(); ++i ) {
         SplineRail rail;
         for ( const json& point : lines[i] ) {
-            if ( point.is_array() && point.size() >= 3 ) { rail.nodes.push_back({ point[0].get<float>(), point[1].get<float>(), point[2].get<float>() }); }
+            if ( point.is_array() && point.size() >= 3 ) { rail.EditNodes().push_back({ point[0].get<float>(), point[1].get<float>(), point[2].get<float>() }); }
         }
-        rail.lineMode = At<int>(level, "railLineModes", i, 0);
+        rail.EditConfig().lineMode = At<int>(level, "railLineModes", i, 0);
         rail.BuildDistanceTable();
-        rail.visible = At<int>(level, "railVisible", i, 1) != 0;
-        rail.groundType = static_cast<SplineRail::GroundType>( At<int>(level, "railGroundTypes", i, 0) );
-        rail.roadMode = At<int>(level, "railRoadModes", i, 0);
-        rail.endPlaza = At<int>(level, "railEndPlazas", i, 0);
-        rail.nodeHole = At<std::vector<int>>(level, "railNodeHoles", i, {});
+        rail.EditConfig().visible = At<int>(level, "railVisible", i, 1) != 0;
+        rail.EditConfig().groundType = static_cast<SplineRail::GroundType>( At<int>(level, "railGroundTypes", i, 0) );
+        rail.EditConfig().roadMode = At<int>(level, "railRoadModes", i, 0);
+        rail.EditConfig().endPlaza = At<int>(level, "railEndPlazas", i, 0);
+        rail.EditConfig().nodeHole = At<std::vector<int>>(level, "railNodeHoles", i, {});
         const int type = At<int>(level, "railTypes", i, -1);
-        if ( type == 0 )      { rail.type = SplineRail::RailType::Horizontal; }
-        else if ( type == 1 ) { rail.type = SplineRail::RailType::Vertical; }
-        else if ( rail.nodes.size() >= 2 ) { rail.AutoDetectType(); }
+        if ( type == 0 )      { rail.EditConfig().type = SplineRail::RailType::Horizontal; }
+        else if ( type == 1 ) { rail.EditConfig().type = SplineRail::RailType::Vertical; }
+        else if ( rail.Nodes().size() >= 2 ) { rail.AutoDetectType(); }
         if ( level.contains("railSkins") && i < level["railSkins"].size() ) {
             const json& skin = level["railSkins"][i];
-            rail.skin.style = skin.value("style", rail.skin.style);
-            rail.skin.width = skin.value("width", rail.skin.width);
-            rail.skin.lift = skin.value("lift", rail.skin.lift);
-            rail.skin.curl = skin.value("curl", rail.skin.curl);
-            rail.skin.stitch = skin.value("stitch", rail.skin.stitch);
-            rail.skin.layer = skin.value("layer", rail.skin.layer);
+            rail.EditConfig().skin.style = skin.value("style", rail.Config().skin.style);
+            rail.EditConfig().skin.width = skin.value("width", rail.Config().skin.width);
+            rail.EditConfig().skin.lift = skin.value("lift", rail.Config().skin.lift);
+            rail.EditConfig().skin.curl = skin.value("curl", rail.Config().skin.curl);
+            rail.EditConfig().skin.stitch = skin.value("stitch", rail.Config().skin.stitch);
+            rail.EditConfig().skin.layer = skin.value("layer", rail.Config().skin.layer);
             if ( skin.contains("color") && skin["color"].size() >= 3 ) {
-                rail.skin.color = { skin["color"][0].get<float>(), skin["color"][1].get<float>(), skin["color"][2].get<float>() };
+                rail.EditConfig().skin.color = { skin["color"][0].get<float>(), skin["color"][1].get<float>(), skin["color"][2].get<float>() };
             }
         }
         full.push_back(std::move(rail));
     }
     RailConnections::Build(full);
     auto railPoint = [&](int rail, float distance, Vector3& out){
-        if ( rail < 0 || rail >= ( int ) full.size() || full[rail].nodes.size() < 2 ) { return false; }
+        if ( rail < 0 || rail >= ( int ) full.size() || full[rail].Nodes().size() < 2 ) { return false; }
         out = full[rail].GetPositionByDistance(distance);
         return true;
     };
@@ -169,7 +171,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
     }
     Vector3 start {};
     const int startRail = level.value("startRailIndex", 0);
-    const bool hasStart = startRail >= 0 && startRail < ( int ) full.size() && full[startRail].nodes.size() >= 2;
+    const bool hasStart = startRail >= 0 && startRail < ( int ) full.size() && full[startRail].Nodes().size() >= 2;
     if ( hasStart ) { start = full[startRail].GetPositionByDistance(full[startRail].GetDistanceFromT(( float ) level.value("startNodeIndex", 0))); }
 
     // --- 切り抜く四角（ステージの中の m）。台座と同じ縦横の比 ---
@@ -177,8 +179,8 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
     const float windowWidth = windowDepth * width / ( std::max )( depth, 0.01f );
     Vector3 lo { 1e9f, 1e9f, 1e9f }, hi { -1e9f, -1e9f, -1e9f };
     for ( const SplineRail& rail : full ) {
-        if ( !rail.visible || rail.nodes.size() < 2 ) { continue; }
-        for ( const Vector3& p : rail.nodes ) {
+        if ( !rail.Config().visible || rail.Nodes().size() < 2 ) { continue; }
+        for ( const Vector3& p : rail.Nodes() ) {
             lo = { ( std::min )( lo.x, p.x ), ( std::min )( lo.y, p.y ), ( std::min )( lo.z, p.z ) };
             hi = { ( std::max )( hi.x, p.x ), ( std::max )( hi.y, p.y ), ( std::max )( hi.z, p.z ) };
         }
@@ -202,7 +204,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
             if ( railPoint(coin.value("rail", -1), coin.value("dist", 0.0f), p) ) { points.push_back({ p.x, p.z, 1.0f }); }
         }
         for ( const SplineRail& rail : full ) {
-            if ( !rail.visible || rail.nodes.size() < 2 || rail.skin.style == RailSkin::Hidden ) { continue; }
+            if ( !rail.Config().visible || rail.Nodes().size() < 2 || rail.Config().skin.style == RailSkin::Hidden ) { continue; }
             for ( float d = 0.0f; d <= rail.GetLength(); d += 1.0f ) {
                 const Vector3 p = rail.GetPositionByDistance(d);
                 points.push_back({ p.x, p.z, 0.2f });
@@ -234,7 +236,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
 
     // --- 道：四角の中だけを細かく区切って作り直す（はみ出した所で切れる） ---
     for ( const SplineRail& rail : full ) {
-        if ( !rail.visible || rail.nodes.size() < 2 ) { continue; }
+        if ( !rail.Config().visible || rail.Nodes().size() < 2 ) { continue; }
         const float length = rail.GetLength();
         const int steps = ( std::max )( 2, ( int ) std::ceil(length / kCropStep) );
         std::vector<Vector3> run;
@@ -243,15 +245,15 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
         auto flush = [&](bool toEnd){
             if ( run.size() >= 2 ) {
                 SplineRail piece;
-                piece.nodes = run;
-                piece.lineMode = 1; // 細かく区切ったので直線でつなぐ
+                piece.EditNodes() = run;
+                piece.EditConfig().lineMode = 1; // 細かく区切ったので直線でつなぐ
                 piece.BuildDistanceTable();
-                piece.visible = true;
-                piece.groundType = rail.groundType;
-                piece.roadMode = rail.roadMode;
-                piece.skin = rail.skin;
-                piece.endPlaza = ( fromStart ? ( rail.endPlaza & 1 ) : 0 ) | ( toEnd ? ( rail.endPlaza & 2 ) : 0 );
-                if ( std::find(holes.begin(), holes.end(), 1) != holes.end() ) { piece.nodeHole = holes; }
+                piece.EditConfig().visible = true;
+                piece.EditConfig().groundType = rail.Config().groundType;
+                piece.EditConfig().roadMode = rail.Config().roadMode;
+                piece.EditConfig().skin = rail.Config().skin;
+                piece.EditConfig().endPlaza = ( fromStart ? ( rail.Config().endPlaza & 1 ) : 0 ) | ( toEnd ? ( rail.Config().endPlaza & 2 ) : 0 );
+                if ( std::find(holes.begin(), holes.end(), 1) != holes.end() ) { piece.EditConfig().nodeHole = holes; }
                 piece.AutoDetectType();
                 rails_.push_back(std::move(piece));
             }
@@ -306,7 +308,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
     }
     float railLow = 1e9f;
     for ( const SplineRail& rail : rails_ ) {
-        for ( const Vector3& p : rail.nodes ) { railLow = ( std::min )( railLow, p.y ); }
+        for ( const Vector3& p : rail.Nodes() ) { railLow = ( std::min )( railLow, p.y ); }
     }
     if ( groundBottom > 1e8f ) { groundBottom = railLow - 1.0f; lowestTop = railLow; }
     // 目印の汽車：四角のふちに沿った線路。地面は道の高さより上を平らにならし、線路のまわりの物はどける
@@ -315,7 +317,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
     const float trackRadius = ( std::min )( trackHx, trackHz ) * 0.45f;
     float flatTop = -1e9f;
     for ( const SplineRail& rail : rails_ ) {
-        for ( const Vector3& p : rail.nodes ) { flatTop = ( std::max )( flatTop, p.y ); }
+        for ( const Vector3& p : rail.Nodes() ) { flatTop = ( std::max )( flatTop, p.y ); }
     }
     auto onTrack = [&](float x, float z){
         return hasTrain && DistanceToLoop(x, z, cx, cz, trackHx, trackHz, trackRadius) < kTrackBand;
@@ -391,7 +393,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
         tokens_.push_back(std::move(token));
     }
     const int goalRail = level.value("goalRailIndex", -1);
-    if ( goalRail >= 0 && goalRail < ( int ) full.size() && full[goalRail].nodes.size() >= 2 ) {
+    if ( goalRail >= 0 && goalRail < ( int ) full.size() && full[goalRail].Nodes().size() >= 2 ) {
         const Vector3 goal = full[goalRail].GetPositionByDistance(full[goalRail].GetDistanceFromT(( float ) level.value("goalNodeIndex", 0)));
         if ( inside(goal.x, goal.z, 0.3f) ) {
             Token token;
@@ -405,7 +407,7 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
 
     coinCount_ = ( int ) level.value("coins", json::array()).size();
     pathLength_ = 0.0f;
-    for ( const SplineRail& rail : rails_ ) { if ( rail.skin.HasCloth() ) { pathLength_ += rail.GetLength(); } }
+    for ( const SplineRail& rail : rails_ ) { if ( rail.Config().skin.HasCloth() ) { pathLength_ += rail.GetLength(); } }
     pathLength_ = ( std::max )( pathLength_, 10.0f );
     // なぞり始め：スタートに近い道（スタートが無ければ、いちばん左の道の端）
     startRail_ = 0;
@@ -417,8 +419,8 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
             const Vector3 p = rails_[i].GetPositionByDistance(d);
             const float gap = ( p.x - start.x ) * ( p.x - start.x ) + ( p.z - start.z ) * ( p.z - start.z );
             if ( gap < bestStart ) { bestStart = gap; startRail_ = i; startDist_ = d; }
-        } else if ( rails_[i].nodes.front().x < bestStart ) {
-            bestStart = rails_[i].nodes.front().x;
+        } else if ( rails_[i].Nodes().front().x < bestStart ) {
+            bestStart = rails_[i].Nodes().front().x;
             startRail_ = i;
         }
     }
@@ -468,10 +470,10 @@ void StageDiorama::ApplyRoot(){
 void StageDiorama::BuildTrain(float cx, float cz, float halfWidth, float halfDepth, float height, Camera* camera){
     const float radius = ( std::min )( halfWidth, halfDepth ) * 0.45f;
     SplineRail center;
-    center.nodes = RoundedLoop(cx, cz, halfWidth, halfDepth, radius, height + kTrackLift, 0.5f);
+    center.EditNodes() = RoundedLoop(cx, cz, halfWidth, halfDepth, radius, height + kTrackLift, 0.5f);
     // 台座が回る向きと同じ向きに走らせる（逆向きだと、回るのと打ち消し合って止まって見える）
-    std::reverse(center.nodes.begin(), center.nodes.end());
-    center.lineMode = 1;
+    std::reverse(center.EditNodes().begin(), center.EditNodes().end());
+    center.EditConfig().lineMode = 1;
     center.BuildDistanceTable();
     // 枕木
     for ( float d = 0.0f; d < center.GetLength(); d += kSleeperStep ) {
@@ -488,16 +490,16 @@ void StageDiorama::BuildTrain(float cx, float cz, float halfWidth, float halfDep
     trackRails_.clear();
     for ( float side : { -kTrackGauge, kTrackGauge } ) {
         SplineRail rail;
-        rail.nodes = RoundedLoop(cx, cz, halfWidth + side, halfDepth + side, radius + side, height + kTrackLift, 0.5f);
-        rail.lineMode = 1;
+        rail.EditNodes() = RoundedLoop(cx, cz, halfWidth + side, halfDepth + side, radius + side, height + kTrackLift, 0.5f);
+        rail.EditConfig().lineMode = 1;
         rail.BuildDistanceTable();
         rail.AutoDetectType();
-        rail.skin.style = RailSkin::Cloth;
-        rail.skin.width = 0.32f;
-        rail.skin.lift = 0.01f;
-        rail.skin.curl = 0.0f;
-        rail.skin.stitch = 0;
-        rail.skin.color = { 0.62f, 0.62f, 0.66f };
+        rail.EditConfig().skin.style = RailSkin::Cloth;
+        rail.EditConfig().skin.width = 0.32f;
+        rail.EditConfig().skin.lift = 0.01f;
+        rail.EditConfig().skin.curl = 0.0f;
+        rail.EditConfig().skin.stitch = 0;
+        rail.EditConfig().skin.color = { 0.62f, 0.62f, 0.66f };
         trackRails_.push_back(std::move(rail));
     }
     RailConnections::Build(trackRails_);

@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstring>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kFeltTexture = "resources/road/cloth/cloth_felt_plain.png";
     constexpr float kFeltBrightness = 0.46f; // フェルトの画像の平均の明るさ（linear）

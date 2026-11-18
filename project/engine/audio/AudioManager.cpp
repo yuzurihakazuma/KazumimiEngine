@@ -6,6 +6,8 @@
 // --- エンジン側のファイル ---
 #include "engine/base/TimeManager.h"
 
+namespace KazumimiEngine {
+
 // Media Foundation の「最初の音声ストリーム」（負の列挙の値を、引数の型 DWORD にしておく）
 static const DWORD kFirstAudioStream = static_cast<DWORD>( MF_SOURCE_READER_FIRST_AUDIO_STREAM );
 
@@ -344,3 +346,5 @@ SoundData AudioManager::LoadWaveInternal(const std::string& filename){
 
     return soundData;
 }
+
+} // namespace KazumimiEngine

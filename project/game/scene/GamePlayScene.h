@@ -1,14 +1,4 @@
 #pragma once
-// =====================================================================
-//  GamePlayScene：ゲームプレイシーン。
-//   全シーン共通の部分（カメラ・描画の流れ・デバッグ描画・展示物・インスペクターの共通項目）は
-//   BaseScene が持つ。ここはゲームの中身（レール・プレイヤー・敵・卵・ブロック・コイン・演出）を持ち、
-//   「どの順番で更新・描画するか」と「エディタの編集をいつ反映するか」だけを決める。
-//   中身の処理はそれぞれのクラスへ分けてある：
-//     見た目 … PlayerAvatar（プレイヤーのモデル）/ GameHud（画面の表示）/ PlayScreenEffects（画面効果）
-//     エディタ … PlaySceneEditor（Game View の操作・パネル一式）/ EditorCameraUtil（カメラの置き直し）
-//     判定 …… StageObstacles（卵の壁・地面）/ CombatSystem（踏みつけ・卵命中）
-// =====================================================================
 #include "game/scene/BaseScene.h"
 #include "engine/graphics/TextureManager.h"
 #include "engine/utils/EditorManager.h" // EngineMode
@@ -48,6 +38,16 @@
 class Player;
 class EnemyEditor;
 
+// =====================================================================
+//  GamePlayScene：ゲームプレイシーン。
+//   全シーン共通の部分（カメラ・描画の流れ・デバッグ描画・展示物・インスペクターの共通項目）は
+//   BaseScene が持つ。ここはゲームの中身（レール・プレイヤー・敵・卵・ブロック・コイン・演出）を持ち、
+//   「どの順番で更新・描画するか」と「エディタの編集をいつ反映するか」だけを決める。
+//   中身の処理はそれぞれのクラスへ分けてある：
+//     見た目 … PlayerAvatar（プレイヤーのモデル）/ GameHud（画面の表示）/ PlayScreenEffects（画面効果）
+//     エディタ … PlaySceneEditor（Game View の操作・パネル一式）/ EditorCameraUtil（カメラの置き直し）
+//     判定 …… StageObstacles（卵の壁・地面）/ CombatSystem（踏みつけ・卵命中）
+// =====================================================================
 class GamePlayScene : public BaseScene {
 public:
 	GamePlayScene();
@@ -69,7 +69,7 @@ private:
 	void OnPreUpdate() override;      // ヒットストップ＋エディタ編集の反映（カメラ更新の前）
 	void UpdateCamera() override;     // カメラ更新＋シェイク＋ヒット点のポストエフェクト
 	void OnUpdate() override;         // Edit↔Play の切替・プレイ中の進行・見た目
-	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	bool GetSdfViewerPosition(KazumimiEngine::Vector3& outPos) const override;
 	void OnDrawBackground(ID3D12GraphicsCommandList* commandList) override;
 	float PlayerRailProgress() const; // プレイヤーの、今のレールの上の進み具合（0〜1。だんだん変わるレールのカメラ）
 	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
@@ -77,7 +77,7 @@ private:
 	void OnDrawTransparent(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawSdf(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawUI(ID3D12GraphicsCommandList* commandList) override;
-	void OnFrameComposed(ID3D12GraphicsCommandList* commandList, RenderTexture* finalTarget) override;
+	void OnFrameComposed(ID3D12GraphicsCommandList* commandList, KazumimiEngine::RenderTexture* finalTarget) override;
 	void OnDrawInspector() override;
 	void OnDrawDebugDrawOptions() override;
 	void OnDebugUI() override;
@@ -97,11 +97,11 @@ private:
 	void SpawnEnemies(); // 配置テンプレートを元に敵の実体を再構築する
 
 	// --- Update の段階 ---
-	void HandleModeTransition(EngineMode current); // Edit↔Play 切替時のリセット
+	void HandleModeTransition(KazumimiEngine::EngineMode current); // Edit↔Play 切替時のリセット
 	void OnPlayStart();
 	void OnEditStart();
 	void UpdatePlayMode();                         // プレイ中のゲーム進行
-	void UpdateSceneVisuals(EngineMode mode);      // モード問わず毎フレーム行う見た目の更新
+	void UpdateSceneVisuals(KazumimiEngine::EngineMode mode);      // モード問わず毎フレーム行う見た目の更新
 
 	// --- DrawDebugUI の段階 ---
 	void DrawHitShapes();   // 当たり判定の形をワイヤーで表示
@@ -109,10 +109,10 @@ private:
 
 private:
 	// 読み込んだテクスチャ（展示物にも名前で渡す）
-	std::unordered_map<std::string, TextureData> textures_;
+	std::unordered_map<std::string, KazumimiEngine::TextureData> textures_;
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
-	EngineMode prevMode_ = EngineMode::Edit;
+	KazumimiEngine::EngineMode prevMode_ = KazumimiEngine::EngineMode::Edit;
 
 	// --- プレイヤー ---
 	std::unique_ptr<Player> player_;
@@ -126,7 +126,7 @@ private:
 	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
 	TrainVisuals   trainVisuals_; // 列車（台車・機関車）と線路（列車のガイド）
 	ClearFlow      clear_;        // ゴールの門・集計・クリア演出（中身は game/clear/。ここは決まった所で呼ぶだけ）
-	Skybox         sky_;          // いちばん奥の紙の空（どの向きを見ても空・地平線の丘・下の草。tools/sky/make_paper_sky.py）
+	KazumimiEngine::Skybox         sky_;          // いちばん奥の紙の空（どの向きを見ても空・地平線の丘・下の草。tools/sky/make_paper_sky.py）
 	StageIntroSequence intro_;    // ステージ開始の演技（遷移の合図で動く）
 	StageBackdrop  backdrop_;     // ステージ全体のクラフトの背景（地面・空・丘・雲・木・柵・草花）
 	CoinSystem     coinSystem_;   // 収集物（コイン）
@@ -151,10 +151,10 @@ private:
 	PlaySceneEditor editorTools_;          // Game View の操作・配置ビュー・ミニマップ
 	RailTransferDebugger transferDebugger_; // 乗り換えデバッガ（レール間の乗り換えのずれを測る）
 	// 操作開始の合図：ステージ開始の演出が終わって、キーが効くようになった瞬間に「スタート！」と音
-	std::unique_ptr<Sprite> startPop_;
+	std::unique_ptr<KazumimiEngine::Sprite> startPop_;
 	bool  startCuePending_ = false;
 	float startCueTime_ = -1.0f;   // 合図を出してからの秒数（-1=出していない）
-	Vector2 startPopSize_ { 0.0f, 0.0f };
+	KazumimiEngine::Vector2 startPopSize_ { 0.0f, 0.0f };
 	void UpdateStartCue(float deltaTime);
 	void UpdateEggFollowGround();                  // 後ろの卵を地面に置くための情報（恐竜の真下の地面）を卵へ渡す
 	void DrawStartCue();

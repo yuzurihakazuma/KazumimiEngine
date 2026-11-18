@@ -7,6 +7,8 @@
 #include <string>
 #include <memory>
 
+namespace KazumimiEngine {
+
 /// <summary>
 /// アニメーションエディター
 /// キーフレームの記録・編集・再生UIを一括管理する
@@ -55,3 +57,5 @@ private:
     int copiedKeyframeIndex_ = -1; // コピー元のキーフレーム番号
     bool snapToFrame_ = true;
 };
+
+} // namespace KazumimiEngine

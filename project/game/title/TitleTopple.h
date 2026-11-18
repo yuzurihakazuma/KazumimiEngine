@@ -22,7 +22,7 @@ namespace TitleTopple {
 	inline constexpr float kSpread        = 6.0f;   // 中心から横にこれだけ離れた物は、一番外向きに倒れる(m)
 	inline constexpr float kMaxSide       = 0.9f;   // 一番外向きに倒れる時の向き（真後ろから何 rad 横へ）
 	inline constexpr float kSettleTime    = 0.45f;  // 地面に着いてから、跳ね返りが収まるまで(秒)
-	inline constexpr float kPi            = Math::kPi;
+	inline constexpr float kPi            = KazumimiEngine::Math::kPi;
 
 	// 倒れ方（重さ）
 	struct Weight {
@@ -65,13 +65,14 @@ namespace TitleTopple {
 
 	// 置いた向き（rotation）のまま、世界の direction の向きへ angle だけ根元を軸に倒した回転を返す。
 	//   物の向き（Y 回転）に関係なく、決めた向きへ倒れる
-	inline Vector3 Tilt(const Vector3& rotation, float direction, float angle){
+	inline KazumimiEngine::Vector3 Tilt(const KazumimiEngine::Vector3& rotation, float direction, float angle){
 		if ( angle == 0.0f ) { return rotation; }
-		using namespace MatrixMath;
 		// 置いた向き（エンジンの回転の順番：X → Y → Z）
-		const Matrix4x4 placed = Multiply(Multiply(MakeRotateX(rotation.x), MakeRotateY(rotation.y)), MakeRotateZ(rotation.z));
+		const KazumimiEngine::Matrix4x4 placed = KazumimiEngine::MatrixMath::Multiply(
+			KazumimiEngine::MatrixMath::Multiply(KazumimiEngine::MatrixMath::MakeRotateX(rotation.x), KazumimiEngine::MatrixMath::MakeRotateY(rotation.y)), KazumimiEngine::MatrixMath::MakeRotateZ(rotation.z));
 		// 世界で倒す：倒す向きを奥(+Z)へ回してから X で倒し、元の向きへ戻す
-		const Matrix4x4 tilt = Multiply(Multiply(MakeRotateY(-direction), MakeRotateX(angle)), MakeRotateY(direction));
-		return ToEulerXYZ(Multiply(placed, tilt)); // 回転行列 → X・Y・Z の角度（MakeAffine と同じ順番）
+		const KazumimiEngine::Matrix4x4 tilt = KazumimiEngine::MatrixMath::Multiply(
+			KazumimiEngine::MatrixMath::Multiply(KazumimiEngine::MatrixMath::MakeRotateY(-direction), KazumimiEngine::MatrixMath::MakeRotateX(angle)), KazumimiEngine::MatrixMath::MakeRotateY(direction));
+		return KazumimiEngine::MatrixMath::ToEulerXYZ(KazumimiEngine::MatrixMath::Multiply(placed, tilt)); // 回転行列 → X・Y・Z の角度（MakeAffine と同じ順番）
 	}
 }

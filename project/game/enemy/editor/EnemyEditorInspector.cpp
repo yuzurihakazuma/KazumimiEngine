@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cstdio>
 
+using namespace KazumimiEngine;
+
 #ifdef USE_IMGUI
 namespace {
     // 種類ごとの既定値（UIに「既定＝いくつ」と見せるため）

@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace MatrixMath;
 
 bool SceneEditContext::ProjectToScreen(const Vector3& world, Vector2& out) const{
@@ -45,7 +47,7 @@ float SceneEditContext::ScreenDistanceToMouse(const Vector3& world) const{
 bool SceneEditContext::RailPoint(int railIndex, float distance, float height, Vector3& out) const{
 	const auto& railList = Rails();
 	if ( railIndex < 0 || railIndex >= ( int ) railList.size() ) return false;
-	if ( railList[railIndex].nodes.size() < 2 ) return false;
+	if ( railList[railIndex].Nodes().size() < 2 ) return false;
 	Vector3 p = railList[railIndex].GetPositionByDistance(distance);
 	out = { p.x, p.y + height, p.z };
 	return true;
@@ -57,9 +59,9 @@ bool SceneEditContext::PickRailPoint(float height, float maxPx, int stickRail, f
 	int bestRail = -1; float bestDist = 0.0f; float bestPx = maxPx;
 	for ( int railIndex = 0; railIndex < ( int ) railList.size(); ++railIndex ) {
 		const SplineRail& rail = railList[railIndex];
-		if ( rail.nodes.size() < 2 ) continue;
+		if ( rail.Nodes().size() < 2 ) continue;
 		// 見えない骨組み（リフトのガイド等）へは乗せない
-		if ( !rail.visible && railIndex != allowHidden ) continue;
+		if ( !rail.Config().visible && railIndex != allowHidden ) continue;
 		const float length = rail.GetLength();
 		const int steps = std::clamp(( int ) ( length / 0.5f ), 2, 400);
 		for ( int s = 0; s <= steps; ++s ) {

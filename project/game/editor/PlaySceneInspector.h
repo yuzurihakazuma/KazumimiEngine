@@ -1,13 +1,5 @@
 #pragma once
-// =====================================================================
-//  PlaySceneInspector：ゲームプレイシーンが共有の「インスペクター (詳細設定)」へ足す項目。
-//   ・レール表示・カメラ視点（緑線・プレイ中カメラ・道の設定・視点プリセット）
-//   ・当たり判定のふるまい（敵に横からぶつかると弾かれるか）
-//   ・「デバッグ描画」の中の、当たり判定の形の表示
-//  エンジン側の項目・ウィンドウの開閉・グリッドは BaseScene が持つ（全シーン共通）。
-//  値そのものはシーンの各システムが持つ。ここは触る窓口だけ
-// =====================================================================
-class Camera;
+namespace KazumimiEngine { class Camera; }
 class RailField;
 class RoadMesh;
 class DissolveRoad;
@@ -17,11 +9,19 @@ class BlockSystem;
 class CombatSystem;
 class PlayerAvatar;
 
+// =====================================================================
+//  PlaySceneInspector：ゲームプレイシーンが共有の「インスペクター (詳細設定)」へ足す項目。
+//   ・レール表示・カメラ視点（緑線・プレイ中カメラ・道の設定・視点プリセット）
+//   ・当たり判定のふるまい（敵に横からぶつかると弾かれるか）
+//   ・「デバッグ描画」の中の、当たり判定の形の表示
+//  エンジン側の項目・ウィンドウの開閉・グリッドは BaseScene が持つ（全シーン共通）。
+//  値そのものはシーンの各システムが持つ。ここは触る窓口だけ
+// =====================================================================
 class PlaySceneInspector {
 public:
     // 触る対象（どれもシーンが持つ。所有しない）
     struct Targets {
-        Camera*               camera = nullptr;
+        KazumimiEngine::Camera*               camera = nullptr;
         RailField*            railField = nullptr;
         RoadMesh*             roadMesh = nullptr;
         DissolveRoad*         dissolveRoad = nullptr;

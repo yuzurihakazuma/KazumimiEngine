@@ -4,8 +4,10 @@
 #include "engine/math/struct.h"
 #include "engine/utils/Level/LevelData.h" // CoinData
 
+namespace KazumimiEngine {
 class Obj3d;
 class SplineRail;
+}
 
 // =====================================================================
 //  CoinSystem（収集物）
@@ -16,26 +18,27 @@ class SplineRail;
 class CoinSystem {
 public:
     // エディタのコイン配置とレールから実体を作り直す（レール編集のたびに呼ぶ）
-    void Sync(const std::vector<CoinData>& coinDatas, const std::vector<SplineRail>& rails);
+    void Sync(const std::vector<KazumimiEngine::CoinData>& coinDatas, const std::vector<KazumimiEngine::SplineRail>& rails);
     void ResetPlay();                                            // Play開始時：全コイン復活
-    void Update(const Vector3& playerPos, bool playMode, float dt);
+    void Update(const KazumimiEngine::Vector3& playerPos, bool playMode, float dt);
     void Draw() const;
     int CollectedCount() const{ return collected_; }
     int TotalCount() const{ return ( int ) coins_.size(); }
     // ？ブロック等から出たボーナスコイン（配置コインの総数には含まれない）
     void AddBonus(int count){ collected_ += count; }
     // 当たり判定を表示（エディタの「当たり判定を表示」）：コインの球と、コインを取る恐竜の体の筒
-    void DrawHitShapes(const Vector4& color) const;
-    static void DrawPickupBody(const Vector3& foot, const Vector4& color);
+    void DrawHitShapes(const KazumimiEngine::Vector4& color) const;
+    static void DrawPickupBody(const KazumimiEngine::Vector3& foot, const KazumimiEngine::Vector4& color);
 
 private:
+    // コイン 1 枚（位置・見た目・取ったかどうか）
     struct Coin {
-        Vector3 pos {};
-        std::unique_ptr<Obj3d> obj;
+        KazumimiEngine::Vector3 pos {};
+        std::unique_ptr<KazumimiEngine::Obj3d> obj;
         bool taken = false;
     };
-    Vector3 CurrentPos(const Coin& coin) const;
-    static bool Touches(const Vector3& foot, const Vector3& center);
+    KazumimiEngine::Vector3 CurrentPos(const Coin& coin) const;
+    static bool Touches(const KazumimiEngine::Vector3& foot, const KazumimiEngine::Vector3& center);
     std::vector<Coin> coins_;
     int   collected_ = 0;
     float spinT_ = 0.0f; // 全コイン共通の回転タイマー

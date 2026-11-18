@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace railstrip;
 
 // 途中の操作（塗り・ドラッグ）を全部やめる。レールや道具を切り替えた時に呼ぶ

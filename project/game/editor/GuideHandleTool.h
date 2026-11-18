@@ -1,4 +1,9 @@
 #pragma once
+#include "engine/math/struct.h"
+
+struct SceneEditContext;
+namespace KazumimiEngine { class RailEditor; }
+
 // =====================================================================
 //  GuideHandleTool：選択中の足場（ガイド追従で動くリフト）のガイドレールを、
 //   Game View の上で直接つかんで編集するハンドル（エディット中）。
@@ -7,11 +12,6 @@
 //   ハンドル圏内のクリックはレール選択に化けないので、モード切替や固定は不要。
 //   他の足場のガイドは RailEditOverlay が細線で場所だけ示す
 // =====================================================================
-#include "engine/math/struct.h"
-
-struct SceneEditContext;
-class RailEditor;
-
 class GuideHandleTool {
 public:
     // エディット中に毎フレーム呼ぶ

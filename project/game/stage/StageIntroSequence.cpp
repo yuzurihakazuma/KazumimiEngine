@@ -16,6 +16,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kReturnTime = 0.6f;       // カメラが後ろへ戻る時間(秒)
     constexpr float kFollowLookHeight = PlayCameraController::kLookHeight; // 通常カメラが見る高さ

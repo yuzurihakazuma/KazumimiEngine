@@ -1,11 +1,4 @@
 #pragma once
-// =====================================================================
-//  WorldMapPanel：ワールドマップの左の情報パネル（ステージ選択・飛び込み演出 企画書）。
-//   マスに立つと左からすべり込み、離れると戻る。段ボールの板（resources/worldmap/panel.png）に
-//   ステージの名前（ステージ開始カードと同じ intro_name_<stage>.png）とコインの数・コンボ花・卵スタンプを重ねる。
-//   まだ遊べないマスは panel_locked.png（？？？）だけ
-//   数字は digits.png（0〜9・/・-）を切り出して並べる（DigitStrip。スプライトなので SDF 文字より手前に出せる）
-// =====================================================================
 #include "engine/math/struct.h"
 #include "game/ui/DigitStrip.h"
 
@@ -14,8 +7,15 @@
 #include <string>
 #include <vector>
 
-class Sprite;
+namespace KazumimiEngine { class Sprite; }
 
+// =====================================================================
+//  WorldMapPanel：ワールドマップの左の情報パネル（ステージ選択・飛び込み演出 企画書）。
+//   マスに立つと左からすべり込み、離れると戻る。段ボールの板（resources/worldmap/panel.png）に
+//   ステージの名前（ステージ開始カードと同じ intro_name_<stage>.png）とコインの数・コンボ花・卵スタンプを重ねる。
+//   まだ遊べないマスは panel_locked.png（？？？）だけ
+//   数字は digits.png（0〜9・/・-）を切り出して並べる（DigitStrip。スプライトなので SDF 文字より手前に出せる）
+// =====================================================================
 class WorldMapPanel {
 public:
     WorldMapPanel();
@@ -37,9 +37,9 @@ public:
     void Draw();
 
 private:
-    std::unique_ptr<Sprite> panel_;
-    std::unique_ptr<Sprite> panelLocked_;
-    std::map<std::string, std::unique_ptr<Sprite>> names_; // ステージごとの名前（必要になった時に読む）
+    std::unique_ptr<KazumimiEngine::Sprite> panel_;
+    std::unique_ptr<KazumimiEngine::Sprite> panelLocked_;
+    std::map<std::string, std::unique_ptr<KazumimiEngine::Sprite>> names_; // ステージごとの名前（必要になった時に読む）
     DigitStrip digits_;                                    // 数字を並べる
 
     std::string stage_;

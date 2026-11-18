@@ -5,6 +5,8 @@
 #include "game/rail/RailField.h"
 #include "engine/rail/SplineRail.h"
 
+using namespace KazumimiEngine;
+
 void PlaySceneEditor::DrawPanels(const SceneEditContext& context){
 	if ( context.enemyEditor && context.editor->IsPanelVisible(EditorManager::Panel_Enemy) ) {
 		DrawEnemyEditorWindow(context);
@@ -22,7 +24,7 @@ void PlaySceneEditor::DrawEnemyEditorWindow(const SceneEditContext& context){
 	Vector3 pickNodePos {};
 	if ( context.editor->GetEditorSelectedNode(pickRail, pickNodePos) ) {
 		const auto& rails = context.Rails();
-		if ( pickRail >= 0 && pickRail < ( int ) rails.size() && rails[pickRail].nodes.size() >= 2 ) {
+		if ( pickRail >= 0 && pickRail < ( int ) rails.size() && rails[pickRail].Nodes().size() >= 2 ) {
 			pickDist = rails[pickRail].GetClosestDistance(pickNodePos);
 			hasPick = true;
 		}

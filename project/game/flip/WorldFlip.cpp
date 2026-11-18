@@ -32,6 +32,8 @@
 #include <cstdlib>
 #include <fstream>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr const char* kHitSe  = "resources/kamishibai/se_pon.wav";  // スイッチに当たった
@@ -311,7 +313,7 @@ void WorldFlip::UpdatePointAnchors(){
     if ( !context_.railField ) { return; }
     const auto& rails = context_.railField->GetRails();
     for ( FlipPoint& point : points_ ) {
-        point.valid = point.rail >= 0 && point.rail < ( int ) rails.size() && rails[point.rail].nodes.size() >= 2;
+        point.valid = point.rail >= 0 && point.rail < ( int ) rails.size() && rails[point.rail].Nodes().size() >= 2;
         if ( !point.valid ) { continue; }
         point.dist = std::clamp(point.dist, 0.0f, rails[point.rail].GetLength());
         point.pos = rails[point.rail].GetPositionByDistance(point.dist);
@@ -411,7 +413,7 @@ void WorldFlip::UpdateVisuals(bool playing){
         }
         for ( int r = 0; r < ( int ) rails.size(); ++r ) {
             const Side side = RailSide(r);
-            if ( side == Side::Both || rails[r].nodes.size() < 2 ) { continue; }
+            if ( side == Side::Both || rails[r].Nodes().size() < 2 ) { continue; }
             const Vector4 color = side == Side::Back ? Vector4 { 0.35f, 0.55f, 1.0f, 1.0f } : Vector4 { 1.0f, 0.85f, 0.25f, 1.0f };
             const float length = rails[r].GetLength();
             Vector3 prev = rails[r].GetPositionByDistance(0.0f);
@@ -472,7 +474,7 @@ void WorldFlip::RestoreDaylight(){
 bool WorldFlip::SwitchRailPoint(const Switch& sw, Vector3& outPos, Vector3& outTangent) const{
     if ( !context_.railField ) { return false; }
     const auto& rails = context_.railField->GetRails();
-    if ( sw.rail < 0 || sw.rail >= ( int ) rails.size() || rails[sw.rail].nodes.size() < 2 ) { return false; }
+    if ( sw.rail < 0 || sw.rail >= ( int ) rails.size() || rails[sw.rail].Nodes().size() < 2 ) { return false; }
     outPos = rails[sw.rail].GetPositionByDistance(sw.dist);
     const Vector3 t = rails[sw.rail].GetTangentByDistance(sw.dist);
     const float len = std::sqrt(t.x * t.x + t.z * t.z);
@@ -487,7 +489,7 @@ void WorldFlip::UpdateSwitchAnchors(){
     if ( rails.empty() ) { return; }
     const bool wasClean = savedJson_ == SaveData().dump(); // 求め直し・載せ替えは変更（＊未保存）に数えない
     for ( Switch& sw : switches_ ) {
-        if ( sw.rail >= 0 && sw.rail < ( int ) rails.size() && rails[sw.rail].nodes.size() >= 2 ) {
+        if ( sw.rail >= 0 && sw.rail < ( int ) rails.size() && rails[sw.rail].Nodes().size() >= 2 ) {
             sw.dist = std::clamp(sw.dist, 0.0f, rails[sw.rail].GetLength());
             const Vector3 p = rails[sw.rail].GetPositionByDistance(sw.dist);
             sw.pos = { p.x, p.y + sw.height, p.z };
@@ -496,7 +498,7 @@ void WorldFlip::UpdateSwitchAnchors(){
         if ( sw.rail >= 0 ) { continue; } // レールが消えた：位置はそのまま（パネルに出す）
         int best = -1; float bestDist = 0.0f, bestGap = 3.0f;
         for ( int r = 0; r < ( int ) rails.size(); ++r ) {
-            if ( rails[r].nodes.size() < 2 ) { continue; }
+            if ( rails[r].Nodes().size() < 2 ) { continue; }
             const float d = rails[r].GetClosestDistance(sw.pos);
             const Vector3 p = rails[r].GetPositionByDistance(d);
             const float gap = std::sqrt(( p.x - sw.pos.x ) * ( p.x - sw.pos.x ) + ( p.z - sw.pos.z ) * ( p.z - sw.pos.z ));
@@ -563,7 +565,7 @@ void WorldFlip::FrameEditorCamera(Camera* camera, int switchIndex, bool back) co
     Vector3 target, tangent;
     if ( !SwitchRailPoint(sw, target, tangent) ) { return; }
     const auto& rails = context_.railField->GetRails();
-    if ( back && sw.backRail >= 0 && sw.backRail < ( int ) rails.size() && rails[sw.backRail].nodes.size() >= 2 ) {
+    if ( back && sw.backRail >= 0 && sw.backRail < ( int ) rails.size() && rails[sw.backRail].Nodes().size() >= 2 ) {
         target = rails[sw.backRail].GetPositionByDistance(rails[sw.backRail].GetClosestDistance(target));
     }
     const Vector3 side = CameraSideOf(tangent);
@@ -675,7 +677,7 @@ void WorldFlip::DrawGameViewLabels(const SceneEditContext& context){
     }
     for ( int r = 0; r < ( int ) rails.size(); ++r ) {
         const Side side = RailSide(r);
-        if ( side == Side::Both || rails[r].nodes.size() < 2 ) { continue; }
+        if ( side == Side::Both || rails[r].Nodes().size() < 2 ) { continue; }
         const Vector3 mid = rails[r].GetPositionByDistance(rails[r].GetLength() * 0.5f);
         snprintf(text, sizeof(text), "%sから見るレール %d", side == Side::Back ? "裏" : "表", r);
         label({ mid.x, mid.y + 0.9f, mid.z }, text, side == Side::Back ? IM_COL32(40, 80, 170, 210) : IM_COL32(160, 120, 0, 210));

@@ -1,4 +1,11 @@
 #pragma once
+#include "game/editor/strip/StripBlockTool.h"
+#include "game/editor/strip/StripCoinTool.h"
+#include "game/editor/strip/StripContext.h"
+#include "game/editor/strip/StripEnemyTool.h"
+#include "game/editor/strip/StripLayout.h"
+#include "game/editor/strip/StripState.h"
+
 // =====================================================================
 //  StripCanvas：展開図のキャンバス（横スクロールできる子ウィンドウ）
 //   ・このフレームの寸法（StripLayout）を決める（拡大率・表示する段数・「全体」ボタン）
@@ -8,13 +15,6 @@
 //   ・下の説明行（いま指している場所）
 //   3つの道具はここが持つ。途中の操作（塗り・ドラッグ・表示の移動）をまとめてやめる窓口もここ
 // =====================================================================
-#include "game/editor/strip/StripBlockTool.h"
-#include "game/editor/strip/StripCoinTool.h"
-#include "game/editor/strip/StripContext.h"
-#include "game/editor/strip/StripEnemyTool.h"
-#include "game/editor/strip/StripLayout.h"
-#include "game/editor/strip/StripState.h"
-
 class StripCanvas {
 public:
     // 展開図の中のリンク（つながっているレールのラベル）で選ばれたレール

@@ -1,6 +1,8 @@
 #pragma once
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 namespace VectorMath {
 	// ベクトルの加算・減算
 	Vector3 Add(const Vector3& v1, const Vector3& v2);
@@ -33,3 +35,5 @@ namespace VectorMath {
 	Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);
 
 }
+
+} // namespace KazumimiEngine

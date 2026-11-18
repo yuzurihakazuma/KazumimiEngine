@@ -14,7 +14,7 @@
 #include "engine/graphics/TextureManager.h"
 #include "engine/utils/Easing.h"
 
-
+namespace KazumimiEngine {
 
 // デストラクタ
 SceneManager::SceneManager() = default;
@@ -183,3 +183,5 @@ void SceneManager::DrawCurrentSceneDebugUI(){
 		currentScene_->DrawDebugUI();
 	}
 }
+
+} // namespace KazumimiEngine

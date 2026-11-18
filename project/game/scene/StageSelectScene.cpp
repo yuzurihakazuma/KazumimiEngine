@@ -38,6 +38,8 @@
 #include <cmath>
 #include <string>
 
+using namespace KazumimiEngine;
+
 namespace {
 	constexpr float kDeltaTime = Time::kFixedDeltaTime;
 	constexpr float kPi = Math::kPi;
@@ -241,12 +243,12 @@ void StageSelectScene::BuildMap(){
 	// 道：1本の布ロード
 	road_.clear();
 	SplineRail rail;
-	rail.nodes = data_.road;
+	rail.EditNodes() = data_.road;
 	rail.BuildDistanceTable();
 	rail.AutoDetectType();
-	rail.skin.style = RailSkin::Cloth;
-	rail.skin.width = data_.roadWidth;
-	rail.skin.color = data_.roadColor;
+	rail.EditConfig().skin.style = RailSkin::Cloth;
+	rail.EditConfig().skin.width = data_.roadWidth;
+	rail.EditConfig().skin.color = data_.roadColor;
 	road_.push_back(std::move(rail));
 	RailConnections::Build(road_);
 	roadMesh_.SetJointVisible(2);

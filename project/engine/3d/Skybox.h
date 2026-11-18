@@ -5,6 +5,8 @@
 #include <string>
 #include <d3d12.h>
 
+namespace KazumimiEngine {
+
 class Camera;
 class Model;
 
@@ -26,3 +28,5 @@ private:
 	TextureData textureData_; // キューブマップテクスチャ
 	Model* model_ = nullptr;  // 描画用の球体モデル
 };
+
+} // namespace KazumimiEngine

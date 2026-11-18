@@ -5,6 +5,7 @@
 // --- エンジン側のファイル ---
 #include "engine/base/DirectXCommon.h"
 
+namespace KazumimiEngine {
 
 void SrvManager::Initialize(DirectXCommon* dxCommon){
 
@@ -161,3 +162,5 @@ void SrvManager::SetComputeRootDescriptorTable(UINT rootParamIndex, uint32_t srv
 void SrvManager::Finalize() {
 	descriptorHeaps_.Reset(); // ヒープを解放
 }
+
+} // namespace KazumimiEngine

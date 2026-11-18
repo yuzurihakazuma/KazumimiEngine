@@ -20,6 +20,8 @@
 #include <cmath>
 #include <filesystem>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr float kDeg = Math::kRadToDeg; // ラジアン → 度（掛ける）

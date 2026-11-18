@@ -33,8 +33,8 @@ namespace railstrip {
     inline constexpr const char* kInvisibleRailMessage =
         "見えないレールには新しく置けません（今ある物の移動・削除はできます）";
 
-    inline bool RailUsable(const SplineRail& rail){
-        return rail.nodes.size() >= 2 && rail.GetLength() > 0.01f;
+    inline bool RailUsable(const KazumimiEngine::SplineRail& rail){
+        return rail.Nodes().size() >= 2 && rail.GetLength() > 0.01f;
     }
     // 表示と当たりに使う距離。レールが短くなって範囲の外に残った物は、端に寄せて見せる
     inline float ShownDist(float dist, float railLength){ return std::clamp(dist, 0.0f, railLength); }

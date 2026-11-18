@@ -5,9 +5,11 @@
 #include <memory>
 #include <vector>
 
+namespace KazumimiEngine {
 class Obj3d;
 class Camera;
 class SplineRail;
+}
 
 // =====================================================================
 //  RoadRenderSlots：道の GPU 側（動的メッシュスロット＋ジョイントの Obj3d プール）の管理クラス。
@@ -23,26 +25,26 @@ public:
     ~RoadRenderSlots(); // unique_ptr<Model>/<Obj3d> のため cpp 側で定義
 
     // Build 開始：使用数と統計をリセットし、この Build で使うカメラとアトラスを覚える
-    void BeginBuild(Camera* camera, uint32_t atlasSrv);
+    void BeginBuild(KazumimiEngine::Camera* camera, uint32_t atlasSrv);
     // 生成済みメッシュを空きスロットへ書き込む（スロットが足りなければ1個だけ確保）。
     //   isJoint: ジョイントのベイクメッシュ（表示モードで描画を切替）
-    void EmitMesh(const Model::ModelData& data, int followRail, bool isJoint = false);
+    void EmitMesh(const KazumimiEngine::Model::ModelData& data, int followRail, bool isJoint = false);
     // 布ロード用：空でも必ずスロットを1つ取り、画像と色をスロットごとに決める（あとで ReplaceMesh で中身だけ差し替える）。
     //   color は掛ける色（リニア）。戻り値はスロット番号
-    size_t EmitMeshSlot(const Model::ModelData& data, int followRail, uint32_t textureSrv, const Vector4& color);
+    size_t EmitMeshSlot(const KazumimiEngine::Model::ModelData& data, int followRail, uint32_t textureSrv, const KazumimiEngine::Vector4& color);
     // スロットの中身だけ差し替える（布の展開で、伸びていくレールだけ毎フレーム作り直す）
-    void ReplaceMesh(size_t slotIndex, const Model::ModelData& data);
+    void ReplaceMesh(size_t slotIndex, const KazumimiEngine::Model::ModelData& data);
     // 動くレールのジョイント（road_joint）を Obj3d プールで1個置く（animOffset 追従が必要なため個別）
-    void PlaceMovingJoint(Model* model, const Vector3& pos, float yaw, int railIdx, const Vector3& animOffset);
+    void PlaceMovingJoint(KazumimiEngine::Model* model, const KazumimiEngine::Vector3& pos, float yaw, int railIdx, const KazumimiEngine::Vector3& animOffset);
     // Build 終了：余ったスロットは空メッシュにして描かない（バッファは保持＝次の編集で使い回す）
     void EndBuild();
     // 保持しているメッシュスロット・ジョイントスロットの全GPUリソースを解放する
     void Clear();
 
     // 毎フレーム：動くレールへの追従＋カメラ行列の焼き直し
-    void Update(const std::vector<SplineRail>& rails, bool playMode);
+    void Update(const std::vector<KazumimiEngine::SplineRail>& rails, bool playMode);
     // 全体をまとめて縮めて動かす（ステージ選択の箱庭）。設定している間は、動くレールの追従はしない（止めて見せる）
-    void SetRoot(bool active, float scale, float yaw, const Vector3& translate){
+    void SetRoot(bool active, float scale, float yaw, const KazumimiEngine::Vector3& translate){
         rootActive_ = active; rootScale_ = scale; rootYaw_ = yaw; rootTranslate_ = translate;
     }
     void Draw(bool showJoints) const;
@@ -58,17 +60,17 @@ public:
 private:
     // --- 動的メッシュスロット（VB/IB を使い回す。編集中の CreateBuffers ゼロ）---
     struct MeshSlot {
-        std::unique_ptr<Model> model;
-        std::unique_ptr<Obj3d> obj;
+        std::unique_ptr<KazumimiEngine::Model> model;
+        std::unique_ptr<KazumimiEngine::Obj3d> obj;
         int rail = -1;
         bool isJoint = false;   // ジョイントのベイクメッシュ（表示モードで描画を切替）
         bool hiddenNow = false; // 出現前の道（Update で毎フレーム判定 → Draw でスキップ）
     };
     // --- 動くレールのジョイント（road_joint）スロット。Obj3d を使い回す ---
     struct JointSlot {
-        std::unique_ptr<Obj3d> obj;
+        std::unique_ptr<KazumimiEngine::Obj3d> obj;
         int rail = -1;
-        Vector3 base {};
+        KazumimiEngine::Vector3 base {};
         bool hiddenNow = false; // 出現前の道（同上）
     };
 
@@ -77,13 +79,13 @@ private:
     std::vector<std::unique_ptr<JointSlot>> joints_;
     size_t jointsUsed_ = 0;
 
-    Camera*  camera_ = nullptr; // Build 中に使うカメラ（BeginBuild で設定）
+    KazumimiEngine::Camera*  camera_ = nullptr; // Build 中に使うカメラ（BeginBuild で設定）
     uint32_t atlasSrv_ = 0;     // 道アトラスのSRV（BeginBuild で設定）
     bool     cullNone_ = true;  // true=両面描画（従来） / false=背面カリング
     bool     rootActive_ = false;  // 箱庭（全体を縮めて置く）
     float    rootScale_ = 1.0f;
     float    rootYaw_ = 0.0f;
-    Vector3  rootTranslate_ {};
+    KazumimiEngine::Vector3  rootTranslate_ {};
 
     size_t lastVertexCount_ = 0;   // 直近 Build の総頂点数（表示用）
     size_t lastTriangleCount_ = 0; // 直近 Build の総三角形数（表示用）

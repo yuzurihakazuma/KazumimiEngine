@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     const float kConnThreshold = 0.7f; // エディタの吸着半径と同じ（吸着済みノードは動かない）
 
@@ -15,13 +17,13 @@ namespace {
     // フェーズ0：ループ（円状レール）の検出。front と back が近ければ閉じたレール
     void DetectLoops(std::vector<SplineRail>& rails){
         for ( auto& rail : rails ) {
-            rail.isLoop = false;
-            if ( rail.nodes.size() < 3 ) continue;
-            if ( VectorMath::Distance(rail.nodes.front(), rail.nodes.back()) >= kConnThreshold ) continue;
-            Vector3 mid = MidPoint(rail.nodes.front(), rail.nodes.back());
-            rail.nodes.front() = mid;
-            rail.nodes.back()  = mid;
-            rail.isLoop = true;
+            rail.EditLinks().isLoop = false;
+            if ( rail.Nodes().size() < 3 ) continue;
+            if ( VectorMath::Distance(rail.Nodes().front(), rail.Nodes().back()) >= kConnThreshold ) continue;
+            Vector3 mid = MidPoint(rail.Nodes().front(), rail.Nodes().back());
+            rail.EditNodes().front() = mid;
+            rail.EditNodes().back()  = mid;
+            rail.EditLinks().isLoop = true;
             rail.BuildDistanceTable();
         }
     }
@@ -29,25 +31,25 @@ namespace {
     // フェーズ1：最も近い端点同士で連結関係を決める（動くレールは除外）
     void FindEndConnections(std::vector<SplineRail>& rails){
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
-            if ( rails[i].isLoop || rails[i].IsLinkExcluded() || rails[i].nodes.size() < 2 ) continue;
-            const Vector3& iFront = rails[i].nodes.front();
-            const Vector3& iBack  = rails[i].nodes.back();
+            if ( rails[i].Links().isLoop || rails[i].IsLinkExcluded() || rails[i].Nodes().size() < 2 ) continue;
+            const Vector3& iFront = rails[i].Nodes().front();
+            const Vector3& iBack  = rails[i].Nodes().back();
             float bestFront = kConnThreshold;
             float bestBack  = kConnThreshold;
             for ( int j = 0; j < ( int ) rails.size(); ++j ) {
-                if ( i == j || rails[j].IsLinkExcluded() || rails[j].nodes.size() < 2 ) continue;
-                const Vector3& jFront = rails[j].nodes.front();
-                const Vector3& jBack  = rails[j].nodes.back();
+                if ( i == j || rails[j].IsLinkExcluded() || rails[j].Nodes().size() < 2 ) continue;
+                const Vector3& jFront = rails[j].Nodes().front();
+                const Vector3& jBack  = rails[j].Nodes().back();
 
                 float ff = VectorMath::Distance(iFront, jFront);
                 float fb = VectorMath::Distance(iFront, jBack);
-                if ( ff < bestFront ) { bestFront = ff; rails[i].frontConnIndex = j; rails[i].frontConnToFront = true; }
-                if ( fb < bestFront ) { bestFront = fb; rails[i].frontConnIndex = j; rails[i].frontConnToFront = false; }
+                if ( ff < bestFront ) { bestFront = ff; rails[i].EditLinks().frontConnIndex = j; rails[i].EditLinks().frontConnToFront = true; }
+                if ( fb < bestFront ) { bestFront = fb; rails[i].EditLinks().frontConnIndex = j; rails[i].EditLinks().frontConnToFront = false; }
 
                 float bf = VectorMath::Distance(iBack, jFront);
                 float bb = VectorMath::Distance(iBack, jBack);
-                if ( bf < bestBack ) { bestBack = bf; rails[i].backConnIndex = j; rails[i].backConnToFront = true; }
-                if ( bb < bestBack ) { bestBack = bb; rails[i].backConnIndex = j; rails[i].backConnToFront = false; }
+                if ( bf < bestBack ) { bestBack = bf; rails[i].EditLinks().backConnIndex = j; rails[i].EditLinks().backConnToFront = true; }
+                if ( bb < bestBack ) { bestBack = bb; rails[i].EditLinks().backConnIndex = j; rails[i].EditLinks().backConnToFront = false; }
             }
         }
     }
@@ -62,16 +64,16 @@ namespace {
         constexpr float kKeep = 0.05f; // 2番目の点の手前に残す長さ(m)
         bool moved = false;
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
-            if ( rails[i].nodes.size() < 2 ) continue;
+            if ( rails[i].Nodes().size() < 2 ) continue;
             for ( int end = 0; end < 2; ++end ) {
                 const bool isFront = ( end == 0 );
-                const int  j       = isFront ? rails[i].frontConnIndex   : rails[i].backConnIndex;
-                const bool toFront = isFront ? rails[i].frontConnToFront : rails[i].backConnToFront;
+                const int  j       = isFront ? rails[i].Links().frontConnIndex   : rails[i].Links().backConnIndex;
+                const bool toFront = isFront ? rails[i].Links().frontConnToFront : rails[i].Links().backConnToFront;
                 if ( j < 0 || j == i ) continue;
-                auto& nodes = rails[j].nodes;
+                auto& nodes = rails[j].EditNodes();
                 const size_t n = nodes.size();
                 if ( n < 3 ) continue;
-                const Vector3& tip = isFront ? rails[i].nodes.front() : rails[i].nodes.back();
+                const Vector3& tip = isFront ? rails[i].Nodes().front() : rails[i].Nodes().back();
                 Vector3& jEnd = toFront ? nodes.front() : nodes.back();
                 const Vector3& second = toFront ? nodes[1] : nodes[n - 2];
                 const Vector3& third = toFront ? nodes[2] : nodes[n - 3];
@@ -95,13 +97,13 @@ namespace {
         struct Ends { Vector3 front, back; bool valid; };
         std::vector<Ends> orig(rails.size());
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
-            if ( rails[i].nodes.size() < 2 ) { orig[i].valid = false; continue; }
-            orig[i] = { rails[i].nodes.front(), rails[i].nodes.back(), true };
+            if ( rails[i].Nodes().size() < 2 ) { orig[i].valid = false; continue; }
+            orig[i] = { rails[i].Nodes().front(), rails[i].Nodes().back(), true };
         }
         // レール j の端(front/back)が「レール i の端」を選び返しているか
         auto mutual = [&](int i, bool iIsFront, int j, bool jEndIsFront) -> bool{
-            int  jConn      = jEndIsFront ? rails[j].frontConnIndex   : rails[j].backConnIndex;
-            bool jConnFront = jEndIsFront ? rails[j].frontConnToFront : rails[j].backConnToFront;
+            int  jConn      = jEndIsFront ? rails[j].Links().frontConnIndex   : rails[j].Links().backConnIndex;
+            bool jConnFront = jEndIsFront ? rails[j].Links().frontConnToFront : rails[j].Links().backConnToFront;
             return jConn == i && jConnFront == iIsFront;
         };
 
@@ -114,15 +116,15 @@ namespace {
                 if ( !orig[i].valid ) continue;
                 for ( int end = 0; end < 2; ++end ) {
                     const bool isFront = ( end == 0 );
-                    const int  j       = isFront ? rails[i].frontConnIndex   : rails[i].backConnIndex;
-                    const bool toFront = isFront ? rails[i].frontConnToFront : rails[i].backConnToFront;
+                    const int  j       = isFront ? rails[i].Links().frontConnIndex   : rails[i].Links().backConnIndex;
+                    const bool toFront = isFront ? rails[i].Links().frontConnToFront : rails[i].Links().backConnToFront;
                     if ( j < 0 || !orig[j].valid ) continue;
                     if ( mutual(i, isFront, j, toFront) != wantMutual ) continue;
-                    Vector3& node = isFront ? rails[i].nodes.front() : rails[i].nodes.back();
+                    Vector3& node = isFront ? rails[i].EditNodes().front() : rails[i].EditNodes().back();
                     if ( wantMutual ) {
                         node = MidPoint(isFront ? orig[i].front : orig[i].back, toFront ? orig[j].front : orig[j].back);
                     } else {
-                        node = toFront ? rails[j].nodes.front() : rails[j].nodes.back();
+                        node = toFront ? rails[j].Nodes().front() : rails[j].Nodes().back();
                     }
                     moved = true;
                 }
@@ -140,26 +142,26 @@ namespace {
     //   わざと曲げた角（折れ線の向きが 45° 以上違う）と、直線でつなぐレールは、そのまま角にする。入れたら true
     bool SmoothWeldedEnds(std::vector<SplineRail>& rails){
         constexpr float kCornerCos = 0.7071f; // 45°。これ以上曲がっていたら角（乗り換えデバッガの「角」と同じ）
-        for ( auto& rail : rails ) { rail.hasFrontTangent = false; rail.hasBackTangent = false; }
+        for ( auto& rail : rails ) { rail.EditLinks().hasFrontTangent = false; rail.EditLinks().hasBackTangent = false; }
         bool changed = false;
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
             SplineRail& a = rails[i];
-            if ( a.nodes.size() < 2 || a.isLoop || a.IsLinkExcluded() || a.lineMode != 0 ) continue;
+            if ( a.Nodes().size() < 2 || a.Links().isLoop || a.IsLinkExcluded() || a.Config().lineMode != 0 ) continue;
             for ( int end = 0; end < 2; ++end ) {
                 const bool aFront = ( end == 0 );
-                const int  j      = aFront ? a.frontConnIndex : a.backConnIndex;
+                const int  j      = aFront ? a.Links().frontConnIndex : a.Links().backConnIndex;
                 if ( j <= i ) continue; // つながっていない・自分自身・相手の側で処理済み
                 SplineRail& b = rails[j];
-                if ( b.nodes.size() < 2 || b.isLoop || b.IsLinkExcluded() || b.lineMode != 0 ) continue;
-                const bool bFront = aFront ? a.frontConnToFront : a.backConnToFront;
+                if ( b.Nodes().size() < 2 || b.Links().isLoop || b.IsLinkExcluded() || b.Config().lineMode != 0 ) continue;
+                const bool bFront = aFront ? a.Links().frontConnToFront : a.Links().backConnToFront;
                 // 互いに選び合っている組だけ（片思いの端は、相手の曲線を変えない）
-                const int  backIndex = bFront ? b.frontConnIndex : b.backConnIndex;
-                const bool backFront = bFront ? b.frontConnToFront : b.backConnToFront;
+                const int  backIndex = bFront ? b.Links().frontConnIndex : b.Links().backConnIndex;
+                const bool backFront = bFront ? b.Links().frontConnToFront : b.Links().backConnToFront;
                 if ( backIndex != i || backFront != aFront ) continue;
 
-                const Vector3& joint = aFront ? a.nodes.front() : a.nodes.back();
-                const Vector3& aNext = aFront ? a.nodes[1] : a.nodes[a.nodes.size() - 2]; // つなぎ目の次の点（自分の側）
-                const Vector3& bNext = bFront ? b.nodes[1] : b.nodes[b.nodes.size() - 2]; // つなぎ目の次の点（相手の側）
+                const Vector3& joint = aFront ? a.Nodes().front() : a.Nodes().back();
+                const Vector3& aNext = aFront ? a.Nodes()[1] : a.Nodes()[a.Nodes().size() - 2]; // つなぎ目の次の点（自分の側）
+                const Vector3& bNext = bFront ? b.Nodes()[1] : b.Nodes()[b.Nodes().size() - 2]; // つなぎ目の次の点（相手の側）
                 const float lenA = VectorMath::Distance(joint, aNext), lenB = VectorMath::Distance(joint, bNext);
                 if ( lenA < 1e-3f || lenB < 1e-3f ) continue;
                 // a からつなぎ目へ入る向きと、つなぎ目から b へ出る向き
@@ -178,10 +180,10 @@ namespace {
                 // それぞれのレールの「始点→終点」の向きに直して渡す（終点側でつながる a は同じ向き、始点側なら逆。b はその反対）
                 const float signA = aFront ? -1.0f : 1.0f;
                 const float signB = bFront ? 1.0f : -1.0f;
-                ( aFront ? a.hasFrontTangent : a.hasBackTangent ) = true;
-                ( aFront ? a.frontTangent : a.backTangent ) = { through.x * signA, through.y * signA, through.z * signA };
-                ( bFront ? b.hasFrontTangent : b.hasBackTangent ) = true;
-                ( bFront ? b.frontTangent : b.backTangent ) = { through.x * signB, through.y * signB, through.z * signB };
+                ( aFront ? a.EditLinks().hasFrontTangent : a.EditLinks().hasBackTangent ) = true;
+                ( aFront ? a.EditLinks().frontTangent : a.EditLinks().backTangent ) = { through.x * signA, through.y * signA, through.z * signA };
+                ( bFront ? b.EditLinks().hasFrontTangent : b.EditLinks().hasBackTangent ) = true;
+                ( bFront ? b.EditLinks().frontTangent : b.EditLinks().backTangent ) = { through.x * signB, through.y * signB, through.z * signB };
                 changed = true;
             }
         }
@@ -196,15 +198,15 @@ namespace {
         bool moved = false;
         for ( int j = 0; j < ( int ) rails.size(); ++j ) {
             SplineRail& rj = rails[j];
-            if ( rj.nodes.size() < 2 || rj.isLoop || rj.IsLinkExcluded() ) continue;
+            if ( rj.Nodes().size() < 2 || rj.Links().isLoop || rj.IsLinkExcluded() ) continue;
             for ( int end = 0; end < 2; ++end ) {
                 const bool isFront = ( end == 0 );
-                if ( ( isFront ? rj.frontConnIndex : rj.backConnIndex ) >= 0 ) continue; // 端どうしでつながっている
-                Vector3& node = isFront ? rj.nodes.front() : rj.nodes.back();
+                if ( ( isFront ? rj.Links().frontConnIndex : rj.Links().backConnIndex ) >= 0 ) continue; // 端どうしでつながっている
+                Vector3& node = isFront ? rj.EditNodes().front() : rj.EditNodes().back();
                 for ( int i = 0; i < ( int ) rails.size(); ++i ) {
                     if ( i == j ) continue;
                     const SplineRail& ri = rails[i];
-                    if ( ri.nodes.size() < 2 || ri.IsLinkExcluded() ) continue;
+                    if ( ri.Nodes().size() < 2 || ri.IsLinkExcluded() ) continue;
                     const float len = ri.GetLength();
                     if ( len < 1.5f ) continue;
                     const float cd = ri.GetClosestDistance(node);
@@ -227,19 +229,19 @@ namespace {
     void FindBranchPoints(std::vector<SplineRail>& rails){
         for ( int j = 0; j < ( int ) rails.size(); ++j ) {
             const SplineRail& rj = rails[j];
-            if ( rj.nodes.size() < 2 || rj.isLoop || rj.IsLinkExcluded() ) continue;
+            if ( rj.Nodes().size() < 2 || rj.Links().isLoop || rj.IsLinkExcluded() ) continue;
 
             struct EndInfo { Vector3 pos; bool isFront; int connIdx; };
             const EndInfo ends[2] = {
-                { rj.nodes.front(), true,  rj.frontConnIndex },
-                { rj.nodes.back(),  false, rj.backConnIndex  },
+                { rj.Nodes().front(), true,  rj.Links().frontConnIndex },
+                { rj.Nodes().back(),  false, rj.Links().backConnIndex  },
             };
             for ( const auto& e : ends ) {
                 if ( e.connIdx >= 0 ) continue; // 端点同士で連結済みなら分岐扱いにしない
                 for ( int i = 0; i < ( int ) rails.size(); ++i ) {
                     if ( i == j ) continue;
                     SplineRail& ri = rails[i];
-                    if ( ri.nodes.size() < 2 || ri.IsLinkExcluded() ) continue;
+                    if ( ri.Nodes().size() < 2 || ri.IsLinkExcluded() ) continue;
                     float len = ri.GetLength();
                     if ( len < 1.5f ) continue;
 
@@ -252,7 +254,7 @@ namespace {
                     //   i が横レール → W/S(±Z) で分岐 / i が縦レール → D/A(±X) で分岐
                     float probe = ( std::min )( 1.0f, rj.GetLength() * 0.5f );
                     Vector3 into = rj.GetPositionByDistance(e.isFront ? probe : rj.GetLength() - probe);
-                    float cross = ( ri.type == SplineRail::RailType::Horizontal ) ? ( into.z - cp.z )
+                    float cross = ( ri.Config().type == SplineRail::RailType::Horizontal ) ? ( into.z - cp.z )
                                                                                   : ( into.x - cp.x );
                     if ( std::abs(cross) < 0.3f ) continue; // 交差方向が曖昧（ほぼ平行）→キーに割当不能
 
@@ -261,7 +263,7 @@ namespace {
                     bp.targetRail = j;
                     bp.targetDist = e.isFront ? 0.0f : rj.GetLength();
                     bp.zSign      = ( cross >= 0.0f ) ? +1 : -1;
-                    ri.branchPoints.push_back(bp);
+                    ri.EditLinks().branchPoints.push_back(bp);
                     break; // この端は登録済み。他のレールへの多重登録はしない
                 }
             }
@@ -272,12 +274,12 @@ namespace {
 void RailConnections::Build(std::vector<SplineRail>& rails){
     bool hadGhost = false;
     for ( auto& rail : rails ) {
-        rail.frontConnIndex = -1;
-        rail.backConnIndex  = -1;
-        rail.branchPoints.clear();
-        hadGhost = hadGhost || rail.hasFrontTangent || rail.hasBackTangent;
-        rail.hasFrontTangent = false;
-        rail.hasBackTangent  = false;
+        rail.EditLinks().frontConnIndex = -1;
+        rail.EditLinks().backConnIndex  = -1;
+        rail.EditLinks().branchPoints.clear();
+        hadGhost = hadGhost || rail.Links().hasFrontTangent || rail.Links().hasBackTangent;
+        rail.EditLinks().hasFrontTangent = false;
+        rail.EditLinks().hasBackTangent  = false;
     }
     if ( hadGhost ) { for ( auto& rail : rails ) { rail.BuildDistanceTable(); } } // 作り直し：前のつなぎ目の曲がりを消してから測る
     DetectLoops(rails);

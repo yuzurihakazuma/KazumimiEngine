@@ -6,6 +6,8 @@
 #include "engine/sdf/SDFAtlas.h"
 #include "engine/math/struct.h"   // Vector4
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  SDFText
 //   SDF フォントアトラスで文字列を描画するアイテム。
@@ -78,6 +80,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> transformBuffer_;
     TransformCB* transformData_ = nullptr;
 
+    // SDF 文字のシェーダーへ渡す定数バッファ（文字色・ふちの色と幅など）。GPU へ送る形
     struct ParamsCB {
         float textColor[4];
         float outlineColor[4];
@@ -116,3 +119,5 @@ private:
     uint32_t indexCount_ = 0;
     bool dirty_ = true;
 };
+
+} // namespace KazumimiEngine

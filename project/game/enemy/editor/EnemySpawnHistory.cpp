@@ -1,5 +1,7 @@
 #include "game/enemy/editor/EnemySpawnHistory.h"
 
+using namespace KazumimiEngine;
+
 void EnemySpawnHistory::Reset(const Snapshot& current){
     undoStack_.clear();
     redoStack_.clear();

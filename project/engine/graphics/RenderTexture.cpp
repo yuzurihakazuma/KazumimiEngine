@@ -5,6 +5,8 @@
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/ResourceFactory.h"
 
+namespace KazumimiEngine {
+
 RenderTexture::~RenderTexture(){
 	if ( dxCommon_ && rtvIndex_ != UINT32_MAX ) { dxCommon_->FreeRtvIndex(rtvIndex_); }
 	if ( srvManager_ && srvIndex_ != UINT32_MAX ) { srvManager_->Free(srvIndex_); }
@@ -127,3 +129,5 @@ void RenderTexture::Resize(DirectXCommon* dxCommon, SrvManager* srvManager, uint
 
 
 }
+
+} // namespace KazumimiEngine

@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     // 取る判定は見た目どおり：コイン（円盤の半径）と、恐竜の体（足元から頭までの縦の筒）が触れたら取る。
     //   前は「足元から 1.2m の球」で、頭より上・体の横 1m 先のコインまで取れていた

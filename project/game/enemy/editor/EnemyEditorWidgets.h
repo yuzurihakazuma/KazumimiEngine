@@ -3,7 +3,7 @@
 #include "externals/imgui/imgui.h"
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 // =====================================================================
 //  EnemyEditorWidgets : 敵エディタの各部（新しく置く／一覧／設定欄）で共有する小さな部品
@@ -26,7 +26,7 @@ namespace EnemyEditorWidgets {
 
     // レール選択用ドロップダウン（レール番号・タイプ・長さ・配置済み敵数を表示）
     bool DrawRailCombo(const char* label, int* railIndex,
-                       const std::vector<SplineRail>& rails, const std::vector<EnemySpawnData>& spawns);
+                       const std::vector<KazumimiEngine::SplineRail>& rails, const std::vector<EnemySpawnData>& spawns);
 
     // 距離入力（DragFloat ＋ 始点・中央・終点のクイックボタン）
     bool DrawDistanceWidget(const char* idSuffix, float* distance, float maxDist);

@@ -546,6 +546,9 @@
     <ClCompile Include="game\enemy\Enemy.cpp">
       <Filter>game\enemy</Filter>
     </ClCompile>
+    <ClCompile Include="game\enemy\EnemyBehavior.cpp">
+      <Filter>game\enemy</Filter>
+    </ClCompile>
     <ClCompile Include="game\enemy\EnemyEditor.cpp">
       <Filter>game\enemy</Filter>
     </ClCompile>
@@ -1010,9 +1013,6 @@
     <ClInclude Include="engine\utils\TextManager.h">
       <Filter>engine\utils</Filter>
     </ClInclude>
-    <ClInclude Include="engine\utils\Tween.h">
-      <Filter>engine\utils</Filter>
-    </ClInclude>
     <ClInclude Include="externals\imgui\imconfig.h">
       <Filter>externals\imgui</Filter>
     </ClInclude>
@@ -1200,6 +1200,9 @@
       <Filter>game\enemy\editor</Filter>
     </ClInclude>
     <ClInclude Include="game\enemy\Enemy.h">
+      <Filter>game\enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="game\enemy\EnemyBehavior.h">
       <Filter>game\enemy</Filter>
     </ClInclude>
     <ClInclude Include="game\enemy\EnemyEditor.h">

@@ -1,4 +1,19 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "game/gameover/GameOverScreen.h"
+#include "game/gameover/PaperSheet.h"
+
+#include <array>
+#include <d3d12.h>
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class Obj3d;
+class RenderTexture;
+}
+
 // =====================================================================
 //  GameOverSequence：ゲームオーバー演出の進行（ゲームオーバー演出 企画・仕様書 Rev 1.1）。
 //   P0 止まる        … ゲームの時間を止めて「ポン」。恐竜はやられポーズ
@@ -11,6 +26,7 @@
 //   P8 組み上げ      … 「やりなおす」：文字とボタンがしまわれ、看板が真ん中へ丸まって紙玉になり、
 //                      開くとチェックポイント（スタート）の画面が画面いっぱいに広がって、そのまま再開
 //                      「ステージをえらぶ」：紙芝居の遷移でステージ選択へ
+//   ・段ごとの中身は、段の状態クラス（PhaseState の派生。State パターン）が持つ。このクラスは今の段へ任せるだけ
 //   ・ゲームの時間は止め、演出は自分の時間（止まらない時間）で進める。カメラは写し取った所から動かさない
 //   ・P4 で見えていない間に、シーンはチェックポイントの状態へ戻しておく（死んだ瞬間を逆再生しない）
 //   ・再開の絵は、1フレームだけ再開のカメラで描いて写し取る（そのフレームは前の画面を出し直すので見えない）
@@ -18,18 +34,6 @@
 //   段の秒数・紙の大きさ・体力などは resources/gameover/gameover.json（tools/gameover/make_gameover_assets.py）
 //   ※ 企画書の P2（ガムテープ）・付箋ヒント・炎のバリエーションはまだ（後回し）
 // =====================================================================
-#include "engine/math/struct.h"
-#include "game/gameover/GameOverScreen.h"
-#include "game/gameover/PaperSheet.h"
-
-#include <d3d12.h>
-#include <memory>
-#include <vector>
-
-class Camera;
-class Obj3d;
-class RenderTexture;
-
 class GameOverSequence {
 public:
     GameOverSequence();
@@ -39,10 +43,10 @@ public:
     void Finalize();
 
     // 箱を作る範囲（ステージの地面の範囲）と、地面の上面の高さ
-    void SetStageBounds(const Vector3& min, const Vector3& max, float groundTop);
+    void SetStageBounds(const KazumimiEngine::Vector3& min, const KazumimiEngine::Vector3& max, float groundTop);
 
     // 始める。shortVersion＝2回目以降の短縮版
-    void Start(Camera* camera, bool shortVersion);
+    void Start(KazumimiEngine::Camera* camera, bool shortVersion);
     void Abort(); // 途中でやめる（エディタへ戻った時など）
     void Update(float deltaTime);
 
@@ -62,7 +66,7 @@ public:
     static constexpr float kBendPitch = -0.4f;
     bool DefeatPose(DefeatPoseData& out) const;
     // 恐竜の頭の位置（毎フレーム。星はこのまわりを回る）
-    void SetHeadPosition(const Vector3& head){ head_ = head; }
+    void SetHeadPosition(const KazumimiEngine::Vector3& head){ head_ = head; }
 
     // 体力（♡の数）と、1回のダメージで減る数（gameover.json）
     int HeartCount() const{ return hearts_; }
@@ -70,7 +74,7 @@ public:
 
     // シーンへの頼み：チェックポイントの状態へ戻して、再開のカメラを教えてほしい（P4。見えていない間）
     bool ConsumeRestoreRequest();
-    void SetResumeCamera(const Vector3& position, const Vector3& rotation, const Matrix4x4& projection);
+    void SetResumeCamera(const KazumimiEngine::Vector3& position, const KazumimiEngine::Vector3& rotation, const KazumimiEngine::Matrix4x4& projection);
     // 終わった：操作を返す（やりなおす）
     bool ConsumeFinished();
 
@@ -84,6 +88,22 @@ public:
 
 private:
     enum class Phase { None, Freeze, Reveal, Capture, Crumple, Open, Screen, Choose, ResumeShot, Unscreen, Fold, Rebuild, Leave };
+    static constexpr size_t kPhaseCount = static_cast<size_t>( Phase::Leave ) + 1;
+    // 段ごとの状態クラス（State パターン。中身は .cpp）。段に入った時・毎フレーム・次の段は、状態クラス自身が決める
+    class PhaseState;
+    class FreezeState;
+    class RevealState;
+    class CaptureState;
+    class CrumpleState;
+    class OpenState;
+    class ScreenState;
+    class ChooseState;
+    class ResumeShotState;
+    class UnscreenState;
+    class FoldState;
+    class RebuildState;
+    class LeaveState;
+    PhaseState* StateOf(Phase phase) const; // 段の状態クラス（None は nullptr）
     struct Timing { float freeze = 0.4f, reveal = 0.8f, crumple = 0.8f, open = 0.7f, screen = 0.8f, rebuild = 0.8f; };
 
     void LoadSettings();
@@ -103,6 +123,7 @@ private:
 
     // 時間・段
     Phase phase_ = Phase::None;
+    std::array<std::unique_ptr<PhaseState>, kPhaseCount> states_; // Phase と同じ並びの状態クラス
     int   warmupFrames_ = 3;
     float time_ = 0.0f;
     float speed_ = 1.0f;   // 早送り
@@ -113,35 +134,35 @@ private:
     float revealBack_ = 6.0f, revealUp_ = 3.0f, revealFov_ = 0.18f, boxRim_ = 1.4f;
 
     // シーンとのやりとり
-    Camera* camera_ = nullptr;
+    KazumimiEngine::Camera* camera_ = nullptr;
     bool restoreRequested_ = false, finished_ = false;
     bool captureRequested_ = false, captured_ = false;
     bool resumeShotRequested_ = false, resumeShotTaken_ = false;
-    Vector3 resumePosition_ {}, resumeRotation_ {};
+    KazumimiEngine::Vector3 resumePosition_ {}, resumeRotation_ {};
     float   resumeFov_ = 0.78f;
 
     // カメラ（演出が動かす）
-    Vector3 camPos_ {}, camLook_ {};
+    KazumimiEngine::Vector3 camPos_ {}, camLook_ {};
     float   camFov_ = 0.78f;
-    Vector3 startPos_ {};
+    KazumimiEngine::Vector3 startPos_ {};
     float   startFov_ = 0.78f;
-    Vector3 forward_ { 0, 0, 1 }, right_ { 1, 0, 0 }, up_ { 0, 1, 0 }; // 写し取った時のカメラの向き
+    KazumimiEngine::Vector3 forward_ { 0, 0, 1 }, right_ { 1, 0, 0 }, up_ { 0, 1, 0 }; // 写し取った時のカメラの向き
     float   aspect_ = 16.0f / 9.0f;
 
     // 紙
     PaperSheet sheet_;
-    std::unique_ptr<RenderTexture> capture_;   // 死んだ瞬間の絵
-    std::unique_ptr<RenderTexture> resume_;    // 再開する所の絵
-    std::unique_ptr<RenderTexture> previous_;  // 前のフレームの絵（再開の絵を写すフレームに出し直す）
+    std::unique_ptr<KazumimiEngine::RenderTexture> capture_;   // 死んだ瞬間の絵
+    std::unique_ptr<KazumimiEngine::RenderTexture> resume_;    // 再開する所の絵
+    std::unique_ptr<KazumimiEngine::RenderTexture> previous_;  // 前のフレームの絵（再開の絵を写すフレームに出し直す）
     bool  previousValid_ = false;
     float sheetWidth_ = 1.0f, sheetHeight_ = 1.0f;
     uint32_t boardSrv_ = 0;                    // ゲームオーバーの看板（板）の絵
-    std::unique_ptr<Obj3d> board_;             // 紙の奥の紫のフェルト（ゲームオーバーの画面の地と同じ絵。画面ぴったり）
+    std::unique_ptr<KazumimiEngine::Obj3d> board_;             // 紙の奥の紫のフェルト（ゲームオーバーの画面の地と同じ絵。画面ぴったり）
 
     // やられの演技：頭の上でくるくる回るフェルトの星
     void UpdateStars(float deltaTime);
-    std::vector<std::unique_ptr<Obj3d>> stars_;
-    Vector3 head_ {};
+    std::vector<std::unique_ptr<KazumimiEngine::Obj3d>> stars_;
+    KazumimiEngine::Vector3 head_ {};
     float   starAngle_ = 0.0f;
     float   starSize_ = 0.0f;  // 星の大きさ（出てくる途中は小さい）
     float   defeatPrev_ = 0.0f;               // 前のフレームの、演技の進み（音を1回だけ鳴らす）
@@ -151,8 +172,8 @@ private:
     int choice_ = 0; // 0＝やりなおす 1＝ステージをえらぶ
 
     // 箱（種明かし）
-    std::vector<std::unique_ptr<Obj3d>> walls_;
-    Vector3 boundsMin_ {}, boundsMax_ {};
+    std::vector<std::unique_ptr<KazumimiEngine::Obj3d>> walls_;
+    KazumimiEngine::Vector3 boundsMin_ {}, boundsMax_ {};
     float groundTop_ = 0.0f;
     bool hasBounds_ = false;
 };

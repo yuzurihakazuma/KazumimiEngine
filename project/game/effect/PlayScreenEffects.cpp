@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+using namespace KazumimiEngine;
+
 using namespace MatrixMath;
 
 namespace {

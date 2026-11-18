@@ -1,13 +1,4 @@
 #pragma once
-// =====================================================================
-//  StageRecords：ステージごとの記録（ゲームを動かしている間だけ。ファイルには残さない）
-//   ・bestCoins     … 1回のプレイでためたコインのいちばん多い数
-//   ・comboFlowers  … 見つけたコンボ花（コンボの的ごとの名前）。一度見つけたら、やり直しても残る
-//   ・clearCount    … クリアした回数（2 回目からクリア演出を縮める・ワールドマップで次のマスへ道が伸びる）
-//   ・stars         … 取った星（リザルトの 3 行ごとの名前。1 ステージに 3 つ）。一度取ったら残る
-//   本編（GamePlayScene / EggCombo / ClearFlow）が書き、ワールドマップ（StageSelectScene → WorldMapPanel）が読む
-//   ヘッダだけ（.cpp は無い）
-// =====================================================================
 #include "externals/nlohmann/json.hpp"
 #include "engine/utils/JsonFile.h"
 #include "engine/base/Singleton.h"
@@ -18,6 +9,7 @@
 #include <string>
 #include <vector>
 
+// ステージ 1 つぶんの記録（コインの最高・見つけたコンボ花・クリアした回数・取った星）
 struct StageRecord {
     int bestCoins = 0;
     std::set<std::string> comboFlowers;
@@ -26,8 +18,17 @@ struct StageRecord {
     bool hanamaru = false;          // 全部そろえて、花丸をもらった
 };
 
-class StageRecords : public Singleton<StageRecords> {
-	friend class Singleton<StageRecords>; // 土台（Singleton）だけが作れる
+// =====================================================================
+//  StageRecords：ステージごとの記録（ゲームを動かしている間だけ。ファイルには残さない）
+//   ・bestCoins     … 1回のプレイでためたコインのいちばん多い数
+//   ・comboFlowers  … 見つけたコンボ花（コンボの的ごとの名前）。一度見つけたら、やり直しても残る
+//   ・clearCount    … クリアした回数（2 回目からクリア演出を縮める・ワールドマップで次のマスへ道が伸びる）
+//   ・stars         … 取った星（リザルトの 3 行ごとの名前。1 ステージに 3 つ）。一度取ったら残る
+//   本編（GamePlayScene / EggCombo / ClearFlow）が書き、ワールドマップ（StageSelectScene → WorldMapPanel）が読む
+//   ヘッダだけ（.cpp は無い）
+// =====================================================================
+class StageRecords : public KazumimiEngine::Singleton<StageRecords> {
+	friend class KazumimiEngine::Singleton<StageRecords>; // 土台（Singleton）だけが作れる
 public:
     StageRecord& Get(const std::string& stage){ return records_[stage]; }
 
@@ -91,8 +92,8 @@ public:
             }
         };
         json root;
-        if ( JsonFile::Load(dir + "_backdrop.json", root) ) { countIn(root.value("objects", json::array()), 1); }
-        if ( JsonFile::Load(dir + "_backdrop_edit.json", root) ) {
+        if ( KazumimiEngine::JsonFile::Load(dir + "_backdrop.json", root) ) { countIn(root.value("objects", json::array()), 1); }
+        if ( KazumimiEngine::JsonFile::Load(dir + "_backdrop_edit.json", root) ) {
             countIn(root.value("added", json::array()), 1);
             countIn(root.value("removed", json::array()), -1);
         }

@@ -6,6 +6,8 @@
 #include <memory>
 #include <source_location>
 
+namespace KazumimiEngine {
+
 // ルートシグネチャを簡単に構築するための便利クラス
 class RootSignatureBuilder {
 
@@ -44,3 +46,5 @@ private:
     std::vector<D3D12_STATIC_SAMPLER_DESC> samplers_;
 
 };
+
+} // namespace KazumimiEngine

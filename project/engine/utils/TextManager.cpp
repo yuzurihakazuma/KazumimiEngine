@@ -17,6 +17,8 @@
 #include "engine/base/WindowProc.h"
 #include "engine/graphics/SrvManager.h"
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 // --- UTF-8 から wstring(ワイド文字列) への変換ヘルパー関数 ---
@@ -262,3 +264,5 @@ void TextManager::Finalize(){
 	resourceDescriptors_.reset();
 	graphicsMemory_.reset();
 }
+
+} // namespace KazumimiEngine

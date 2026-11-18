@@ -7,6 +7,9 @@
 #include "engine/utils/Level/RailEditor.h" // SnapTarget（自動スナップ接続 §5）
 
 struct ImVec2; // ImGui の 2D の点（Game View の四角を渡すのに使う。中身は imgui.h）
+
+namespace KazumimiEngine {
+
 class LevelEditor;
 class BlenderImporter;
 class Camera;
@@ -385,3 +388,5 @@ private:
     EngineMode currentMode_ = EngineMode::Play;
 #endif
 };
+
+} // namespace KazumimiEngine

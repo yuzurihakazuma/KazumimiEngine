@@ -1,4 +1,22 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "engine/utils/Signal.h"
+#include "game/gameover/GameOverSequence.h"
+#include "game/ui/HeartRing.h"
+
+#include <d3d12.h>
+#include <functional>
+#include <memory>
+
+namespace KazumimiEngine { class Camera; }
+class Player;
+class PlayerAvatar;
+class PlayCameraController;
+class PlayScreenEffects;
+class RailField;
+namespace KazumimiEngine { class RenderTexture; }
+class StageBackdrop;
+
 // =====================================================================
 //  GameOverFlow：体力（♡）とゲームオーバーの流れを1つにまとめた物。ゲームシーンはこれを決まった所で呼ぶだけ。
 //   ・♡（HeartRing）：敵に弾かれた・穴に落ちたら減る。残っていれば落ちた時はスタートへ戻す（円を閉じて開く）
@@ -9,24 +27,6 @@
 //   ・インスペクターの「体力・ゲームオーバー」
 //  ステージの物（敵・コイン・ブロック・卵など）を戻す中身は、シーンが Context::resetStage で渡す
 // =====================================================================
-#include "engine/math/struct.h"
-#include "engine/utils/Signal.h"
-#include "game/gameover/GameOverSequence.h"
-#include "game/ui/HeartRing.h"
-
-#include <d3d12.h>
-#include <functional>
-#include <memory>
-
-class Camera;
-class Player;
-class PlayerAvatar;
-class PlayCameraController;
-class PlayScreenEffects;
-class RailField;
-class RenderTexture;
-class StageBackdrop;
-
 class GameOverFlow {
 public:
     // シーンの部品（持たない。シーンの方が長生き）
@@ -36,7 +36,7 @@ public:
         RailField*            railField = nullptr;
         PlayCameraController* camCtrl = nullptr;
         PlayScreenEffects*    screenFx = nullptr;
-        Camera*               camera = nullptr;
+        KazumimiEngine::Camera*               camera = nullptr;
         float                 farClip = 200.0f;          // 再開のカメラの遠くの見える限界（プレイ中のカメラと同じに）
         std::function<void()> resetStage;                 // 敵・コイン・？ブロック・卵・構え・舌を、プレイ開始の時と同じに戻す
         std::function<void()> onRespawn;                  // 落ちて♡が残っていた：スタートへ戻す時（カメラを表へ戻すなど）
@@ -57,7 +57,7 @@ public:
     // 当たり判定の後：ぶつかった・落ちた → ♡が減る。ゲームオーバーになったら true
     bool UpdateAfterCombat();
     // 見た目（恐竜の見た目の更新の前に呼ぶ）：やられポーズと、♡の輪の位置
-    void UpdateVisuals(bool playing, const Vector3& playerPos);
+    void UpdateVisuals(bool playing, const KazumimiEngine::Vector3& playerPos);
 
     // ♡を戻す（卵のコンボで ×8 を出した時など）。演出中は戻さない
     void Heal(int amount){ if ( !IsActive() ) { hearts_.Heal(amount); } }
@@ -66,7 +66,7 @@ public:
     int Hearts() const{ return hearts_.Count(); }
     int MaxHearts() const{ return hearts_.Max(); }
     // ダメージを受けた知らせ（ぶつかった・落ちた）。集計係（StageTally）が受け取る
-    Signal<>& OnDamaged(){ return onDamaged_; }
+    KazumimiEngine::Signal<>& OnDamaged(){ return onDamaged_; }
     // ♡の輪をすぐ隠す（クリア演出の間など）
     void HideHearts(){ hearts_.HideNow(); }
     // とどめのスローの途中か（この間にゴールしても、クリアにはしない）
@@ -77,7 +77,7 @@ public:
     void DrawTransparent(){ sequence_.DrawTransparent(); } // やられの演技の星
     // スプライト：演出中はゲームオーバーの画面を描いて true（HUD は出さない）。そうでなければ ♡ を描いて false
     bool DrawUI(bool playing);
-    void OnFrameComposed(ID3D12GraphicsCommandList* commandList, RenderTexture* finalTarget);
+    void OnFrameComposed(ID3D12GraphicsCommandList* commandList, KazumimiEngine::RenderTexture* finalTarget);
     void DrawInspector(bool playing);
 
 private:
@@ -91,9 +91,9 @@ private:
     Context context_;
     HeartRing hearts_;
     GameOverSequence sequence_;
-    std::unique_ptr<Camera> resumeCamera_; // 再開する所のカメラを求める（画面には出さない）
+    std::unique_ptr<KazumimiEngine::Camera> resumeCamera_; // 再開する所のカメラを求める（画面には出さない）
     bool defeatPoseApplied_ = false;
-    Signal<> onDamaged_;
+    KazumimiEngine::Signal<> onDamaged_;
     bool  dying_ = false;     // とどめを受けてからゲームオーバー演出までの間（スロー → 着地待ち）
     float dyingTime_ = 0.0f;  // その経過(実時間の秒)
     static inline int gameOverCount_ = 0;   // このステージでのゲームオーバーの回数（2回目から短縮版）

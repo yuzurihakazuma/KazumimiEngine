@@ -1,4 +1,16 @@
 #pragma once
+#include "game/ui/DigitStrip.h"
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include <d3d12.h>
+
+namespace KazumimiEngine { class Sprite; }
+class EggSystem;
+class CoinSystem;
+
 // =====================================================================
 //  GameHud：プレイ中の画面表示（左上）。
 //   ワールドマップの情報パネル・ゲームオーバーの画面と同じ、段ボールの札とフェルトの部品・ふち付きの太い数字にそろえる：
@@ -9,18 +21,6 @@
 //  素材は tools/hud/make_hud_assets.py → resources/ui/hud_*.png
 //  表示するだけ。数はそれぞれのシステム（EggSystem / CoinSystem）が持つ
 // =====================================================================
-#include "game/ui/DigitStrip.h"
-
-#include <memory>
-#include <string>
-#include <vector>
-
-#include <d3d12.h>
-
-class Sprite;
-class EggSystem;
-class CoinSystem;
-
 class GameHud {
 public:
     GameHud();
@@ -41,23 +41,23 @@ public:
 private:
     // 数字の絵を並べる（x,y＝左端・真ん中の高さ。1080p 基準）。並べ終わりの x を返す
     float DrawNumber(const std::string& text, float x, float y, float height);
-    void Place(Sprite* sprite, float x, float y, float width, float height, float alpha = 1.0f);
+    void Place(KazumimiEngine::Sprite* sprite, float x, float y, float width, float height, float alpha = 1.0f);
 
-    std::unique_ptr<Sprite> board_;      // 札の上（ふちと点線）
-    std::unique_ptr<Sprite> boardMid_;   // 札の真ん中（ここだけ縦に伸ばす）
-    std::unique_ptr<Sprite> boardBottom_; // 札の下（点線とふち）
+    std::unique_ptr<KazumimiEngine::Sprite> board_;      // 札の上（ふちと点線）
+    std::unique_ptr<KazumimiEngine::Sprite> boardMid_;   // 札の真ん中（ここだけ縦に伸ばす）
+    std::unique_ptr<KazumimiEngine::Sprite> boardBottom_; // 札の下（点線とふち）
     void DrawBoard(float x, float y, float width, float height);
-    std::unique_ptr<Sprite> coin_;
-    std::unique_ptr<Sprite> comboLabel_;
-    std::unique_ptr<Sprite> flower_;
-    std::unique_ptr<Sprite> comboFlower_;
+    std::unique_ptr<KazumimiEngine::Sprite> coin_;
+    std::unique_ptr<KazumimiEngine::Sprite> comboLabel_;
+    std::unique_ptr<KazumimiEngine::Sprite> flower_;
+    std::unique_ptr<KazumimiEngine::Sprite> comboFlower_;
     int   comboFlowers_ = 0, comboFlowerTotal_ = 0;
     float comboFlowerPop_ = 0.0f;
     int   combo_ = 0;
     float comboAlpha_ = 0.0f, comboPop_ = 0.0f;
     int   flowers_ = 0, flowerTotal_ = 0;
     float flowerPop_ = 0.0f;
-    std::vector<std::unique_ptr<Sprite>> eggs_, emptyEggs_, belly_;
+    std::vector<std::unique_ptr<KazumimiEngine::Sprite>> eggs_, emptyEggs_, belly_;
     DigitStrip digits_;                  // 数字の絵を並べる（ワールドマップのパネル・リザルト画面と同じ部品）
 
     int held_ = 0, belly_count_ = 0, coins_ = 0, coinTotal_ = 0;

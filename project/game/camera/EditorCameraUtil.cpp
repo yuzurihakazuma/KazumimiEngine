@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
 	// カメラの回転（pitch, yaw）から前方向を求める
 	Vector3 ForwardOf(const Camera& camera){
@@ -18,7 +20,7 @@ namespace EditorCameraUtil {
 
 void FocusOnRail(Camera& camera, const std::vector<SplineRail>& rails,
                  int railIndex, float distance, float height){
-	if ( railIndex < 0 || railIndex >= ( int ) rails.size() || rails[railIndex].nodes.size() < 2 ) return;
+	if ( railIndex < 0 || railIndex >= ( int ) rails.size() || rails[railIndex].Nodes().size() < 2 ) return;
 	Vector3 target = rails[railIndex].GetPositionByDistance(distance);
 	target.y += height;
 	Vector3 forward = ForwardOf(camera);
@@ -33,7 +35,7 @@ void TopView(Camera& camera, const std::vector<SplineRail>& rails){
 	bool hasBounds = false;
 	Vector3 minPos {}, maxPos {};
 	for ( const auto& rail : rails ) {
-		for ( const auto& node : rail.nodes ) {
+		for ( const auto& node : rail.Nodes() ) {
 			if ( !hasBounds ) { minPos = maxPos = node; hasBounds = true; continue; }
 			minPos = { ( std::min )( minPos.x, node.x ), ( std::min )( minPos.y, node.y ), ( std::min )( minPos.z, node.z ) };
 			maxPos = { ( std::max )( maxPos.x, node.x ), ( std::max )( maxPos.y, node.y ), ( std::max )( maxPos.z, node.z ) };

@@ -5,8 +5,10 @@
 #include <array>
 #include <vector>
 
+namespace KazumimiEngine {
 class Camera;
 class SplineRail;
+}
 struct RoadCut;
 struct RoadJunction;
 
@@ -34,10 +36,10 @@ class RoadMesh {
 public:
     // レールに沿って道を生成し直す（RailField::Sync の直後に呼ぶ）。
     // simple=true はドラッグ中の軽量プレビュー（マウスアップ後に false で本生成する）
-    void Build(const std::vector<SplineRail>& rails, Camera* camera, bool simple = false);
+    void Build(const std::vector<KazumimiEngine::SplineRail>& rails, KazumimiEngine::Camera* camera, bool simple = false);
 
     // 毎フレーム：動くレールへの追従＋カメラ行列の焼き直し（Edit/Play共通で呼ぶ）
-    void Update(const std::vector<SplineRail>& rails);
+    void Update(const std::vector<KazumimiEngine::SplineRail>& rails);
 
     void Draw() const;
     void Clear(){ slots_.Clear(); clothSlots_.Clear(); clothSlotOfRail_.clear(); }
@@ -47,12 +49,12 @@ public:
     //   front<0 は全部敷く（ふつう）。毎フレーム呼んでよい（変わったレールだけ作り直す）
     void SetUnroll(int originRail, float originDist, float front);
     // 全体をまとめて縮めて置く（ステージ選択の箱庭）。active=false で元のまま
-    void SetRoot(bool active, float scale, float yaw, const Vector3& translate){
+    void SetRoot(bool active, float scale, float yaw, const KazumimiEngine::Vector3& translate){
         slots_.SetRoot(active, scale, yaw, translate);
         clothSlots_.SetRoot(active, scale, yaw, translate);
     }
     // 布の見た目の再生成（展開率が変わったレールだけ）。Update の前に呼ぶ
-    void UpdateCloth(const std::vector<SplineRail>& rails);
+    void UpdateCloth(const std::vector<KazumimiEngine::SplineRail>& rails);
 
     int  TileCount() const { return ( int ) slots_.TileCount(); }
 
@@ -80,19 +82,19 @@ public:
 private:
     // ジャンクション（丸広場/溶接/T字/十字）の検出→パッチ・コネクタ生成→ジョイント配置。
     // 各レールの「掃引しない区間」も cuts に決まる
-    void BuildJunctions(const std::vector<SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
+    void BuildJunctions(const std::vector<KazumimiEngine::SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
 
     // ジャンクションのジョイント（road_joint）配置
-    void PlaceJoints(const std::vector<SplineRail>& rails, const RoadJunction& junc);
-    void PlaceJointPiece(const std::vector<SplineRail>& rails, int railIdx, const Vector3& railPos, float yaw);
+    void PlaceJoints(const std::vector<KazumimiEngine::SplineRail>& rails, const RoadJunction& junc);
+    void PlaceJointPiece(const std::vector<KazumimiEngine::SplineRail>& rails, int railIdx, const KazumimiEngine::Vector3& railPos, float yaw);
 
     RoadRenderSlots slots_; // 掃引メッシュ/パッチ/ジョイントの GPU スロット
 
     // --- 布ロード ---
-    void BuildCloth(const std::vector<SplineRail>& rails, Camera* camera);
-    void ComputePathDistances(const std::vector<SplineRail>& rails);
+    void BuildCloth(const std::vector<KazumimiEngine::SplineRail>& rails, KazumimiEngine::Camera* camera);
+    void ComputePathDistances(const std::vector<KazumimiEngine::SplineRail>& rails);
     // レールの敷く範囲（展開率から）。全部なら {0,len}
-    void ClothRanges(const std::vector<SplineRail>& rails, int railIndex, std::vector<float>& out) const;
+    void ClothRanges(const std::vector<KazumimiEngine::SplineRail>& rails, int railIndex, std::vector<float>& out) const;
     RoadRenderSlots clothSlots_;
     std::vector<int>   clothSlotOfRail_;   // レール → 布のスロット（-1=布なし）
     std::vector<float> clothLift_;         // レールごとの重なりの高さ（つなぎ目で隣と同じ高さにならないように）

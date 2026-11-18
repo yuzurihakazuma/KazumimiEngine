@@ -10,6 +10,8 @@
 #include <cmath>
 #include <cstdio>
 
+using namespace KazumimiEngine;
+
 using namespace railstrip;
 
 // 途中の塗り・移動をやめる。レールや道具・横の位置を切り替えた時に呼ぶ
@@ -62,7 +64,7 @@ bool StripBlockTool::CanPlaceBlock(const StripContext& context, const StripState
         return false;
     }
     // ループ（始点と終点がつながったレール）：つなぎ目をまたいで重なる置き方も止める
-    if ( rail.isLoop ) {
+    if ( rail.Links().isLoop ) {
         const auto& blocks = context.railEditor->GetBlocks();
         const float newHalf = RailEditor::BlockOccupyHalfOf(type);
         for ( int i = 0; i < ( int ) blocks.size(); ++i ) {
@@ -104,7 +106,7 @@ void StripBlockTool::ApplyBlockStroke(const StripContext& context, const StripSt
     const int paintType = railEditor->GetBlockPaintType();
     if ( stroke_ == StrokeKind::Place ) {
         const float dist = ( float ) cellDist;
-        if ( ( *context.rails )[state.currentRail].visible && CanPlaceBlock(context, state, dist, level, paintType) ) {
+        if ( ( *context.rails )[state.currentRail].Config().visible && CanPlaceBlock(context, state, dist, level, paintType) ) {
             railEditor->AddBlock(state.currentRail, dist, level, ( float ) state.sideLayer, paintType);
         }
     } else if ( stroke_ == StrokeKind::Replace || stroke_ == StrokeKind::Erase ) {
@@ -131,7 +133,7 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
     const int paintType = railEditor->GetBlockPaintType();
     // 見えないレール（連結用の骨組み）には新しく置かない。今ある物の移動・塗り替え・削除はできる
     //   （Game View のブロック配置も見えないレールには置かない。同じ決まりにそろえる）
-    const bool placementAllowed = rail.visible;
+    const bool placementAllowed = rail.Config().visible;
 
     // マウスが指しているマス
     const float mouseDist = layout.XToDist(io.MousePos.x);

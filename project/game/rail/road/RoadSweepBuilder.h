@@ -24,11 +24,11 @@ public:
     // レール1本ぶんの掃引メッシュを out へ追加する（cuts の区間は張らない）。
     //   capFront/capBack: 自由端に平らな暗色フタを張る（丸い road_end の代わり）
     // extendFront / extendBack＝端の先へ水平に伸ばす長さ(m)（坂の付け根の角の踊り場。伸ばした先にはフタを付ける）
-    void Build(const SplineRail& rail, const std::vector<RoadCut>& cuts, bool simple,
+    void Build(const KazumimiEngine::SplineRail& rail, const std::vector<RoadCut>& cuts, bool simple,
                bool capFront, bool capBack, RoadMeshBuilder& out, float extendFront = 0.0f, float extendBack = 0.0f) const;
 
     // nodes＝つなぎ目をはさんでレールの上から取った点。keepFrom〜keepTo 番目の間だけ面を張る
-    void BuildConnector(const std::vector<Vector3>& nodes, int keepFrom, int keepTo, RoadMeshBuilder& out) const;
+    void BuildConnector(const std::vector<KazumimiEngine::Vector3>& nodes, int keepFrom, int keepTo, RoadMeshBuilder& out) const;
 
 private:
     // 断面を置く位置（リング）。slope=坂UV / danger=危険帯UV
@@ -36,14 +36,14 @@ private:
     struct Ring { float s; bool slope; bool danger; float beyond = 0.0f; };
     // リング間の区間の分類：描く / 穴 / ジャンクションの切り詰め / 二重リング
     enum class Seg { Draw, Hole, Cut, Degen };
-    using Holes = std::vector<SplineRail::HoleInterval>;
+    using Holes = std::vector<KazumimiEngine::SplineRail::HoleInterval>;
 
     // 距離 s が危険帯（穴の手前後 warnLength_）か
     bool DangerAt(const Holes& holes, float s) const;
 
     // 1. リング位置の決定（簡易＝固定1m / 本生成＝曲率適応＋坂UVヒステリシス＋境界リング）
     static std::vector<Ring> PlaceSimpleRings(float len);
-    std::vector<Ring> PlaceAdaptiveRings(const SplineRail& rail, float len, const Holes& holes) const;
+    std::vector<Ring> PlaceAdaptiveRings(const KazumimiEngine::SplineRail& rail, float len, const Holes& holes) const;
     void InsertBoundaryRings(std::vector<Ring>& rings, float len, const std::vector<RoadCut>& cuts,
                              const Holes& holes) const;
 
@@ -52,7 +52,7 @@ private:
                                              const Holes& holes);
 
     // 5. 切り口（穴の境界・自由端）に暗色の平らなフタを張る
-    static void EmitDarkCap(const SplineRail& rail, float s, const std::array<Vector3, 12>& ringPos,
+    static void EmitDarkCap(const KazumimiEngine::SplineRail& rail, float s, const std::array<KazumimiEngine::Vector3, 12>& ringPos,
                             float facing, RoadMeshBuilder& out);
 
     float warnLength_ = 1.0f; // 穴の手前後に危険帯（赤ストライプ・上面のみ）を敷く長さ(m)

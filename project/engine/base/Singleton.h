@@ -1,4 +1,7 @@
 #pragma once
+
+namespace KazumimiEngine {
+
 // =====================================================================
 //  Singleton<T>：プログラムに 1 つだけの物（シングルトン）の、共通の土台。クラステンプレート（CRTP）。
 //   前は、どのマネージャも同じ 3 つを自分で書いていた：
@@ -35,3 +38,5 @@ protected:
     Singleton() = default;
     ~Singleton() = default;
 };
+
+} // namespace KazumimiEngine

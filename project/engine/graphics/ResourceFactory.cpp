@@ -3,6 +3,7 @@
 // --- 標準ライブラリ ---
 #include <cassert>
 
+namespace KazumimiEngine {
 
 // 指定されたバイトサイズのバッファリソース（Upload Heap）を生成する
 Microsoft::WRL::ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uint64_t sizeInBytes){
@@ -128,3 +129,5 @@ void ResourceFactory::Finalize(){
 
 	device_.Reset();
 }
+
+} // namespace KazumimiEngine

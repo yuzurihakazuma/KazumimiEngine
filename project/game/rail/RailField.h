@@ -6,8 +6,10 @@
 #include <vector>
 #include <cstdint>
 
+namespace KazumimiEngine {
 class Camera;
 class EditorManager;
+}
 
 // =====================================================================
 //  RailField：実行時のレール管理。
@@ -23,7 +25,7 @@ public:
     // エディタ保持の最新レールから rails_ を作り直し、マーカーも再構築する。
     //   camera        : マーカーに割り当てるカメラ（描画用）
     //   whiteTexIndex : 単色化用の白テクスチャの SRV インデックス（0=未使用）
-    void Sync(Camera* camera, uint32_t whiteTexIndex);
+    void Sync(KazumimiEngine::Camera* camera, uint32_t whiteTexIndex);
 
     // 動くレールを進める（プレイヤー更新より先に呼ぶ）。
     //   ridingRail: プレイヤーが今乗っているレール番号（「乗ったら動き出す」レールの発動判定。
@@ -35,7 +37,7 @@ public:
     //   keepRolls＝渡し板「ころころ」を広げたままにする（落ちて戻った時）
     void ResetMotion(bool keepRolls = false);
     // 卵 × 渡し板「ころころ」の巻いたマット。当たったら広がり始めて true（卵を割る）
-    bool HitRoll(const Vector3& from, const Vector3& to, float radius);
+    bool HitRoll(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, float radius);
     bool HasRolls() const;
     // 動くレールのエディタプレビュー：Playを押さなくても動きを再生して組み方を確認できる。
     //   enabled が false に変わった瞬間に基準位置へ戻す（編集と表示がずれないように）。Edit中に毎フレーム呼ぶ
@@ -48,7 +50,7 @@ public:
     void RebuildMarkers(){ markers_.Build(rails_, camera_, whiteTexIndex_); } // マーカーだけ作り直す（デバッグUI用）
 
     // ゲーム側が参照する実行時レール
-    const std::vector<SplineRail>& GetRails() const { return rails_; }
+    const std::vector<KazumimiEngine::SplineRail>& GetRails() const { return rails_; }
 
     int  Version() const { return lastVersion_; }       // 直近に同期したエディタの編集世代
     int  MarkerCount() const { return markers_.Count(); }
@@ -62,20 +64,20 @@ public:
     int   GetGoalRail() const { return goalRail_; }
     float GetGoalDistance() const { return goalDist_; }
     // ゴールの現在ワールド座標（動くレール上でも追従する）
-    Vector3 GetGoalPos() const {
+    KazumimiEngine::Vector3 GetGoalPos() const {
         if ( !HasGoal() ) return { 0.0f, 0.0f, 0.0f };
         return rails_[goalRail_].GetPositionByDistance(goalDist_);
     }
 
 private:
     // --- Sync の段階（エディタの並列配列からレールごとの設定を写す）---
-    void BuildRailsFromEditor(const EditorManager& editor);
-    void ApplyMotionSettings(const EditorManager& editor); // 連結処理より先（HasMotion を判定に使う）
-    void ApplyRailTypes(const EditorManager& editor);      // 連結処理より先（分岐キーの割当が type を見る）
-    void ApplySurfaceSettings(const EditorManager& editor);
-    void ResolveStartGoal(const EditorManager& editor);
+    void BuildRailsFromEditor(const KazumimiEngine::EditorManager& editor);
+    void ApplyMotionSettings(const KazumimiEngine::EditorManager& editor); // 連結処理より先（HasMotion を判定に使う）
+    void ApplyRailTypes(const KazumimiEngine::EditorManager& editor);      // 連結処理より先（分岐キーの割当が type を見る）
+    void ApplySurfaceSettings(const KazumimiEngine::EditorManager& editor);
+    void ResolveStartGoal(const KazumimiEngine::EditorManager& editor);
 
-    std::vector<SplineRail> rails_; // 実行用レール本体
+    std::vector<KazumimiEngine::SplineRail> rails_; // 実行用レール本体
     RailMarkers markers_;           // 緑線
 
     int   lastVersion_ = -1;        // 直近に同期したエディタ編集世代
@@ -86,6 +88,6 @@ private:
     int   startRail_ = 0;   float startDist_ = 0.0f;
     int   goalRail_  = -1;  float goalDist_  = 0.0f;
 
-    Camera*  camera_ = nullptr;    // 直近 Sync のカメラ（マーカー生成・再構築に使う）
+    KazumimiEngine::Camera*  camera_ = nullptr;    // 直近 Sync のカメラ（マーカー生成・再構築に使う）
     uint32_t whiteTexIndex_ = 0;   // 単色化用テクスチャ
 };

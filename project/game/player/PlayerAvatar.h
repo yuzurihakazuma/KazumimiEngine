@@ -1,4 +1,20 @@
 #pragma once
+#include "engine/math/struct.h"
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
+namespace KazumimiEngine {
+class SkinnedObj3d;
+class Obj3d;
+}
+class Player;
+class RailField;
+class SwallowAbility;
+class AimThrowController;
+class EggSystem;
+
 // =====================================================================
 //  PlayerAvatar：プレイヤーの見た目（リグ付きマスコット resources/player/player.gltf）。
 //   ・Play中はプレイヤーに追従、Edit中はスタート地点に立たせてプレビューする
@@ -7,20 +23,6 @@
 //   ・敵にぶつかった後の無敵中は点滅させる
 //  当たり判定や移動は Player が持つ。ここは「どう見せるか」だけ
 // =====================================================================
-#include "engine/math/struct.h"
-
-#include <cstdint>
-#include <memory>
-#include <string>
-
-class SkinnedObj3d;
-class Obj3d;
-class Player;
-class RailField;
-class SwallowAbility;
-class AimThrowController;
-class EggSystem;
-
 class PlayerAvatar {
 public:
     PlayerAvatar();
@@ -55,7 +57,7 @@ public:
     void ClearIntroClip();
     const std::string& GetIntroClip() const{ return introClip_; }
     // ボーンの世界での位置（キラキラを頭の上に出すなど）
-    bool GetJointWorldPosition(const std::string& joint, Vector3& out) const;
+    bool GetJointWorldPosition(const std::string& joint, KazumimiEngine::Vector3& out) const;
     // 上から落ちてくる演出（ワールドマップから飛び込んだ時）：見た目だけ持ち上げ・着地でつぶす。
     //   lift＝足元からの高さ(m)、squash＝縦の縮み（1=そのまま。横はその分ふくらむ）
     void SetDropPose(float lift, float squash){ dropLift_ = lift; dropSquash_ = squash; }
@@ -70,11 +72,11 @@ private:
     void SelectClip(const Context& context, float speedRatio);
     void ResetTongueAndHeldEgg();
 
-    std::unique_ptr<SkinnedObj3d> model_;
-    std::unique_ptr<Obj3d>        heldEgg_;    // 構え中に Item ジョイントへ持たせる卵の見た目
+    std::unique_ptr<KazumimiEngine::SkinnedObj3d> model_;
+    std::unique_ptr<KazumimiEngine::Obj3d>        heldEgg_;    // 構え中に Item ジョイントへ持たせる卵の見た目
     bool    heldEggVisible_ = false;
 
-    Vector3 prevPos_ {};                // 前フレームの見た目位置（移動速度の算出用）
+    KazumimiEngine::Vector3 prevPos_ {};                // 前フレームの見た目位置（移動速度の算出用）
     bool    prevPosValid_ = false;
     float   modelYOffset_ = 0.0f;       // モデル原点（足元）を道の上面に乗せる補正（道の上面＝レール線に統一したので既定0）
     bool    tongueSeeked_ = false;      // 捕獲時の収納パートへのシークを1回だけ行うためのフラグ

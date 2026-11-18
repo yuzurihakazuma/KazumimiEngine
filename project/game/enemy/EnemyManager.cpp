@@ -3,6 +3,8 @@
 #include "engine/rail/SplineRail.h"
 #include <algorithm>
 
+using namespace KazumimiEngine;
+
 // 配置テンプレートから敵を再構築する。
 //   同じ種類の実体が残っていれば使い回す（モデルの読み直しをしない）。
 //   エディタで数値をドラッグしている間は毎フレーム呼ばれるので、ここが重いと敵が増えるほどカクつく
@@ -24,7 +26,7 @@ void EnemyManager::Spawn(const std::vector<EnemySpawnData>& spawns, const std::v
 
     for ( const auto& spawn : spawns ) {
         if ( spawn.railIndex < 0 || spawn.railIndex >= ( int ) rails.size() ) continue;
-        if ( rails[spawn.railIndex].nodes.size() < 2 ) continue;
+        if ( rails[spawn.railIndex].Nodes().size() < 2 ) continue;
 
         std::unique_ptr<Enemy> enemy = takeReusable(enemies_.size(), spawn.type);
         if ( !enemy || !enemy->Reapply(spawn) ) {

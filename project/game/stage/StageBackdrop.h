@@ -1,4 +1,34 @@
 #pragma once
+#include "engine/3d/obj/Obj3d.h"
+#include "engine/math/struct.h"
+#include "externals/nlohmann/json.hpp"
+
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class InstancedGroup;
+}
+
+// 地面のブロックの種類（どれも ground_block_step の上の面の画像だけが違う）
+enum class GroundKind { Grass, Path, Dirt };
+
+// 背景の1つ（エディタが直接さわる）
+struct BackdropItem {
+    std::string model;
+    KazumimiEngine::Vector3 pos { 0.0f, 0.0f, 0.0f };
+    KazumimiEngine::Vector3 rot { 0.0f, 180.0f, 0.0f };   // 度
+    KazumimiEngine::Vector3 scale { 1.0f, 1.0f, 1.0f };
+    int  source = -1;      // 自動配置の何番目か（-1＝手で足した物）
+    int  group = 0;        // まとまり（線で引いた道など。0＝なし）。選ぶ時にまとめて選ぶ
+    bool removed = false;  // 消した（自動配置の物は「消した」と覚えておく）
+    bool operator==(const BackdropItem& other) const;
+};
+
 // =====================================================================
 //  StageBackdrop：本編のステージに置くクラフトの背景（地面・空・丘・雲・木・柵・看板・草花）。
 //   置き場所は2つのファイルを重ねて作る：
@@ -13,34 +43,6 @@
 //   （地面のタイルや草花は数百個あるので、1個ずつ描くと重い）。
 //   モデルは resources/craft/models（タイトルと同じキット）。LoadKitModels で読む
 // =====================================================================
-#include "engine/3d/obj/Obj3d.h"
-#include "engine/math/struct.h"
-#include "externals/nlohmann/json.hpp"
-
-#include <cstdint>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
-class Camera;
-class InstancedGroup;
-
-// 地面のブロックの種類（どれも ground_block_step の上の面の画像だけが違う）
-enum class GroundKind { Grass, Path, Dirt };
-
-// 背景の1つ（エディタが直接さわる）
-struct BackdropItem {
-    std::string model;
-    Vector3 pos { 0.0f, 0.0f, 0.0f };
-    Vector3 rot { 0.0f, 180.0f, 0.0f };   // 度
-    Vector3 scale { 1.0f, 1.0f, 1.0f };
-    int  source = -1;      // 自動配置の何番目か（-1＝手で足した物）
-    int  group = 0;        // まとまり（線で引いた道など。0＝なし）。選ぶ時にまとめて選ぶ
-    bool removed = false;  // 消した（自動配置の物は「消した」と覚えておく）
-    bool operator==(const BackdropItem& other) const;
-};
-
 class StageBackdrop {
 public:
     StageBackdrop();
@@ -52,9 +54,9 @@ public:
     static std::vector<std::string> KitModelNames();
 
     // 自動配置の一覧から作る。noiseSrv＝ディゾルブのノイズ画像（一括描画が必ず束縛するので、読み込み済みの物を渡す）
-    void Build(const nlohmann::json& list, const Vector3& origin, uint32_t noiseSrv);
+    void Build(const nlohmann::json& list, const KazumimiEngine::Vector3& origin, uint32_t noiseSrv);
     void Clear();
-    void Update(const Camera* camera); // カメラの行列を反映（毎フレーム）
+    void Update(const KazumimiEngine::Camera* camera); // カメラの行列を反映（毎フレーム）
     // 実行中だけ隠す物（カメラ反転で裏から見る時に、カメラの前をふさぐ物）。保存はしない。空＝全部出す
     void SetRuntimeHidden(const std::vector<char>& hidden);
     // 卵コンボ用に、物を1つずつ隠す（代役を出している間・はじけ飛んだ後）。反転用の SetRuntimeHidden とは別に持ち、
@@ -65,8 +67,8 @@ public:
     bool IsRuntimeHidden(int index) const;
     // 全体をまとめて縮めて動かす（ステージ選択の箱庭：本物のステージを台座の上に小さく載せる）。
     //   scale=1・yaw=0・translate=0 で元のまま。拡縮は等倍（縦横同じ）だけ
-    void SetRoot(float scale, float yawRadians, const Vector3& translate);
-    void Draw(const Camera* camera);   // 一括描画（BaseScene::OnDrawInstanced から）
+    void SetRoot(float scale, float yawRadians, const KazumimiEngine::Vector3& translate);
+    void Draw(const KazumimiEngine::Camera* camera);   // 一括描画（BaseScene::OnDrawInstanced から）
     size_t GetObjectCount() const;
 
     // ===== ファイル =====
@@ -102,7 +104,7 @@ public:
     static const char* GroundModel(GroundKind kind);
     float GridCell() const { return gridCell_; }
     void  CellOf(float x, float z, int& outColumn, int& outRow) const;
-    Vector3 CellCenter(int column, int row) const;                   // y は 0
+    KazumimiEngine::Vector3 CellCenter(int column, int row) const;                   // y は 0
     bool  CellTop(int column, int row, float& outTop, GroundKind* outKind = nullptr) const; // その升目の地面の上面
     void  PaintCell(int column, int row, GroundKind kind, float top); // 種類と高さを決める（無ければ作る）
     void  EraseCell(int column, int row);                            // 地面を無くす（穴）
@@ -123,40 +125,42 @@ public:
     bool IsGround(int index) const;
 
     // マウスの光線で一番手前の物（-1=なし）。outDistance＝光線の長さ
-    int  Pick(const Vector3& origin, const Vector3& dir, bool includeGround, float* outDistance = nullptr) const;
+    int  Pick(const KazumimiEngine::Vector3& origin, const KazumimiEngine::Vector3& dir, bool includeGround, float* outDistance = nullptr) const;
     // マウスの光線が当たる地面（地面のブロックの上面）。無ければ false
-    bool HitGround(const Vector3& origin, const Vector3& dir, Vector3& outPoint) const;
+    bool HitGround(const KazumimiEngine::Vector3& origin, const KazumimiEngine::Vector3& dir, KazumimiEngine::Vector3& outPoint) const;
     // ある点の地面の高さ（真上から下へ光線。無ければ false）
     bool GroundHeightAt(float x, float z, float& outY) const;
     // 世界での大きさ（向きを含めた箱を、軸にそろえた箱で囲む）
-    bool WorldBounds(int index, Vector3& outMin, Vector3& outMax) const;
+    bool WorldBounds(int index, KazumimiEngine::Vector3& outMin, KazumimiEngine::Vector3& outMax) const;
     // 物の世界での形（向き付きの箱の8すみ）
-    bool WorldCorners(int index, Vector3 outCorners[8]) const;
+    bool WorldCorners(int index, KazumimiEngine::Vector3 outCorners[8]) const;
     // モデルの元の大きさ（拡縮1・向きなしの箱。紙の切り絵は少し厚くしてある）
-    bool ModelBounds(const std::string& model, Vector3& outMin, Vector3& outMax) const { return LocalBounds(model, outMin, outMax); }
+    bool ModelBounds(const std::string& model, KazumimiEngine::Vector3& outMin, KazumimiEngine::Vector3& outMax) const { return LocalBounds(model, outMin, outMax); }
 
 private:
+    // 同じモデルの一括描画 1 組（入っている物の番号と、毎フレーム詰め直す行列）
     struct Group {
         std::string model;
         std::vector<int> items;                            // この組に入る物の番号
-        std::vector<Obj3d::TransformationMatrix> matrices; // 毎フレーム詰め直す
-        std::unique_ptr<InstancedGroup> batch;
+        std::vector<KazumimiEngine::Obj3d::TransformationMatrix> matrices; // 毎フレーム詰め直す
+        std::unique_ptr<KazumimiEngine::InstancedGroup> batch;
         uint32_t capacity = 0;
     };
+    // 背景の物 1 つぶんの、先に計算しておく値（世界行列・逆行列・世界での箱）
     struct Cache {
-        Matrix4x4 world;
-        Matrix4x4 inverse;
-        Matrix4x4 inverseTranspose;
-        Vector3 boundsMin, boundsMax; // 世界での箱（軸にそろえた）
+        KazumimiEngine::Matrix4x4 world;
+        KazumimiEngine::Matrix4x4 inverse;
+        KazumimiEngine::Matrix4x4 inverseTranspose;
+        KazumimiEngine::Vector3 boundsMin, boundsMax; // 世界での箱（軸にそろえた）
         bool hasBounds = false;
     };
 
-    static Matrix4x4 MakeWorld(const BackdropItem& item);
+    static KazumimiEngine::Matrix4x4 MakeWorld(const BackdropItem& item);
     void UpdateCache(int index);
     void RebuildGroups(); // 組み分けと GPU の入れ物（足りない時だけ大きく作り直す）
-    bool LocalBounds(const std::string& model, Vector3& outMin, Vector3& outMax) const;
+    bool LocalBounds(const std::string& model, KazumimiEngine::Vector3& outMin, KazumimiEngine::Vector3& outMax) const;
     // 光線と物の箱。当たれば true（outT＝光線の長さ）
-    bool RayHit(int index, const Vector3& origin, const Vector3& dir, float& outT) const;
+    bool RayHit(int index, const KazumimiEngine::Vector3& origin, const KazumimiEngine::Vector3& dir, float& outT) const;
 
     // 升目の、その升目にかかっている地面のブロック（無ければ -1）
     int  GroundAtCell(int column, int row) const;
@@ -175,8 +179,8 @@ private:
     std::vector<char> runtimeHidden_; // items_ と同じ並び（短ければ足りない分は出す）
     std::vector<char> comboHidden_;   // 卵コンボ用（SetComboHidden）
     bool rootActive_ = false;
-    Matrix4x4 root_ {};          // 全体の行列（箱庭）
-    Matrix4x4 rootNormal_ {};    // 法線の向きだけ（回転。等倍の拡縮は法線の向きを変えない）
+    KazumimiEngine::Matrix4x4 root_ {};          // 全体の行列（箱庭）
+    KazumimiEngine::Matrix4x4 rootNormal_ {};    // 法線の向きだけ（回転。等倍の拡縮は法線の向きを変えない）
     uint32_t noiseSrv_ = 0;
-    mutable std::map<std::string, std::pair<Vector3, Vector3>> boundsCache_; // モデル → 元の大きさ
+    mutable std::map<std::string, std::pair<KazumimiEngine::Vector3, KazumimiEngine::Vector3>> boundsCache_; // モデル → 元の大きさ
 };

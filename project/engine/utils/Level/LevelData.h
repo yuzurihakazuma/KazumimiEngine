@@ -6,6 +6,8 @@
 // 使っているVector3の定義に合わせて include を調整してください
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // 配置オブジェクト1個分のデータ
 struct LevelObjectData{
     std::string type;
@@ -121,6 +123,7 @@ struct BlockData {
     bool operator==(const BlockData&) const = default; // Undo履歴の変化検知用
 };
 
+// マップ 1 つぶんのデータ（配置物・レール・レールごとの設定・敵・コイン・ブロックなど）。保存ファイルの中身と同じ
 struct LevelData{
     std::string name;
 
@@ -216,3 +219,5 @@ struct LevelData{
     float baseY = -2.0f;
     std::vector<std::vector<int>> tiles;
 };
+
+} // namespace KazumimiEngine

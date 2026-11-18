@@ -3,6 +3,7 @@
 
 #include <string>
 
+namespace KazumimiEngine {
 
 // GPUパーティクルエミッタクラス
 class GPUParticleEmitter{
@@ -41,3 +42,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

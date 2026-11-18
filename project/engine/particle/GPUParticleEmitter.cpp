@@ -7,6 +7,8 @@
 #include "externals/nlohmann/json.hpp"
 #include <random>
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 
@@ -137,3 +139,5 @@ void GPUParticleEmitter::LoadFromFile(const std::string& filePath){
         data_.endColor = { j["endColor"][0], j["endColor"][1], j["endColor"][2], j["endColor"][3] };
     }
 }
+
+} // namespace KazumimiEngine

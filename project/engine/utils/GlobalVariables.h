@@ -1,4 +1,12 @@
 #pragma once
+#include <string>
+#include "engine/base/Singleton.h"
+#include <map>
+#include <variant>
+#include "engine/math/struct.h"
+
+namespace KazumimiEngine {
+
 // =====================================================================
 //  GlobalVariables : 調整項目マネージャ
 //   「ImGuiで数値を編集 → JSONに保存 → 起動時に自動復元」を一元化する。
@@ -16,12 +24,6 @@
 //   ・Update() を毎フレーム呼ぶと "調整項目" ウィンドウが出て、編集＆グループ保存できる
 //   ・保存先: resources/GlobalVariables/<group>.json
 // =====================================================================
-#include <string>
-#include "engine/base/Singleton.h"
-#include <map>
-#include <variant>
-#include "engine/math/struct.h"
-
 class GlobalVariables : public Singleton<GlobalVariables> {
 	friend class Singleton<GlobalVariables>; // 土台（Singleton）だけが作れる
 public:
@@ -68,3 +70,5 @@ private:
 
     static inline const std::string kDirectoryPath = "resources/GlobalVariables/";
 };
+
+} // namespace KazumimiEngine

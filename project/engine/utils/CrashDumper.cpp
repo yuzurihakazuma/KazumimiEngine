@@ -4,6 +4,8 @@
 
 #pragma comment(lib, "Dbghelp.lib")
 
+namespace KazumimiEngine {
+
 void CrashDumper::Install(){
 	// 何度呼ばれても最後の登録が有効になるだけ
 	SetUnhandledExceptionFilter(&CrashDumper::ExportDump_);
@@ -47,3 +49,5 @@ bool CrashDumper::WriteDump_(EXCEPTION_POINTERS* exception){
 
 
 }
+
+} // namespace KazumimiEngine

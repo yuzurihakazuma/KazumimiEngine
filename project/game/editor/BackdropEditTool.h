@@ -1,4 +1,16 @@
 #pragma once
+#include "game/stage/StageBackdrop.h"
+
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+struct SceneEditContext;
+namespace KazumimiEngine { class Obj3d; }
+
 // =====================================================================
 //  BackdropEditTool：背景エディタ（クラフトの背景＝木・草・花・柵・岩などを Game View で直す）。
 //   パネル「背景エディタ (Backdrop)」と、Game View の上の操作。
@@ -11,18 +23,6 @@
 //   ・保存は「自動配置からの差」だけ（StageBackdrop::SaveEdits）。自動配置を作り直しても手直しは残る
 //  「背景を編集する」が ON の間は、Game View のクリックは背景に使う（レールの選択や敵・コインのつかみは止める）
 // =====================================================================
-#include "game/stage/StageBackdrop.h"
-
-#include <cstdint>
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
-#include <vector>
-
-struct SceneEditContext;
-class Obj3d;
-
 class BackdropEditTool {
 public:
     BackdropEditTool();
@@ -82,13 +82,13 @@ private:
     void Regenerate(const SceneEditContext& context);
 
     // --- 置く物 ---
-    BackdropItem MakeItem(const std::string& model, const Vector3& at);
+    BackdropItem MakeItem(const std::string& model, const KazumimiEngine::Vector3& at);
     bool CanSelect(const StageBackdrop& backdrop, int index) const;
 
     // --- 見た目 ---
-    void DrawBox(const StageBackdrop& backdrop, int index, const Vector4& color) const;
-    void DrawModelGhost(const std::string& model, const Vector3& at, const Vector4& color) const;
-    void DrawCircle(const StageBackdrop& backdrop, const Vector3& center, float radius, const Vector4& color) const;
+    void DrawBox(const StageBackdrop& backdrop, int index, const KazumimiEngine::Vector4& color) const;
+    void DrawModelGhost(const std::string& model, const KazumimiEngine::Vector3& at, const KazumimiEngine::Vector4& color) const;
+    void DrawCircle(const StageBackdrop& backdrop, const KazumimiEngine::Vector3& center, float radius, const KazumimiEngine::Vector4& color) const;
     void DrawPalette();
     void DrawSelectionInfo(const SceneEditContext& context);
 
@@ -114,9 +114,9 @@ private:
     bool  alignHeight_ = false;      // 塗った所の高さもそろえる
     bool  clearDecor_ = true;        // 道・穴にした所の草花をどける
     std::set<std::pair<int, int>> strokeCells_; // このひと塗りで塗った升目（段の上げ下げを1回だけにする）
-    Vector3 lastStrokePoint_ {};                // 前のフレームに塗った所（間を埋める）
+    KazumimiEngine::Vector3 lastStrokePoint_ {};                // 前のフレームに塗った所（間を埋める）
     // 線で引く道
-    std::vector<Vector3> linePoints_;           // 引いている途中の線（地面の上の点）
+    std::vector<KazumimiEngine::Vector3> linePoints_;           // 引いている途中の線（地面の上の点）
     float pathWidth_ = 1.4f;                    // 道の幅（m）
 
     std::vector<int> selection_;     // 選んでいる物（先頭＝ギズモの対象）
@@ -127,26 +127,26 @@ private:
     // 選ぶ道具のマウス
     enum class Drag { None, Pending, Move, Box };
     Drag    drag_ = Drag::None;
-    Vector2 dragStart_ {};
+    KazumimiEngine::Vector2 dragStart_ {};
     int     pressItem_ = -1;
-    Vector3 moveAnchor_ {};          // つかんだ時に、物の根元が地面で当たった所
-    Vector2 grabOffset_ {};          // つかんだ所 → 物の根元（画面上）
+    KazumimiEngine::Vector3 moveAnchor_ {};          // つかんだ時に、物の根元が地面で当たった所
+    KazumimiEngine::Vector2 grabOffset_ {};          // つかんだ所 → 物の根元（画面上）
     std::vector<BackdropItem> moveStart_; // つかんだ時の選んだ物
     bool    moveDuplicated_ = false;
 
     // ブラシ
     bool    stroking_ = false;
-    Vector3 lastStamp_ {};
+    KazumimiEngine::Vector3 lastStamp_ {};
     uint32_t rng_ = 12345u;
 
     // 右クリックメニュー
     int menuItem_ = -1;
-    Matrix4x4 rightPressViewProj_ {}; // 右ボタンを押した時のカメラ（離すまでに動いたらメニューを開かない）
+    KazumimiEngine::Matrix4x4 rightPressViewProj_ {}; // 右ボタンを押した時のカメラ（離すまでに動いたらメニューを開かない）
 
     // ギズモ（背景は Obj3d を持たないので、選んだ物の代わりの Obj3d を動かして差を当てる）
-    std::unique_ptr<Obj3d> proxy_;
+    std::unique_ptr<KazumimiEngine::Obj3d> proxy_;
     std::string proxyModel_;
-    Vector3 proxyT_ {}, proxyR_ {}, proxyS_ { 1.0f, 1.0f, 1.0f };
+    KazumimiEngine::Vector3 proxyT_ {}, proxyR_ {}, proxyS_ { 1.0f, 1.0f, 1.0f };
     bool    gizmoEditing_ = false;
 
     // パレットの絵（モデル名 → SRV 番号）

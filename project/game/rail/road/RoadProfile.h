@@ -57,17 +57,17 @@ inline constexpr float kTopOffset  = -0.25f;           // 断面高さへの加�
                                                        // （レール線＝歩行面＝ブロックの底面基準。ズレ補正が要らなくなる）
 inline constexpr float kUvPerMeter = 1.0f / 2.0f;      // u = 距離 / 2m（ピースとテクスチャ周期を共有）
 inline constexpr float kDarkV      = 0.465f;           // アトラスの黒帯の中央（穴の奈落フタ用）
-inline constexpr float kPi         = Math::kPi;
+inline constexpr float kPi         = KazumimiEngine::Math::kPi;
 
 // 水平（XZ）へ射影して正規化。ほぼ真上/真下なら false
-inline bool ToHorizontal(const Vector3& v, Vector3& out){
+inline bool ToHorizontal(const KazumimiEngine::Vector3& v, KazumimiEngine::Vector3& out){
     float l = std::sqrt(v.x * v.x + v.z * v.z);
     if ( l < 0.35f ) return false; // 急勾配すぎてジャンクションの水平方向が定まらない
     out = { v.x / l, 0.0f, v.z / l };
     return true;
 }
 // 水平方向 d の「左」（角度ソートのCCWと整合する側）
-inline Vector3 LeftOf(const Vector3& d){ return { -d.z, 0.0f, d.x }; }
+inline KazumimiEngine::Vector3 LeftOf(const KazumimiEngine::Vector3& d){ return { -d.z, 0.0f, d.x }; }
 inline float   Fract(float x){ return x - std::floor(x); }
 
 } // namespace RoadProfile

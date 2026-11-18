@@ -9,6 +9,7 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
 
 // 前方宣言
 class DirectXCommon;
@@ -69,3 +70,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

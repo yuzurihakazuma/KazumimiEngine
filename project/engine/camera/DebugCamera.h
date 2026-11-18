@@ -2,6 +2,8 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class Camera;
 
@@ -51,3 +53,5 @@ private:
     // Update内で現在操作中のカメラポインタを保持しておく（UIから操作するため）
     Camera* targetCamera_ = nullptr;
 };
+
+} // namespace KazumimiEngine

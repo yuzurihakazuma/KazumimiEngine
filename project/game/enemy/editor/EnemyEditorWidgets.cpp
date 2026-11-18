@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdio>
 
+using namespace KazumimiEngine;
+
 #ifdef USE_IMGUI
 namespace EnemyEditorWidgets {
 
@@ -42,7 +44,7 @@ bool DrawRailCombo(const char* label,
     // 現在選択中のレールのプレビュー文字列を作成
     *railIndex = std::clamp(*railIndex, 0, static_cast<int>(rails.size()) - 1);
     const SplineRail& cur = rails[*railIndex];
-    const char* curType = (cur.type == SplineRail::RailType::Horizontal) ? "横" : "縦";
+    const char* curType = (cur.Config().type == SplineRail::RailType::Horizontal) ? "横" : "縦";
     char preview[128];
     std::snprintf(preview, sizeof(preview), "Rail %d  [%s] %.1fm",
         *railIndex, curType, cur.GetLength());
@@ -51,7 +53,7 @@ bool DrawRailCombo(const char* label,
     if ( ImGui::BeginCombo(label, preview) ) {
         for ( int i = 0; i < static_cast<int>(rails.size()); ++i ) {
             const SplineRail& r = rails[i];
-            const char* rType = (r.type == SplineRail::RailType::Horizontal) ? "横" : "縦";
+            const char* rType = (r.Config().type == SplineRail::RailType::Horizontal) ? "横" : "縦";
 
             // ラベル：レール番号 / タイプ / 長さ / ループ有無 / 配置済み数
             char itemLabel[128];
@@ -59,13 +61,13 @@ bool DrawRailCombo(const char* label,
                 std::snprintf(itemLabel, sizeof(itemLabel),
                     "Rail %d  [%s] %.1fm%s  (%d体)",
                     i, rType, r.GetLength(),
-                    r.isLoop ? " Loop" : "",
+                    r.Links().isLoop ? " Loop" : "",
                     countPerRail[i]);
             } else {
                 std::snprintf(itemLabel, sizeof(itemLabel),
                     "Rail %d  [%s] %.1fm%s",
                     i, rType, r.GetLength(),
-                    r.isLoop ? " Loop" : "");
+                    r.Links().isLoop ? " Loop" : "");
             }
 
             bool selected = (*railIndex == i);

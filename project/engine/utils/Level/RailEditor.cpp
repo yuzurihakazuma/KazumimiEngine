@@ -12,6 +12,8 @@
 #include "engine/base/Input.h"
 #include "engine/rail/SplineRail.h" // ブロックのノード錨の更新（弧長の計測）に使う
 
+namespace KazumimiEngine {
+
 static bool RailLinesEqual(const std::vector<std::vector<Vector3>>& lhs,
                            const std::vector<std::vector<Vector3>>& rhs){
 	if ( lhs.size() != rhs.size() ) return false;
@@ -1475,12 +1477,12 @@ void RailEditor::UpdateBlockAnchors(const std::vector<SplineRail>& splineRails){
 		auto& arcs = nodeArcTable[railIdx];
 		if ( arcs.empty() ) {
 			const SplineRail& rail = splineRails[railIdx];
-			arcs.reserve(rail.nodes.size());
+			arcs.reserve(rail.Nodes().size());
 			// ノード i はスプラインの t=i。弧長は距離テーブルから引く（レールの形だけで決まる）。
 			//   ※以前は「ノード座標にいちばん近いレール上の点」を探していたが、動くレールは
 			//     今の位置（ずれ・回転込み）で探すため、レールが動くたびに弧長が変わった扱いになり、
 			//     リフト上のブロックが滑る／毎フレーム作り直されて？ブロックが復活する原因だった
-			for ( int node = 0; node < ( int ) rail.nodes.size(); ++node ) {
+			for ( int node = 0; node < ( int ) rail.Nodes().size(); ++node ) {
 				arcs.push_back(rail.GetDistanceFromT(( float ) node));
 			}
 		}
@@ -1498,7 +1500,7 @@ void RailEditor::UpdateBlockAnchors(const std::vector<SplineRail>& splineRails){
 	for ( int i = 0; i < ( int ) data_->blocks.size(); ++i ) {
 		BlockData& block = data_->blocks[i];
 		if ( block.rail < 0 || block.rail >= ( int ) splineRails.size() ) continue;
-		if ( splineRails[block.rail].nodes.size() < 2 ) continue;
+		if ( splineRails[block.rail].Nodes().size() < 2 ) continue;
 		const auto& arcs = arcsOf(block.rail);
 
 		// 引き直す前の時点で、チェックポイントの同じ番号が同じブロックを指しているか
@@ -5035,3 +5037,5 @@ bool RailEditor::ConsumeCameraPreviewRequest(Vector3& outPos, Vector3& outRot){
 	camPreviewPending_ = false;
 	return true;
 }
+
+} // namespace KazumimiEngine

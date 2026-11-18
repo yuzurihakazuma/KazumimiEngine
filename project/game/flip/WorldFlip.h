@@ -1,4 +1,23 @@
 #pragma once
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/math/struct.h"
+#include "externals/nlohmann/json.hpp"
+
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace KazumimiEngine { class Camera; }
+class EggSystem;
+class FlipDial;
+namespace KazumimiEngine { class Obj3d; }
+class Player;
+class PlayCameraController;
+namespace KazumimiEngine { class RailEditor; }
+class RailField;
+class StageBackdrop;
+struct SceneEditContext;
+
 // =====================================================================
 //  WorldFlip：カメラ反転（表から見る ⇔ 裏から見る）。
 //   別の世界へ移るのではなく、同じステージをカメラが反対側から見るだけ。
@@ -13,25 +32,6 @@
 //   ・エディタ：左のパネル「反転」。Game View の道をクリックしてスイッチを置く・レールの向きを塗る、
 //     スイッチの所から「つなぐ道」（スイッチの道から奥へ延びる道＋その先の裏から見る道）を作る、表/裏のカメラで見る
 // =====================================================================
-#include "engine/3d/obj/Obj3dCommon.h"
-#include "engine/math/struct.h"
-#include "externals/nlohmann/json.hpp"
-
-#include <memory>
-#include <string>
-#include <vector>
-
-class Camera;
-class EggSystem;
-class FlipDial;
-class Obj3d;
-class Player;
-class PlayCameraController;
-class RailEditor;
-class RailField;
-class StageBackdrop;
-struct SceneEditContext;
-
 class WorldFlip {
 public:
     enum class Side { Both = 0, Front = 1, Back = 2 }; // レールのカメラの向き
@@ -43,7 +43,7 @@ public:
         PlayCameraController* camCtrl = nullptr;
         StageBackdrop*        backdrop = nullptr;
         EggSystem*            eggs = nullptr;
-        Camera*               camera = nullptr;
+        KazumimiEngine::Camera*               camera = nullptr;
     };
 
     WorldFlip();
@@ -69,9 +69,9 @@ public:
     bool IsBackView() const{ return back_; }
     // 裏から見ている間、カメラ側の物を隠す基準（恐竜の位置と、そこからの距離）。隠さない時は false。
     //   恐竜より gap 以上カメラ側（+z）にある、背の高い物を隠す（背景・ブロック・敵・スイッチ）
-    bool GetBackCut(bool playing, Vector3& outPivot, float& outGap) const;
+    bool GetBackCut(bool playing, KazumimiEngine::Vector3& outPivot, float& outGap) const;
     // 反転スイッチの当たりの球（卵の奥投げが、スイッチの後ろの背景をロックしないように）
-    void GetSwitchSpheres(std::vector<Vector3>& outCenters, std::vector<float>& outRadii) const;
+    void GetSwitchSpheres(std::vector<KazumimiEngine::Vector3>& outCenters, std::vector<float>& outRadii) const;
 
     // エディタ（ImGui の中で毎フレーム呼ぶ）：パネル「カメラ反転」・Game View のクリックで置く・名札
     void UpdateEditor(const SceneEditContext& context);
@@ -83,15 +83,16 @@ private:
         float dist = 0.0f;
         int   mode = 2;          // 0=反転（通るたびに入れ替え）/ 1=表へ / 2=裏へ
         float radius = 1.5f;     // 通ったとみなす半径(m)
-        Vector3 pos {};          // レールの上の位置（毎フレーム求め直す）
+        KazumimiEngine::Vector3 pos {};          // レールの上の位置（毎フレーム求め直す）
         bool  valid = false;     // pos が求まっているか（レールが無い・まだ求めていない間は見ない）
         bool  inside = false;    // 今、半径の中にいるか（入った瞬間だけ切り替える）
     };
+    // 「？」スイッチ 1 つ（載せているレールと距離・高さ・当たりの大きさ・見た目）
     struct Switch {
         int   rail = -1;            // 載せているレール（-1＝位置 pos のまま。古いデータは読み込んだ後に近くのレールへ載せる）
         float dist = 0.0f;          // レール上の距離(m)
         float height = 2.3f;        // 道からの高さ(m)（スイッチの底。文字盤の真ん中はその FlipDial::kCenterAbove 上）
-        Vector3 pos {};             // スイッチの底（レールに載っていれば毎フレーム求め直す）
+        KazumimiEngine::Vector3 pos {};             // スイッチの底（レールに載っていれば毎フレーム求め直す）
         float hitRadius = 1.1f;     // 卵の当たり半径（見た目より少し大きく）
         float spin = 0.0f;          // くるっと回る（当たった時）
         int   linkRail = -1;        // 「つなぐ道を作る」で作った、奥へ延びる道（置き直し用）
@@ -114,8 +115,8 @@ private:
     void UpdateSwitchAnchors();
     void UpdatePointAnchors();
     bool UpdatePoints();       // 入ったポイントがあれば回り始める（回り始めたら true）
-    bool SwitchRailPoint(const Switch& sw, Vector3& outPos, Vector3& outTangent) const;
-    Vector3 CameraSideOf(const Vector3& tangent) const; // 表のレールから見て、表のカメラ側（手前）の向き
+    bool SwitchRailPoint(const Switch& sw, KazumimiEngine::Vector3& outPos, KazumimiEngine::Vector3& outTangent) const;
+    KazumimiEngine::Vector3 CameraSideOf(const KazumimiEngine::Vector3& tangent) const; // 表のレールから見て、表のカメラ側（手前）の向き
 
     Context context_;
     std::string stage_;
@@ -133,12 +134,12 @@ private:
     // 夕方（裏から見ると）
     bool  eveningOnBack_ = true;
     float eveningStrength_ = 1.0f;
-    Vector3 eveningLight_ { 1.0f, 0.6f, 0.38f };  // 夕日の色
+    KazumimiEngine::Vector3 eveningLight_ { 1.0f, 0.6f, 0.38f };  // 夕日の色
     float eveningTint_ = 0.12f;                   // 画面に重ねる橙の濃さ
     float evening_ = 0.0f;                        // 今の夕方の度合い
-    std::unique_ptr<Obj3d> eveningSky_;           // 夕焼けの空（裏のカメラから見える側に立てる板）
+    std::unique_ptr<KazumimiEngine::Obj3d> eveningSky_;           // 夕焼けの空（裏のカメラから見える側に立てる板）
     bool  lightSaved_ = false;
-    Obj3dCommon::DirectionalLightData savedLight_ {};
+    KazumimiEngine::Obj3dCommon::DirectionalLightData savedLight_ {};
 
     bool  back_ = false;        // 今、裏のカメラか（回り始めた時点で切り替わる）
     bool  cutActive_ = false;   // 今のフレーム、カメラ側の物を隠しているか（UpdateVisuals で決める）
@@ -155,8 +156,8 @@ private:
     void DrawEditorWindow(const SceneEditContext& context);
     void UpdateGameViewTool(const SceneEditContext& context);
     void DrawGameViewLabels(const SceneEditContext& context);
-    void BuildLinkRoute(int switchIndex, RailEditor* railEditor); // スイッチの所から奥へつなぐ道と、裏から見る道を作る
-    void FrameEditorCamera(Camera* camera, int switchIndex, bool back) const;
+    void BuildLinkRoute(int switchIndex, KazumimiEngine::RailEditor* railEditor); // スイッチの所から奥へつなぐ道と、裏から見る道を作る
+    void FrameEditorCamera(KazumimiEngine::Camera* camera, int switchIndex, bool back) const;
     int  selected_ = 0;
     bool showDebug_ = true;      // 名札と線
     bool showInPlay_ = false;    // プレイ中も出す
@@ -170,6 +171,6 @@ private:
     float linkBefore_ = 8.0f;    //   裏から見る道の、つなぐ所より前の長さ(m)
     float linkAfter_ = 20.0f;    //   後ろの長さ(m)
     bool  previewBack_ = false;  // 編集中に「裏のカメラで見る」を押した（背の高い背景を隠す）
-    Vector3 previewPivot_ {};    //   その時に見ている所
+    KazumimiEngine::Vector3 previewPivot_ {};    //   その時に見ている所
     std::string savedJson_;      // 最後に読んだ・保存した中身（未保存の印）
 };

@@ -4,7 +4,7 @@
 #include <array>
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 // =====================================================================
 //  RoadJunctionDetector：レール群から「道をつなぐ場所」を検出するクラス（GUIDE_ジャンクション生成）。
@@ -21,17 +21,17 @@ public:
     struct Connector {
         // つなぎ目をはさんで、2 本のレールの上から細かく取った点（RoadSweepBuilder::BuildConnector へ）。
         //   keepFrom〜keepTo 番目の間だけ面を張る（その外は助走。本線の掃引と重なる）
-        std::vector<Vector3> nodes;
+        std::vector<KazumimiEngine::Vector3> nodes;
         int keepFrom = 0;
         int keepTo = 0;
         RoadJunction joint;              // ジョイント配置用（followRail はコネクタメッシュの追従先も兼ねる）
     };
 
     // 道を敷く対象のレールか（roadMode=1「道なし」・見えないレールは接続相手としても数えない）
-    static bool IsRoadRail(const std::vector<SplineRail>& rails, int idx);
+    static bool IsRoadRail(const std::vector<KazumimiEngine::SplineRail>& rails, int idx);
 
     // 全検出を行う。cuts は rails.size() ぶん確保済みであること（各レールの切り詰め範囲を追記する）
-    void Detect(const std::vector<SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
+    void Detect(const std::vector<KazumimiEngine::SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
 
     // 検出結果（Detect の呼び出し順＝生成順：丸広場 → コネクタ → パッチ）
     const std::vector<RoadJunction>& Plazas() const{ return plazas_; }
@@ -45,16 +45,16 @@ public:
 
 private:
     // 端の丸広場（エディタ指定）
-    void DetectEndPlazas(const std::vector<SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
+    void DetectEndPlazas(const std::vector<KazumimiEngine::SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
     // A) 端点溶接（2本の共有ノード）
-    void DetectWelds(const std::vector<SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
+    void DetectWelds(const std::vector<KazumimiEngine::SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
     // B) T字分岐（branchPoints）
-    void DetectBranches(const std::vector<SplineRail>& rails);
+    void DetectBranches(const std::vector<KazumimiEngine::SplineRail>& rails);
     // C) 本体×本体の交差（乗り換えポイント）
-    void DetectCrossings(const std::vector<SplineRail>& rails);
+    void DetectCrossings(const std::vector<KazumimiEngine::SplineRail>& rails);
 
     // 1ジャンクションの t_cut 計算（ウェッジのマイター交点）＋Cut登録
-    static void ComputeArmCuts(const std::vector<SplineRail>& rails, RoadJunction& junc,
+    static void ComputeArmCuts(const std::vector<KazumimiEngine::SplineRail>& rails, RoadJunction& junc,
                                std::vector<std::vector<RoadCut>>& cuts);
 
     std::vector<RoadJunction> plazas_;

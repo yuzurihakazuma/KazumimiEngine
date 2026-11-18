@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cassert>
 
+namespace KazumimiEngine {
 
 namespace MatrixMath {
 
@@ -331,3 +332,5 @@ namespace MatrixMath {
     }
 
 } // namespace MatrixMath
+
+} // namespace KazumimiEngine

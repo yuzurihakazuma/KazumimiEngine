@@ -9,12 +9,18 @@ unsigned char g_keyNow[256] = {};
 unsigned char g_keyPrev[256] = {};
 
 // Input::GetInstance は Singleton<Input>（engine/base/Singleton.h）が持つ
+namespace KazumimiEngine {
 bool Input::PushKey(BYTE key){ return g_keyNow[key] != 0; }
 bool Input::TriggerKey(BYTE key){ return g_keyNow[key] != 0 && g_keyPrev[key] == 0; }
+} // namespace KazumimiEngine
 
 // ---- ブロックの描画・ワールドの箱は使わない（描画クラスは空の型で置き換える）----
+namespace KazumimiEngine {
 class InstancedGroup {};
 class Obj3d {};
+} // namespace KazumimiEngine
+
+using namespace KazumimiEngine;
 BlockRenderer::BlockRenderer() = default;
 BlockRenderer::~BlockRenderer() = default;
 void BlockRenderer::Initialize(uint32_t){}

@@ -4,7 +4,6 @@
 #include "game/transition/KamishibaiTransition.h"
 #include "game/title/TitleTopple.h"
 // --- ゲーム固有のファイル ---
-#include "GamePlayScene.h"
 #include "StageSelectScene.h"
 #include "game/title/TitleAssets.h"
 #include "game/title/TitleLayout.h"
@@ -33,6 +32,8 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+
+using namespace KazumimiEngine;
 
 using namespace TitleLayout;
 
@@ -145,7 +146,7 @@ namespace {
 		float best = 1e9f;
 		outRail = -1;
 		for ( int i = 0; i < ( int ) rails.size(); ++i ) {
-			if ( rails[i].nodes.size() < 2 ) { continue; }
+			if ( rails[i].Nodes().size() < 2 ) { continue; }
 			const float distance = rails[i].GetClosestDistance(position);
 			const float gap = VectorMath::Length(rails[i].GetPositionByDistance(distance) - position);
 			if ( gap < best ) { best = gap; outRail = i; outDistance = distance; }
@@ -447,7 +448,7 @@ PlayerInput::AutoPilot TitleScene::SteerAutoPilot(const Vector3* waypoints, int 
 	}
 	if ( pilotReleaseFrames_ > 0 ) { --pilotReleaseFrames_; return pilot; }
 
-	const bool horizontal = ( rails[currentRail].type == SplineRail::RailType::Horizontal );
+	const bool horizontal = ( rails[currentRail].Config().type == SplineRail::RailType::Horizontal );
 	const float along  = horizontal ? toX : toZ; // レールの向きに沿った残り
 	const float across = horizontal ? toZ : toX; // レールを横切る向きの残り
 	if ( std::abs(along) > kArriveDistance * 0.6f ) {

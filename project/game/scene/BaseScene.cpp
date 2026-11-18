@@ -23,7 +23,7 @@
 #include "engine/utils/EditorManager.h"
 #include "engine/utils/Level/BlenderImporter.h"
 #include "engine/utils/TextManager.h"
-#include "Bloom.h"
+#include "engine/postEffect/Bloom.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -31,6 +31,8 @@
 
 #include <string>
 #include <unordered_map>
+
+using namespace KazumimiEngine;
 
 BaseScene::BaseScene() = default;
 BaseScene::~BaseScene() = default;

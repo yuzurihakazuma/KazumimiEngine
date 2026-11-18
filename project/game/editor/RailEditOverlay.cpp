@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
 	// レールに沿った折れ線（lift だけ持ち上げる）
 	void DrawRailPolyline(const SplineRail& rail, int steps, float lift, const Vector4& color){
@@ -25,7 +27,7 @@ namespace {
 	void DrawCircleMotion(const SplineRail& rail){
 		const float kTwoPi = Math::kTwoPi;
 		const float railLen = rail.GetLength();
-		const Vector3& amp = rail.motionAmp;
+		const Vector3& amp = rail.Motion().motionAmp;
 		const float ringAnchors[3] = { 0.0f, 0.5f, 1.0f };
 		for ( float anchor : ringAnchors ) {
 			Vector3 center = rail.GetPositionByDistance(railLen * anchor);
@@ -44,12 +46,12 @@ namespace {
 	// ガイドレール追従：レール始点が実際に通る経路（区間指定を反映して描く）
 	void DrawGuideMotion(const std::vector<SplineRail>& rails, int railIndex){
 		const SplineRail& rail = rails[railIndex];
-		int g = rail.guideRail;
+		int g = rail.Motion().guideRail;
 		if ( g < 0 || g >= ( int ) rails.size() || g == railIndex || rails[g].GetLength() <= 0.0f ) return;
 		const SplineRail& guide = rails[g];
 		const float guideLen = guide.GetLength();
-		float s0 = std::clamp(rail.guideStart, 0.0f, guideLen);
-		float s1 = ( rail.guideEnd < 0.0f ) ? guideLen : std::clamp(rail.guideEnd, 0.0f, guideLen);
+		float s0 = std::clamp(rail.Motion().guideStart, 0.0f, guideLen);
+		float s1 = ( rail.Motion().guideEnd < 0.0f ) ? guideLen : std::clamp(rail.Motion().guideEnd, 0.0f, guideLen);
 		if ( s1 < s0 ) { std::swap(s0, s1); }
 		if ( s1 - s0 < 0.01f ) { s0 = 0.0f; s1 = guideLen; }
 		const int guideSteps = std::clamp(( int ) ( s1 - s0 ), 2, 150);
@@ -77,7 +79,7 @@ namespace {
 	void DrawSwingMotion(const SplineRail& rail){
 		const float railLen = rail.GetLength();
 		const int steps = std::clamp(( int ) railLen, 2, 100);
-		const Vector3& amp = rail.motionAmp;
+		const Vector3& amp = rail.Motion().motionAmp;
 		Vector3 prevPlus {}, prevMinus {};
 		const int sweepEvery = ( std::max )( steps / 4, 1 );
 		for ( int s = 0; s <= steps; ++s ) {
@@ -99,8 +101,8 @@ namespace RailEditOverlay {
 void DrawMotionRanges(const std::vector<SplineRail>& rails){
 	for ( int railIndex = 0; railIndex < ( int ) rails.size(); ++railIndex ) {
 		const SplineRail& rail = rails[railIndex];
-		if ( !rail.HasMotion() || rail.nodes.size() < 2 || !rail.visible ) continue;
-		switch ( rail.motionType ) {
+		if ( !rail.HasMotion() || rail.Nodes().size() < 2 || !rail.Config().visible ) continue;
+		switch ( rail.Motion().motionType ) {
 		case 2:  DrawCircleMotion(rail); break;
 		case 3:  DrawGuideMotion(rails, railIndex); break;
 		default: DrawSwingMotion(rail); break;
@@ -112,11 +114,11 @@ void DrawHiddenGuides(const std::vector<SplineRail>& rails, int skipGuide){
 	std::vector<bool> guideDrawn(rails.size(), false);
 	if ( skipGuide >= 0 && skipGuide < ( int ) rails.size() ) { guideDrawn[skipGuide] = true; }
 	for ( const SplineRail& rail : rails ) {
-		if ( rail.motionType != 3 ) continue;
-		int guideIndex = rail.guideRail;
+		if ( rail.Motion().motionType != 3 ) continue;
+		int guideIndex = rail.Motion().guideRail;
 		if ( guideIndex < 0 || guideIndex >= ( int ) rails.size() || guideDrawn[guideIndex] ) continue;
 		const SplineRail& guide = rails[guideIndex];
-		if ( guide.visible || guide.nodes.size() < 2 || guide.GetLength() <= 0.0f ) continue;
+		if ( guide.Config().visible || guide.Nodes().size() < 2 || guide.GetLength() <= 0.0f ) continue;
 		guideDrawn[guideIndex] = true;
 		DrawRailPolyline(guide, std::clamp(( int ) guide.GetLength(), 2, 100), 0.0f, { 1.0f, 0.65f, 0.25f, 0.45f });
 	}
@@ -125,12 +127,12 @@ void DrawHiddenGuides(const std::vector<SplineRail>& rails, int skipGuide){
 void DrawAppearRoads(const std::vector<SplineRail>& rails){
 	const Vector4 appearColor { 0.8f, 0.5f, 1.0f, 0.8f };
 	for ( const SplineRail& rail : rails ) {
-		if ( rail.appearTrigger < 0 || rail.nodes.size() < 2 ) continue;
+		if ( rail.Motion().appearTrigger < 0 || rail.Nodes().size() < 2 ) continue;
 		float appearLen = rail.GetLength();
 		DrawRailPolyline(rail, std::clamp(( int ) appearLen, 2, 100), 0.12f, appearColor);
 		// 発動レール → この道 へのリンク線（どこに乗れば現れるかが分かる）
-		int trigger = rail.appearTrigger;
-		if ( trigger < ( int ) rails.size() && rails[trigger].nodes.size() >= 2 ) {
+		int trigger = rail.Motion().appearTrigger;
+		if ( trigger < ( int ) rails.size() && rails[trigger].Nodes().size() >= 2 ) {
 			Vector3 from = rails[trigger].GetPositionByDistance(rails[trigger].GetLength() * 0.5f);
 			Vector3 to   = rail.GetPositionByDistance(appearLen * 0.5f);
 			DebugDraw::GetInstance()->Line({ from.x, from.y + 0.6f, from.z },

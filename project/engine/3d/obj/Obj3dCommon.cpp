@@ -16,6 +16,8 @@
 
 #include "externals/nlohmann/json.hpp"
 
+namespace KazumimiEngine {
+
 using namespace VectorMath;
 using namespace MatrixMath;
 using json = nlohmann::json;
@@ -252,3 +254,5 @@ void Obj3dCommon::Finalize(){
 	pointLightResource_.Reset();
 	spotLightResource_.Reset();
 }
+
+} // namespace KazumimiEngine

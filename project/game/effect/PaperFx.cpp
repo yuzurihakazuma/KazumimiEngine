@@ -12,6 +12,8 @@
 #include <cmath>
 #include <string>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr uint32_t kCapacity = 192;      // 1色あたりの最大数
@@ -51,6 +53,7 @@ namespace {
     }
 }
 
+// 同じ色の紙吹雪・けむりの一括描画 1 組（入れ物と、毎フレーム詰め直す行列）
 struct PaperFx::Group {
     std::unique_ptr<InstancedGroup> batch;
     std::vector<Obj3d::TransformationMatrix> matrices;

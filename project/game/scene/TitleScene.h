@@ -1,4 +1,24 @@
 #pragma once
+#include "game/scene/BaseScene.h"
+#include "game/player/Player.h"
+#include "game/rail/RailField.h"
+#include "game/rail/RoadMesh.h"
+#include "game/title/TitleAmbience.h"
+#include "game/title/TitleDino.h"
+#include "game/title/TitleLogoBoard.h"
+#include "game/title/TitleMenu.h"
+#include "game/title/TitlePaperBits.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/math/struct.h"
+
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine {
+class Obj3d;
+class SDFText;
+}
+
 // =====================================================================
 //  TitleScene：タイトルシーン（クラフトのジオラマ）。
 //   タイトルそのものが小さなステージになっていて、本編と同じ仕組みで動く：
@@ -15,24 +35,6 @@
 //     紙ふぶき TitlePaperBits / 背景の動き TitleAmbience
 //   カメラ・ポストエフェクト・デバッグ描画などの土台は BaseScene
 // =====================================================================
-#include "game/scene/BaseScene.h"
-#include "game/player/Player.h"
-#include "game/rail/RailField.h"
-#include "game/rail/RoadMesh.h"
-#include "game/title/TitleAmbience.h"
-#include "game/title/TitleDino.h"
-#include "game/title/TitleLogoBoard.h"
-#include "game/title/TitleMenu.h"
-#include "game/title/TitlePaperBits.h"
-#include "engine/3d/obj/Obj3dCommon.h"
-#include "engine/math/struct.h"
-
-#include <memory>
-#include <vector>
-
-class Obj3d;
-class SDFText;
-
 class TitleScene : public BaseScene {
 public:
 	TitleScene();
@@ -51,7 +53,7 @@ private:
 	void OnFinalize() override;
 	void OnPreUpdate() override;   // エディタでレールを編集したら、レールと道を作り直す
 	void OnUpdate() override;
-	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	bool GetSdfViewerPosition(KazumimiEngine::Vector3& outPos) const override;
 	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList) override; // 操作の案内（Game View にも映る）
 	void OnDrawInspector() override;                                       // 調整項目
@@ -80,7 +82,7 @@ private:
 
 	void UpdateIntro();
 	// 道順（角の並び）の次の角へ向かう入力を作る（登場と、メニューの端から裏を回る時の自動操縦）
-	PlayerInput::AutoPilot SteerAutoPilot(const Vector3* waypoints, int waypointCount);
+	PlayerInput::AutoPilot SteerAutoPilot(const KazumimiEngine::Vector3* waypoints, int waypointCount);
 	int  PickMenuTarget(int selected, float screenSide); // A/D の行き先を決めて道順を作る（-1=左 / +1=右）。決めた的を返す
 	void BuildMenuRoute(int item, float direction); // 今いる所から的の正面までの道順（direction +1=A の向き / -1=D の向き。端から先は奥を回る）
 	void UpdateMenu();
@@ -117,7 +119,7 @@ private:
 	float introTime_ = 0.0f;
 	int   menuTarget_ = -1;          // メニューで向かっている的（着いたら光らせる）
 	float menuDirection_ = 0.0f;     // 今の道順で進む周の向き（+1/-1。止まっていれば0）
-	std::vector<Vector3> menuRoute_; // メニューで的へ向かう道順（角の並び＋的の正面。空なら着いている）
+	std::vector<KazumimiEngine::Vector3> menuRoute_; // メニューで的へ向かう道順（角の並び＋的の正面。空なら着いている）
 
 	// 退場（段ボールが倒れる）
 	void UpdateTopple(float deltaTime);
@@ -134,7 +136,7 @@ private:
 	// 卵が画面に当たった時の揺れ
 	void UpdateShake(float deltaTime);
 	float   shakeTime_ = 0.0f;       // 残りの秒数
-	Vector3 shakeBase_ {};           // 揺らす前のカメラの位置（揺れ終わったら戻す）
+	KazumimiEngine::Vector3 shakeBase_ {};           // 揺らす前のカメラの位置（揺れ終わったら戻す）
 
 	// 決定の動き
 	float aimYaw_ = 0.0f;          // 向き直る先
@@ -142,16 +144,16 @@ private:
 	float tongueDistance_ = 0.0f;  // 的までの距離
 
 	// 決定時に投げる卵
-	std::unique_ptr<Obj3d> egg_;
+	std::unique_ptr<KazumimiEngine::Obj3d> egg_;
 	bool    eggVisible_ = false;
-	Vector3 eggFrom_ {};
-	Vector3 eggTo_ {};
+	KazumimiEngine::Vector3 eggFrom_ {};
+	KazumimiEngine::Vector3 eggTo_ {};
 	float   eggTime_ = 0.0f;
 	float   irisTime_ = 0.0f;
 
 	// 文字（操作の案内と「じゅんびちゅう」）
-	std::unique_ptr<SDFText> guideText_;
-	std::unique_ptr<SDFText> noticeText_;
+	std::unique_ptr<KazumimiEngine::SDFText> guideText_;
+	std::unique_ptr<KazumimiEngine::SDFText> noticeText_;
 	float guideAlpha_ = 0.0f;
 	float noticeTime_ = 0.0f;   // 残りの表示秒数
 	float textTime_ = 0.0f;
@@ -161,7 +163,7 @@ private:
 	float tiltCenterY_ = 0.5f;
 	float tiltHalfWidth_ = 0.27f;
 	// タイトルの間だけ光の向きを変えるので、元の設定を覚えておいて終了時に戻す
-	Obj3dCommon::DirectionalLightData savedLight_ {};
+	KazumimiEngine::Obj3dCommon::DirectionalLightData savedLight_ {};
 	float savedPointIntensity_ = 0.0f;
 	float savedSpotIntensity_ = 0.0f;
 	bool lightSaved_ = false;

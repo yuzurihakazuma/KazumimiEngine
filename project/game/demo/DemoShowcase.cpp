@@ -15,14 +15,16 @@
 #include "engine/sdf/SDFVolumeObject.h"
 #include "engine/utils/EditorManager.h"
 #include "engine/math/Matrix4x4.h"
-#include "Bloom.h"
-#include "HitEffect.h"
+#include "engine/postEffect/Bloom.h"
+#include "engine/particle/HitEffect.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
 #include <cmath>
+
+using namespace KazumimiEngine;
 
 using namespace MatrixMath;
 

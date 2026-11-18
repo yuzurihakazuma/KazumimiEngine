@@ -15,9 +15,12 @@
 #include "engine/math/Matrix4x4.h"
 #include "engine/3d/animation/Skeleton.h"
 
+struct aiNode;
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class ModelCommon;
-struct aiNode;
 
 // =====================================================================
 //  Model：3D モデル 1 個のデータ。
@@ -58,6 +61,7 @@ public: // サブクラス定義
 		uint32_t textureIndex = 0;
 	};
 
+	// モデル 1 つぶんの読み込んだデータ（頂点・インデックス・マテリアル・ノード）
 	struct ModelData{
 		std::vector<VertexData> vertices; // 頂点データ
 		std::vector<uint32_t> indices;    // インデックスデータ
@@ -229,3 +233,5 @@ private: // メンバ変数
 	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> subMeshTextureHandles_;
 
 };
+
+} // namespace KazumimiEngine

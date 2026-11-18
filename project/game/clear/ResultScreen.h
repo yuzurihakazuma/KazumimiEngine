@@ -1,4 +1,15 @@
 #pragma once
+#include "engine/utils/StepSequence.h"
+#include "game/clear/ClearSettings.h"
+#include "game/ui/DigitStrip.h"
+
+#include <array>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace KazumimiEngine { class Sprite; }
+
 // =====================================================================
 //  ResultScreen：リザルト画面（クリア演出 企画書）。「帯＋3 行＋花丸」。
 //   景色を暗い緑に沈め、緑のマットを重ねて、上から順に 1 つずつ出す：
@@ -11,17 +22,6 @@
 //   全部スプライト。1920×1080 を基準に、画面の高さに合わせて縮める。置き場所と秒数は clear.json（ClearResultLayout）
 //   出すだけ。中身（数・達成したか）は Data で受け取る
 // =====================================================================
-#include "engine/utils/StepSequence.h"
-#include "game/clear/ClearSettings.h"
-#include "game/ui/DigitStrip.h"
-
-#include <array>
-#include <memory>
-#include <string>
-#include <vector>
-
-class Sprite;
-
 class ResultScreen {
 public:
     // 行の番号（帯の下の 3 行）
@@ -62,7 +62,7 @@ public:
 
 private:
     enum class Phase { Closed, Showing, Waiting, Finished };
-    using RowSequence = StepSequence<ResultScreen>;
+    using RowSequence = KazumimiEngine::StepSequence<ResultScreen>;
 
     void BuildRows();                 // 出す順番を、列に組み立てる
     void AddRowSteps(Row row);        // 1 行ぶん：行を出す → 数え上げ → 星
@@ -70,8 +70,8 @@ private:
     std::string RowText(Row row) const; // 行に出す文字（今の数え上がりの値で）
 
     // 1080p の座標 → 画面
-    void Place(Sprite* sprite, float x, float y, float width, float height, float alpha = 1.0f, float rotation = 0.0f);
-    void PlaceNatural(Sprite* sprite, const Vector2& size, float x, float y, float scale, float alpha = 1.0f);
+    void Place(KazumimiEngine::Sprite* sprite, float x, float y, float width, float height, float alpha = 1.0f, float rotation = 0.0f);
+    void PlaceNatural(KazumimiEngine::Sprite* sprite, const KazumimiEngine::Vector2& size, float x, float y, float scale, float alpha = 1.0f);
     void DrawNumberRight(const std::string& text, float right, float y, float height);
     // 出てからの秒数 → ぽんと出る大きさ（0 → 行き過ぎて → 1）
     float Pop(float shownTime) const;
@@ -96,16 +96,16 @@ private:
     int   lastTick_ = 0;                              // 数え上げの音を、数が変わった時だけ鳴らす
 
     // --- スプライト ---
-    std::unique_ptr<Sprite> dim_, mat_, title_, hanamaru_, prompt_;
-    Vector2 matSize_ {}, titleSize_ {}, promptSize_ {};
-    std::unique_ptr<Sprite> name_;   // ステージの名前の絵（無いステージは空）
-    Vector2 nameSize_ {};
-    std::array<std::unique_ptr<Sprite>, Row_Count + 1> rowBoards_, labels_;
-    std::unique_ptr<Sprite> flowerLabel_;             // 帯が「かくれ花」の時の名前
-    std::array<Vector2, Row_Count + 1> labelSizes_ {};
-    Vector2 rowSize_ {}, flowerLabelSize_ {};
-    std::array<std::unique_ptr<Sprite>, Row_Count> icons_, stampEmpty_, stamps_; // 行の絵・星の空欄・星
-    std::vector<std::unique_ptr<Sprite>> flowerEmpty_, comboFlowers_, hiddenFlowers_;
+    std::unique_ptr<KazumimiEngine::Sprite> dim_, mat_, title_, hanamaru_, prompt_;
+    KazumimiEngine::Vector2 matSize_ {}, titleSize_ {}, promptSize_ {};
+    std::unique_ptr<KazumimiEngine::Sprite> name_;   // ステージの名前の絵（無いステージは空）
+    KazumimiEngine::Vector2 nameSize_ {};
+    std::array<std::unique_ptr<KazumimiEngine::Sprite>, Row_Count + 1> rowBoards_, labels_;
+    std::unique_ptr<KazumimiEngine::Sprite> flowerLabel_;             // 帯が「かくれ花」の時の名前
+    std::array<KazumimiEngine::Vector2, Row_Count + 1> labelSizes_ {};
+    KazumimiEngine::Vector2 rowSize_ {}, flowerLabelSize_ {};
+    std::array<std::unique_ptr<KazumimiEngine::Sprite>, Row_Count> icons_, stampEmpty_, stamps_; // 行の絵・星の空欄・星
+    std::vector<std::unique_ptr<KazumimiEngine::Sprite>> flowerEmpty_, comboFlowers_, hiddenFlowers_;
     DigitStrip digits_;
 
     float scale_ = 1.0f;       // 1080p に対する画面の大きさ

@@ -6,6 +6,8 @@
 #include "engine/graphics/PipelineType.h"
 #include "engine/graphics/TextureManager.h"
 
+namespace KazumimiEngine {
+
 void StompEffect::Initialize(const Vector3& position, Camera* camera, uint32_t textureIndex, uint32_t envMapIndex,
                              StompEffectType type) {
     // 乱数エンジンは1個を使い回す（std::random_device は毎回OSの乱数源を叩いて重いため）
@@ -482,3 +484,5 @@ void StompEffect::Draw() {
         }
     }
 }
+
+} // namespace KazumimiEngine

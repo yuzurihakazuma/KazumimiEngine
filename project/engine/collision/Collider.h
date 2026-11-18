@@ -1,7 +1,9 @@
 #pragma once
-#include"engine/math/struct.h"
+#include "engine/math/struct.h"
 #include <functional>
 #include <cstdint>
+
+namespace KazumimiEngine {
 
 // 軸に平行な箱
 struct AABB {
@@ -9,6 +11,7 @@ struct AABB {
     Vector3 max; // 最大座標 (右上隅)
 };
 
+// 光線（始点・向き・届く距離）。レイキャストの入力
 struct Ray {
     Vector3 origin;    // 始点（発射位置）
     Vector3 direction; // 方向（※必ず正規化されたベクトルを入れる）
@@ -84,3 +87,5 @@ private:
     void* owner_ = nullptr;
     bool  enabled_ = true;
 };
+
+} // namespace KazumimiEngine

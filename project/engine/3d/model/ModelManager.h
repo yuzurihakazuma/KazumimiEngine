@@ -5,6 +5,9 @@
 #include <map>
 #include <string>
 #include <memory>
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class Model;
 class ModelCommon;
@@ -66,3 +69,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

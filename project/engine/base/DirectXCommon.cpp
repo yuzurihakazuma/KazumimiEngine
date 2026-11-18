@@ -9,6 +9,8 @@
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/base/WindowProc.h"
 
+namespace KazumimiEngine {
+
 using namespace logs;
 
 void DirectXCommon::Finalize(){
@@ -729,3 +731,5 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(uint32_t descr
 
 }
 #pragma endregion
+
+} // namespace KazumimiEngine

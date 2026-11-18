@@ -14,6 +14,8 @@
 #include "engine/base/TimeManager.h"
 #include "engine/utils/RenderStats.h"
 
+namespace KazumimiEngine {
+
 void PerformanceMonitor::Initialize() {
     // VRAM 照会用に IDXGIAdapter3 を自前で取得（エンジン本体は触らない）
     Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
@@ -148,3 +150,5 @@ void PerformanceMonitor::DrawDebugUI([[maybe_unused]] float cpuUpdateMs, [[maybe
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

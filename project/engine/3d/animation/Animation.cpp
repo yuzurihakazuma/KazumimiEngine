@@ -10,6 +10,8 @@
 // --- エンジン側のファイル ---
 #include "engine/math/QuaternionMath.h"
 
+namespace KazumimiEngine {
+
 using namespace QuaternionMath;
 
 // ファイル内のアニメーションクリップ名一覧（glTFの複数クリップ対応。Idle/Walk等の切り替えに使う）
@@ -164,3 +166,5 @@ Quaternion CalculateValue(const std::vector<KeyFrameQuaternion>& keyframes, floa
 	// 時間が過ぎていたら最後の値を返す
 	return keyframes.back().value;
 }
+
+} // namespace KazumimiEngine

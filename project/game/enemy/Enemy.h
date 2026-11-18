@@ -1,10 +1,4 @@
 #pragma once
-// =====================================================================
-//  Enemy : レール上を動く敵（プレイヤーが上から踏んで倒せる）。
-//   ・railIndex のレール上を distance(進んだ距離) ベースで動く
-//   ・位置はレール上に乗せる（モデルは足元原点。判定は体の実寸のカプセル）
-//   ・動き方は個体ごとの設定（EnemySpawnData）で決まる：巡回/追跡/速度/浮遊など
-// =====================================================================
 #include "engine/math/struct.h"
 #include "engine/collision/Collider.h"
 
@@ -12,10 +6,13 @@
 #include <string>
 #include <vector>
 
+namespace KazumimiEngine {
 class Obj3d;
 class SkinnedObj3d;
 class SplineRail;
+}
 class BlockSystem;
+class EnemyBehavior;
 
 // 敵の種類（エディタから選択可能）。保存データは int なので既存の並びは変えないこと
 enum class EnemyType{
@@ -59,6 +56,12 @@ struct EnemyTypeSpec {
     float bodyRadius;  // 体の横半径
 };
 
+// =====================================================================
+//  Enemy : レール上を動く敵（プレイヤーが上から踏んで倒せる）。
+//   ・railIndex のレール上を distance(進んだ距離) ベースで動く
+//   ・位置はレール上に乗せる（モデルは足元原点。判定は体の実寸のカプセル）
+//   ・動き方は個体ごとの設定（EnemySpawnData）で決まる：巡回/追跡/速度/浮遊など
+// =====================================================================
 class Enemy{
 public:
     Enemy();
@@ -83,7 +86,7 @@ public:
     // レール上を移動。位置・向き・アニメを更新する。
     //   playerPos は追跡・カミバナの噛みつき発動・向きの制御に使う。
     //   blocks を渡すと、進行方向にブロックがある時に引き返す（貫通防止。nullptr=判定なし）
-    void Update(const std::vector<SplineRail>& rails, const Vector3& playerPos, float dt,
+    void Update(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::Vector3& playerPos, float dt,
                 const BlockSystem* blocks = nullptr);
 
     // 描画（Obj3dCommon::PreDraw 済みの状態で呼ぶ）
@@ -96,8 +99,8 @@ public:
     // --- 飲み込み（ヨッシー）：その場から縮みながらプレイヤーへ吸い込まれる ---
     void StartSwallow();                                  // 吸い込み開始
     // 吸い込まれる先（プレイヤーの足元からのずれ）。ベロの付け根＝鼻先の口へ（既定は足元から 0.5m 上）
-    void SetSwallowMouthOffset(const Vector3& offset){ swallowMouthOffset_ = offset; }
-    void TickSwallow(const Vector3& playerPos, float dt); // 吸い込み中の更新（縮小＋移動）
+    void SetSwallowMouthOffset(const KazumimiEngine::Vector3& offset){ swallowMouthOffset_ = offset; }
+    void TickSwallow(const KazumimiEngine::Vector3& playerPos, float dt); // 吸い込み中の更新（縮小＋移動）
     bool IsSwallowing() const{ return swallowing_; }
     bool IsConsumed()  const{ return consumed_; }         // 吸い込み完了（消してお腹+1）
 
@@ -108,25 +111,25 @@ public:
     void SetHighlight(bool on, float pulse);
 
     // 体の中心（ロックオン・演出・舌の狙い先）
-    const Vector3& GetPosition() const{ return position_; }
+    const KazumimiEngine::Vector3& GetPosition() const{ return position_; }
     // 体を包む球の半径（演出の大きさ・ロックオンリング用。当たり判定は下のカプセルを使う）
     float     GetRadius() const{ return radius_; }
-    Collider* GetCollider(){ return &collider_; }
+    KazumimiEngine::Collider* GetCollider(){ return &collider_; }
     EnemyType GetType() const{ return type_; }
     int       GetRailIndex() const{ return railIndex_; }
     float     GetDistance() const{ return distance_; }
 
     // --- 当たり判定（見た目の実寸に合わせた縦カプセル）---
-    const Vector3& GetFootPosition() const{ return footPos_; } // モデル原点（足元）
+    const KazumimiEngine::Vector3& GetFootPosition() const{ return footPos_; } // モデル原点（足元）
     float GetBodyBottomY() const{ return footPos_.y + bodyBottom_; } // 体の下端（ワールドY）
     float GetBodyTopY()    const{ return footPos_.y + bodyTop_; }    // 体の上端（ワールドY）
     float GetBodyRadius()  const{ return bodyRadius_; }              // 体の横半径
     // 球（卵など）が体に触れているか
-    bool HitsSphere(const Vector3& center, float radius) const;
+    bool HitsSphere(const KazumimiEngine::Vector3& center, float radius) const;
     // 球が from→to へ動いた間に体へ触れたか（速い弾のすり抜け防止）
-    bool HitsSweptSphere(const Vector3& from, const Vector3& to, float radius) const;
+    bool HitsSweptSphere(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, float radius) const;
     // 当たり判定の形をワイヤーで描く（デバッグ表示用）
-    void DrawHitShape(const Vector4& color) const;
+    void DrawHitShape(const KazumimiEngine::Vector4& color) const;
 
 private:
     // 配置データをメンバへ写して初期状態に戻す（Initialize / Reapply 共通）
@@ -158,8 +161,8 @@ private:
     bool      swallowing_ = false;        // 吸い込み中
     bool      consumed_   = false;        // 吸い込み完了（シーンが消してお腹を増やす）
     float     swallowT_   = 0.0f;         // 吸い込み経過(秒)
-    Vector3   swallowStart_ { 0.0f, 0.0f, 0.0f }; // 吸い込み開始位置
-    Vector3   swallowMouthOffset_ { 0.0f, 0.5f, 0.0f }; // 吸い込まれる先（プレイヤーの足元から）
+    KazumimiEngine::Vector3   swallowStart_ { 0.0f, 0.0f, 0.0f }; // 吸い込み開始位置
+    KazumimiEngine::Vector3   swallowMouthOffset_ { 0.0f, 0.5f, 0.0f }; // 吸い込まれる先（プレイヤーの足元から）
     bool      visualHidden_ = false;      // true の間は Draw をスキップ
     // 溶けて消える（倒された時）。-1＝溶けていない / 0以上＝溶けはじめてからの秒 / 溶け終わったら -2
     float     meltT_ = -1.0f;
@@ -168,17 +171,17 @@ private:
     void TickMelt(float dt);
     void ApplyLook(float squash, float melt); // 見た目の行列と溶け具合（melt 0=そのまま → 1=消えた）
 
-    Vector3 footPos_  { 0.0f, 0.0f, 0.0f }; // 足元（モデル原点）
-    Vector3 position_ { 0.0f, 0.0f, 0.0f }; // 体の中心
-    Vector3 rotation_ { 0.0f, 0.0f, 0.0f };
+    KazumimiEngine::Vector3 footPos_  { 0.0f, 0.0f, 0.0f }; // 足元（モデル原点）
+    KazumimiEngine::Vector3 position_ { 0.0f, 0.0f, 0.0f }; // 体の中心
+    KazumimiEngine::Vector3 rotation_ { 0.0f, 0.0f, 0.0f };
     float   radius_     = 0.4f;     // 体を包む球の半径（演出用）
     float   bodyBottom_ = 0.0f;     // 体の下端（足元からの高さ）
     float   bodyTop_    = 0.77f;    // 体の上端（足元からの高さ）
     float   bodyRadius_ = 0.36f;    // 体の横半径
 
-    std::unique_ptr<SkinnedObj3d> skinnedObj_; // 見た目（リグ+クリップ入りの敵モデル）
-    std::unique_ptr<Obj3d> obj_;    // フォールバックの見た目（モデル未登録時のsphere）
-    float biteTimer_ = 0.0f;        // カミバナ：噛みつきモーションの残り時間（0=Idle中）
+    std::unique_ptr<KazumimiEngine::SkinnedObj3d> skinnedObj_; // 見た目（リグ+クリップ入りの敵モデル）
+    std::unique_ptr<KazumimiEngine::Obj3d> obj_;    // フォールバックの見た目（モデル未登録時のsphere）
+    std::unique_ptr<EnemyBehavior> behavior_; // 種類ごとのふるまい（アニメーション・プレイヤーへの反応）
     float turnCooldown_ = 0.0f;     // ブロックにぶつかって折り返した直後の再判定待ち（振動防止）
-    Collider collider_;             // 当たり判定（球）
+    KazumimiEngine::Collider collider_;             // 当たり判定（球）
 };

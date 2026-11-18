@@ -1,13 +1,15 @@
 #pragma once
+#include <d3d12.h>
+
+namespace KazumimiEngine {
+
+class RenderTexture;
+
 // =====================================================================
 //  ISceneTransition：シーン遷移の演出（紙芝居など）の差し込み口。
 //   シーンマネージャが持つので、シーンが切り替わっても演出は途切れない。
 //   次のシーンへの切り替えは、演出の側が「画面が隠れている間」に SceneManager::ChangeScene で頼む
 // =====================================================================
-#include <d3d12.h>
-
-class RenderTexture;
-
 class ISceneTransition {
 public:
 	virtual ~ISceneTransition() = default;
@@ -26,3 +28,5 @@ public:
 	// 終了処理（GPU のリソースを、デバイスより先に放す）
 	virtual void Finalize() {}
 };
+
+} // namespace KazumimiEngine

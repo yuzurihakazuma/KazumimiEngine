@@ -15,6 +15,8 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+using namespace KazumimiEngine;
+
 void PlaySceneInspector::Draw(const Targets& targets){
 #ifdef USE_IMGUI
     DrawRailAndCamera(targets);

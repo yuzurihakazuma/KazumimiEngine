@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 bool BlockWorldShapes::MakeBox(const std::vector<SplineRail>& rails, const PlacedBlock& block, Box& box){
     Vector3 origin {}; float yaw = 0.0f; float pitch = 0.0f;
     if ( !BlockShape::PoseOnRail(rails, block, origin, yaw, &pitch) ) return false;

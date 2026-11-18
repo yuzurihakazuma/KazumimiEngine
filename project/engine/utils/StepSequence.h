@@ -1,4 +1,12 @@
 #pragma once
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace KazumimiEngine {
+
 // =====================================================================
 //  StepSequence<TContext>：順番に進む「場面」の列（ステート パターン）。クラステンプレート。
 //   演出を「時間で進む場面の列」として作るための進行役。場面ごとに
@@ -16,12 +24,6 @@
 //
 //   早送り：Skip で今の場面を終わらせて次へ進む（場面の側は Skip で「終わりの形」にする）
 // =====================================================================
-#include <functional>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-
 template <class TContext>
 class StepSequence {
 public:
@@ -129,6 +131,7 @@ public:
 private:
     static constexpr int kNotStarted = -1;
 
+    // 関数を 1 回呼んで、すぐ次へ進む場面（AddCall が作る）
     class CallStep : public IStep {
     public:
         explicit CallStep(std::function<void(TContext&)> call) : call_(std::move(call)) {}
@@ -137,6 +140,7 @@ private:
     private:
         std::function<void(TContext&)> call_;
     };
+    // 渡した関数が true を返すまで続く場面（AddUntil が作る）
     class UntilStep : public IStep {
     public:
         explicit UntilStep(std::function<bool(TContext&, float, float)> update) : update_(std::move(update)) {}
@@ -158,6 +162,7 @@ private:
         EnterCurrent(context);
     }
 
+    // 列に並べた場面 1 つ（表示用の名前と中身）
     struct Entry {
         std::string name;
         std::unique_ptr<IStep> step;
@@ -165,3 +170,5 @@ private:
     std::vector<Entry> entries_;
     int current_ = kNotStarted;
 };
+
+} // namespace KazumimiEngine

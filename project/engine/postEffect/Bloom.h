@@ -6,6 +6,8 @@
 #include <wrl.h>
 #include <string>
 
+namespace KazumimiEngine {
+
 class DirectXCommon;
 class SrvManager;
 
@@ -111,3 +113,5 @@ private:
 	float* targetEmissivePower_ = nullptr; // 初期値はNULL
 
 };
+
+} // namespace KazumimiEngine

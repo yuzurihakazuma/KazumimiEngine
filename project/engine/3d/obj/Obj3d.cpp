@@ -15,9 +15,11 @@
 #include "engine/utils/RenderStats.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/graphics/SrvManager.h"
-#include "Animation.h" 
+#include "engine/3d/animation/Animation.h" 
 #include "engine/math/QuaternionMath.h"
 #include "engine/graphics/PipelineManager.h"
+
+namespace KazumimiEngine {
 
 using namespace MatrixMath;
 
@@ -288,3 +290,5 @@ void Obj3d::PlayAnimation(Animation* animation){
 	currentAnimation_ = animation;
 	animationTime_ = 0.0f; // 再生時間をリセット
 }
+
+} // namespace KazumimiEngine

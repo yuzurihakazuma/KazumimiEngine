@@ -2,6 +2,8 @@
 
 #include "engine/utils/JsonFile.h"
 
+using namespace KazumimiEngine;
+
 namespace {
     using json = nlohmann::json;
     constexpr const char* kFolder = "resources/clear/";

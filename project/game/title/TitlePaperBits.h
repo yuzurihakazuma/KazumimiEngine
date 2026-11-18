@@ -1,4 +1,11 @@
 #pragma once
+#include "engine/math/struct.h"
+
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine { class Obj3d; }
+
 // =====================================================================
 //  TitlePaperBits：タイトルの紙ふぶき（小さな色紙の切れ端）。
 //   光る粒ではなく「紙」なので、クラフトの雰囲気を壊さずに動きを足せる。
@@ -6,13 +13,6 @@
 //   ・ただよう紙 … 画面の上から、ゆっくり斜めに降り続ける（数枚だけ。ON/OFF できる）
 //   あらかじめ決まった枚数の板（Obj3d）を用意して使い回す。実行中に作ったり消したりしない
 // =====================================================================
-#include "engine/math/struct.h"
-
-#include <memory>
-#include <vector>
-
-class Obj3d;
-
 class TitlePaperBits {
 public:
     TitlePaperBits();
@@ -24,21 +24,22 @@ public:
     void Draw();
 
     // position から count 枚を散らす。spread=横へ広がる速さ / lift=舞い上がる速さ / size=1枚の大きさ(m)
-    void Burst(const Vector3& position, int count, float spread, float lift, float size = 0.24f);
+    void Burst(const KazumimiEngine::Vector3& position, int count, float spread, float lift, float size = 0.24f);
     void Clear(); // 全部消す（演出をやり直す時）
 
     void SetAmbient(bool enabled){ ambient_ = enabled; }
     bool IsAmbient() const{ return ambient_; }
 
 private:
+    // 紙片 1 枚（見た目・生きているか・ただよう紙か・位置と速さ）
     struct Bit {
-        std::unique_ptr<Obj3d> object;
+        std::unique_ptr<KazumimiEngine::Obj3d> object;
         bool    alive = false;
         bool    drifting = false; // ただよう紙（ゆっくり降り続ける）か
-        Vector3 position {};
-        Vector3 velocity {};
-        Vector3 rotation {};
-        Vector3 spin {};          // 回る速さ(rad/s)
+        KazumimiEngine::Vector3 position {};
+        KazumimiEngine::Vector3 velocity {};
+        KazumimiEngine::Vector3 rotation {};
+        KazumimiEngine::Vector3 spin {};          // 回る速さ(rad/s)
         float   size = 0.16f;
         float   age = 0.0f;
         float   life = 1.0f;

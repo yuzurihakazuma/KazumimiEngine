@@ -5,7 +5,7 @@
 #include <memory>
 #include <functional>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 class BlockSystem;
 
 // =====================================================================
@@ -18,14 +18,14 @@ class BlockSystem;
 class EnemyManager {
 public:
     // 配置テンプレートから敵を再構築する（マップ同期時に呼ぶ）
-    void Spawn(const std::vector<EnemySpawnData>& spawns, const std::vector<SplineRail>& rails);
+    void Spawn(const std::vector<EnemySpawnData>& spawns, const std::vector<KazumimiEngine::SplineRail>& rails);
 
     // 移動＋吸い込みTick＋消化。
     //   吸い込みが完了した敵は onConsumed(その位置) を呼んでから削除する
     //   （お腹+1 や演出はシーン/EggSystem 側が行う）。
     //   blocks を渡すとパトロール中の敵がブロックで引き返す（貫通防止）
-    void Update(const std::vector<SplineRail>& rails, const Vector3& playerPos, float dt,
-                const std::function<void(const Vector3&)>& onConsumed,
+    void Update(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::Vector3& playerPos, float dt,
+                const std::function<void(const KazumimiEngine::Vector3&)>& onConsumed,
                 const BlockSystem* blocks = nullptr);
 
     void Draw();
@@ -36,7 +36,7 @@ public:
     void Clear(){ enemies_.clear(); spawnedCount_ = 0; remainingCount_ = 0; }
 
     // 敵を倒した知らせ（踏んだ・卵を当てた・食べ終えた。1 匹につき 1 回）。集計係（StageTally）が受け取る
-    Signal<>& OnEnemyDefeated(){ return onEnemyDefeated_; }
+    KazumimiEngine::Signal<>& OnEnemyDefeated(){ return onEnemyDefeated_; }
     // 置いた敵の数（Spawn した時の数）
     int SpawnedCount() const{ return spawnedCount_; }
 
@@ -49,7 +49,7 @@ private:
     int CountRemaining() const;
 
     std::vector<std::unique_ptr<Enemy>> enemies_;
-    Signal<> onEnemyDefeated_;
+    KazumimiEngine::Signal<> onEnemyDefeated_;
     int   spawnedCount_ = 0;   // Spawn で置いた数
     int   remainingCount_ = 0; // 前のフレームの、まだ倒していない数（減った分を知らせる）
     bool  cutActive_ = false; // SetViewCut

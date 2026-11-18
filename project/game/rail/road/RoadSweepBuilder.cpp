@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 using namespace RoadProfile;
 
@@ -281,7 +283,7 @@ void RoadSweepBuilder::BuildConnector(const std::vector<Vector3>& nodes, int kee
     if ( nodes.size() < 3 || keepTo <= keepFrom ) return;
     // その場で小さなレール（Catmull-Rom）を合成して同じ断面で掃引する
     SplineRail connector;
-    connector.nodes = nodes;
+    connector.EditNodes() = nodes;
     connector.BuildDistanceTable(); // FrameCache もここで自動構築される
 
     // 助走区間（keepFrom より手前と keepTo より先）は本線の掃引と重なるので張らない

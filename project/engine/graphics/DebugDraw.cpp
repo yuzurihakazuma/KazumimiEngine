@@ -12,6 +12,8 @@
 #include "engine/graphics/GraphicsPipelineBuilder.h"
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 void DebugDraw::Initialize(DirectXCommon* dxCommon){
     dxCommon_ = dxCommon;
     ID3D12Device* device = dxCommon_->GetDevice();
@@ -157,3 +159,5 @@ void DebugDraw::Render(const Camera* camera){
 
     vertices_.clear();
 }
+
+} // namespace KazumimiEngine

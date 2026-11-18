@@ -16,6 +16,8 @@
 #include <cmath>
 #include <type_traits>
 
+namespace KazumimiEngine {
+
 namespace Math {
 
     // --- 定数 ---
@@ -64,3 +66,5 @@ namespace Math {
     }
 
 } // namespace Math
+
+} // namespace KazumimiEngine

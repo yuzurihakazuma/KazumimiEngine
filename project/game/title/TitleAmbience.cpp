@@ -14,6 +14,8 @@
 #include <cmath>
 #include <string>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr float kPi = Math::kPi;
 

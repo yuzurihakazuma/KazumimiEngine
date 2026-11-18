@@ -5,6 +5,8 @@
 #include "engine/3d/model/Model.h"
 #include "engine/graphics/PipelineType.h"
 
+namespace KazumimiEngine {
+
 void HitEffect::Initialize(const Vector3& position, Camera* camera, uint32_t textureIndex, uint32_t envMapIndex) {
     std::random_device seed_gen;
     std::mt19937 engine(seed_gen());
@@ -71,3 +73,5 @@ void HitEffect::Draw() {
         }
     }
 }
+
+} // namespace KazumimiEngine

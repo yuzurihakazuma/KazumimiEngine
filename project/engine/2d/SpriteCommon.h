@@ -1,9 +1,12 @@
 #pragma once
 #include "engine/base/Singleton.h"
 
+struct ID3D12GraphicsCommandList;
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
-struct ID3D12GraphicsCommandList;
 
 // =====================================================================
 //  SpriteCommon：スプライトを描く前の、共通の描画設定。
@@ -37,3 +40,4 @@ private:
 	
 };
 
+} // namespace KazumimiEngine

@@ -15,6 +15,8 @@
 #include <string>
 #include <vector>
 
+using namespace KazumimiEngine;
+
 extern unsigned char g_keyNow[256];
 extern unsigned char g_keyPrev[256];
 
@@ -36,9 +38,9 @@ static BlockData B(float dist, int level, int type = 0){
 
 static std::vector<Frame> Run(const Scenario& sc, bool verbose){
     std::vector<SplineRail> rails(1);
-    for ( int i = 0; i <= 8; ++i ) { rails[0].nodes.push_back({ ( float ) i * 5.0f, 0.0f, 0.0f }); }
-    rails[0].type = SplineRail::RailType::Horizontal;
-    rails[0].nodeHole = sc.holes;
+    for ( int i = 0; i <= 8; ++i ) { rails[0].EditNodes().push_back({ ( float ) i * 5.0f, 0.0f, 0.0f }); }
+    rails[0].EditConfig().type = SplineRail::RailType::Horizontal;
+    rails[0].EditConfig().nodeHole = sc.holes;
     rails[0].BuildDistanceTable();
 
     BlockSystem blocks;

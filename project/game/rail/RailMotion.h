@@ -10,7 +10,7 @@
 
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 namespace RailMotion {
     // ridingRail に渡すと全レールを強制発動する値（エディタのプレビュー用）
@@ -19,11 +19,11 @@ namespace RailMotion {
     // 時間を進める。ridingRail=プレイヤーが今乗っているレール番号（接地している時だけ。-1=誰も乗っていない）。
     //   playerRail＝プレイヤーのレール（跳んでいる間も。列車の「乗っている」に使う。-1＝分からない＝ridingRail と同じ）
     //   動く設定のレールが1本でもあれば true（呼び出し側が緑線の位置を追従させる）
-    bool Advance(std::vector<SplineRail>& rails, float dt, int ridingRail, int playerRail = -1);
+    bool Advance(std::vector<KazumimiEngine::SplineRail>& rails, float dt, int ridingRail, int playerRail = -1);
 
     // 基準位置へ戻す（発動状態・出現状態・列車の向きもリセット。列車は元の駅に置く）。
     //   keepRolls＝渡し板「ころころ」を広げたままにする（落ちて戻った時。一度広げたらそのまま）
-    void Reset(std::vector<SplineRail>& rails, bool keepRolls = false);
+    void Reset(std::vector<KazumimiEngine::SplineRail>& rails, bool keepRolls = false);
 
     // ===== 列車 =====
     constexpr float kTrainEngineLength = 3.45f; // 機関車の長さ(m)（うしろのはし〜前のライト。game/rail/ToyTrain と同じ）
@@ -36,23 +36,23 @@ namespace RailMotion {
         float engineSign = 1.0f;          // 機関車のある側（ガイドの進む向きで +1 / -1）
         bool  valid = false;
     };
-    TrainLayout MakeTrainLayout(const SplineRail& train, const std::vector<SplineRail>& rails);
+    TrainLayout MakeTrainLayout(const KazumimiEngine::SplineRail& train, const std::vector<KazumimiEngine::SplineRail>& rails);
     // 列車の元の駅と向きを決める（Sync の後に1回。ガイドが決まってから）
-    void SetupTrain(SplineRail& train, const std::vector<SplineRail>& rails);
+    void SetupTrain(KazumimiEngine::SplineRail& train, const std::vector<KazumimiEngine::SplineRail>& rails);
     // 渡し板のちょうつがいの側と、どちらの駅の板かを決める（SetupTrain の後に1回）
-    void SetupBoard(SplineRail& board, const std::vector<SplineRail>& rails);
+    void SetupBoard(KazumimiEngine::SplineRail& board, const std::vector<KazumimiEngine::SplineRail>& rails);
     // 渡し板が開いているべきか（列車がその駅に止まっている）
-    bool BoardShouldOpen(const SplineRail& board, const std::vector<SplineRail>& rails);
+    bool BoardShouldOpen(const KazumimiEngine::SplineRail& board, const std::vector<KazumimiEngine::SplineRail>& rails);
     // 渡し板「ころころ」：転がり出すはしを決める（ほかの道とつながっている方。RailConnections の後に1回）
-    void SetupRollBoard(SplineRail& board);
+    void SetupRollBoard(KazumimiEngine::SplineRail& board);
     // ころころの巻いたマット（筒）の今の真ん中と半径。卵の当たりと見た目で同じ物を使う
     struct RollPose {
-        Vector3 hinge {};    // 転がり出すはし（板の上の面）
-        Vector3 along {};    // 転がる向き（水平・長さ1）
+        KazumimiEngine::Vector3 hinge {};    // 転がり出すはし（板の上の面）
+        KazumimiEngine::Vector3 along {};    // 転がる向き（水平・長さ1）
         float   length = 0.0f;
-        Vector3 center {};   // 筒の真ん中
+        KazumimiEngine::Vector3 center {};   // 筒の真ん中
         float   radius = 0.0f;
         float   rolled = 0.0f; // 転がった距離(m)
     };
-    bool GetRollPose(const SplineRail& board, RollPose& out);
+    bool GetRollPose(const KazumimiEngine::SplineRail& board, RollPose& out);
 }

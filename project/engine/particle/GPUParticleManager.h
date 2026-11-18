@@ -7,6 +7,8 @@
 #include "engine/math/struct.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 class DirectXCommon;
 class SrvManager;
 class Camera;
@@ -158,3 +160,5 @@ private:
     uint32_t lastFrameEmitCount_ = 0;  // 直前フレームのEmit数
     uint32_t totalEmitted_ = 0;  // 累計Emit数
 };
+
+} // namespace KazumimiEngine

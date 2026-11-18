@@ -1,6 +1,8 @@
 #pragma once
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 namespace MatrixMath {
 	// ---------------------------------------------
 	// 行列計算
@@ -56,3 +58,5 @@ namespace MatrixMath {
 	// NDC(-1..1, z=0..1) → ワールド点（invViewProj = Inverse(viewProj) を渡す）
 	Vector3 NdcToWorld(float ndcX, float ndcY, float ndcZ, const Matrix4x4& invViewProj);
 }
+
+} // namespace KazumimiEngine

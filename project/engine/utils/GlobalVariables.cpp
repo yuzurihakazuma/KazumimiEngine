@@ -8,6 +8,8 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 void GlobalVariables::CreateGroup(const std::string& groupName){
@@ -168,3 +170,5 @@ void GlobalVariables::LoadFile(const std::string& group){
         }
     }
 }
+
+} // namespace KazumimiEngine

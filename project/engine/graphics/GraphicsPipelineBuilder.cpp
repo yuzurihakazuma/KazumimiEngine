@@ -2,6 +2,8 @@
 #include "engine/graphics/D3DDebugName.h"
 #include <cassert>
 
+namespace KazumimiEngine {
+
 GraphicsPipelineBuilder::GraphicsPipelineBuilder(){
 	//  よく使う標準設定をあらかじめ入れる
 	psoDesc_.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -101,3 +103,5 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetRenderTargets(const std::ve
 	}
 	return *this;
 }
+
+} // namespace KazumimiEngine

@@ -9,9 +9,11 @@
 #include "externals/imgui/imgui_impl_win32.h"
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif
+
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "shell32.lib")
 
+namespace KazumimiEngine {
 
 // WindowProcの初期化
 void WindowProc::Initialize(){
@@ -197,4 +199,4 @@ LRESULT WindowProc::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam){
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-
+} // namespace KazumimiEngine

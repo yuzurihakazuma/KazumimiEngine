@@ -17,6 +17,8 @@
 #include <set>
 #include <string>
 
+using namespace KazumimiEngine;
+
 using json = nlohmann::json;
 
 namespace {

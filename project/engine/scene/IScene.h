@@ -2,6 +2,8 @@
 
 #include <string>
 
+namespace KazumimiEngine {
+
 // シーンのインターフェース
 class IScene{
 public:
@@ -33,3 +35,5 @@ public:
 	virtual void OnTransitionCue(const std::string& /*cue*/) {}
 
 };
+
+} // namespace KazumimiEngine

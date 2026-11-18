@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 using namespace RoadProfile;
 using namespace RoadJunctionGeom;

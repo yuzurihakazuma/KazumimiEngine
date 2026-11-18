@@ -1,6 +1,8 @@
 #pragma once
 #include "Collider.h"
 
+namespace KazumimiEngine {
+
 // 当たり判定の計算アルゴリズムをまとめたクラス
 class Collision {
 public:
@@ -19,3 +21,5 @@ public:
 
  
 };
+
+} // namespace KazumimiEngine

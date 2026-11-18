@@ -24,6 +24,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+namespace KazumimiEngine {
+
 namespace {
     // 拡張子を小文字で取り出す
     std::string LowerExt(const std::string& name) {
@@ -688,3 +690,5 @@ void FileEditor::DrawDebugUI() {
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

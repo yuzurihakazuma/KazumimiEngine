@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 float PlayerBlockContact::ResolveWalk(int rail, float prevDist, float newDist, float footY, bool grounded) const{
     if ( !blocks_ ) return newDist;
     // 地面を歩いている時は、進んだ先で実際に立つ高さ（斜面の表面・小段差の上面）で壁を調べる。

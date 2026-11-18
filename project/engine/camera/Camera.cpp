@@ -10,6 +10,9 @@
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
+
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
 // 簡易生成：ウィンドウサイズと DirectXCommon を自動取得して生成
@@ -108,3 +111,5 @@ void Camera::Update(){
 
 
 }
+
+} // namespace KazumimiEngine

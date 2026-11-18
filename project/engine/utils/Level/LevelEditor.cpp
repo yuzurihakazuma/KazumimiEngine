@@ -16,6 +16,7 @@
 #include "engine/base/Input.h"
 #include "engine/camera/Camera.h" // CalcSpawnPoint（カメラの視線の先に配置）用
 
+namespace KazumimiEngine {
 
 LevelEditor::LevelEditor(){
 	// レール編集は専用クラス(RailEditor)へ分離。データ(levelData_)のアドレスを渡して参照させる。
@@ -647,3 +648,5 @@ void LevelEditor::SetObjectShaderParam(int index, float v){
 	//   通常シェーダーのオブジェクトに使うとディゾルブとして作用する点に注意）
 	object3ds_[index]->SetDissolveThreshold(v);
 }
+
+} // namespace KazumimiEngine

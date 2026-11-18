@@ -1,4 +1,9 @@
 #pragma once
+#include "externals/imgui/imgui.h"
+
+struct SceneEditContext;
+namespace KazumimiEngine { class RailEditor; }
+
 // =====================================================================
 //  MinimapPanel：ミニマップ（俯瞰ビュー）パネル。コース全体と配置物を上から一望する。
 //   ・線に触れる＝そのレールを選択 / 選択レールの点をドラッグ＝XZ移動（高さは保持）
@@ -6,11 +11,6 @@
 //  レール（選択=黄 / ガイド骨組み=橙 / 動く=水色 / 通常=白）、ブロック・コイン・敵・
 //  スタート・ゴール・プレイヤー・カメラを描く
 // =====================================================================
-#include "externals/imgui/imgui.h"
-
-struct SceneEditContext;
-class RailEditor;
-
 class MinimapPanel {
 public:
     // パネルが表示中の時だけ呼ぶ
@@ -39,7 +39,7 @@ private:
     void DrawObjects(const SceneEditContext& context, const MapView& map, ImDrawList* draw);
     // 選択レールのノードを描き、ドラッグで動かす。マウスが触れているノード番号を返す
     int  UpdateNodeHandles(const SceneEditContext& context, const MapView& map, ImDrawList* draw,
-                           bool hovered, RailEditor* railEditor, int currentRail);
+                           bool hovered, KazumimiEngine::RailEditor* railEditor, int currentRail);
     void UpdateZoomPan(const MapView& map, bool hovered);
 
     float zoom_ = 1.0f;

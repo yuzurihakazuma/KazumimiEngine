@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 void MinimapPanel::Draw(const SceneEditContext& context){
 	// Beginがfalse（畳まれている/非アクティブなドックタブ）の間は本体を描かない。
 	//   描いてしまうと IsItemClicked がタイトルバーに誤反応し、畳んだ状態でタイトルを
@@ -35,8 +37,8 @@ void MinimapPanel::UpdateBounds(const SceneEditContext& context){
 	bool hasBounds = false;
 	float minX = 0.0f, maxX = 0.0f, minZ = 0.0f, maxZ = 0.0f;
 	for ( const auto& rail : context.Rails() ) {
-		if ( rail.nodes.size() < 2 || !rail.visible ) continue;
-		for ( const auto& node : rail.nodes ) {
+		if ( rail.Nodes().size() < 2 || !rail.Config().visible ) continue;
+		for ( const auto& node : rail.Nodes() ) {
 			if ( !hasBounds ) { minX = maxX = node.x; minZ = maxZ = node.z; hasBounds = true; continue; }
 			minX = ( std::min )( minX, node.x ); maxX = ( std::max )( maxX, node.x );
 			minZ = ( std::min )( minZ, node.z ); maxZ = ( std::max )( maxZ, node.z );
@@ -110,12 +112,12 @@ int MinimapPanel::DrawRails(const SceneEditContext& context, const MapView& map,
 	int hoverRail = -1; float bestRailPx = 8.0f;
 	for ( int railIndex = 0; railIndex < ( int ) rails.size(); ++railIndex ) {
 		const SplineRail& rail = rails[railIndex];
-		if ( rail.nodes.size() < 2 ) continue;
+		if ( rail.Nodes().size() < 2 ) continue;
 		bool isGuideSkeleton = false;
-		if ( !rail.visible ) {
+		if ( !rail.Config().visible ) {
 			// 非表示レールのうち、ガイドとして使われている骨組みだけは表示する
 			for ( const auto& other : rails ) {
-				if ( other.motionType == 3 && other.guideRail == railIndex ) { isGuideSkeleton = true; break; }
+				if ( other.Motion().motionType == 3 && other.Motion().guideRail == railIndex ) { isGuideSkeleton = true; break; }
 			}
 			if ( !isGuideSkeleton ) continue;
 		}
@@ -130,7 +132,7 @@ int MinimapPanel::DrawRails(const SceneEditContext& context, const MapView& map,
 		ImVec2 prev {};
 		for ( int s = 0; s <= steps; ++s ) {
 			Vector3 p = rail.GetPositionByDistance(len * ( float ) s / ( float ) steps);
-			ImVec2 c = map.ToCanvas(p.x + rail.animOffset.x, p.z + rail.animOffset.z);
+			ImVec2 c = map.ToCanvas(p.x + rail.Motion().animOffset.x, p.z + rail.Motion().animOffset.z);
 			if ( s > 0 ) {
 				draw->AddLine(prev, c, lineColor, thickness);
 				// マウス→線分の距離でホバー判定（編集モード時のみ）

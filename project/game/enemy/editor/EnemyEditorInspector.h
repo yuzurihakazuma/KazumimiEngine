@@ -2,7 +2,7 @@
 #include "game/enemy/Enemy.h" // EnemySpawnData
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 class EnemySpawnModel;
 
 // =====================================================================
@@ -13,7 +13,7 @@ class EnemySpawnModel;
 class EnemyEditorInspector {
 public:
     //   pickRail/pickDist: レールエディタで選択中ノードのレール番号と距離（hasPick=false なら未選択）
-    void Draw(EnemySpawnModel& model, const std::vector<SplineRail>& splineRails,
+    void Draw(EnemySpawnModel& model, const std::vector<KazumimiEngine::SplineRail>& splineRails,
               int pickRail, float pickDist, bool hasPick);
 
 private:
@@ -21,12 +21,12 @@ private:
     enum class EntryAction { None, Duplicate, Delete };
 
     void DrawNothingSelected(EnemySpawnModel& model);
-    void DrawSelected(EnemySpawnModel& model, const std::vector<SplineRail>& splineRails,
+    void DrawSelected(EnemySpawnModel& model, const std::vector<KazumimiEngine::SplineRail>& splineRails,
                       int pickRail, float pickDist, bool hasPick);
 
     // --- 選択中の1体の各欄（どれも変更があれば model に変更通知を立てる）---
     void DrawBasicSection(EnemySpawnModel& model, EnemySpawnData& spawn);
-    void DrawPlaceSection(EnemySpawnModel& model, int index, const std::vector<SplineRail>& splineRails,
+    void DrawPlaceSection(EnemySpawnModel& model, int index, const std::vector<KazumimiEngine::SplineRail>& splineRails,
                           float railLength, bool validRail, int pickRail, float pickDist, bool hasPick);
     void DrawMotionSection(EnemySpawnModel& model, EnemySpawnData& spawn, float railLength);
     void DrawBodySection(EnemySpawnModel& model, EnemySpawnData& spawn);

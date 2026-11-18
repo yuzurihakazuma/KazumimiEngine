@@ -1,4 +1,24 @@
 #pragma once
+#include "game/scene/BaseScene.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/rail/SplineRail.h"
+#include "game/rail/RoadMesh.h"
+#include "game/stage/StageBackdrop.h"
+#include "game/worldmap/DiveSequence.h"
+#include "game/effect/PaperFx.h"
+#include "game/worldmap/WorldMapData.h"
+#include "game/worldmap/WorldMapPanel.h"
+
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine {
+class Obj3d;
+class SDFText;
+class SkinnedObj3d;
+}
+class StageDiorama;
+
 // =====================================================================
 //  StageSelectScene：ステージ選択（ワールドマップ）。ステージ選択・飛び込み演出 企画書。
 //   ・段ボールの台座の上に、ステージの「箱庭」（本物のステージを縮めて描いた物）が並ぶ
@@ -13,24 +33,6 @@
 //   ・T でタイトルへ
 //   置き場所は resources/worldmap/（tools/worldmap/make_worldmap_assets.py が作る）
 // =====================================================================
-#include "game/scene/BaseScene.h"
-#include "engine/3d/obj/Obj3dCommon.h"
-#include "engine/rail/SplineRail.h"
-#include "game/rail/RoadMesh.h"
-#include "game/stage/StageBackdrop.h"
-#include "game/worldmap/DiveSequence.h"
-#include "game/effect/PaperFx.h"
-#include "game/worldmap/WorldMapData.h"
-#include "game/worldmap/WorldMapPanel.h"
-
-#include <memory>
-#include <vector>
-
-class Obj3d;
-class SDFText;
-class SkinnedObj3d;
-class StageDiorama;
-
 class StageSelectScene : public BaseScene {
 public:
 	StageSelectScene();
@@ -50,23 +52,23 @@ private:
 	void OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawUI(ID3D12GraphicsCommandList* commandList) override;
 	void OnDrawInspector() override;
-	bool GetSdfViewerPosition(Vector3& outPos) const override;
+	bool GetSdfViewerPosition(KazumimiEngine::Vector3& outPos) const override;
 
 	// RoadOpen＝クリアして戻って来た：次のマスへ布の道が転がって伸びる間（操作は待つ）
 	enum class Phase { Opening, Map, RoadOpen, Dive, Leaving };
 
 	// マスの物（台座・番号・蓋・箱庭）
 	struct Node {
-		std::unique_ptr<Obj3d> pedestal;
-		std::unique_ptr<Obj3d> label;
-		std::unique_ptr<Obj3d> lid;      // まだ遊べないマスの蓋
-		std::unique_ptr<Obj3d> lidLabel;
+		std::unique_ptr<KazumimiEngine::Obj3d> pedestal;
+		std::unique_ptr<KazumimiEngine::Obj3d> label;
+		std::unique_ptr<KazumimiEngine::Obj3d> lid;      // まだ遊べないマスの蓋
+		std::unique_ptr<KazumimiEngine::Obj3d> lidLabel;
 		std::unique_ptr<StageDiorama> diorama;
 		float roadDistance = 0.0f;       // 道の上のどこに立つか(m)
-		Vector3 center {};               // 箱庭の真ん中（無ければ台座の上）
-		Vector3 top {};                  // 台座の上面の中心
+		KazumimiEngine::Vector3 center {};               // 箱庭の真ん中（無ければ台座の上）
+		KazumimiEngine::Vector3 top {};                  // 台座の上面の中心
 		float   smokeTimer = 0.0f;       // 汽車のけむりを出すまで
-		Vector3 size {};                 // 台座の大きさ
+		KazumimiEngine::Vector3 size {};                 // 台座の大きさ
 	};
 
 	void BuildMap();
@@ -84,20 +86,20 @@ private:
 	void StartDive();
 	bool IsPreviewing() const; // マスに立って止まっている（プレビュー中）
 	int  StandingNode() const; // 立っているマス（歩いている途中は -1）
-	void MapCamera(Vector3& outPosition, Vector3& outLook) const;
-	void PreviewCamera(Vector3& outPosition, Vector3& outLook) const;
+	void MapCamera(KazumimiEngine::Vector3& outPosition, KazumimiEngine::Vector3& outLook) const;
+	void PreviewCamera(KazumimiEngine::Vector3& outPosition, KazumimiEngine::Vector3& outLook) const;
 
 	WorldMapData data_;
 	DiveTiming   timing_;
 	std::vector<Node> nodes_;
-	std::vector<SplineRail> road_;  // 道（1本。布ロード）
+	std::vector<KazumimiEngine::SplineRail> road_;  // 道（1本。布ロード）
 	RoadMesh     roadMesh_;
 	StageBackdrop backdrop_;        // まわりの地面・木・丘・空
 	WorldMapPanel panel_;
 	DiveSequence  dive_;
 	PaperFx       fx_;          // 紙吹雪・綿のけむり
 
-	std::unique_ptr<SkinnedObj3d> dino_;
+	std::unique_ptr<KazumimiEngine::SkinnedObj3d> dino_;
 	std::string dinoClip_;
 	float dinoDistance_ = 0.0f;     // 道の上の位置(m)
 	float dinoYaw_ = 0.0f;
@@ -112,7 +114,7 @@ private:
 	float roadOpenFrom_ = 0.0f, roadOpenTarget_ = 0.0f; // 伸びる前・後の長さ
 	float roadOpenTime_ = 0.0f;
 	float roadPan_ = 0.0f;          // 伸びる先を見せるための、カメラの寄せ具合（0〜1）
-	std::unique_ptr<Obj3d> roadRoll_; // 転がる布のロール（ステージ開始の演技と同じ物）
+	std::unique_ptr<KazumimiEngine::Obj3d> roadRoll_; // 転がる布のロール（ステージ開始の演技と同じ物）
 	float roadRollAngle_ = 0.0f;
 
 	Phase phase_ = Phase::Opening;
@@ -120,12 +122,12 @@ private:
 	float previewBlend_ = 0.0f;     // 0＝マップのカメラ 1＝プレビューのカメラ
 	float orbitAngle_ = 0.0f;       // プレビューのカメラが振れる位相
 	int   previewNode_ = -1;
-	Vector3 cameraPosition_ {}, cameraLook_ {};
+	KazumimiEngine::Vector3 cameraPosition_ {}, cameraLook_ {};
 
-	std::unique_ptr<SDFText> guideText_;
+	std::unique_ptr<KazumimiEngine::SDFText> guideText_;
 
 	// 見た目（タイトルと同じ絵本風）。離れる時に元へ戻す
-	Obj3dCommon::DirectionalLightData savedLight_ {};
+	KazumimiEngine::Obj3dCommon::DirectionalLightData savedLight_ {};
 	float savedPointIntensity_ = 0.0f;
 	float savedSpotIntensity_ = 0.0f;
 	bool  lightSaved_ = false;

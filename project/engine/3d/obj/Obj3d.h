@@ -8,9 +8,11 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 #include "engine/math/Matrix4x4.h"
-#include "Animation.h"
+#include "engine/3d/animation/Animation.h"
 #include "IAnimatable.h"
 #include "engine/graphics/PipelineType.h"
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class Obj3dCommon;
@@ -166,3 +168,5 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> customPipeline_;
 
 };
+
+} // namespace KazumimiEngine

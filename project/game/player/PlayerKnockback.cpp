@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 void PlayerKnockback::Start(const Vector3& awayDir, float facingYaw){
     float len = std::sqrt(awayDir.x * awayDir.x + awayDir.z * awayDir.z);
     if ( len >= 1e-4f ) {

@@ -4,6 +4,8 @@
 
 #include <fstream>
 
+namespace KazumimiEngine {
+
 namespace {
     // 並びの先頭 count 個が、全部数か
     bool IsNumberList(const nlohmann::json& list, size_t count){
@@ -74,3 +76,5 @@ namespace JsonFile {
     nlohmann::json ToJson(const Vector4& value){ return nlohmann::json::array({ value.x, value.y, value.z, value.w }); }
 
 } // namespace JsonFile
+
+} // namespace KazumimiEngine

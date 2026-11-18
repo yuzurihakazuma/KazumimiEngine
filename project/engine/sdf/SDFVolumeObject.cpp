@@ -16,6 +16,8 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 Microsoft::WRL::ComPtr<ID3D12RootSignature> SDFVolumeObject::sRootSignature_;
 Microsoft::WRL::ComPtr<ID3D12PipelineState> SDFVolumeObject::sPipeline_;
 std::vector<SDFVolumeObject*> SDFVolumeObject::sInstances_;
@@ -394,3 +396,5 @@ void SDFVolumeObject::Draw(ID3D12GraphicsCommandList* commandList) {
     commandList->SetGraphicsRootConstantBufferView(8, common->GetSpotLightResource()->GetGPUVirtualAddress());  // b3
     commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 }
+
+} // namespace KazumimiEngine

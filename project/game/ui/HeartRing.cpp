@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kTexture = "resources/gameover/heart.png";
     constexpr float kPi = Math::kPi;

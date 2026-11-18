@@ -1,7 +1,7 @@
 #pragma once
 // 独自クラス
-#include "struct.h"
-#include "Matrix4x4.h"
+#include "engine/math/struct.h"
+#include "engine/math/Matrix4x4.h"
 
 // 標準ライブラリ
 #include <cstdint>
@@ -9,7 +9,9 @@
 #include <wrl.h>
 #include <string>
 #include <memory>
-#include"Color.h"
+#include "engine/utils/Color.h"
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class SpriteCommon;
@@ -24,7 +26,7 @@ class Sprite {
 public:
 
 
-	static std::unique_ptr<Sprite> Create(const std::string& textureName, Vector2 position, Vector4 color = Colors::WHITE, Vector2 anchorpoint = { 0.5f, 0.5f });
+	static std::unique_ptr<Sprite> Create(const std::string& textureName, Vector2 position, const Vector4& color = Colors::WHITE, Vector2 anchorpoint = { 0.5f, 0.5f });
 
 	/// <summary>
 	/// スプライト生成・初期化短縮関数
@@ -34,7 +36,7 @@ public:
 	/// <param name="color">色（省略可：デフォルトは白）</param>
 	/// <param name="anchorpoint">アンカーポイント（省略可：デフォルトは中心 0.5, 0.5）</param>
 	/// <returns>生成されたスプライトのポインタ</returns>
-	static std::unique_ptr<Sprite> Create(uint32_t textureIndex, Vector2 position, Vector4 color = Colors::WHITE, Vector2 anchorpoint = { 0.5f, 0.5f });
+	static std::unique_ptr<Sprite> Create(uint32_t textureIndex, Vector2 position, const Vector4& color = Colors::WHITE, Vector2 anchorpoint = { 0.5f, 0.5f });
 
 
 
@@ -125,12 +127,14 @@ private:
 
 private:
 
+	// スプライトの頂点 1 つ（位置・UV・法線）。GPU へ送る形
 	struct VertexData {
 		Vector4 position;
 		Vector2 texcoord;
 		Vector3 normal;
 	};
 
+	// スプライトのマテリアルの定数バッファ（色・UV の変換など）。GPU へ送る形
 	struct Material {
 		Vector4 color;
 		int32_t enableLighting;
@@ -140,6 +144,7 @@ private:
 		float reveal;          // 描き順のマスクのしきい値（負＝使わない。Sprite2d.PS.hlsl）
 	};
 
+	// スプライトの座標変換の定数バッファ（WVP・ワールド・法線用の行列）。GPU へ送る形
 	struct TransformationMatrix {
 		Matrix4x4 WVP;
 		Matrix4x4 World;
@@ -204,3 +209,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

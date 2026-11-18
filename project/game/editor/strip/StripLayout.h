@@ -1,11 +1,11 @@
 #pragma once
+#include "game/editor/strip/StripCommon.h"
+
 // =====================================================================
 //  StripLayout：展開図の寸法と座標の変換（このフレームの値。StripCanvas が描く前に決める）
 //   レール上の距離・高さ ⇔ 画面のピクセル の変換をここにまとめ、描画と各道具が同じ式を使う。
 //   マス k は距離 k を中心に前後 0.5m を占める（ブロックの置かれ方と同じ）
 // =====================================================================
-#include "game/editor/strip/StripCommon.h"
-
 struct StripLayout {
     float originX = 0.0f, originY = 0.0f; // キャンバス左上（スクリーン座標）
     float cellPx  = 28.0f;                // 1m = 何ピクセルか

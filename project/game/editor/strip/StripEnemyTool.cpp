@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace railstrip;
 
 namespace {
@@ -219,7 +221,7 @@ bool StripEnemyTool::Update(const StripContext& context, StripState& state, cons
             contextEnemy_ = overEnemy;
             ImGui::OpenPopup("##stripEnemyMenu");
         }
-    } else if ( !rail.visible ) {
+    } else if ( !rail.Config().visible ) {
         // 見えないレール（連結用の骨組み）には新しく置かない。今いる敵の移動・削除はできる
         if ( mouseDist >= -0.25f && mouseDist <= layout.railLength + 0.25f ) {
             ImGui::SetTooltip("%s", kInvisibleRailMessage);

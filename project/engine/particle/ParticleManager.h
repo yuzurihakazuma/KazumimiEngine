@@ -12,6 +12,8 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
 class SrvManager;
@@ -139,3 +141,5 @@ private: // メンバ変数
     // 最大インスタンス数（1グループあたり）
     static constexpr uint32_t kNumMaxInstance = 10000;
 };
+
+} // namespace KazumimiEngine

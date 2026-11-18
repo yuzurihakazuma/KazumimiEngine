@@ -9,6 +9,8 @@
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/utils/ImGuiManager.h"
 
+namespace KazumimiEngine {
+
 // ヘッダーで using を消した分、cpp 側で宣言しておく（元のコードを書き換えないため）
 using Microsoft::WRL::ComPtr;
 using namespace logs;
@@ -448,3 +450,5 @@ const TextureData& TextureManager::GetTextureDataBySrvIndex(uint32_t srvIndex){
 	static TextureData dummy {};
 	return dummy;
 }
+
+} // namespace KazumimiEngine

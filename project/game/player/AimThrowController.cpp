@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 using namespace MatrixMath;
 

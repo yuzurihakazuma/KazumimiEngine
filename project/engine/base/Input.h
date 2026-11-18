@@ -18,6 +18,8 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib") 
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  Input：キーボード・マウス（DirectInput）と、ゲームパッド（XInput）の入力。
 //   毎フレーム Update で「今」と「1 つ前」の状態を取り、押している（PushKey）・押した瞬間（TriggerKey）を答える。
@@ -126,3 +128,5 @@ private:
 	struct ActionBind{ BYTE key; WORD pad; };
 	std::map<std::string, std::vector<ActionBind>> actions_;
 };
+
+} // namespace KazumimiEngine

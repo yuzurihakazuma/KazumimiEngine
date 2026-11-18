@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kGateModel = "goalGate";
     constexpr const char* kEggBottomModel = "goalEggBottom";

@@ -3,6 +3,8 @@
 #include "externals/imgui/imgui.h"
 #include <string>
 
+using namespace KazumimiEngine;
+
 EnemyEditor::EnemyEditor() = default;
 EnemyEditor::~EnemyEditor() = default;
 

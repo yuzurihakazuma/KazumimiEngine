@@ -1,4 +1,10 @@
 #pragma once
+#include "externals/nlohmann/json.hpp"
+
+#include <map>
+#include <string>
+#include <vector>
+
 // =====================================================================
 //  TransitionTimeline：遷移の演出を「部品の並び」として、時刻と出来事で進める。
 //   部品はそれぞれ「きっかけの出来事（event）」「そこから何秒後（delay）」「長さ（duration）」を持つ。
@@ -6,14 +12,9 @@
 //   （卵が扉に当たった "doorHit"、次のシーンを読み終えた "loaded" など）。
 //   時間だけで並べると、卵の速さを変えた時にずれるので、きっかけは出来事で待てるようにしている
 // =====================================================================
-#include "externals/nlohmann/json.hpp"
-
-#include <map>
-#include <string>
-#include <vector>
-
 class TransitionTimeline {
 public:
+	// 遷移の部品 1 つ（種類・始まるきっかけの出来事・待ち・長さ・値）。timeline の JSON の 1 項目
 	struct Part {
 		std::string name;              // 表示名（エディタ用）
 		std::string type;              // 部品の種類（KamishibaiTransition が見る）

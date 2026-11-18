@@ -15,6 +15,8 @@
 #include "engine/3d/animation/Animation.h"
 #include "IAnimatable.h"
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class Obj3dCommon;
 class Model;
@@ -198,3 +200,5 @@ private:
 
     uint32_t skyboxTextureIndex_ = 0;
 };
+
+} // namespace KazumimiEngine

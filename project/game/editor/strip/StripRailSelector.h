@@ -1,4 +1,7 @@
 #pragma once
+#include "game/editor/strip/StripContext.h"
+#include "game/editor/strip/StripState.h"
+
 // =====================================================================
 //  StripRailSelector：配置ビューで開くレールを決める
 //   ・レールエディタ側の選択に追従する（作ったばかりでまだ開けないレールは「開く予定」として待つ）
@@ -7,9 +10,6 @@
 //   ・配置ビューの中で選んだレールを開き、レールエディタ側の選択も合わせる
 //   レールが変わった時の「途中の操作をやめる」は呼び出し側（RailStripPanel）が行う（戻り値で知らせる）
 // =====================================================================
-#include "game/editor/strip/StripContext.h"
-#include "game/editor/strip/StripState.h"
-
 class StripRailSelector {
 public:
     // 毎フレームの同期。戻り値 true = 開くレールが変わった等で、途中の操作をやめる必要がある

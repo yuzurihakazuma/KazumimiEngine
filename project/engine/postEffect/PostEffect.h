@@ -8,6 +8,8 @@
 // --- エンジン側のファイル ---
 #include "engine/graphics/RenderTexture.h"
 
+namespace KazumimiEngine {
+
 class DirectXCommon;
 class SrvManager;
 
@@ -226,3 +228,5 @@ private:
 	DirectXCommon* dxCommon_ = nullptr;
 
 };
+
+} // namespace KazumimiEngine

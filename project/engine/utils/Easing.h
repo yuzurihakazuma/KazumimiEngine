@@ -11,6 +11,8 @@
 #include <cmath>
 #include "engine/math/MathUtil.h"
 
+namespace KazumimiEngine {
+
 namespace Easing{
 
     inline float Clamp01(float t){ return ( t < 0.0f ) ? 0.0f : ( t > 1.0f ? 1.0f : t ); }
@@ -82,3 +84,5 @@ namespace Easing{
     }
     inline float EaseInBounce(float t){ return 1.0f - EaseOutBounce(1.0f - t); }
 }
+
+} // namespace KazumimiEngine

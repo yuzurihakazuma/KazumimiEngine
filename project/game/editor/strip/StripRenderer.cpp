@@ -12,6 +12,8 @@
 #include <cstdio>
 #include <vector>
 
+using namespace KazumimiEngine;
+
 using namespace railstrip;
 
 // ----------------------------------------------------------------
@@ -68,9 +70,9 @@ void StripRenderer::DrawBackdrop(const StripContext& context, const StripState& 
     // 道（レールの始点〜終点）。道なしのレールは枠だけにする
     const float groundLeft  = layout.DistToX(0.0f);
     const float groundRight = layout.DistToX(layout.railLength);
-    if ( rail.roadMode == 0 ) {
+    if ( rail.Config().roadMode == 0 ) {
         draw->AddRectFilled({ groundLeft, layout.groundY }, { groundRight, layout.groundY + kGroundHeight },
-                            rail.visible ? IM_COL32(168, 124, 78, 255) : IM_COL32(110, 110, 118, 255));
+                            rail.Config().visible ? IM_COL32(168, 124, 78, 255) : IM_COL32(110, 110, 118, 255));
     } else {
         draw->AddRect({ groundLeft, layout.groundY }, { groundRight, layout.groundY + kGroundHeight },
                       IM_COL32(150, 150, 160, 200));
@@ -119,7 +121,7 @@ StripRenderer::LinkResult StripRenderer::DrawRailInfo(const StripContext& contex
         for ( int i = 0; i < sampleCount; ++i ) {
             float dist = layout.railLength * ( float ) i / ( float ) ( sampleCount - 1 );
             // 動くレールの今のずれ（プレビュー再生中）は含めず、基準位置の高さを見せる
-            heights[i] = rail.GetPositionByDistance(dist).y - rail.animOffset.y;
+            heights[i] = rail.GetPositionByDistance(dist).y - rail.Motion().animOffset.y;
             lowest  = ( std::min )( lowest, heights[i] );
             highest = ( std::max )( highest, heights[i] );
         }
@@ -172,12 +174,12 @@ StripRenderer::LinkResult StripRenderer::DrawRailInfo(const StripContext& contex
     };
     const float linkY = layout.groundY + kGroundHeight + 2.0f;
     // 始点・終点でつながっているレール
-    linkLabel(layout.DistToX(0.0f) - 2.0f - kPadLeft * 0.5f + 6.0f, layout.groundY - 8.0f, rail.frontConnIndex,
-              arrivalOf(rail.frontConnIndex, rail.frontConnToFront), "<", "");
-    linkLabel(layout.DistToX(layout.railLength) + kPadRight * 0.5f, layout.groundY - 8.0f, rail.backConnIndex,
-              arrivalOf(rail.backConnIndex, rail.backConnToFront), "", ">");
+    linkLabel(layout.DistToX(0.0f) - 2.0f - kPadLeft * 0.5f + 6.0f, layout.groundY - 8.0f, rail.Links().frontConnIndex,
+              arrivalOf(rail.Links().frontConnIndex, rail.Links().frontConnToFront), "<", "");
+    linkLabel(layout.DistToX(layout.railLength) + kPadRight * 0.5f, layout.groundY - 8.0f, rail.Links().backConnIndex,
+              arrivalOf(rail.Links().backConnIndex, rail.Links().backConnToFront), "", ">");
     // 途中の分かれ道
-    for ( const SplineRail::BranchPoint& branch : rail.branchPoints ) {
+    for ( const SplineRail::BranchPoint& branch : rail.Links().branchPoints ) {
         float x = layout.DistToX(std::clamp(branch.distance, 0.0f, layout.railLength));
         draw->AddTriangleFilled({ x, layout.groundY + kGroundHeight - 1.0f },
                                 { x - 5.0f, layout.groundY + 2.0f }, { x + 5.0f, layout.groundY + 2.0f },

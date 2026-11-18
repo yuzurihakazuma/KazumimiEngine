@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 
+namespace KazumimiEngine {
+
 class GPUParticleEmitter;
 
 // GPUパーティクルエディタクラス
@@ -39,4 +41,4 @@ private:
     bool scanned_ = false;
 };
 
-
+} // namespace KazumimiEngine

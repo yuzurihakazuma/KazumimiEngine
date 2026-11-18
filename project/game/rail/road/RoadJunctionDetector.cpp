@@ -8,6 +8,8 @@
 #include <cmath>
 #include <utility>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 using namespace RoadProfile;
 using namespace RoadJunctionGeom;
@@ -53,9 +55,9 @@ bool InBox(const RailBox& b, const Vector3& p){
 } // namespace
 
 bool RoadJunctionDetector::IsRoadRail(const std::vector<SplineRail>& rails, int idx){
-    return idx >= 0 && idx < ( int ) rails.size() && rails[idx].visible && rails[idx].roadMode == 0 &&
-           rails[idx].skin.HasBase() &&   // 布のみ・見せないレールには土台を敷かない（布ロード）
-           rails[idx].nodes.size() >= 2 && rails[idx].GetLength() > 0.0f;
+    return idx >= 0 && idx < ( int ) rails.size() && rails[idx].Config().visible && rails[idx].Config().roadMode == 0 &&
+           rails[idx].Config().skin.HasBase() &&   // 布のみ・見せないレールには土台を敷かない（布ロード）
+           rails[idx].Nodes().size() >= 2 && rails[idx].GetLength() > 0.0f;
 }
 
 // ジャンクション（溶接コーナー/T字/十字）の検出（任意角度対応）
@@ -84,11 +86,11 @@ void RoadJunctionDetector::DetectEndPlazas(const std::vector<SplineRail>& rails,
                                            std::vector<std::vector<RoadCut>>& cuts){
     const int n = static_cast<int>( rails.size() );
     for ( int r = 0; r < n; ++r ) {
-        if ( !IsRoadRail(rails, r) || rails[r].isLoop ) continue; // ループは端が無い
+        if ( !IsRoadRail(rails, r) || rails[r].Links().isLoop ) continue; // ループは端が無い
         float len = rails[r].GetLength();
         for ( int side = 0; side < 2; ++side ) {
             bool atFront = ( side == 0 );
-            if ( !( rails[r].endPlaza & ( atFront ? 1 : 2 ) ) ) continue;
+            if ( !( rails[r].Config().endPlaza & ( atFront ? 1 : 2 ) ) ) continue;
             float nodeS = EndDistance(rails[r], atFront);
             Vector3 dir;
             if ( !ToHorizontal(EndOutwardTangent(rails[r], atFront), dir) ) continue;
@@ -111,16 +113,16 @@ void RoadJunctionDetector::DetectWelds(const std::vector<SplineRail>& rails,
                                        std::vector<std::vector<RoadCut>>& cuts){
     const int n = static_cast<int>( rails.size() );
     for ( int i = 0; i < n; ++i ) {
-        if ( !IsRoadRail(rails, i) || rails[i].isLoop ) continue;
+        if ( !IsRoadRail(rails, i) || rails[i].Links().isLoop ) continue;
         for ( int side = 0; side < 2; ++side ) {
             const bool front = ( side == 0 );
-            int conn = front ? rails[i].frontConnIndex : rails[i].backConnIndex;
+            int conn = front ? rails[i].Links().frontConnIndex : rails[i].Links().backConnIndex;
             if ( conn < i ) continue; // 未接続(-1)と、相手側の走査で処理済みのペアを除外
-            if ( !IsRoadRail(rails, conn) || rails[conn].isLoop ) continue;
+            if ( !IsRoadRail(rails, conn) || rails[conn].Links().isLoop ) continue;
 
             const SplineRail& a = rails[i];
             const SplineRail& b = rails[conn];
-            bool bFront = front ? a.frontConnToFront : a.backConnToFront;
+            bool bFront = front ? a.Links().frontConnToFront : a.Links().backConnToFront;
 
             // ノードから出ていく方向（水平射影）
             Vector3 aDir, bDir;
@@ -196,7 +198,7 @@ void RoadJunctionDetector::DetectBranches(const std::vector<SplineRail>& rails){
     const int n = static_cast<int>( rails.size() );
     for ( int i = 0; i < n; ++i ) {
         if ( !IsRoadRail(rails, i) ) continue;
-        for ( const auto& bp : rails[i].branchPoints ) {
+        for ( const auto& bp : rails[i].Links().branchPoints ) {
             int j = bp.targetRail;
             if ( !IsRoadRail(rails, j) ) continue;
 

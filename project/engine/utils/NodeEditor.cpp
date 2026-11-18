@@ -18,6 +18,8 @@
 #include "engine/graphics/PipelineManager.h"
 #include "engine/3d/obj/Obj3d.h"
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 namespace {
@@ -1045,3 +1047,5 @@ void NodeEditor::DrawDebugUI([[maybe_unused]] bool* openFlag) {
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

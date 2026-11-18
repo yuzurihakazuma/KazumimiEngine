@@ -12,38 +12,38 @@
 
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 namespace PlayerRailQuery {
     // 見つかったレール上の地点
     struct Spot {
         int     rail = -1;
         float   dist = 0.0f;
-        Vector3 pos {};
+        KazumimiEngine::Vector3 pos {};
     };
 
     // 足元の位置が、どれかのレールの「穴」区間の真上にあるか。
     //   今乗っているレールだけでなく全レールの穴を見る（乗り換え地点で隣のレールに乗ったまま
     //   穴の上を通っても取りこぼさない）。範囲は穴の近くだけなので離れた所では落ちない
-    bool IsOverHole(const std::vector<SplineRail>& rails, const Vector3& footPos);
+    bool IsOverHole(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::Vector3& footPos);
 
     // レールの端 edgePos のすぐ前方にある別レールの本体（forwardDir=端から出て行く水平の向き。0なら向きを問わない）
-    bool FindJoin(const std::vector<SplineRail>& rails, int currentRail,
-                  const Vector3& edgePos, const Vector3& forwardDir, Spot& out);
+    bool FindJoin(const std::vector<KazumimiEngine::SplineRail>& rails, int currentRail,
+                  const KazumimiEngine::Vector3& edgePos, const KazumimiEngine::Vector3& forwardDir, Spot& out);
 
     // 今のレールと反対タイプのレールのうち、足元の真上で交差していて、押した向き(switchDir=±1)へ伸びているもの
-    bool FindSwitch(const std::vector<SplineRail>& rails, int currentRail, const Vector3& footPos,
+    bool FindSwitch(const std::vector<KazumimiEngine::SplineRail>& rails, int currentRail, const KazumimiEngine::Vector3& footPos,
                     bool currentHorizontal, int switchDir, Spot& out);
 
     // 今のレールの途中分岐（branchPoints）のうち、近くにあって押した向きに合うもの
-    bool FindBranch(const std::vector<SplineRail>& rails, int currentRail, float currentDist,
+    bool FindBranch(const std::vector<KazumimiEngine::SplineRail>& rails, int currentRail, float currentDist,
                     int switchDir, Spot& out);
 
     // 空中の pos の真下（水平に0.8m以内）にある、見えているレールのうち一番近いもの（高さは問わない）。
     //   レールから離れて空中にいる間も、その下のレールを基準にブロックとの当たりを調べるために使う
-    bool FindRailBelow(const std::vector<SplineRail>& rails, const Vector3& pos, Spot& out);
+    bool FindRailBelow(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::Vector3& pos, Spot& out);
 
     // 空中の pos（前フレームの高さ prevY）から、降りてきて着地できるレール。ignoreRail は候補から外す
-    bool FindLanding(const std::vector<SplineRail>& rails, const Vector3& pos, float prevY,
+    bool FindLanding(const std::vector<KazumimiEngine::SplineRail>& rails, const KazumimiEngine::Vector3& pos, float prevY,
                      int ignoreRail, Spot& out);
 }

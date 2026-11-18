@@ -1,4 +1,19 @@
 #pragma once
+#include "engine/math/struct.h"
+#include "engine/utils/Signal.h"
+
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace KazumimiEngine { class Camera; }
+class Egg;
+class EggSystem;
+class CoinSystem;
+class StageBackdrop;
+namespace KazumimiEngine { class Obj3d; }
+
 // =====================================================================
 //  EggCombo：卵の「奥投げ」と、はじけ飛ぶ背景の連鎖コンボ・かくれ花（卵コンボの手ごたえ 企画書）
 //   ・構え中のカーソルを背景の木・柵・岩・看板・花に合わせると、その物をロックし、その物だけが光る（代役を光らせる）
@@ -18,21 +33,6 @@
 //  「代役」：背景は同じモデルをまとめて描いている（インスタンシング）ので、1つだけ光らせたり飛ばしたりできない。
 //   その物を StageBackdrop::SetComboHidden で隠し、同じモデルの Obj3d（代役）を同じ姿勢で出して動かす。代役は先に作って使い回す
 // =====================================================================
-#include "engine/math/struct.h"
-#include "engine/utils/Signal.h"
-
-#include <functional>
-#include <memory>
-#include <string>
-#include <vector>
-
-class Camera;
-class Egg;
-class EggSystem;
-class CoinSystem;
-class StageBackdrop;
-class Obj3d;
-
 class EggCombo {
 public:
     EggCombo();
@@ -45,7 +45,7 @@ public:
     // ×8 を出した時（♡を戻すなど）
     void SetOnMaxCombo(std::function<void()> callback){ onMaxCombo_ = std::move(callback); }
     // コンボが伸びた知らせ（引数＝今のコンボ数）。集計係（StageTally）が受け取る
-    Signal<int>& OnComboChanged(){ return onComboChanged_; }
+    KazumimiEngine::Signal<int>& OnComboChanged(){ return onComboChanged_; }
     // 代役を先に作っておく（初めてのコンボで止まらないように。シーンの読み込みで呼ぶ）
     void Prewarm(uint32_t noiseSrv);
 
@@ -54,25 +54,25 @@ public:
 
     // 構え中：カーソル（画面の画素）の先にある的を探す。見つかれば的の番号と、狙う点・画面の位置・画面での半径
     struct Pick {
-        int target = -1; Vector3 center {}; float screenX = 0.0f, screenY = 0.0f, screenRadius = 0.0f;
-        Vector3 aimPoint {};                 // 当てる所（カーソルが指す所。物の真ん中から大きさの 8 割まで）
+        int target = -1; KazumimiEngine::Vector3 center {}; float screenX = 0.0f, screenY = 0.0f, screenRadius = 0.0f;
+        KazumimiEngine::Vector3 aimPoint {};                 // 当てる所（カーソルが指す所。物の真ん中から大きさの 8 割まで）
         float   aimX = 0.0f, aimY = 0.0f;     // 当てる所の画面の位置
-        Vector3 bounceDir {};                // その所に当てた時に、物がはじける向き（水平）
+        KazumimiEngine::Vector3 bounceDir {};                // その所に当てた時に、物がはじける向き（水平）
     };
-    bool PickForAim(const Camera& camera, float cursorX, float cursorY, float screenWidth, float screenHeight,
-                    const Vector3& playerPos, Pick& out);
+    bool PickForAim(const KazumimiEngine::Camera& camera, float cursorX, float cursorY, float screenWidth, float screenHeight,
+                    const KazumimiEngine::Vector3& playerPos, Pick& out);
     // 狙っている物を光らせる（構え中は毎フレーム。-1 で消す）。ロックした瞬間に一度だけぽんと大きくなる
     void SetAimHighlight(int target);
     // 投げた卵を的の aimPoint へ向かわせる（AimThrowController が投げた直後に呼ぶ）
-    void Launch(Egg* egg, int target, const Vector3& aimPoint);
+    void Launch(Egg* egg, int target, const KazumimiEngine::Vector3& aimPoint);
     // 背景エディタ：選んだ物（背景の番号）から、真ん中・左・右のふちに当てた時のはじける順を線で見せる（DebugDraw）
-    void DrawPreview(const std::vector<int>& items, const Camera& camera);
+    void DrawPreview(const std::vector<int>& items, const KazumimiEngine::Camera& camera);
     // 狙ってほしいゲームの物（反転スイッチなど）。カーソルがこれに重なっている間は背景をロックしない（毎フレーム渡す）
-    struct Blocker { Vector3 center {}; float radius = 1.0f; };
+    struct Blocker { KazumimiEngine::Vector3 center {}; float radius = 1.0f; };
     void SetAimBlockers(const std::vector<Blocker>& blockers){ blockers_ = blockers; }
 
     // 毎フレーム（卵の移動の後）：当たり・はじけ飛ぶ物・生え戻り・光り方
-    void Update(const Vector3& playerPos, const Camera* camera, float dt);
+    void Update(const KazumimiEngine::Vector3& playerPos, const KazumimiEngine::Camera* camera, float dt);
     // カメラが決まった後：代役の行列（Obj3d::Update はその時のカメラを焼き込む）
     void UpdateVisuals();
     void Draw();
@@ -91,11 +91,12 @@ public:
 private:
     enum class Kind { Tree, Fence, Rock, Sign, Flower, Bullseye };
     enum class State { Idle, Flying, Gone, Regrowing };
+    // コンボの的 1 つ（背景の木・岩・看板など）。当たりの位置と、今の状態
     struct Target {
         int     item = -1;        // StageBackdrop の番号
         Kind    kind = Kind::Tree;
-        Vector3 center {};        // 当たりの中心（木は葉の所）
-        Vector3 mid {};           // 箱の真ん中（飛ぶ時に回る中心）
+        KazumimiEngine::Vector3 center {};        // 当たりの中心（木は葉の所）
+        KazumimiEngine::Vector3 mid {};           // 箱の真ん中（飛ぶ時に回る中心）
         float   halfHeight = 0.5f;
         float   radius = 1.0f;
         bool    flower = false;   // かくれ花が隠れている
@@ -106,37 +107,38 @@ private:
     };
     struct Chain { int count = 0; std::vector<int> visited; int start = -1; bool finished = false; };
     struct EggShot { Egg* egg = nullptr; int target = -1; int chain = -1; };
+    // はじけ飛んでいる的 1 つ（代役の見た目・向かっている次の的・連鎖の番号）
     struct Flyer {
         int     proxy = -1;
         int     target = -1;      // 飛んでいる物（targets_ の番号）
         int     aim = -1;         // 向かっている的（無ければ -1：溶けて消える）
         int     chain = -1;
-        Vector3 pos {};           // 回る中心
-        Vector3 prev {};
-        Vector3 vel {};
-        Vector3 rot {};           // ラジアン
-        Vector3 spin {};
+        KazumimiEngine::Vector3 pos {};           // 回る中心
+        KazumimiEngine::Vector3 prev {};
+        KazumimiEngine::Vector3 vel {};
+        KazumimiEngine::Vector3 rot {};           // ラジアン
+        KazumimiEngine::Vector3 spin {};
         float   t = 0.0f;
         float   flightTime = 1.0f;
         float   dissolveAt = -1.0f; // 溶け始めた時刻（-1＝まだ）
     };
-    struct Proxy { std::unique_ptr<Obj3d> obj; int item = -1; };
+    struct Proxy { std::unique_ptr<KazumimiEngine::Obj3d> obj; int item = -1; };
 
     void BuildTargets();
-    void Burst(int target, int chain, const Vector3& at, const Vector3& outDir);
-    void Finale(const Chain& chain, const Vector3& at); // ×8：♡とコンボ花
+    void Burst(int target, int chain, const KazumimiEngine::Vector3& at, const KazumimiEngine::Vector3& outDir);
+    void Finale(const Chain& chain, const KazumimiEngine::Vector3& at); // ×8：♡とコンボ花
     // from の物（targets_ の番号）から outDir の向きに一番合う次の物。live＝遊んでいる時（飛んでいる・隠れている物を除く）
-    int  PickNext(int from, const Vector3& outDir, const std::vector<int>& visited, bool live) const;
+    int  PickNext(int from, const KazumimiEngine::Vector3& outDir, const std::vector<int>& visited, bool live) const;
     // 当たった所 contact から物の真ん中への向き（水平）。はじける向き
-    static Vector3 BounceDir(const Vector3& center, const Vector3& contact, const Vector3& fallback);
+    static KazumimiEngine::Vector3 BounceDir(const KazumimiEngine::Vector3& center, const KazumimiEngine::Vector3& contact, const KazumimiEngine::Vector3& fallback);
     // 卵が from から aim へまっすぐ飛んだ時に、的の球に最初に触れる所
-    static bool EntryPoint(const Vector3& from, const Vector3& to, const Vector3& center, float radius, Vector3& out);
+    static bool EntryPoint(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, const KazumimiEngine::Vector3& center, float radius, KazumimiEngine::Vector3& out);
     int  AcquireProxy(int target);
     void ReleaseProxy(int proxy, bool unhideItem);
-    void PlaceProxy(int proxy, const Target& target, const Vector3& center, const Vector3& rot, float scale);
-    void SpawnChips(const Target& target, const Vector3& at, int count);
+    void PlaceProxy(int proxy, const Target& target, const KazumimiEngine::Vector3& center, const KazumimiEngine::Vector3& rot, float scale);
+    void SpawnChips(const Target& target, const KazumimiEngine::Vector3& at, int count);
     void ReleaseHighlight();
-    float DepthOf(const Vector3& p) const;
+    float DepthOf(const KazumimiEngine::Vector3& p) const;
     static Kind KindOf(const std::string& model, bool& outTarget);
 
     StageBackdrop* backdrop_ = nullptr;
@@ -157,8 +159,8 @@ private:
     float highlightT_ = 0.0f;
     float lockPop_ = 0.0f;
 
-    Vector3 eye_ {};
-    Vector3 forward_ { 0.0f, 0.0f, 1.0f }; // カメラの向き（水平）。「奥」の向き
+    KazumimiEngine::Vector3 eye_ {};
+    KazumimiEngine::Vector3 forward_ { 0.0f, 0.0f, 1.0f }; // カメラの向き（水平）。「奥」の向き
 
     int   shownCombo_ = 0;
     float comboTimer_ = 0.0f;      // 最後に当ててからの秒
@@ -168,7 +170,7 @@ private:
     float flowerPop_ = 0.0f;
     std::string stage_ = "stage1";
     std::function<void()> onMaxCombo_;
-    Signal<int> onComboChanged_;
+    KazumimiEngine::Signal<int> onComboChanged_;
     int   comboFlowerTotal_ = 0;   // コンボの的の数
     float comboFlowerPop_ = 0.0f;
 };

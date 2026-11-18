@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     constexpr const char* kKitModelDir = "resources/craft/models"; // クラフトのキット（StageBackdrop と同じ）
     constexpr float kRiseDepth = 18.0f;   // せり上がる前の深さ(m)

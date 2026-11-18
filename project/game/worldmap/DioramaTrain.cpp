@@ -1,11 +1,12 @@
 #include "game/worldmap/DioramaTrain.h"
-#include "engine/math/MathUtil.h"
 #include "game/rail/ToyTrain.h"
 
 #include "engine/3d/obj/Obj3d.h"
 #include "engine/math/Matrix4x4.h"
 
 #include <cmath>
+
+using namespace KazumimiEngine;
 
 Vector3 DioramaRoot::Apply(const Vector3& local) const{
     const Vector3 scaled { ( local.x - pivot.x ) * scale, ( local.y - pivot.y ) * scale, ( local.z - pivot.z ) * scale };

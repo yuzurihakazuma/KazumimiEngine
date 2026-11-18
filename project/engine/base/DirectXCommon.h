@@ -14,11 +14,14 @@
 #include "engine/utils/LogManager.h"
 #include "engine/graphics/ShaderCompiler.h"
 
-// ライブラリのリンク
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib, "winmm.lib")
+
+namespace KazumimiEngine {
+
+// ライブラリのリンク
 
 // --- 前方宣言 ---
 class WindowProc;
@@ -261,3 +264,4 @@ private:
 	~DirectXCommon() = default;
 };
 
+} // namespace KazumimiEngine

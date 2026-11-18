@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 // マップのカメラゾーン設定を実行用へ変換（ノード番号→レール上の距離）
@@ -22,7 +24,7 @@ void PlayCameraController::Sync(const std::vector<LevelCameraZone>& zones, const
         if ( z.railIndex < 0 || z.railIndex >= ( int ) rails.size() ) continue;
         Zone cz;
         cz.rail   = z.railIndex;
-        int maxN  = ( int ) rails[z.railIndex].nodes.size() - 1;
+        int maxN  = ( int ) rails[z.railIndex].Nodes().size() - 1;
         int node  = std::clamp(z.nodeIndex, 0, ( std::max )( maxN, 0 ));
         cz.dist   = rails[z.railIndex].GetDistanceFromT(( float ) node);
         cz.radius = z.radius;

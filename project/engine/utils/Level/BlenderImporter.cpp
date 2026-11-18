@@ -18,6 +18,8 @@
 #include "engine/3d/model/ModelManager.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 using namespace MatrixMath;
 
@@ -548,3 +550,5 @@ void BlenderImporter::DrawDebugUI(){
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

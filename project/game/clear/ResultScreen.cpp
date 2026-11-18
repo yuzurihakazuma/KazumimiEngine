@@ -11,6 +11,8 @@
 #include <cmath>
 #include <filesystem>
 
+using namespace KazumimiEngine;
+
 namespace {
     // 基準の画面（置き場所はこの大きさで決めてある）
 

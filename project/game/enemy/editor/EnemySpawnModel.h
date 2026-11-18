@@ -2,7 +2,7 @@
 #include "game/enemy/Enemy.h" // EnemySpawnData
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 // =====================================================================
 //  EnemySpawnModel : 敵の配置データ（正本）と、その上の選択・変更通知・操作
@@ -43,10 +43,10 @@ public:
     // --- 敵の追加・削除・複製・移動 ---
     int  AddEntry(const EnemySpawnData& spawn); // 追加して選択する。追加した番号を返す
     void RemoveEntry(int index);                // 削除（選択中の番号がずれないよう付け替える）
-    int  DuplicateEntry(int index, const std::vector<SplineRail>& splineRails); // 2m先へ複製。新しい番号を返す（失敗=-1）
+    int  DuplicateEntry(int index, const std::vector<KazumimiEngine::SplineRail>& splineRails); // 2m先へ複製。新しい番号を返す（失敗=-1）
     // 敵を別の場所へ動かす。行動範囲を指定している敵は、範囲ごと一緒に動かす
     //   （変更通知は立てない：Game View のドラッグ中は手を離した時に呼び出し側が立てる）
-    void MoveEntry(int index, int railIndex, float distance, const std::vector<SplineRail>& splineRails);
+    void MoveEntry(int index, int railIndex, float distance, const std::vector<KazumimiEngine::SplineRail>& splineRails);
 
     // レールの数や並びが変わった：敵のレール番号を付け替える（選択はその敵を追いかける）
     void ApplyRailRemap(const std::vector<int>& oldToNew, const std::vector<EnemySpawnData>& revived);

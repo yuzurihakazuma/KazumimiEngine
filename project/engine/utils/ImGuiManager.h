@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
 class WindowProc;
@@ -70,3 +72,4 @@ private:
     std::vector<UiFont> fonts_; // 読み込めたUIフォント（[0]=既定のメイリオ）
 };
 
+} // namespace KazumimiEngine

@@ -12,12 +12,12 @@ namespace TitleLayout {
     inline constexpr float kGroundTop = 0.14f * kScale; // 地面タイルの上面の高さ
 
     // カメラ（CraftKit の CAM_Title と同じ構図：レンズ30mm＝縦の画角 約37度）
-    inline constexpr Vector3 kCameraPosition { 0.0f, 2.3f * kScale, -7.8f * kScale };
-    inline constexpr Vector3 kCameraTarget   { 0.0f, 1.0f * kScale, 1.6f * kScale };
+    inline constexpr KazumimiEngine::Vector3 kCameraPosition { 0.0f, 2.3f * kScale, -7.8f * kScale };
+    inline constexpr KazumimiEngine::Vector3 kCameraTarget   { 0.0f, 1.0f * kScale, 1.6f * kScale };
     inline constexpr float   kCameraFovY = 0.6505f;
 
     // ロゴ看板が刺さる位置（杭の先はここから地面に刺さる）
-    inline constexpr Vector3 kLogoLand { 0.0f, kGroundTop, 2.2f * kScale };
+    inline constexpr KazumimiEngine::Vector3 kLogoLand { 0.0f, kGroundTop, 2.2f * kScale };
 
     // メニューの的（左から つづき／スタート／せってい）
     inline constexpr float kMenuSpacing = 1.9f * kScale;

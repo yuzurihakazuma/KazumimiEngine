@@ -3,6 +3,8 @@
 #include "engine/rail/SplineRail.h"
 #include "engine/math/VectorMath.h"
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 void EnemyRailPin::Capture(const EnemyEditor& enemyEditor, const std::vector<SplineRail>& oldRails){
@@ -10,7 +12,7 @@ void EnemyRailPin::Capture(const EnemyEditor& enemyEditor, const std::vector<Spl
 	valid_.clear();
 	for ( const auto& spawnData : enemyEditor.GetSpawnDatas() ) {
 		bool railValid = ( spawnData.railIndex >= 0 && spawnData.railIndex < ( int ) oldRails.size()
-		                && oldRails[spawnData.railIndex].nodes.size() >= 2 );
+		                && oldRails[spawnData.railIndex].Nodes().size() >= 2 );
 		valid_.push_back(railValid ? 1 : 0);
 		positions_.push_back(railValid ? oldRails[spawnData.railIndex].GetPositionByDistance(spawnData.distance)
 		                               : Vector3 { 0.0f, 0.0f, 0.0f });
@@ -27,7 +29,7 @@ bool EnemyRailPin::Apply(EnemyEditor& enemyEditor, const std::vector<SplineRail>
 		auto& spawnData = spawnDatas[i];
 		if ( spawnData.railIndex < 0 || spawnData.railIndex >= ( int ) newRails.size() ) continue;
 		const SplineRail& newRail = newRails[spawnData.railIndex];
-		if ( newRail.nodes.size() < 2 ) continue;
+		if ( newRail.Nodes().size() < 2 ) continue;
 		// レールがこの敵の下で動いていなければ、距離はそのまま（1cm 未満の違いは同じ場所とみなす）。
 		//   張り直すと最寄り点探しの刻み（数cm〜数十cm）に丸められ、置いた 0.5m の目盛りから外れてしまう
 		if ( spawnData.distance <= newRail.GetLength() ) {

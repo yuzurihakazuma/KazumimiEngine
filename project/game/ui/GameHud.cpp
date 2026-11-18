@@ -2,11 +2,13 @@
 #include "game/ui/UiScale.h"
 #include "game/egg/EggSystem.h"
 #include "game/stage/CoinSystem.h"
-#include "engine/2D/Sprite.h"
+#include "engine/2d/Sprite.h"
 #include "engine/base/WindowProc.h"
 #include "engine/graphics/TextureManager.h"
 
 #include <algorithm>
+
+using namespace KazumimiEngine;
 
 namespace {
 	constexpr const char* kDigitsTexture = "resources/ui/hud_digits.png";

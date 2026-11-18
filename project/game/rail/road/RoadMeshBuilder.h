@@ -12,19 +12,19 @@
 class RoadMeshBuilder {
 public:
     // 頂点を1つ追加してインデックスを返す
-    uint32_t AddVertex(const Vector3& pos, const Vector3& normal, float u, float v);
+    uint32_t AddVertex(const KazumimiEngine::Vector3& pos, const KazumimiEngine::Vector3& normal, float u, float v);
     void     AddTriangle(uint32_t a, uint32_t b, uint32_t c);
 
     // ピースモデルを yaw 回転＋平行移動して焼き込む（静的レール用のDC削減。
     // 全ピースがアトラス共有なので、1つの動的メッシュにまとめて1ドローコールで描ける）
-    void AppendModel(const Model::ModelData& src, const Vector3& pos, float yaw);
+    void AppendModel(const KazumimiEngine::Model::ModelData& src, const KazumimiEngine::Vector3& pos, float yaw);
 
     void     ReserveVertices(size_t count){ data_.vertices.reserve(count); }
     void     Clear(){ data_.vertices.clear(); data_.indices.clear(); }
     uint32_t VertexCount() const{ return static_cast<uint32_t>( data_.vertices.size() ); }
 
-    const Model::ModelData& Data() const{ return data_; }
+    const KazumimiEngine::Model::ModelData& Data() const{ return data_; }
 
 private:
-    Model::ModelData data_;
+    KazumimiEngine::Model::ModelData data_;
 };

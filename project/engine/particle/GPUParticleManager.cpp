@@ -11,6 +11,8 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
 // -------------------------------------------------------
@@ -398,3 +400,5 @@ void GPUParticleManager::Finalize(){
     }
     descriptorsAllocated_ = false;
 }
+
+} // namespace KazumimiEngine

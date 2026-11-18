@@ -1,4 +1,7 @@
 #pragma once
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
 
@@ -19,3 +22,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

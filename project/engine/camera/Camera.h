@@ -7,9 +7,12 @@
 #include "engine/math/Matrix4x4.h"
 #include "engine/math/struct.h"
 
+struct ID3D12Resource;
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
-struct ID3D12Resource;
 
 // カメラクラス
 class Camera{
@@ -80,3 +83,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

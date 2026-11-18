@@ -1,4 +1,23 @@
 #pragma once
+#include "engine/graphics/TextureManager.h" // TextureData
+#include "engine/particle/GPUParticleEmitter.h"
+#include "engine/math/struct.h"
+
+#include <d3d12.h>
+#include <list>
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+namespace KazumimiEngine {
+class Obj3d;
+class SkinnedObj3d;
+class SDFVolumeObject;
+class HitEffect;
+class Camera;
+class Input;
+}
+
 // =====================================================================
 //  DemoShowcase：エンジン機能の展示用オブジェクトをまとめて管理するクラス。
 //   ・回転キューブ（ディゾルブ＋ブルーム＋環境マップ＋ギズモ操作対象）
@@ -13,23 +32,6 @@
 //  同じ順で呼ぶだけで同じ展示が出せる。丸ごと消したい時はこのクラスの
 //  生成をやめるだけでよい。
 // =====================================================================
-#include "engine/graphics/TextureManager.h" // TextureData
-#include "engine/particle/GPUParticleEmitter.h"
-#include "engine/math/struct.h"
-
-#include <d3d12.h>
-#include <list>
-#include <memory>
-#include <string>
-#include <unordered_map>
-
-class Obj3d;
-class SkinnedObj3d;
-class SDFVolumeObject;
-class HitEffect;
-class Camera;
-class Input;
-
 class DemoShowcase {
 public:
     DemoShowcase();
@@ -38,16 +40,16 @@ public:
     // モデル・SDF・スプライトの生成（シーンの LoadResources/SetupDemoObjects から呼ぶ。
     // commandList は SDF ボリュームの転送用。textures は読み込み済みテクスチャ辞書）
     void Initialize(ID3D12GraphicsCommandList* commandList,
-                    std::unordered_map<std::string, TextureData>& textures);
+                    std::unordered_map<std::string, KazumimiEngine::TextureData>& textures);
 
     // プレイ中のデモ入力（Space=BGM+HitEffect / P=パーティクルバースト）と HitEffect の進行
-    void UpdatePlay(Input* input, Camera* camera,
-                    std::unordered_map<std::string, TextureData>& textures,
+    void UpdatePlay(KazumimiEngine::Input* input, KazumimiEngine::Camera* camera,
+                    std::unordered_map<std::string, KazumimiEngine::TextureData>& textures,
                     const std::string& bgmFile);
 
     // モード問わず毎フレームの見た目更新（UVスクロール・SDF自動エロージョン・
     // スキンメッシュ・GPUパーティクル(Gキー)・エミッター）
-    void UpdateVisuals(Input* input, Camera* camera);
+    void UpdateVisuals(KazumimiEngine::Input* input, KazumimiEngine::Camera* camera);
 
     // Edit→Play 切替時のリセット（出しっぱなしの HitEffect を消す）
     void OnPlayStart();
@@ -62,25 +64,25 @@ public:
 
 private:
     // 回転キューブ（ディゾルブ＋ブルーム。エディタのギズモ操作対象）
-    std::unique_ptr<Obj3d> dissolveCube_;
+    std::unique_ptr<KazumimiEngine::Obj3d> dissolveCube_;
 
     // リングオーラ（地面の魔法陣風）と円柱オーラ（加算合成＋UVスクロール）
-    std::unique_ptr<Obj3d> auraRing_;
+    std::unique_ptr<KazumimiEngine::Obj3d> auraRing_;
     float auraRingScroll_ = 0.0f;
-    std::unique_ptr<Obj3d> auraCylinder_;
+    std::unique_ptr<KazumimiEngine::Obj3d> auraCylinder_;
     float auraCylinderScroll_ = 0.0f;
 
     // スキンメッシュの人形（Skinning機能の展示。定位置でその場歩き）
-    std::unique_ptr<SkinnedObj3d> skinnedHuman_;
+    std::unique_ptr<KazumimiEngine::SkinnedObj3d> skinnedHuman_;
 
     // GPUパーティクルのエミッター
-    GPUParticleEmitter particleEmitter_;
+    KazumimiEngine::GPUParticleEmitter particleEmitter_;
 
     // SDFボリュームの卵（エロージョン⇔モーフのデモ）
-    std::unique_ptr<SDFVolumeObject> sdfEgg_;
+    std::unique_ptr<KazumimiEngine::SDFVolumeObject> sdfEgg_;
     bool  sdfErodeAuto_ = true; // エロージョン自動アニメ（溶ける⇔生える）
     float sdfErodeTime_ = 0.0f;
 
     // Spaceキーのデモで出す立体エフェクト
-    std::list<std::unique_ptr<HitEffect>> hitEffects_;
+    std::list<std::unique_ptr<KazumimiEngine::HitEffect>> hitEffects_;
 };

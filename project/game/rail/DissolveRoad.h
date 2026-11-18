@@ -4,7 +4,7 @@
 #include <wrl.h>
 #include "engine/math/struct.h"
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
 // =====================================================================
 //  DissolveRoad（SDF溶け道・チェーン融合方式）
@@ -23,10 +23,10 @@ public:
     void Initialize(ID3D12GraphicsCommandList* commandList);
 
     // 道の種類=溶け道（roadMode==2）のレールからチェーン点とチャンクを作り直す
-    void Build(const std::vector<SplineRail>& rails);
+    void Build(const std::vector<KazumimiEngine::SplineRail>& rails);
 
     // プレイヤーとの距離を点ごとのエロージョン量へ反映（毎フレーム）
-    void Update(const Vector3& playerPos, float dt);
+    void Update(const KazumimiEngine::Vector3& playerPos, float dt);
 
     // SDF描画（シーンMRTパスの最後、他のSDF演出と同じ場所で呼ぶ）
     void Draw(ID3D12GraphicsCommandList* commandList);
@@ -53,14 +53,16 @@ private:
         float pts[kMaxChainPoints][4]; // xyz=点 / w=エロージョン量
     };
 
+    // 溶け道の点 1 つ（位置・今の溶け具合・属するレール）
     struct ChainPoint {
-        Vector3 pos {};        // チェーン点のワールド位置
+        KazumimiEngine::Vector3 pos {};        // チェーン点のワールド位置
         float   erode = 0.0f;  // 現在のエロージョン量（0=実体 / kErodeGone=消滅）
         int     rail  = -1;    // 属するレール番号（「後から出現する道」の判定用）
     };
+    // 溶け道の描画のかたまり 1 つ（点の範囲・囲む箱・定数バッファ）
     struct Chunk {
         int first = 0, count = 0;                          // points_ 内の範囲（隣と1点共有）
-        Vector3 boxMin {}, boxMax {};                      // プロキシAABB（余白込み・固定）
+        KazumimiEngine::Vector3 boxMin {}, boxMax {};                      // プロキシAABB（余白込み・固定）
         Microsoft::WRL::ComPtr<ID3D12Resource> cb;
         ChunkCB* mapped = nullptr;
         bool active = false;                               // このフレーム描くか
@@ -85,7 +87,7 @@ private:
     std::vector<Chunk>      chunks_;
     // Build 時のレール配列（借り物。「後から出現する道」の appeared 判定に使う。
     //   RailField が Sync のたびに作り直すため、必ず Build とセットで更新される）
-    const std::vector<SplineRail>* railsRef_ = nullptr;
+    const std::vector<KazumimiEngine::SplineRail>* railsRef_ = nullptr;
 
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> pipeline_;

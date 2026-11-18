@@ -3,6 +3,8 @@
 #include <wrl.h>
 #include <dxgi1_4.h>
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  PerformanceMonitor
 //   FPS/フレーム時間/CPU時間の履歴グラフ、min/avg/max、
@@ -36,3 +38,5 @@ private:
     Microsoft::WRL::ComPtr<IDXGIAdapter3> adapter3_;
     bool vramAvailable_ = false;
 };
+
+} // namespace KazumimiEngine

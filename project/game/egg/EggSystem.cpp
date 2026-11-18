@@ -10,6 +10,8 @@
 #include <cmath>
 #include <cstdlib>
 
+using namespace KazumimiEngine;
+
 EggSystem::~EggSystem() = default; // unique_ptr<Obj3d> のため cpp 側で定義
 
 namespace {

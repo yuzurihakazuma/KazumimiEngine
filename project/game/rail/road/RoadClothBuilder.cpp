@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 namespace {
@@ -35,16 +37,16 @@ namespace {
 
 RoadClothBuilder::EndInfo RoadClothBuilder::EndOf(const std::vector<SplineRail>& rails, int railIndex, bool front){
     const SplineRail& rail = rails[railIndex];
-    EndInfo info { false, ( rail.endPlaza & ( front ? 1 : 2 ) ) != 0, false };
-    if ( rail.isLoop ) { info.connected = true; return info; }
-    const int partner = front ? rail.frontConnIndex : rail.backConnIndex;
+    EndInfo info { false, ( rail.Config().endPlaza & ( front ? 1 : 2 ) ) != 0, false };
+    if ( rail.Links().isLoop ) { info.connected = true; return info; }
+    const int partner = front ? rail.Links().frontConnIndex : rail.Links().backConnIndex;
     if ( partner >= 0 ) {
         info.connected = true;
         // 曲がり角か：この道がつなぎ目へ入る向きと、相手がつなぎ目から出ていく向き
         const SplineRail& other = rails[partner];
-        if ( partner < ( int ) rails.size() && other.nodes.size() >= 2 && other.GetLength() > 0.0f && rail.GetLength() > 0.0f ) {
+        if ( partner < ( int ) rails.size() && other.Nodes().size() >= 2 && other.GetLength() > 0.0f && rail.GetLength() > 0.0f ) {
             const Vector3 in = front ? Multiply(rail.GetTangentByDistance(0.0f), -1.0f) : rail.GetTangentByDistance(rail.GetLength());
-            const bool toFront = front ? rail.frontConnToFront : rail.backConnToFront;
+            const bool toFront = front ? rail.Links().frontConnToFront : rail.Links().backConnToFront;
             const Vector3 outDir = toFront ? other.GetTangentByDistance(0.0f) : Multiply(other.GetTangentByDistance(other.GetLength()), -1.0f);
             // 水平の向きで見る（30°）。坂の折れ目（平ら → 坂、坂 → ゆるい坂）は角ではない
             //   （前は立体の角度で見ていたので、坂の折れ目も角になり、布が水平に突き出して坂の下へ棚のように出ていた）
@@ -61,7 +63,7 @@ RoadClothBuilder::EndInfo RoadClothBuilder::EndOf(const std::vector<SplineRail>&
     // T字：端がほかのレールの本体に載っている（RailConnections が載せてある）
     const Vector3 end = rail.GetFrameAtDistance(front ? 0.0f : rail.GetLength()).position;
     for ( int j = 0; j < ( int ) rails.size(); ++j ) {
-        if ( j == railIndex || rails[j].nodes.size() < 2 || rails[j].GetLength() <= 0.0f ) continue;
+        if ( j == railIndex || rails[j].Nodes().size() < 2 || rails[j].GetLength() <= 0.0f ) continue;
         const float s = rails[j].GetClosestDistance(end);
         const Vector3 p = rails[j].GetFrameAtDistance(s).position;
         if ( Length({ p.x - end.x, p.y - end.y, p.z - end.z }) < 0.05f ) { info.connected = true; break; }
@@ -73,8 +75,8 @@ void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex
                              float extraLift, RoadMeshBuilder& out) const{
     const SplineRail& rail = rails[railIndex];
     const float length = rail.GetLength();
-    if ( length <= 0.0f || rail.nodes.size() < 2 ) return;
-    const RailSkin& skin = rail.skin;
+    if ( length <= 0.0f || rail.Nodes().size() < 2 ) return;
+    const RailSkin& skin = rail.Config().skin;
     const float hw = ( std::max )( skin.width * 0.5f, 0.2f );
     const float hem = ( std::min )( 0.12f, hw * 0.3f );
     const float lift = skin.lift + extraLift;

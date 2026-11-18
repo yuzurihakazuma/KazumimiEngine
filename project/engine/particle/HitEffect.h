@@ -1,11 +1,11 @@
 #pragma once
-#include "Engine/3D/Obj/Obj3d.h"
+#include "engine/3d/obj/Obj3d.h"
 #include "engine/math/VectorMath.h"
 #include "engine/math/struct.h"
 #include <vector>
 #include <memory>
 
-
+namespace KazumimiEngine {
 
 class Camera;
 
@@ -25,6 +25,7 @@ public:
     bool IsDead() const { return isDead_; }
 
 private:
+    // 火花 1 つ（見た目の物・寿命・今の時間・元の大きさ）
     struct Spark {
         std::unique_ptr<Obj3d> obj;
         float lifeTime;
@@ -35,3 +36,5 @@ private:
     std::vector<Spark> sparks_;
     bool isDead_ = false;
 };
+
+} // namespace KazumimiEngine

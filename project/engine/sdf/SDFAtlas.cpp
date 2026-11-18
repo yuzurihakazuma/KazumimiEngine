@@ -4,6 +4,8 @@
 #include "externals/nlohmann/json.hpp"
 #include "engine/graphics/TextureManager.h"
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 namespace {
@@ -150,3 +152,5 @@ const SDFSpriteInfo* SDFAtlas::GetSprite(const std::string& name) const {
     auto it = sprites_.find(name);
     return it != sprites_.end() ? &it->second : nullptr;
 }
+
+} // namespace KazumimiEngine

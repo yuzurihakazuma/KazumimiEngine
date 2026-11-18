@@ -40,6 +40,8 @@
 #include "engine/utils/ScreenCapture.h"
 #endif
 
+namespace KazumimiEngine {
+
 namespace {
 
 // SDF素材（画像/フォント/フォルダ。Shift押下時は .obj も）を resources/sdf_inbox へコピーする。
@@ -2242,3 +2244,5 @@ void EditorManager::ClearNodeGameValues(){
         nodeEditor_->ClearGameValues();
     }
 }
+
+} // namespace KazumimiEngine

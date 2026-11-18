@@ -11,6 +11,8 @@
 #include "engine/graphics/PipelineType.h"
 #include "engine/graphics/BlendMode.h"
 
+namespace KazumimiEngine {
+
 class DirectXCommon;
 
 enum class PostEffectType;
@@ -158,3 +160,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

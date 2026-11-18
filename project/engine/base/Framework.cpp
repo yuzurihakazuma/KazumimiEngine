@@ -14,7 +14,6 @@
 #include "engine/particle/ParticleManager.h"
 #include "engine/graphics/TextureManager.h"
 #include "engine/graphics/PipelineManager.h"
-#include "engine/scene/AbstractSceneFactory.h"
 #include "engine/scene/SceneManager.h"
 #include "engine/postEffect/PostEffect.h"
 #include "engine/utils/EditorManager.h"
@@ -24,6 +23,7 @@
 #include "engine/graphics/DebugDraw.h"
 #include "engine/utils/ScreenCapture.h"
 
+namespace KazumimiEngine {
 
 void Framework::Initialize(){
 	// ---------------------------------------------
@@ -212,3 +212,5 @@ void Framework::Run(){
 bool Framework::IsEndRequest(){
 	return endRequest_;
 }
+
+} // namespace KazumimiEngine

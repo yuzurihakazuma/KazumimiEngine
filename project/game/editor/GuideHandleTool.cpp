@@ -10,13 +10,15 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 int GuideHandleTool::ActiveGuideOf(const SceneEditContext& context){
 	const auto& rails = context.Rails();
 	RailEditor* railEditor = context.railEditor;
 	if ( !railEditor ) return -1;
 	int currentRail = railEditor->GetCurrentRailIndex();
-	if ( currentRail < 0 || currentRail >= ( int ) rails.size() || rails[currentRail].motionType != 3 ) return -1;
-	int guide = rails[currentRail].guideRail;
+	if ( currentRail < 0 || currentRail >= ( int ) rails.size() || rails[currentRail].Motion().motionType != 3 ) return -1;
+	int guide = rails[currentRail].Motion().guideRail;
 	if ( guide < 0 || guide >= ( int ) rails.size() || railEditor->GetNodeCountOf(guide) < 2 ) return -1;
 	return guide;
 }

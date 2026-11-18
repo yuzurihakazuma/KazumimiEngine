@@ -2,7 +2,7 @@
 #include "game/enemy/Enemy.h" // EnemySpawnData
 #include <vector>
 
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 class EnemySpawnModel;
 
 // =====================================================================
@@ -17,7 +17,7 @@ public:
 
     // 「新しく置く」の見出しと中身を描く。
     //   pickRail/pickDist: レールエディタで選択中ノードのレール番号と距離（hasPick=false なら未選択）
-    void Draw(EnemySpawnModel& model, const std::vector<SplineRail>& splineRails,
+    void Draw(EnemySpawnModel& model, const std::vector<KazumimiEngine::SplineRail>& splineRails,
               int pickRail, float pickDist, bool hasPick);
 
 private:

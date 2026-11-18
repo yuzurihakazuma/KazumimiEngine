@@ -19,6 +19,8 @@
 #include <filesystem>
 #include <fstream>
 
+using namespace KazumimiEngine;
+
 using namespace VectorMath;
 
 namespace {
@@ -55,7 +57,7 @@ namespace {
         default:                             return "端で停止";
         }
     }
-    bool IsUsable(const SplineRail& rail){ return rail.nodes.size() >= 2 && rail.GetLength() > 0.0f; }
+    bool IsUsable(const SplineRail& rail){ return rail.Nodes().size() >= 2 && rail.GetLength() > 0.0f; }
     int StatusOf(float gap, float maxDeg, bool checkAngle){
         if ( gap >= kGapYellow || ( checkAngle && maxDeg >= kDegYellow ) ) return 2;
         if ( gap >= kGapGreen  || ( checkAngle && maxDeg >= kDegGreen ) )  return 1;
@@ -69,11 +71,11 @@ std::vector<RailTransferDebugger::Connection> RailTransferDebugger::MeasureConne
     const int count = ( int ) rails.size();
     for ( int a = 0; a < count; ++a ) {
         const SplineRail& railA = rails[a];
-        if ( !IsUsable(railA) || railA.isLoop || railA.HasMotion() ) continue; // 動くレールはその場の位置で合流する（固定の接続ではない）
+        if ( !IsUsable(railA) || railA.Links().isLoop || railA.HasMotion() ) continue; // 動くレールはその場の位置で合流する（固定の接続ではない）
         for ( int end = 0; end < 2; ++end ) {
             const bool aFront = ( end == 0 );
             const float aDist = aFront ? 0.0f : railA.GetLength();
-            const int b = aFront ? railA.frontConnIndex : railA.backConnIndex;
+            const int b = aFront ? railA.Links().frontConnIndex : railA.Links().backConnIndex;
             const Vector3 posA = railA.GetPositionByDistance(aDist);
             // A の端から出て行く向き（front から出る時は接線の逆）と、その時の「進む向きの右」
             const SplineRail::RailFrame frameA = railA.GetFrameAtDistance(aDist);
@@ -84,8 +86,8 @@ std::vector<RailTransferDebugger::Connection> RailTransferDebugger::MeasureConne
             if ( b >= 0 && b < count && IsUsable(rails[b]) ) {
                 // 端どうし：同じ組は1回だけ（a<b、または相手が別の端を指している片思い）
                 const SplineRail& railB = rails[b];
-                const bool bFront = aFront ? railA.frontConnToFront : railA.backConnToFront;
-                const int backRef = bFront ? railB.frontConnIndex : railB.backConnIndex;
+                const bool bFront = aFront ? railA.Links().frontConnToFront : railA.Links().backConnToFront;
+                const int backRef = bFront ? railB.Links().frontConnIndex : railB.Links().backConnIndex;
                 if ( backRef == a && b < a ) continue;
                 const float bDist = bFront ? 0.0f : railB.GetLength();
                 const Vector3 posB = railB.GetPositionByDistance(bDist);
@@ -224,7 +226,7 @@ void RailTransferDebugger::Record(const Player& player, const std::vector<Spline
         // 端で止められた（はみ出しを捨てた）。つながっている端なら「1フレーム止まる」違和感の元
         const SplineRail& rail = rails[step.rail];
         const bool atFront = step.dist < 0.01f;
-        const bool connected = ( atFront ? rail.frontConnIndex : rail.backConnIndex ) >= 0;
+        const bool connected = ( atFront ? rail.Links().frontConnIndex : rail.Links().backConnIndex ) >= 0;
         if ( connected ) {
             LogRow row;
             row.frame = sample.frame;
@@ -296,7 +298,7 @@ void RailTransferDebugger::DrawOverlay(const std::vector<SplineRail>& rails, con
     for ( const SplineRail& rail : rails ) {
         if ( !IsUsable(rail) ) continue;
         const float length = rail.GetLength();
-        const Vector4 lineColor = rail.visible ? Vector4 { 0.3f, 0.9f, 1.0f, 0.9f } : Vector4 { 0.7f, 0.5f, 1.0f, 0.6f };
+        const Vector4 lineColor = rail.Config().visible ? Vector4 { 0.3f, 0.9f, 1.0f, 0.9f } : Vector4 { 0.7f, 0.5f, 1.0f, 0.6f };
         Vector3 prevCenter {}, prevLeft {}, prevRight {};
         const float step = 0.5f;
         for ( float s = 0.0f; ; s += step ) {
@@ -308,7 +310,7 @@ void RailTransferDebugger::DrawOverlay(const std::vector<SplineRail>& rails, con
             const Vector3 right = Add(Add(center, Multiply(frame.right, halfWidth_)), lift);
             if ( s > 0.0f ) {
                 draw->Line(Add(prevCenter, lift), Add(center, lift), lineColor);
-                if ( showBounds_ && rail.visible && rail.roadMode == 0 ) {
+                if ( showBounds_ && rail.Config().visible && rail.Config().roadMode == 0 ) {
                     draw->Line(prevLeft, left, { 1.0f, 1.0f, 1.0f, 0.5f });
                     draw->Line(prevRight, right, { 1.0f, 1.0f, 1.0f, 0.5f });
                 }
@@ -686,7 +688,7 @@ void RailTransferDebugger::StartAutoTest(const std::vector<SplineRail>& rails){
         autoCase.startDist = startDist;
         autoCase.moveX = 0.0f;
         autoCase.moveZ = 0.0f;
-        if ( rail.type == SplineRail::RailType::Horizontal ) { autoCase.moveX = ( tangent.x * toward >= 0.0f ) ? 1.0f : -1.0f; }
+        if ( rail.Config().type == SplineRail::RailType::Horizontal ) { autoCase.moveX = ( tangent.x * toward >= 0.0f ) ? 1.0f : -1.0f; }
         else                                                 { autoCase.moveZ = ( tangent.z * toward >= 0.0f ) ? 1.0f : -1.0f; }
         char label[64];
         snprintf(label, sizeof(label), "R%d %s → R%d", c.railA, c.aFront ? "始点" : "終点", c.railB);

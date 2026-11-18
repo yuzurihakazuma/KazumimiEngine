@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 namespace {
     const float kVisualEmbed = 0.02f; // 見た目だけ道へ2cm沈める（スプライン曲率の継ぎ目で髪の毛ほど浮くのを隠す）
 }
@@ -20,7 +22,7 @@ float PlacedBlock::SurfaceHeightAt(float atDist) const{
 }
 
 float BlockShape::RoadHalfWidth(const SplineRail& rail){
-    return rail.skin.HasCloth() ? ( std::max )( rail.skin.width * 0.5f, 0.2f ) : 1.0f;
+    return rail.Config().skin.HasCloth() ? ( std::max )( rail.Config().skin.width * 0.5f, 0.2f ) : 1.0f;
 }
 
 float BlockShape::SideHalf(const std::vector<SplineRail>& rails, const PlacedBlock& block){
@@ -33,7 +35,7 @@ bool BlockShape::PoseOnRail(const std::vector<SplineRail>& rails, const PlacedBl
                             Vector3& outPos, float& outYaw, float* outPitch){
     if ( block.rail < 0 || block.rail >= ( int ) rails.size() ) return false;
     const SplineRail& rail = rails[block.rail];
-    if ( rail.nodes.size() < 2 ) return false;
+    if ( rail.Nodes().size() < 2 ) return false;
 
     float dist = std::clamp(block.dist, 0.0f, rail.GetLength());
     Vector3 base    = rail.GetPositionByDistance(dist);

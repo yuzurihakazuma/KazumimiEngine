@@ -1,6 +1,8 @@
 #include "VectorMath.h"
 #include <cmath>
 
+namespace KazumimiEngine {
+
 namespace VectorMath {
 
 	Vector3 Add(const Vector3& v1, const Vector3& v2) {
@@ -89,3 +91,5 @@ namespace VectorMath {
 
 
 } // namespace VectorMath
+
+} // namespace KazumimiEngine

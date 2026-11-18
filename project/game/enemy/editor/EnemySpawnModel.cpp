@@ -2,6 +2,8 @@
 #include "engine/rail/SplineRail.h"
 #include <algorithm>
 
+using namespace KazumimiEngine;
+
 void EnemySpawnModel::Replace(const std::vector<EnemySpawnData>& datas){
     spawnDatas_ = datas;
     selectedEntry_ = -1;

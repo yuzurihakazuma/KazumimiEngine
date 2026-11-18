@@ -5,6 +5,8 @@
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/SrvManager.h"
 
+namespace KazumimiEngine {
+
 namespace {
 	constexpr const char* kSphereModel = "skySphere"; // 空を描く球（半径 1。大きさは関係ない）
 	constexpr int kSphereSubdivision = 32;
@@ -35,3 +37,5 @@ void Skybox::Draw(ID3D12GraphicsCommandList* commandList, Camera* camera){
 	// テクスチャセットを飛ばす DrawOnly を呼ぶ (マテリアルの上書きを防ぐ)
 	model_->DrawOnly();
 }
+
+} // namespace KazumimiEngine

@@ -1,11 +1,4 @@
 #pragma once
-// =====================================================================
-//  BlockRenderer：ブロックの一括描画（InstancedGroup）と、継ぎ目に咲く紙花の自動配置。
-//   見た目は種類ごと（＋使用済み？ブロック・花2種）のグループに分け、グループごとに
-//   1ドローコールで描く。何百個置いても種類数ぶんで描き切る。
-//   Obj3d は行列計算専用のプール（伸びるだけ）から借りる＝ペイントのたびに
-//   Obj3d（GPUリソース2本持ち）を作り直さない
-// =====================================================================
 #include "game/stage/BlockShape.h"
 
 #include <cstdint>
@@ -13,12 +6,21 @@
 #include <memory>
 #include <vector>
 
+namespace KazumimiEngine {
 class Obj3d;
 class Camera;
 class InstancedGroup;
+}
 class BlockGrid;
-class SplineRail;
+namespace KazumimiEngine { class SplineRail; }
 
+// =====================================================================
+//  BlockRenderer：ブロックの一括描画（InstancedGroup）と、継ぎ目に咲く紙花の自動配置。
+//   見た目は種類ごと（＋使用済み？ブロック・花2種）のグループに分け、グループごとに
+//   1ドローコールで描く。何百個置いても種類数ぶんで描き切る。
+//   Obj3d は行列計算専用のプール（伸びるだけ）から借りる＝ペイントのたびに
+//   Obj3d（GPUリソース2本持ち）を作り直さない
+// =====================================================================
 class BlockRenderer {
 public:
     BlockRenderer();
@@ -32,19 +34,20 @@ public:
     //   （配置が変わった時・？ブロックが使用済みになった時に呼ぶ）
     void Rebuild(const std::vector<PlacedBlock>& blocks, const BlockGrid& grid);
     // 位置・向きの更新（動くレール追従＋インスタンス行列の収集）
-    void Update(const std::vector<PlacedBlock>& blocks, const std::vector<SplineRail>& rails);
+    void Update(const std::vector<PlacedBlock>& blocks, const std::vector<KazumimiEngine::SplineRail>& rails);
     // 見た目グループごとに1ドローコール
-    void Draw(const Camera* camera);
+    void Draw(const KazumimiEngine::Camera* camera);
     // ジャンプ台が跳ねた（そのばねを縮めて、びよんと戻す）
     void BounceSpring(int blockIndex);
     // 裏から見ている間、カメラ側（minZ より +z）の、minY より上に出ているブロックを隠す（大きさ 0 にする）
     void SetViewCut(bool active, float minZ, float minY){ cutActive_ = active; cutMinZ_ = minZ; cutMinY_ = minY; }
 
 private:
+    // 同じ見た目のブロックの一括描画 1 組（行列を計算する物・対応するブロックの番号）
     struct LookGroup {
-        std::vector<Obj3d*> objs;      // プールから借りた行列計算機（非所有）
+        std::vector<KazumimiEngine::Obj3d*> objs;      // プールから借りた行列計算機（非所有）
         std::vector<int> blockIndices; // objs[i] が対応するブロック番号（花は -1-花番号）
-        std::unique_ptr<InstancedGroup> batch;
+        std::unique_ptr<KazumimiEngine::InstancedGroup> batch;
     };
     // 花の配置（動くレール追従のため rail/dist/高さで持つ）
     struct FlowerSpot {
@@ -58,13 +61,13 @@ private:
 
     void PlaceFlowers(const std::vector<PlacedBlock>& blocks, const BlockGrid& grid);
     void EnsurePool(size_t count); // プールを count 個まで育てる（縮めない）
-    void UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& blocks, const std::vector<SplineRail>& rails);
+    void UpdateLook(LookGroup& look, const std::vector<PlacedBlock>& blocks, const std::vector<KazumimiEngine::SplineRail>& rails);
 
     LookGroup typeLooks_[BlockShape::kTypeCount]; // 種類別のブロック
     LookGroup usedHatenaLook_;                    // 使用済みの？ブロック（灰色）
     LookGroup flowerLooks_[2];                    // 花（0=オレンジ / 1=白い顔つき）
     std::vector<FlowerSpot> flowers_;
-    std::vector<std::unique_ptr<Obj3d>> objPool_; // 行列計算用プール
+    std::vector<std::unique_ptr<KazumimiEngine::Obj3d>> objPool_; // 行列計算用プール
     std::map<int, float> springTimers_;          // 跳ねたばね（ブロック番号 → 跳ねてからの秒）
     bool  cutActive_ = false;                    // SetViewCut
     float cutMinZ_ = 0.0f;

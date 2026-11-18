@@ -1,4 +1,10 @@
 #pragma once
+#include <functional>
+#include <utility>
+#include <vector>
+
+namespace KazumimiEngine {
+
 // =====================================================================
 //  Signal<Args...>：出来事の知らせ（オブザーバー パターン）。クラステンプレート。
 //   出す側は「何が起きたか」だけを Emit で知らせ、受ける側は Connect で受け取る。
@@ -12,10 +18,6 @@
 //
 //   引数なしの知らせは Signal<> と書く
 // =====================================================================
-#include <functional>
-#include <utility>
-#include <vector>
-
 template <class... Args>
 class Signal {
 public:
@@ -44,6 +46,7 @@ public:
     }
 
 private:
+    // 登録してある受け取り手 1 つ（外す時の番号と、呼ぶ関数）
     struct Entry {
         Connection connection;
         Slot slot;
@@ -51,3 +54,5 @@ private:
     std::vector<Entry> slots_;
     Connection nextConnection_ = 1;
 };
+
+} // namespace KazumimiEngine

@@ -11,6 +11,8 @@
 #include "engine/sdf/SDFSprite.h"
 #include "engine/sdf/SDFVolumeObject.h"
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  SDFManager（シングルトン）
 //   SDF システム全体のまとめ役。
@@ -100,6 +102,7 @@ private:
         std::string atlasName;           // 使うフォントアトラス名
         std::unique_ptr<SDFText> text;
     };
+    // 置いてある SDF スプライト 1 つ（使うアトラスの名前と実体）
     struct SpriteItem {
         std::string atlasName;           // 使うスプライトアトラス名
         std::unique_ptr<SDFSprite> sprite;
@@ -146,3 +149,5 @@ private:
     Vector3 viewerPos_ { 0.0f, 0.0f, 0.0f };
     bool viewerValid_ = false;
 };
+
+} // namespace KazumimiEngine

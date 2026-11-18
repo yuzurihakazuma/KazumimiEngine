@@ -1,16 +1,18 @@
 #pragma once
+#include <vector>
+#include "engine/base/Singleton.h"
+#include "engine/math/struct.h"
+
+namespace KazumimiEngine {
+
+class Collider;
+
 // =====================================================================
 //  CollisionManager : Collider を登録して毎フレーム総当たり判定するマネージャ
 //   ・Register したコライダー同士を CheckAllCollisions() で総当たり
 //   ・属性/マスクが合い、形状が重なっていれば両者の OnHit を呼ぶ
 //   ・DrawDebug() で DebugDraw に形状を積む（可視化）
 // =====================================================================
-#include <vector>
-#include "engine/base/Singleton.h"
-#include "engine/math/struct.h"
-
-class Collider;
-
 class CollisionManager : public Singleton<CollisionManager> {
 	friend class Singleton<CollisionManager>; // 土台（Singleton）だけが作れる
 public:
@@ -34,3 +36,5 @@ private:
 
     std::vector<Collider*> colliders_;
 };
+
+} // namespace KazumimiEngine

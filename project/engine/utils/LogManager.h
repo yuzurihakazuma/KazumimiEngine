@@ -3,7 +3,11 @@
 #include <string>
 #include "engine/base/Singleton.h"
 #include <fstream>
+
+namespace KazumimiEngine {
+
 namespace logs{
+	// ログの出力（出力ウィンドウとログファイル）と、文字コードの変換（string ⇔ wstring）
 	class LogManager : public Singleton<LogManager> {
 		friend class Singleton<LogManager>; // 土台（Singleton）だけが作れる
 	public:
@@ -63,3 +67,4 @@ namespace logs{
 
 }// namespace logs
 
+} // namespace KazumimiEngine

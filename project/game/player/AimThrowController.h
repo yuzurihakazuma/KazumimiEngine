@@ -7,8 +7,10 @@
 class Player;
 class EnemyManager;
 class EggSystem;
+namespace KazumimiEngine {
 class Camera;
 class Sprite;
+}
 class EggCombo;
 
 // =====================================================================
@@ -34,7 +36,7 @@ public:
     void SetDebugVisible(bool visible){ debugVisible_ = visible; }
 
     // 毎フレーム（Play中のみ）呼ぶ
-    void Update(Player& player, EnemyManager& enemies, EggSystem& eggs, Camera* camera, float dt);
+    void Update(Player& player, EnemyManager& enemies, EggSystem& eggs, KazumimiEngine::Camera* camera, float dt);
 
     // 構え中だけカーソルを描画（SpriteCommon::PreDraw 済みの状態で呼ぶ）
     void DrawSprite();
@@ -92,9 +94,9 @@ private:
     float burstT_ = -1.0f;          // 投げた瞬間からの秒（-1＝出していない）。照準がぱっと開いて消える
     float uiScale_ = 1.0f;
     int   trailCount_ = 0;          // 卵の通る道の紙の点（このフレームに出す数）
-    std::unique_ptr<Sprite> ringSprite_;
-    std::array<std::unique_ptr<Sprite>, 4> notchSprites_;
-    std::unique_ptr<Sprite> dotSprite_;
-    std::array<std::unique_ptr<Sprite>, 4> trailSprites_;
-    std::array<std::unique_ptr<Sprite>, 3> bounceSprites_; // 当てた物がはじける向き（物の真ん中から外へ並ぶ小さな点）
+    std::unique_ptr<KazumimiEngine::Sprite> ringSprite_;
+    std::array<std::unique_ptr<KazumimiEngine::Sprite>, 4> notchSprites_;
+    std::unique_ptr<KazumimiEngine::Sprite> dotSprite_;
+    std::array<std::unique_ptr<KazumimiEngine::Sprite>, 4> trailSprites_;
+    std::array<std::unique_ptr<KazumimiEngine::Sprite>, 3> bounceSprites_; // 当てた物がはじける向き（物の真ん中から外へ並ぶ小さな点）
 };

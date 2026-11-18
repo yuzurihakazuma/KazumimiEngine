@@ -16,6 +16,8 @@
 #include "engine/base/DirectXCommon.h"
 #include "Bloom.h"
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 void PostEffect::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, uint32_t width, uint32_t height) {
@@ -439,3 +441,5 @@ void PostEffect::Load(const std::string& filePath) {
 		}
 	}
 }
+
+} // namespace KazumimiEngine

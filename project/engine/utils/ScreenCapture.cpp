@@ -25,6 +25,8 @@
 
 #pragma comment(lib, "shell32.lib")
 
+namespace KazumimiEngine {
+
 namespace {
     constexpr int    kWorkerCount = 3;     // PNG の書き出しを並べるスレッドの数
     constexpr size_t kMaxPendingJobs = 8;  // 保存待ちがこれを超えたら待つ（1枚 8MB ほど）
@@ -1191,3 +1193,5 @@ void ScreenCapture::DrawPanel([[maybe_unused]] const char* windowTitle){
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

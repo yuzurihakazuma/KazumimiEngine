@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+using namespace KazumimiEngine;
+
 namespace EnemyLevelConvert {
 
 LevelEnemyData ToLevelEnemy(const EnemySpawnData& spawn){

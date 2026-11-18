@@ -15,7 +15,7 @@
 #include "game/clear/ClearContext.h"
 
 namespace ClearSequence {
-    using Sequence = StepSequence<ClearContext>;
+    using Sequence = KazumimiEngine::StepSequence<ClearContext>;
 
     // context の timing（フル版・短縮版）で、場面の列を組み立てる
     void Build(Sequence& sequence, const ClearContext& context);

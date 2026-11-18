@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace KazumimiEngine;
+
 bool StageObstacles::Sweep(const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos) const{
 	// 1) ブロック（見た目と同じ、道に沿って傾いた箱）
 	if ( blocks_ && blocks_->SweepSphere(from, to, radius, &outHitPos) ) { return true; }
@@ -22,13 +24,13 @@ bool StageObstacles::HitRoadSurface(const Vector3& to, float radius, Vector3& ou
 	const float kNearAlong     = 0.45f;
 
 	for ( const SplineRail& rail : *rails_ ) {
-		if ( rail.nodes.size() < 2 || !rail.visible ) continue; // 見えない連結レールに道は無い
-		if ( rail.roadMode != 0 ) continue;                      // 道なしのレール
+		if ( rail.Nodes().size() < 2 || !rail.Config().visible ) continue; // 見えない連結レールに道は無い
+		if ( rail.Config().roadMode != 0 ) continue;                      // 道なしのレール
 		if ( rail.IsRideBlocked() ) continue;                    // まだ出現していない道
 		if ( rail.GetFrames().empty() ) continue;
 
 		// 列車式で回っている最中のレールは、位置テーブル（基準位置）が使えないので都度計算する
-		const bool rotating = ( rail.guideAlign != 0 && rail.animYaw != 0.0f );
+		const bool rotating = ( rail.Motion().guideAlign != 0 && rail.Motion().animYaw != 0.0f );
 		const int frameCount = ( int ) rail.GetFrames().size();
 		for ( int i = 0; i < frameCount; i += kSampleStride ) {
 			float railDist = ( float ) i * SplineRail::kFrameStep;
@@ -42,9 +44,9 @@ bool StageObstacles::HitRoadSurface(const Vector3& to, float radius, Vector3& ou
 				if ( horiz > 1e-4f ) { frame.right = { tangent.z / horiz, 0.0f, -tangent.x / horiz }; }
 				frame.tangent = tangent;
 			} else {
-				surface = { frame.position.x + rail.animOffset.x,
-				            frame.position.y + rail.animOffset.y,
-				            frame.position.z + rail.animOffset.z };
+				surface = { frame.position.x + rail.Motion().animOffset.x,
+				            frame.position.y + rail.Motion().animOffset.y,
+				            frame.position.z + rail.Motion().animOffset.z };
 			}
 			Vector3 delta = { to.x - surface.x, to.y - surface.y, to.z - surface.z };
 			// 遠いサンプルは先に捨てる
