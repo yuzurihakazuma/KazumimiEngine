@@ -4,8 +4,10 @@
 #include <string>
 #include <wrl.h>
 #include <d3d12.h>
-#include "Engine/3D/Obj/Obj3d.h"
-#include "Engine/3D/model/Model.h"
+#include "engine/3d/obj/Obj3d.h"
+#include "engine/3d/model/Model.h"
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class Model;
@@ -19,6 +21,10 @@ public:
 
 	// 更新（ブロックたちの最新の座標データを集める）
 	void Update(const std::vector<std::unique_ptr<Obj3d>>& objects);
+	// 更新（非所有ポインタ版。プールした Obj3d をグループへ振り分けて使う側向け）
+	void Update(const std::vector<Obj3d*>& objects);
+	// 更新（行列を直接渡す版。Obj3d を作らずに大量に並べる側向け。WVP は呼ぶ側で計算しておく）
+	void Update(const std::vector<Obj3d::TransformationMatrix>& matrices);
 
 	// 一括描画！
 	void Draw(const Camera* camera);
@@ -40,3 +46,5 @@ private:
 	uint32_t noiseTextureIndex_ = 0;
 
 };
+
+} // namespace KazumimiEngine

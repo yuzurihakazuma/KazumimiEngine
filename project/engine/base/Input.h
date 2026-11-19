@@ -4,6 +4,7 @@
 
 // --- 標準ライブラリ・外部ライブラリ ---
 #include <dinput.h>
+#include "engine/base/Singleton.h"
 #include <Xinput.h>
 #include <Windows.h>
 #include <wrl.h>
@@ -17,10 +18,17 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib") 
 
-class Input {
+namespace KazumimiEngine {
+
+// =====================================================================
+//  Input：キーボード・マウス（DirectInput）と、ゲームパッド（XInput）の入力。
+//   毎フレーム Update で「今」と「1 つ前」の状態を取り、押している（PushKey）・押した瞬間（TriggerKey）を答える。
+//   BindAction で、キーとパッドのボタンを 1 つの名前（例：Jump）に束ねられる
+// =====================================================================
+class Input : public Singleton<Input> {
+	friend class Singleton<Input>; // 土台（Singleton）だけが作れる
 public:
 	template<typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
-	static Input* GetInstance();
 
 public:
 	// 初期化と更新
@@ -32,8 +40,27 @@ public:
 	// ==========================================
 	//  キーボード
 	// ==========================================
-	bool Pushkey(BYTE keyNumber);
-	bool Triggerkey(BYTE keyNumber);
+	bool PushKey(BYTE keyNumber);
+	bool TriggerKey(BYTE keyNumber);
+
+	// 文字入力中（エディタの入力欄に文字を打っている間）はキーボードを「押されていない」扱いにする。
+	//   これが無いと、名前を入力中に T を打っただけでタイトルへ戻る・R でシーンが読み直される等、
+	//   ゲーム側のホットキーが誤って発動する。EditorManager が毎フレーム渡す
+	// 遷移の演出中など、ゲーム側のキー操作を止める（true の間 PushKey / TriggerKey は常に false）
+	void SetLocked(bool locked){ locked_ = locked; }
+	bool IsLocked() const{ return locked_; }
+	void SetTextInputActive(bool active){ textInputActive_ = active; }
+	bool IsTextInputActive() const{ return textInputActive_; }
+
+	// 撮影（ScreenCapture）用：遷移の演出中・文字入力中でも読むキー（F9/F12 などの撮影のキー）
+	bool TriggerKeyRaw(BYTE keyNumber) const{ return !( preKeys_[keyNumber] & 0x80 ) && ( keys_[keyNumber] & 0x80 ); }
+	// 撮影の「テイク」：今押しているキーの一覧（F1〜F12・Esc は除く。文字入力中は空）
+	std::vector<uint8_t> GetPressedKeysForTake() const;
+	// 撮影の「テイク」の再生：このフレームのキーを pressed に差し替える（Update の後に呼ぶ）。
+	//   F1〜F12・Esc だけは本物のキーのまま（再生中も撮影やエディタの切り替えができるように）。
+	//   コントローラーは「つながっていない」扱いにする
+	void OverrideKeysForTake(const std::vector<uint8_t>& pressed);
+	static bool IsTakeLiveKey(BYTE keyNumber);
 
 	// ==========================================
 	// 🖱 マウス
@@ -78,26 +105,28 @@ public:
 private:
 	Input() = default;
 	~Input() = default;
-	Input(const Input&) = delete;
-	Input& operator=(const Input&) = delete;
 
 private:
 	// キーボード用
-	ComPtr<IDirectInputDevice8> keyboard;
-	BYTE keys[256] = {};
-	BYTE preKeys[256] = {};
+	ComPtr<IDirectInputDevice8> keyboard_;
+	BYTE keys_[256] = {};
+	BYTE preKeys_[256] = {};
+	bool locked_ = false;          // 遷移の演出中（true の間 PushKey / TriggerKey は常に false）
+	bool textInputActive_ = false; // 文字入力中（true の間 PushKey / TriggerKey は常に false）
 
 	// マウス用
-	ComPtr<IDirectInputDevice8> mouse;
-	DIMOUSESTATE2 mouseState = {};
-	DIMOUSESTATE2 preMouseState = {};
+	ComPtr<IDirectInputDevice8> mouse_;
+	DIMOUSESTATE2 mouseState_ = {};
+	DIMOUSESTATE2 preMouseState_ = {};
 
 	// コントローラー用
-	XINPUT_STATE joyState = {};
-	XINPUT_STATE preJoyState = {};
-	bool isJoyConnected = false;
+	XINPUT_STATE joyState_ = {};
+	XINPUT_STATE preJoyState_ = {};
+	bool isJoyConnected_ = false;
 
 	// アクション → (キーボードDIK, パッドボタン) の束ね。padButton=0 はキーボードのみ
 	struct ActionBind{ BYTE key; WORD pad; };
 	std::map<std::string, std::vector<ActionBind>> actions_;
 };
+
+} // namespace KazumimiEngine

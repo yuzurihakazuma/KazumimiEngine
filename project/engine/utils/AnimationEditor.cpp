@@ -1,8 +1,11 @@
 #define NOMINMAX
 #include "AnimationEditor.h"
+#include "engine/base/TimeManager.h"
 #include "engine/utils/ImGuiManager.h"
 #include <algorithm>
 #include <string>
+
+namespace KazumimiEngine {
 
 void AnimationEditor::Initialize() {
     // 現時点では追加の初期化なし
@@ -23,7 +26,7 @@ void AnimationEditor::Update() {
 
     // 再生中かつキーフレームが存在する場合のみ時間を進めるボタン
     if (isAnimPlaying_ && track.duration > 0.0f) {
-        animCurrentTime_ += (1.0f / 60.0f) * playbackSpeed_;
+        animCurrentTime_ += Time::kFixedDeltaTime * playbackSpeed_;
 
         // 末尾に達したらループ or 停止
         if (animCurrentTime_ > track.duration) {
@@ -607,3 +610,5 @@ void AnimationEditor::DrawDebugUI() {
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

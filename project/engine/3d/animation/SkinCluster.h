@@ -7,9 +7,12 @@
 #include "engine/math/Matrix4x4.h"
 #include "engine/3d/animation/Skeleton.h"
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
 
+// スキニングに使うデータ（骨ごとの最終行列と、それを GPU へ渡すバッファ・SRV）
 struct SkinCluster {
     // CPU側：ジョイントごとの最終行列（毎フレーム計算する）
     std::vector<Matrix4x4> matrixPalette;
@@ -39,3 +42,5 @@ void UpdateSkinCluster(
     const Skeleton& skeleton,
     const std::vector<std::string>& boneOrder   // 追加
 );
+
+} // namespace KazumimiEngine

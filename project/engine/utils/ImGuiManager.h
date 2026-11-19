@@ -1,19 +1,27 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include "externals/imgui/imgui.h"
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <wtypes.h>
+#include <string>
+#include <vector>
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class DirectXCommon;
 class WindowProc;
 
 
-class ImGuiManager{
+// =====================================================================
+//  ImGuiManager：ImGui（エディタの UI）の準備と、1 フレームの流れ。
+//   初期化・フォントの読み込み（日本語とアイコン）・フレームの始めと終わり・描画を受け持つ
+// =====================================================================
+class ImGuiManager : public Singleton<ImGuiManager> {
+	friend class Singleton<ImGuiManager>; // 土台（Singleton）だけが作れる
 public:
 
-    // シングルトンインスタンスの取得
-    static ImGuiManager* GetInstance();
 
     // -------------------- 初期化・終了処理 --------------------
 
@@ -48,11 +56,20 @@ public:
     /// Win32 メッセージの ImGui 用処理
     /// </summary>
     bool WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
+    // -------------------- フォント --------------------
+    // 起動時に読み込めたUIフォントの一覧（UI設定ウィンドウの切替候補）
+    struct UiFont {
+        ImFont* font = nullptr;
+        std::string name;
+    };
+    const std::vector<UiFont>& GetFonts() const{ return fonts_; }
 private:
     // コンストラクタを隠蔽
     ImGuiManager() = default;
     ~ImGuiManager() = default;
-    ImGuiManager(const ImGuiManager&) = delete;
-    ImGuiManager& operator=(const ImGuiManager&) = delete;
+
+    std::vector<UiFont> fonts_; // 読み込めたUIフォント（[0]=既定のメイリオ）
 };
 
+} // namespace KazumimiEngine

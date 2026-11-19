@@ -3,6 +3,8 @@
 #include <string>
 #include <memory>
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class IScene;
 
@@ -16,3 +18,5 @@ public:
 	virtual std::unique_ptr<IScene> CreateScene(const std::string& sceneName) = 0;
 
 };
+
+} // namespace KazumimiEngine

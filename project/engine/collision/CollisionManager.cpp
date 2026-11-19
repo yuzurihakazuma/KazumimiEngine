@@ -6,10 +6,7 @@
 #include "engine/collision/Collision.h"
 #include "engine/graphics/DebugDraw.h"
 
-CollisionManager* CollisionManager::GetInstance(){
-    static CollisionManager instance;
-    return &instance;
-}
+namespace KazumimiEngine {
 
 void CollisionManager::Register(Collider* collider){
     if ( !collider ) return;
@@ -76,3 +73,5 @@ void CollisionManager::DrawDebug(const Vector4& color){
         }
     }
 }
+
+} // namespace KazumimiEngine

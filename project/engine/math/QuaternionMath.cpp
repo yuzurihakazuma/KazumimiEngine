@@ -2,6 +2,8 @@
 #include "engine/math/VectorMath.h" 
 #include <cmath>
 
+namespace KazumimiEngine {
+
 namespace QuaternionMath{
 
 	float Clamp(float x, float a, float b){
@@ -107,3 +109,5 @@ namespace QuaternionMath{
 		return M;
 	}
 }
+
+} // namespace KazumimiEngine

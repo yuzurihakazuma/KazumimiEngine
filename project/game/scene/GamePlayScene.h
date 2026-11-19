@@ -1,120 +1,182 @@
 #pragma once
-// --- エンジン側のファイル ---
-#include "Engine/Scene/IScene.h"
-#include "Engine/Math/Matrix4x4.h"
-#include "Engine/graphics/TextureManager.h"
-#include "engine/3d/animation/Animation.h"
-#include "engine/3d/animation/CustomAnimation.h"
-#include "engine/3d/obj/SkinnedObj3d.h"
-#include "engine/particle/GPUParticleEmitter.h"
-#include "engine/utils/EditorManager.h"  // EngineMode のために必要
-#include "Skybox.h"
-#include "HitEffect.h"
+#include "game/scene/BaseScene.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/utils/EditorManager.h" // EngineMode
 
-// --- 標準ライブラリ ---
-#include <vector>
+#include "game/rail/RailField.h"
+#include "game/rail/RoadMesh.h"
+#include "game/rail/DissolveRoad.h"
+#include "game/rail/TrainVisuals.h"
+#include "game/camera/PlayCameraController.h"
+#include "game/combat/HitFeel.h"
+#include "game/combat/CombatSystem.h"
+#include "game/player/SwallowAbility.h"
+#include "game/player/AimThrowController.h"
+#include "game/player/PlayerAvatar.h"
+#include "game/clear/ClearFlow.h"
+#include "engine/3d/Skybox.h"
+#include "game/stage/CoinSystem.h"
+#include "game/stage/BlockSystem.h"
+#include "game/stage/StageObstacles.h"
+#include "game/stage/StageIntroSequence.h"
+#include "game/stage/StageBackdrop.h"
+#include "game/egg/EggCombo.h"
+#include "game/enemy/EnemyManager.h"
+#include "game/egg/EggSystem.h"
+#include "game/effect/PlayScreenEffects.h"
+#include "game/ui/GameHud.h"
+#include "game/editor/PlaySceneEditor.h"
+#include "game/editor/RailTransferDebugger.h"
+#include "game/gameover/GameOverFlow.h"
+#include "game/flip/WorldFlip.h"
+#include "engine/2d/Sprite.h"
+
 #include <memory>
-#include <unordered_map>
 #include <string>
-#include <list>
+#include <unordered_map>
 
-// 前方宣言
-class DebugCamera;
-class Camera;
-class Sprite;
-class Obj3d;
-class DirectXCommon;
-class Input;
-class RenderTexture;
-class PostEffect;
 class Player;
+class EnemyEditor;
 
-	// ゲームプレイシーン
-class GamePlayScene : public IScene {
+// =====================================================================
+//  GamePlayScene：ゲームプレイシーン。
+//   全シーン共通の部分（カメラ・描画の流れ・デバッグ描画・展示物・インスペクターの共通項目）は
+//   BaseScene が持つ。ここはゲームの中身（レール・プレイヤー・敵・卵・ブロック・コイン・演出）を持ち、
+//   「どの順番で更新・描画するか」と「エディタの編集をいつ反映するか」だけを決める。
+//   中身の処理はそれぞれのクラスへ分けてある：
+//     見た目 … PlayerAvatar（プレイヤーのモデル）/ GameHud（画面の表示）/ PlayScreenEffects（画面効果）
+//     エディタ … PlaySceneEditor（Game View の操作・パネル一式）/ EditorCameraUtil（カメラの置き直し）
+//     判定 …… StageObstacles（卵の壁・地面）/ CombatSystem（踏みつけ・卵命中）
+// =====================================================================
+class GamePlayScene : public BaseScene {
 public:
-	// 初期化
-	void Initialize() override;
-	// 終了
-	void Finalize() override;
-	// 更新
-	void Update() override;
-	// 描画
-	void Draw() override;
-
-	// デバッグ用UIの描画
-	void DrawDebugUI() override;
-	void ReloadMap();
-
 	GamePlayScene();
+	~GamePlayScene() override;
 
-	~GamePlayScene();
+	// 遷移の演出からの合図（ステージ開始の演技・カメラの戻り）
+	void OnTransitionCue(const std::string& cue) override;
 
-private: // メンバ変数
+private:
+	StageIntroSequence::Context IntroContext(); // 演技に使う部品をまとめる
+	void BuildBackdrop();                       // ステージ全体のクラフトの背景を置く
+public:
 
-	// カメラ
-	std::unique_ptr<Camera> camera_ = nullptr;
-	// デバッグカメラ
-	std::unique_ptr<DebugCamera> debugCamera_ = nullptr;
+private:
+	// --- BaseScene の差し込み口 ---
+	void OnLoadResources() override;  // BGM・SE・モデル・テクスチャ・SDF演出のパイプライン
+	void OnInitialize() override;     // 見た目・HUD・プレイヤー・敵エディタ・レール
+	void OnFinalize() override;
+	void OnPreUpdate() override;      // ヒットストップ＋エディタ編集の反映（カメラ更新の前）
+	void UpdateCamera() override;     // カメラ更新＋シェイク＋ヒット点のポストエフェクト
+	void OnUpdate() override;         // Edit↔Play の切替・プレイ中の進行・見た目
+	bool GetSdfViewerPosition(KazumimiEngine::Vector3& outPos) const override;
+	void OnDrawBackground(ID3D12GraphicsCommandList* commandList) override;
+	float PlayerRailProgress() const; // プレイヤーの、今のレールの上の進み具合（0〜1。だんだん変わるレールのカメラ）
+	void OnDrawOpaque(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawInstanced() override;
+	void OnDrawTransparent(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawSdf(ID3D12GraphicsCommandList* commandList) override;
+	void OnDrawUI(ID3D12GraphicsCommandList* commandList) override;
+	void OnFrameComposed(ID3D12GraphicsCommandList* commandList, KazumimiEngine::RenderTexture* finalTarget) override;
+	void OnDrawInspector() override;
+	void OnDrawDebugDrawOptions() override;
+	void OnDebugUI() override;
 
-	// スプライト
-	std::unique_ptr<Sprite> sprite_ = nullptr;
+	void SetupGameplay();    // プレイヤー・敵エディタ・レール・各種システム
 
-	Vector2 spritePos_ = { 100.0f, 100.0f };
+	// --- エディタの編集をシーンへ反映（Update の最初）---
+	void SyncFromEditors();
+	void ApplyRailRemaps();        // レールの数・並びが変わった時の敵のレール番号の付け替え
+	void SyncRailsLive();          // レール編集のライブ同期（ドラッグ中は10Hzの軽量同期）
+	void SyncEnemyEdits();         // マップ読込の敵配置の復元・敵エディタの変更
+	void SyncBlockEdits();         // ブロック配置のライブ同期
+	void HandleCameraRequests();   // 「カメラをここへ」・カメラエディタからの画角
+	// エディタの最新レールから railField_ を作り直し、敵・コイン・ブロックも配置し直す。
+	//   simple=true はドラッグ中の軽量同期（道は簡易リボン・敵の再配置なし）
+	void SyncRailsFromEditor(bool simple = false);
+	void SpawnEnemies(); // 配置テンプレートを元に敵の実体を再構築する
 
-	// テクスチャデータ
-	std::unordered_map<std::string, TextureData> textures_;
+	// --- Update の段階 ---
+	void HandleModeTransition(KazumimiEngine::EngineMode current); // Edit↔Play 切替時のリセット
+	void OnPlayStart();
+	void OnEditStart();
+	void UpdatePlayMode();                         // プレイ中のゲーム進行
+	void UpdateSceneVisuals(KazumimiEngine::EngineMode mode);      // モード問わず毎フレーム行う見た目の更新
 
-	// デプスステンシル
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;
+	// --- DrawDebugUI の段階 ---
+	void DrawHitShapes();   // 当たり判定の形をワイヤーで表示
+	SceneEditContext MakeEditContext();
 
-	std::list<std::unique_ptr<HitEffect>> hitEffects_;
-
+private:
+	// 読み込んだテクスチャ（展示物にも名前で渡す）
+	std::unordered_map<std::string, KazumimiEngine::TextureData> textures_;
 	std::string bgmFile_ = "resources/BGMDon.mp3";
 
-	
-	std::unique_ptr<Obj3d> testObj_ = nullptr;
+	KazumimiEngine::EngineMode prevMode_ = KazumimiEngine::EngineMode::Edit;
 
-	
-	std::unique_ptr<Skybox> skybox_ = nullptr;
-	
-	
-	float dissolveThreshold_ = 0.0f; // ディゾルブエフェクトの進行度（0.0で通常、1.0で完全に消える）
-	
-	Animation testAnimation_;
+	// --- プレイヤー ---
+	std::unique_ptr<Player> player_;
+	PlayerAvatar      avatar_;    // 見た目（モデル・アニメ・手持ちの卵）
+	SwallowAbility    swallow_;   // E=舌で捕まえる / 左Ctrl=産卵
+	AimThrowController aimThrow_; // Q構え→狙う→離して投げる
 
-	std::unique_ptr<SkinnedObj3d> skinnedObj_ = nullptr;
+	// --- ステージ ---
+	RailField      railField_;    // 実行時レール（本体・緑線・動くレール）
+	RoadMesh       roadMesh_;     // レール下の道メッシュ
+	DissolveRoad   dissolveRoad_; // SDF溶け道（近づくと現れる道）
+	TrainVisuals   trainVisuals_; // 列車（台車・機関車）と線路（列車のガイド）
+	ClearFlow      clear_;        // ゴールの門・集計・クリア演出（中身は game/clear/。ここは決まった所で呼ぶだけ）
+	KazumimiEngine::Skybox         sky_;          // いちばん奥の紙の空（どの向きを見ても空・地平線の丘・下の草。tools/sky/make_paper_sky.py）
+	StageIntroSequence intro_;    // ステージ開始の演技（遷移の合図で動く）
+	StageBackdrop  backdrop_;     // ステージ全体のクラフトの背景（地面・空・丘・雲・木・柵・草花）
+	CoinSystem     coinSystem_;   // 収集物（コイン）
+	BlockSystem    blockSystem_;  // 乗れる/ぶつかるブロック
+	StageObstacles obstacles_;    // 卵・吐き出し弾の壁・地面判定（ブロック＋道）
+	int lastBlockVersion_ = -1;   // ブロック編集のライブ同期用（レール全体は作り直さない）
 
-	// アニメーション再生用（編集なし・読み込みのみ）
-	CustomAnimationTrack skinnedAnimTrack_;
-	float skinnedAnimTime_ = 0.0f;
+	// --- 敵・卵・戦闘 ---
+	EnemyManager                 enemyMgr_;
+	std::unique_ptr<EnemyEditor> enemyEditor_; // 敵の配置テンプレート（配置の正本）
+	EggSystem    eggSystem_;
+	HitFeel      hitFeel_;  // ヒットストップ/シェイク/歪み+グロー
+	CombatSystem combat_;   // 踏みつけ/卵命中の判定＋エフェクト
 
-	
-	// GPUパーティクルエミッター
-	GPUParticleEmitter emitter_;
+	// --- カメラ・画面 ---
+	PlayCameraController camCtrl_;   // プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
+	PlayScreenEffects    screenFx_;  // プレイ用の見た目・落下ミスのアイリス・起動時ウォームアップ
+	GameHud              hud_;       // 卵の数・コインの数
+	EggCombo             eggCombo_;  // 卵の奥投げ・跳ね返りコンボ・かくれ花
 
-	// オーラ用のテクスチャやモデルを管理するオブジェクト
-	std::unique_ptr<Obj3d> auraObj_ = nullptr;
+	// --- エディタ ---
+	PlaySceneEditor editorTools_;          // Game View の操作・配置ビュー・ミニマップ
+	RailTransferDebugger transferDebugger_; // 乗り換えデバッガ（レール間の乗り換えのずれを測る）
+	// 操作開始の合図：ステージ開始の演出が終わって、キーが効くようになった瞬間に「スタート！」と音
+	std::unique_ptr<KazumimiEngine::Sprite> startPop_;
+	bool  startCuePending_ = false;
+	float startCueTime_ = -1.0f;   // 合図を出してからの秒数（-1=出していない）
+	KazumimiEngine::Vector2 startPopSize_ { 0.0f, 0.0f };
+	void UpdateStartCue(float deltaTime);
+	void UpdateEggFollowGround();                  // 後ろの卵を地面に置くための情報（恐竜の真下の地面）を卵へ渡す
+	void DrawStartCue();
+	int   lastMapLoadVersion_ = -1;        // マップ読込を検知して敵配置を復元するため
+	bool  railErasedPending_ = false;      // レール番号が変わった直後（敵の距離の張り直しを1回見送る）
+	float railSyncTimer_ = 0.0f;           // ドラッグ中の道再生成を10Hzに間引くタイマー
+	bool  railFullSyncPending_ = false;    // ドラッグ終了後に本同期を1回行うフラグ
+	int   testPlayRail_ = -1;              // 「ここからテストプレイ」：次の Edit→Play の開始地点（-1=通常）
+	float testPlayDist_ = 0.0f;
+	bool  showHitShapes_ = false;          // 当たり判定の形の表示
 
-	// UVスクロール用のタイマー変数
-	float auraUvScrollOffset_ = 0.0f;
-
-	// 一旦新しく作る円柱オーラ用オブジェクト
-	std::unique_ptr<Obj3d> auraCylinderObj_ = nullptr;
-
-	// 円柱オーラ用のUVスクロールタイマー
-	float auraCylinderScroll_ = 0.0f;
-
-	// デバッグ描画のグリッド表示ON/OFF
-	bool showDebugGrid_ = true;
-
-	// --- 実行中に投げるブロック ---
-	struct ThrownBlock {
-		std::unique_ptr<Obj3d> obj;
-		Vector3 pos{ 0.0f, 0.0f, 0.0f };
-		Vector3 vel{ 0.0f, 0.0f, 0.0f };
-		float life = 8.0f; // 秒。0で消える
-	};
-	std::list<ThrownBlock> thrownBlocks_;
-	void UpdateThrownBlocks(); // 生成・物理・寿命管理
-
+	// 体力（♡）とゲームオーバー（中身は game/gameover/GameOverFlow。ここは決まった所で呼ぶだけ）
+	GameOverFlow gameOver_;
+	// カメラ反転（レールの向き・「？」スイッチに卵を当てると、カメラが180°回り込んで裏から見る。game/flip/WorldFlip）
+	WorldFlip flip_;
+	// 撮影のテイク（ScreenCapture）：記録を始めた所から、敵・コインなどを置き直して始める
+	void SetupCaptureTakes();
+	void RestartForTake(int rail, float dist);
+	bool snapCameraOnce_ = false; // 次のプレイの更新で、カメラを補間せずに追従の位置へ置く
+	bool retryNearGoal_ = false;  // 提出用・プレイ会用：クリアしたステージに入り直した＝ゴールの手前から始める（押す演出なし）
+	void ResetStageForRetry(); // やりなおし：敵・コイン・？ブロック・卵・構え・舌をプレイ開始の時と同じに戻す
+	void SetupClear();         // ゴールとクリア演出の用意・集計係へプレイの出来事をつなぐ
+	void OnGoalReached();      // ゴールの輪をくぐった瞬間の後始末（構え・ベロをやめる、♡を隠す）
+	void UpdateClearStaging(float deltaTime); // クリア演出の間の更新（ゲームの時間は止め、恐竜と演出だけ進める）
 };

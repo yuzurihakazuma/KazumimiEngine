@@ -2,6 +2,13 @@
 #include <string>
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
+// =====================================================================
+//  IAnimatable：位置・回転・大きさを外から動かせる物の、共通の形（インターフェース）。
+//   中身の無い関数（純粋仮想関数）だけを持ち、Obj3d と SkinnedObj3d がこれを継いで実装する。
+//   アニメーションの編集（AnimationEditor）は、相手がどちらでも、この形を通して同じように動かす（ポリモーフィズム）
+// =====================================================================
 class IAnimatable {
 public:
 
@@ -30,3 +37,5 @@ public:
 	virtual void SetName(const std::string& name) = 0; // 名前の設定
 
 };
+
+} // namespace KazumimiEngine

@@ -5,8 +5,10 @@
 #include <d3d12.h>          
 
 // --- エンジン側のファイル ---
-#include "Engine/Base/DirectXCommon.h"  
-#include "Engine/Graphics/PipelineManager.h"
+#include "engine/base/DirectXCommon.h"  
+#include "engine/graphics/PipelineManager.h"
+
+namespace KazumimiEngine {
 
 // 初期化
 void SpriteCommon::Initialize(DirectXCommon* dxCommon){
@@ -27,3 +29,5 @@ void SpriteCommon::PreDraw(ID3D12GraphicsCommandList* commandList){
 		PipelineType::Sprite
 	);
 }
+
+} // namespace KazumimiEngine

@@ -9,6 +9,8 @@
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/base/WindowProc.h"
 
+namespace KazumimiEngine {
+
 using namespace logs;
 
 void DirectXCommon::Finalize(){
@@ -31,7 +33,6 @@ void DirectXCommon::Finalize(){
 	includeHandler_.Reset();
 	dxcCompiler_.Reset();
 	dxcUtils_.Reset();
-	resource.Reset();
 
 	rtvDescriptorHeap_.Reset();
 	dsvDescriptorHeap_.Reset();
@@ -146,7 +147,7 @@ void DirectXCommon::Initialize(WindowProc* windowProc){
 	logManager_.Log("DirectXCommon::Initialize() 開始");
 
 	// DXCコンパイラの生成（ShaderCompilerの初期化）
-	bool result = shaderCompiler_.Initialize();
+	[[maybe_unused]] bool result = shaderCompiler_.Initialize();
 	assert(result);
 	logManager_.Log("ShaderCompiler 初期化成功");
 
@@ -213,6 +214,9 @@ void DirectXCommon::PostDraw(){
 
 	// これから表示するバックバッファのインデックスを取得
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
+
+	// 撮影：画面そのまま（エディタの窓も入る）を写す時の写し取り（まだ RENDER_TARGET のうちに積む）
+	if ( frameEndHook_ ) { frameEndHook_(commandList_.Get(), backBuffers_[backBufferIndex].Get()); }
 
 	// バックバッファを「描画用 → 表示用(PRESENT)」に戻すバリア
 	D3D12_RESOURCE_BARRIER barrier {};
@@ -416,7 +420,7 @@ void DirectXCommon::CreateDepthBuffer(){
 ///  各種でスクリプタヒープの生成
 void DirectXCommon::CreateDescriptorHeaps(){
 
-	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 50, false);
+	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, kRtvCount, false);
 	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 	dsvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	// DescriptorSizeを取得しておく
@@ -568,6 +572,21 @@ void DirectXCommon::UpdateFixFPS(){
 }
 
 // ディスクリプタヒープの生成
+uint32_t DirectXCommon::AllocateRtvIndex(){
+	if ( !freeRtvIndices_.empty() ) {
+		const uint32_t reused = freeRtvIndices_.back();
+		freeRtvIndices_.pop_back();
+		return reused;
+	}
+	assert(nextRtvIndex_ < kRtvCount); // 足りない：RenderTexture を作りすぎている（消した時に返しているか確かめる）
+	return nextRtvIndex_++;
+}
+
+void DirectXCommon::FreeRtvIndex(uint32_t index){
+	if ( index < kBackBufferCount || index >= nextRtvIndex_ ) { return; }
+	freeRtvIndices_.push_back(index);
+}
+
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible){
 
 	// ディスクリプタヒープの生成
@@ -647,7 +666,11 @@ void DirectXCommon::InitializeInfoQueue(){
 		D3D12_MESSAGE_ID denyIds[] = {
 			// windows11でのDXGIデバックレイヤーとDX12デバックレイヤーの相互作用バグによるエラーメッセージ
 			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
-			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,D3D12_MESSAGE_ID_LIVE_DEVICE, };
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,D3D12_MESSAGE_ID_LIVE_DEVICE,
+			// 終了時の ReportLiveObjects が挙げる「シェーダーキャッシュセッションが生きている」警告(#1281)。
+			// D3D12ランタイム内部のキャッシュで、アプリ側では解放できない（Refcount:0, IntRef:1）。
+			// WARNINGでブレークする設定なので、抑制しないと終了のたびに例外0x87Aで落ちる
+			( D3D12_MESSAGE_ID ) 1281 /* LIVE_SHADERCACHESESSION */, };
 		// 抑制するレベル
 		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
 		D3D12_INFO_QUEUE_FILTER filter {};
@@ -708,3 +731,5 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(uint32_t descr
 
 }
 #pragma endregion
+
+} // namespace KazumimiEngine

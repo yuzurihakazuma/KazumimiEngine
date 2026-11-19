@@ -1,6 +1,8 @@
 #include "VectorMath.h"
 #include <cmath>
 
+namespace KazumimiEngine {
+
 namespace VectorMath {
 
 	Vector3 Add(const Vector3& v1, const Vector3& v2) {
@@ -12,6 +14,10 @@ namespace VectorMath {
 	}
 
 	Vector3 Multiply(float scalar, const Vector3& v) {
+		return v * scalar;
+	}
+
+	Vector3 Multiply(const Vector3& v, float scalar) {
 		return v * scalar;
 	}
 
@@ -31,12 +37,32 @@ namespace VectorMath {
 		return std::sqrt(Dot(v, v));
 	}
 
+	float LengthSq(const Vector3& v) {
+		return Dot(v, v);
+	}
+
 	Vector3 Normalize(const Vector3& v) {
 		float len = Length(v);
 		if (len != 0.0f) {
 			return v / len;
 		}
 		return v;
+	}
+
+	Vector3 NormalizeSafe(const Vector3& v, const Vector3& fallback) {
+		float len = Length(v);
+		if (len < 1e-6f) {
+			return fallback;
+		}
+		return v / len;
+	}
+
+	float Distance(const Vector3& a, const Vector3& b) {
+		return Length(a - b);
+	}
+
+	float DistanceSq(const Vector3& a, const Vector3& b) {
+		return LengthSq(a - b);
 	}
 
 	Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t){
@@ -65,3 +91,5 @@ namespace VectorMath {
 
 
 } // namespace VectorMath
+
+} // namespace KazumimiEngine

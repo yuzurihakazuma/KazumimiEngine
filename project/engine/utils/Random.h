@@ -10,6 +10,8 @@
 #include <random>
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 namespace Random{
 
     // 内部の乱数エンジン（最初の呼び出し時に random_device で種を作る）
@@ -64,3 +66,5 @@ namespace Random{
         return { d.x / len, d.y / len, d.z / len };
     }
 }
+
+} // namespace KazumimiEngine

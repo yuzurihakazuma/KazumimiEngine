@@ -1,0 +1,4160 @@
+{
+  "font": "JF-Dot-jiskan16.ttf",
+  "size": 48,
+  "spread": 8,
+  "padding": 8,
+  "textureWidth": 2048,
+  "textureHeight": 1024,
+  "keepColor": false,
+  "glyphs": {
+    " ": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "advance": 24.0
+    },
+    "!": {
+      "x": 1088,
+      "y": 256,
+      "width": 40,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "\"": {
+      "x": 256,
+      "y": 561,
+      "width": 40,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "#": {
+      "x": 960,
+      "y": 442,
+      "width": 40,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "$": {
+      "x": 0,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "%": {
+      "x": 40,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "&": {
+      "x": 584,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "'": {
+      "x": 296,
+      "y": 561,
+      "width": 40,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "(": {
+      "x": 80,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    ")": {
+      "x": 120,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "*": {
+      "x": 1928,
+      "y": 674,
+      "width": 40,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 24.0
+    },
+    "+": {
+      "x": 1968,
+      "y": 674,
+      "width": 40,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 24.0
+    },
+    ",": {
+      "x": 552,
+      "y": 774,
+      "width": 40,
+      "height": 31,
+      "offsetX": -8.0,
+      "offsetY": 25.0,
+      "advance": 24.0
+    },
+    "-": {
+      "x": 320,
+      "y": 774,
+      "width": 40,
+      "height": 36,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 24.0
+    },
+    ".": {
+      "x": 592,
+      "y": 774,
+      "width": 40,
+      "height": 28,
+      "offsetX": -8.0,
+      "offsetY": 25.0,
+      "advance": 24.0
+    },
+    "/": {
+      "x": 160,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "0": {
+      "x": 1000,
+      "y": 442,
+      "width": 40,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "1": {
+      "x": 624,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "2": {
+      "x": 664,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "3": {
+      "x": 704,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "4": {
+      "x": 744,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "5": {
+      "x": 784,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "6": {
+      "x": 824,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "7": {
+      "x": 1040,
+      "y": 442,
+      "width": 40,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "8": {
+      "x": 864,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "9": {
+      "x": 904,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    ":": {
+      "x": 1024,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    ";": {
+      "x": 1024,
+      "y": 674,
+      "width": 40,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "<": {
+      "x": 200,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "=": {
+      "x": 1712,
+      "y": 726,
+      "width": 40,
+      "height": 42,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    ">": {
+      "x": 240,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "?": {
+      "x": 1128,
+      "y": 256,
+      "width": 40,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "@": {
+      "x": 944,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "A": {
+      "x": 984,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "B": {
+      "x": 1024,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "C": {
+      "x": 1064,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "D": {
+      "x": 1104,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "E": {
+      "x": 1144,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "F": {
+      "x": 1184,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "G": {
+      "x": 1224,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "H": {
+      "x": 1264,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "I": {
+      "x": 1304,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "J": {
+      "x": 1344,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "K": {
+      "x": 1384,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "L": {
+      "x": 1424,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "M": {
+      "x": 1464,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "N": {
+      "x": 1504,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "O": {
+      "x": 1544,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "P": {
+      "x": 1584,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "Q": {
+      "x": 1168,
+      "y": 256,
+      "width": 40,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "R": {
+      "x": 1624,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "S": {
+      "x": 1664,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "T": {
+      "x": 1704,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "U": {
+      "x": 1744,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "V": {
+      "x": 1784,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "W": {
+      "x": 1824,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "X": {
+      "x": 1864,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "Y": {
+      "x": 1904,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "Z": {
+      "x": 1944,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "[": {
+      "x": 280,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "\\": {
+      "x": 1080,
+      "y": 442,
+      "width": 40,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "]": {
+      "x": 320,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "^": {
+      "x": 336,
+      "y": 561,
+      "width": 40,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "_": {
+      "x": 760,
+      "y": 774,
+      "width": 40,
+      "height": 22,
+      "offsetX": -8.0,
+      "offsetY": 33.25,
+      "advance": 24.0
+    },
+    "`": {
+      "x": 376,
+      "y": 561,
+      "width": 40,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "a": {
+      "x": 1064,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "b": {
+      "x": 1984,
+      "y": 561,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "c": {
+      "x": 1104,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "d": {
+      "x": 0,
+      "y": 619,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "e": {
+      "x": 1144,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "f": {
+      "x": 40,
+      "y": 619,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "g": {
+      "x": 1064,
+      "y": 674,
+      "width": 40,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "h": {
+      "x": 80,
+      "y": 619,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "i": {
+      "x": 1120,
+      "y": 442,
+      "width": 40,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "j": {
+      "x": 360,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "k": {
+      "x": 120,
+      "y": 619,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "l": {
+      "x": 160,
+      "y": 619,
+      "width": 40,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 24.0
+    },
+    "m": {
+      "x": 1184,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "n": {
+      "x": 1224,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "o": {
+      "x": 1264,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "p": {
+      "x": 1104,
+      "y": 674,
+      "width": 40,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "q": {
+      "x": 1144,
+      "y": 674,
+      "width": 40,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "r": {
+      "x": 1304,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "s": {
+      "x": 1344,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "t": {
+      "x": 1544,
+      "y": 619,
+      "width": 40,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 24.0
+    },
+    "u": {
+      "x": 1384,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "v": {
+      "x": 1424,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "w": {
+      "x": 1464,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "x": {
+      "x": 1504,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "y": {
+      "x": 1184,
+      "y": 674,
+      "width": 40,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "z": {
+      "x": 1544,
+      "y": 726,
+      "width": 40,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 24.0
+    },
+    "{": {
+      "x": 400,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "|": {
+      "x": 440,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "}": {
+      "x": 480,
+      "y": 0,
+      "width": 40,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "~": {
+      "x": 416,
+      "y": 561,
+      "width": 40,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 24.0
+    },
+    "×": {
+      "x": 0,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "÷": {
+      "x": 64,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "※": {
+      "x": 1584,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "←": {
+      "x": 1752,
+      "y": 726,
+      "width": 64,
+      "height": 42,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "↑": {
+      "x": 520,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "→": {
+      "x": 1816,
+      "y": 726,
+      "width": 64,
+      "height": 42,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "↓": {
+      "x": 584,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "⇔": {
+      "x": 128,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "★": {
+      "x": 1160,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "、": {
+      "x": 696,
+      "y": 774,
+      "width": 64,
+      "height": 25,
+      "offsetX": -8.0,
+      "offsetY": 31.0,
+      "advance": 48.0
+    },
+    "。": {
+      "x": 632,
+      "y": 774,
+      "width": 64,
+      "height": 28,
+      "offsetX": -8.0,
+      "offsetY": 28.0,
+      "advance": 48.0
+    },
+    "「": {
+      "x": 456,
+      "y": 561,
+      "width": 64,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "」": {
+      "x": 1224,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "〜": {
+      "x": 192,
+      "y": 774,
+      "width": 64,
+      "height": 39,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "ぁ": {
+      "x": 1648,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "あ": {
+      "x": 1208,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぃ": {
+      "x": 1584,
+      "y": 726,
+      "width": 64,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "い": {
+      "x": 1712,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ぅ": {
+      "x": 1776,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "う": {
+      "x": 1272,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぇ": {
+      "x": 1840,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "え": {
+      "x": 1336,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぉ": {
+      "x": 1288,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "お": {
+      "x": 1400,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "か": {
+      "x": 1464,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "が": {
+      "x": 1528,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "き": {
+      "x": 1592,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぎ": {
+      "x": 1656,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "く": {
+      "x": 648,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぐ": {
+      "x": 712,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "け": {
+      "x": 1720,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "げ": {
+      "x": 1784,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "こ": {
+      "x": 1904,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ご": {
+      "x": 1224,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "さ": {
+      "x": 1848,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ざ": {
+      "x": 1912,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "し": {
+      "x": 1288,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "じ": {
+      "x": 1352,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "す": {
+      "x": 776,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ず": {
+      "x": 840,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "せ": {
+      "x": 1416,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぜ": {
+      "x": 1976,
+      "y": 256,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "そ": {
+      "x": 0,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぞ": {
+      "x": 64,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "た": {
+      "x": 128,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "だ": {
+      "x": 192,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ち": {
+      "x": 256,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぢ": {
+      "x": 320,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "っ": {
+      "x": 1944,
+      "y": 726,
+      "width": 64,
+      "height": 40,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 48.0
+    },
+    "つ": {
+      "x": 192,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "づ": {
+      "x": 520,
+      "y": 561,
+      "width": 64,
+      "height": 57,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "て": {
+      "x": 200,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "で": {
+      "x": 264,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "と": {
+      "x": 1480,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ど": {
+      "x": 384,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "な": {
+      "x": 448,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "に": {
+      "x": 1544,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぬ": {
+      "x": 512,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ね": {
+      "x": 576,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "の": {
+      "x": 1968,
+      "y": 619,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "は": {
+      "x": 1608,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ば": {
+      "x": 640,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぱ": {
+      "x": 1672,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ひ": {
+      "x": 1736,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "び": {
+      "x": 704,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぴ": {
+      "x": 1800,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ふ": {
+      "x": 1864,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぶ": {
+      "x": 1928,
+      "y": 442,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぷ": {
+      "x": 0,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "へ": {
+      "x": 256,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "べ": {
+      "x": 1416,
+      "y": 619,
+      "width": 64,
+      "height": 54,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぺ": {
+      "x": 320,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ほ": {
+      "x": 64,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ぼ": {
+      "x": 768,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ぽ": {
+      "x": 128,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ま": {
+      "x": 832,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "み": {
+      "x": 328,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "む": {
+      "x": 896,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "め": {
+      "x": 960,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "も": {
+      "x": 1024,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ゃ": {
+      "x": 0,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "や": {
+      "x": 1088,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ゅ": {
+      "x": 64,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "ゆ": {
+      "x": 192,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ょ": {
+      "x": 128,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "よ": {
+      "x": 1152,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ら": {
+      "x": 1216,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "り": {
+      "x": 256,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "る": {
+      "x": 320,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "れ": {
+      "x": 1280,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ろ": {
+      "x": 384,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ゎ": {
+      "x": 192,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "わ": {
+      "x": 1344,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ゐ": {
+      "x": 448,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ゑ": {
+      "x": 512,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "を": {
+      "x": 1408,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ん": {
+      "x": 1472,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ゔ": {
+      "x": 1536,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ゕ": {
+      "x": 256,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "ゖ": {
+      "x": 320,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "ァ": {
+      "x": 768,
+      "y": 726,
+      "width": 64,
+      "height": 46,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "ア": {
+      "x": 392,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ィ": {
+      "x": 1352,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "イ": {
+      "x": 576,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ゥ": {
+      "x": 1416,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "ウ": {
+      "x": 1600,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ェ": {
+      "x": 0,
+      "y": 774,
+      "width": 64,
+      "height": 40,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 48.0
+    },
+    "エ": {
+      "x": 384,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ォ": {
+      "x": 1480,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "オ": {
+      "x": 1664,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "カ": {
+      "x": 1728,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ガ": {
+      "x": 1792,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "キ": {
+      "x": 904,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ギ": {
+      "x": 968,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ク": {
+      "x": 1856,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "グ": {
+      "x": 1920,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ケ": {
+      "x": 1984,
+      "y": 320,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ゲ": {
+      "x": 0,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "コ": {
+      "x": 1544,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ゴ": {
+      "x": 640,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "サ": {
+      "x": 704,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ザ": {
+      "x": 64,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "シ": {
+      "x": 456,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ジ": {
+      "x": 768,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ス": {
+      "x": 520,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ズ": {
+      "x": 128,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "セ": {
+      "x": 584,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ゼ": {
+      "x": 832,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ソ": {
+      "x": 648,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ゾ": {
+      "x": 192,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "タ": {
+      "x": 256,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ダ": {
+      "x": 320,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "チ": {
+      "x": 896,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ヂ": {
+      "x": 384,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ッ": {
+      "x": 832,
+      "y": 726,
+      "width": 64,
+      "height": 46,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "ツ": {
+      "x": 712,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ヅ": {
+      "x": 448,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "テ": {
+      "x": 776,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "デ": {
+      "x": 512,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ト": {
+      "x": 960,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ド": {
+      "x": 1024,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ナ": {
+      "x": 1088,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ニ": {
+      "x": 960,
+      "y": 726,
+      "width": 64,
+      "height": 45,
+      "offsetX": -8.0,
+      "offsetY": 4.0,
+      "advance": 48.0
+    },
+    "ヌ": {
+      "x": 840,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ネ": {
+      "x": 576,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ノ": {
+      "x": 904,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ハ": {
+      "x": 1608,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "バ": {
+      "x": 1152,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "パ": {
+      "x": 384,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ヒ": {
+      "x": 968,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ビ": {
+      "x": 1216,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ピ": {
+      "x": 1032,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "フ": {
+      "x": 448,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ブ": {
+      "x": 1280,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "プ": {
+      "x": 512,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ヘ": {
+      "x": 448,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ベ": {
+      "x": 1480,
+      "y": 619,
+      "width": 64,
+      "height": 54,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ペ": {
+      "x": 512,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ホ": {
+      "x": 1344,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ボ": {
+      "x": 640,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ポ": {
+      "x": 1408,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "マ": {
+      "x": 1672,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ミ": {
+      "x": 1472,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ム": {
+      "x": 1096,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "メ": {
+      "x": 1536,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "モ": {
+      "x": 576,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ャ": {
+      "x": 1736,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "ヤ": {
+      "x": 1600,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ュ": {
+      "x": 64,
+      "y": 774,
+      "width": 64,
+      "height": 40,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 48.0
+    },
+    "ユ": {
+      "x": 576,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ョ": {
+      "x": 1648,
+      "y": 726,
+      "width": 64,
+      "height": 43,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "ヨ": {
+      "x": 640,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ラ": {
+      "x": 1160,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "リ": {
+      "x": 1664,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ル": {
+      "x": 1224,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "レ": {
+      "x": 704,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ロ": {
+      "x": 640,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ヮ": {
+      "x": 896,
+      "y": 726,
+      "width": 64,
+      "height": 46,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "ワ": {
+      "x": 768,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ヰ": {
+      "x": 1728,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "ヱ": {
+      "x": 704,
+      "y": 726,
+      "width": 64,
+      "height": 48,
+      "offsetX": -8.0,
+      "offsetY": 1.0,
+      "advance": 48.0
+    },
+    "ヲ": {
+      "x": 832,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ン": {
+      "x": 896,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "ヴ": {
+      "x": 704,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "ヵ": {
+      "x": 1800,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "ヶ": {
+      "x": 1864,
+      "y": 674,
+      "width": 64,
+      "height": 49,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "・": {
+      "x": 360,
+      "y": 774,
+      "width": 64,
+      "height": 36,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 48.0
+    },
+    "ー": {
+      "x": 256,
+      "y": 774,
+      "width": 64,
+      "height": 39,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "一": {
+      "x": 424,
+      "y": 774,
+      "width": 64,
+      "height": 36,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 48.0
+    },
+    "三": {
+      "x": 1792,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "上": {
+      "x": 768,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "下": {
+      "x": 832,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "両": {
+      "x": 896,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "並": {
+      "x": 960,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "中": {
+      "x": 1032,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "丸": {
+      "x": 1096,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "位": {
+      "x": 1160,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "体": {
+      "x": 1224,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "作": {
+      "x": 1288,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "保": {
+      "x": 1352,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "倒": {
+      "x": 1416,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "元": {
+      "x": 1024,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "先": {
+      "x": 1480,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "全": {
+      "x": 1088,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "再": {
+      "x": 1152,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "出": {
+      "x": 1216,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "切": {
+      "x": 1544,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "初": {
+      "x": 1608,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "判": {
+      "x": 1672,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "削": {
+      "x": 1736,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "前": {
+      "x": 1800,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "力": {
+      "x": 1864,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "加": {
+      "x": 1928,
+      "y": 0,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "動": {
+      "x": 0,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "化": {
+      "x": 64,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "半": {
+      "x": 128,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "印": {
+      "x": 192,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "危": {
+      "x": 256,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "卵": {
+      "x": 320,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "厚": {
+      "x": 1280,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "右": {
+      "x": 1344,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "合": {
+      "x": 384,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "同": {
+      "x": 1408,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "吐": {
+      "x": 1472,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "回": {
+      "x": 1856,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "場": {
+      "x": 448,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "士": {
+      "x": 1536,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "変": {
+      "x": 512,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "大": {
+      "x": 576,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "太": {
+      "x": 640,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "央": {
+      "x": 704,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "奥": {
+      "x": 768,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "始": {
+      "x": 832,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "存": {
+      "x": 896,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "完": {
+      "x": 960,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "定": {
+      "x": 1024,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "実": {
+      "x": 1088,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "小": {
+      "x": 1152,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "届": {
+      "x": 1600,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "崩": {
+      "x": 1216,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "巡": {
+      "x": 1664,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "左": {
+      "x": 1728,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "帯": {
+      "x": 1280,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "幅": {
+      "x": 1344,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "広": {
+      "x": 1408,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "度": {
+      "x": 1472,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "強": {
+      "x": 1536,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "弾": {
+      "x": 1600,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "形": {
+      "x": 1664,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "往": {
+      "x": 1728,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "従": {
+      "x": 1792,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "復": {
+      "x": 1856,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "成": {
+      "x": 1920,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "戻": {
+      "x": 1792,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "所": {
+      "x": 1984,
+      "y": 64,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "手": {
+      "x": 0,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "投": {
+      "x": 64,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "押": {
+      "x": 128,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "持": {
+      "x": 192,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "接": {
+      "x": 256,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "描": {
+      "x": 320,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "撃": {
+      "x": 384,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "操": {
+      "x": 448,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "数": {
+      "x": 512,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "整": {
+      "x": 576,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "敵": {
+      "x": 640,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "斜": {
+      "x": 704,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "新": {
+      "x": 768,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "方": {
+      "x": 832,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "明": {
+      "x": 1856,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "時": {
+      "x": 896,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "曲": {
+      "x": 1920,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "替": {
+      "x": 960,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "板": {
+      "x": 1024,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "構": {
+      "x": 1088,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "横": {
+      "x": 1152,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "正": {
+      "x": 1920,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "消": {
+      "x": 1216,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "済": {
+      "x": 1280,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "溶": {
+      "x": 1344,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "演": {
+      "x": 1408,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "点": {
+      "x": 1472,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "焼": {
+      "x": 1536,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "狙": {
+      "x": 1600,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "現": {
+      "x": 1984,
+      "y": 381,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "生": {
+      "x": 0,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "産": {
+      "x": 1664,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "由": {
+      "x": 64,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "画": {
+      "x": 1984,
+      "y": 503,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "痩": {
+      "x": 1728,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "目": {
+      "x": 0,
+      "y": 561,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "看": {
+      "x": 1792,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "真": {
+      "x": 1856,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "矢": {
+      "x": 1920,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "示": {
+      "x": 128,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "移": {
+      "x": 1984,
+      "y": 128,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "種": {
+      "x": 0,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "積": {
+      "x": 64,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "穴": {
+      "x": 128,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "築": {
+      "x": 192,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "細": {
+      "x": 256,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "終": {
+      "x": 320,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "経": {
+      "x": 384,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "続": {
+      "x": 448,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "編": {
+      "x": 512,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "縦": {
+      "x": 576,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "繋": {
+      "x": 640,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "置": {
+      "x": 192,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "背": {
+      "x": 704,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "自": {
+      "x": 768,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "融": {
+      "x": 832,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "表": {
+      "x": 896,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "補": {
+      "x": 960,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "製": {
+      "x": 1024,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "複": {
+      "x": 1088,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "見": {
+      "x": 256,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "規": {
+      "x": 1152,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "視": {
+      "x": 1216,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "覧": {
+      "x": 1280,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "角": {
+      "x": 1344,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "設": {
+      "x": 320,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "詳": {
+      "x": 1408,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "説": {
+      "x": 1472,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "読": {
+      "x": 1536,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "調": {
+      "x": 384,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "起": {
+      "x": 1600,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "足": {
+      "x": 448,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "距": {
+      "x": 512,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "路": {
+      "x": 1664,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "跳": {
+      "x": 1728,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "踏": {
+      "x": 1792,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "軽": {
+      "x": 1856,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "込": {
+      "x": 576,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "近": {
+      "x": 1920,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "追": {
+      "x": 1984,
+      "y": 192,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "速": {
+      "x": 0,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "道": {
+      "x": 64,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "遠": {
+      "x": 128,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "部": {
+      "x": 192,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "配": {
+      "x": 64,
+      "y": 561,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "量": {
+      "x": 256,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "鋭": {
+      "x": 320,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "長": {
+      "x": 640,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "開": {
+      "x": 704,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "間": {
+      "x": 768,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "除": {
+      "x": 384,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "険": {
+      "x": 448,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "集": {
+      "x": 512,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "雑": {
+      "x": 576,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "離": {
+      "x": 640,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "面": {
+      "x": 128,
+      "y": 561,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "頂": {
+      "x": 832,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "類": {
+      "x": 704,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "風": {
+      "x": 896,
+      "y": 442,
+      "width": 64,
+      "height": 61,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "飲": {
+      "x": 768,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "高": {
+      "x": 832,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "魚": {
+      "x": 896,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "！": {
+      "x": 1288,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "％": {
+      "x": 192,
+      "y": 561,
+      "width": 64,
+      "height": 58,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    },
+    "（": {
+      "x": 960,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "）": {
+      "x": 1024,
+      "y": 256,
+      "width": 64,
+      "height": 64,
+      "offsetX": -8.0,
+      "offsetY": -8.0,
+      "advance": 48.0
+    },
+    "＋": {
+      "x": 960,
+      "y": 674,
+      "width": 64,
+      "height": 52,
+      "offsetX": -8.0,
+      "offsetY": -2.0,
+      "advance": 48.0
+    },
+    "－": {
+      "x": 488,
+      "y": 774,
+      "width": 64,
+      "height": 36,
+      "offsetX": -8.0,
+      "offsetY": 13.0,
+      "advance": 48.0
+    },
+    "：": {
+      "x": 128,
+      "y": 774,
+      "width": 64,
+      "height": 40,
+      "offsetX": -8.0,
+      "offsetY": 10.0,
+      "advance": 48.0
+    },
+    "＝": {
+      "x": 1880,
+      "y": 726,
+      "width": 64,
+      "height": 42,
+      "offsetX": -8.0,
+      "offsetY": 7.0,
+      "advance": 48.0
+    },
+    "？": {
+      "x": 1352,
+      "y": 619,
+      "width": 64,
+      "height": 55,
+      "offsetX": -8.0,
+      "offsetY": -5.0,
+      "advance": 48.0
+    }
+  }
+}

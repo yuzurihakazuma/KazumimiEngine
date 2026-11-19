@@ -108,7 +108,10 @@ PixelShaderOutput main(VertexShaderOutput input)
         
         
         float3 ambient = gMaterial.color.rgb * textureColor.rgb * 0.15f; // 0.15は環境光の強さ。お好みで調整してください
-        output.color.rgb = ambient + diffuseDirectional + specularDirectional + diffusePoint + specularPoint + diffuseSpot + specularSpot;
+        // つやの無い素材（matte=1）はハイライトを足さない
+        float specularScale = 1.0f - saturate(gMaterial.matte);
+        output.color.rgb = ambient + diffuseDirectional + diffusePoint + diffuseSpot
+            + (specularDirectional + specularPoint + specularSpot) * specularScale;
         output.color.a = gMaterial.color.a * textureColor.a;
         
         // 環境マップによる反射の計算

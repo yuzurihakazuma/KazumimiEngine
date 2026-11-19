@@ -1,7 +1,7 @@
 #pragma once
 
 // --- エンジン側のファイル ---
-#include "struct.h"
+#include "engine/math/struct.h"
 
 
 
@@ -10,7 +10,7 @@
 #include <string>
 #include <map>
 
-
+namespace KazumimiEngine {
 
 // キーフレームを表す構造体
 template<typename tValue>
@@ -30,6 +30,7 @@ struct AnimationCurve{
 	std::vector<Keyframe<tValue>> keyframes;
 };
 
+// ノード 1 つぶんのアニメーション（移動・回転・拡大縮小のカーブ）
 struct NodeAnimation{
 	AnimationCurve<Vector3> translate; // 移動（位置）のカーブ
 	AnimationCurve<Quaternion> rotate; // 回転のカーブ
@@ -45,7 +46,10 @@ struct Animation{
 };
 
 
-Animation LoadAnimationFromFile(const std::string& directoryPath, const std::string& filename);
+Animation LoadAnimationFromFile(const std::string& directoryPath, const std::string& filename, uint32_t animationIndex = 0);
+
+// ファイル内のクリップ名一覧（glTFの複数アニメーション対応。名前→indexの対応は並び順）
+std::vector<std::string> GetAnimationClipNames(const std::string& directoryPath, const std::string& filename);
 
 
 // 指定した時刻（time）の Vector3 の値を計算する関数（移動・スケール用）
@@ -53,3 +57,5 @@ Vector3 CalculateValue(const std::vector<KeyFrameVector3>& keyframes, float time
 
 // 指定した時刻（time）の Quaternion の値を計算する関数（回転用）
 Quaternion CalculateValue(const std::vector<KeyFrameQuaternion>& keyframes, float time);
+
+} // namespace KazumimiEngine

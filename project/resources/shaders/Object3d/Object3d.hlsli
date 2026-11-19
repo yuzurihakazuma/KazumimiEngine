@@ -16,6 +16,7 @@ struct Material
 {
     float4 color;
     int32_t enableLighting;
+    float matte; // 1でハイライト（鏡面反射）を出さない。紙・フェルトなど、つやの無い素材用（C++の matte）
     float4x4 uvTransform;
     float shininess;
     float2 padding2; // C++の padding2[2]

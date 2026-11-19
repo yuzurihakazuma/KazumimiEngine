@@ -6,18 +6,18 @@
 //
 //   使い方:
 //     float k = Easing::EaseOutCubic(t);
-//     pos = Easing::Lerp(start, end, Easing::EaseInOutQuad(t));
+//     pos = Math::Lerp(start, end, Easing::EaseInOutQuad(t));   // 補間は MathUtil.h（float でも Vector でも）
 // =============================================================
 #include <cmath>
+#include "engine/math/MathUtil.h"
+
+namespace KazumimiEngine {
 
 namespace Easing{
 
     inline float Clamp01(float t){ return ( t < 0.0f ) ? 0.0f : ( t > 1.0f ? 1.0f : t ); }
 
-    // 線形補間（スカラー）
-    inline float Lerp(float a, float b, float t){ return a + ( b - a ) * t; }
-
-    constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kPi = Math::kPi;
 
     // --- Linear ---
     inline float Linear(float t){ return Clamp01(t); }
@@ -84,3 +84,5 @@ namespace Easing{
     }
     inline float EaseInBounce(float t){ return 1.0f - EaseOutBounce(1.0f - t); }
 }
+
+} // namespace KazumimiEngine

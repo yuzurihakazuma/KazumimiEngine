@@ -1,628 +1,1046 @@
 #include "GamePlayScene.h"
+#include "game/ui/UiScale.h"
+#include "engine/math/MathUtil.h"
 // --- ゲーム固有のファイル ---
-#include "TitleScene.h"
-
-// --- エンジン側のファイル ---
-#include "Engine/Utils/ImGuiManager.h"
-#include "Engine/Audio/AudioManager.h"
-#include "Engine/3D/Model/ModelManager.h"
-#include "Engine/Particle/ParticleManager.h"
-#include "Engine/Graphics/TextureManager.h"
-#include "Engine/Graphics/PipelineManager.h"
-#include "Engine/Scene/SceneManager.h"
-#include "Engine/Camera/Camera.h"
-#include "Engine/Camera/DebugCamera.h"
-#include "Engine/2D/Sprite.h"
-#include "Engine/3D/Obj/Obj3d.h"
-#include "Engine/Base/Input.h"
-#include "Engine/2D/SpriteCommon.h"
-#include "Engine/3D/Obj/Obj3dCommon.h"
-#include "Engine/Base/DirectXCommon.h"
-#include "Engine/Base/WindowProc.h"
-#include "Engine/Base/TimeManager.h"
-#include "engine/math/VectorMath.h"
-#include "engine/collision/Collision.h"
-#include "engine/graphics/RenderTexture.h"
-#include "engine/graphics/SrvManager.h"
-#include "engine/postEffect/PostEffect.h"
-#include "engine/utils/TextManager.h"
-#include "Bloom.h"
-#include "engine/3d/model/Model.h"
-#include "engine/utils/EditorManager.h"
-#include "engine/utils/Level/BlenderImporter.h"
-#include "engine/graphics/DebugDraw.h"
-#include "engine/3d/obj/SkinnedObj3d.h"
-#include "engine/particle/GPUParticleManager.h"
-#include "engine/particle/GPUParticleEmitter.h"
-#include "engine/sdf/SDFManager.h"
-
-
-using namespace VectorMath;
-using namespace MatrixMath;
-// 初期化
-void GamePlayScene::Initialize(){
-	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-	WindowProc* windowProc = WindowProc::GetInstance();
-
-	
-	
-	// コマンドリスト取得
-	auto commandList = dxCommon->GetCommandList();
-
-
-
-
-	// BGMロード (シングルトン)
-	AudioManager::GetInstance()->LoadWave(bgmFile_);
-	// モデル読み込み (シングルトン)
-	ModelManager::GetInstance()->LoadModel("fence", "resources", "fence.obj");
-	
-	ModelManager::GetInstance()->LoadModel("grass", "resources", "terrain.obj");
-	ModelManager::GetInstance()->LoadModel("block", "resources/block","block.obj");
-
-	// 球モデル作成 (シングルトン)
-	ModelManager::GetInstance()->CreateSphereModel("sphere", 16);
-
-	
-	ModelManager::GetInstance()->CreatePlaneModel("plane");
-
-
-	// パーティクルグループ作成 (シングルトン)
-	ParticleManager::GetInstance()->CreateParticleGroup("Circle", "resources/uvChecker.png");
-
-	// テクスチャ読み込み（短縮版 Load：commandList を渡さなくてよい）
-	TextureManager* tex = TextureManager::GetInstance();
-	textures_["uvChecker"] = tex->Load("resources/uvChecker.png");
-	textures_["monsterBall"] = tex->Load("resources/monsterBall.png");
-	textures_["fence"] = tex->Load("resources/fence.png");
-	textures_["circle"] = tex->Load("resources/circle.png");
-	textures_["circle2"] = tex->Load("resources/circle2.png");
-	textures_["noise0"] = tex->Load("Resources/noise0.png");
-	textures_["noise1"] = tex->Load("Resources/noise1.png");
-	textures_["gradationLine"] = tex->Load("Resources/gradationLine.png");
-
-	textures_["skybox"] = tex->LoadCube("resources/StandardCubeMap.dds");
-
-	Obj3dCommon::GetInstance()->SetEnvironmentTexture(textures_["skybox"].srvIndex);
-
-	skybox_ = std::make_unique<Skybox>();
-	skybox_->Initialize("resources/StandardCubeMap.dds", commandList);
-
-
-	// ※EditorManager::Initialize() は Framework::Initialize() で呼ばれるので、ここでは不要
-
-
-
-	// モデル読み込み (シングルトン)
-	// アニメーション
-	ModelManager::GetInstance()->LoadModel("animatedCube", "resources/AnimatedCube", "AnimatedCube.gltf");
-	testAnimation_ = LoadAnimationFromFile("resources/AnimatedCube", "AnimatedCube.gltf");
-	ModelManager::GetInstance()->LoadModel("human", "resources/human", "walk.gltf");
-
-	// 保存済みアニメーションを読み込んで再生するだけ
-	skinnedAnimTrack_.LoadFromJson("resources/human_anim.json");
-
-	// カメラ生成
-	camera_ = Camera::Create(); // ウィンドウサイズ等は内部で自動取得
-	camera_->SetTranslation({ 0.0f, 2.0f, -15.0f });
-
-	// このカメラを既定（アクティブ）カメラに設定 → 以降の Obj3d::Create は自動でこのカメラを使う
-	Obj3dCommon::GetInstance()->SetDefaultCamera(camera_.get());
-
-	
-	// デバッグカメラ生成
-	debugCamera_ = std::make_unique<DebugCamera>();
-	debugCamera_->Initialize();
-	// メニューバー「表示」からON/OFFできるよう登録
-	EditorManager::GetInstance()->SetDebugCamera(debugCamera_.get());
-
-	// プレイヤーオブジェクト生成
-	testObj_ = Obj3d::Create("animatedCube");
-	testObj_->SetEnvironmentMap(textures_["skybox"].srvIndex); // これだけ！
-
-	if ( testObj_ ){
-
-		testObj_->SetPipelineType(PipelineType::Object3D_CullNone);
-
-		testObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
-
-		// ノイズ画像と初期の閾値(0.0)をセット
-		testObj_->SetNoiseTexture(textures_["noise0"].srvIndex);
-		testObj_->SetDissolveThreshold(0.0f);
-
-		//testObj_->PlayAnimation(&testAnimation_);
-
-		Bloom::GetInstance()->SetTargetEmissivePower(&testObj_->GetModel()->GetMaterial()->emissive);
-
-		// エディタのギズモ／インスペクタの操作対象として登録
-		EditorManager::GetInstance()->SetGizmoTarget(testObj_.get());
-	}
-
-	// ★1. Ringモデルの生成
-	ModelManager::GetInstance()->CreateRingModel("auraRing", 32, 1.0f, 0.2f);
-
-	// ★2. 画像のリングを単体として出す
-	auraObj_ = Obj3d::Create("auraRing");
-	if ( auraObj_ ) {
-
-		// テクスチャをセット
-		auraObj_->GetModel()->SetTexture(textures_["gradationLine"].srvIndex);
-
-		// ★ザラザラの原因を潰す！ノイズ枠にダミーとして同じ画像をセットしてディゾルブを無効化
-		auraObj_->SetNoiseTexture(textures_["gradationLine"].srvIndex);
-
-		// ライティングで真っ黒になるのを防ぐ
-		auraObj_->GetModel()->GetMaterial()->enableLighting = 0;
-
-		// ★地面に魔法陣のように広がるように、X軸で90度(1.57ラジアン)倒す
-		auraObj_->SetRotation({ 1.5708f, 0.0f, 0.0f });
-		// 床に埋まらないように少しだけ上に浮かす
-		auraObj_->SetTranslation({ 0.0f, 0.1f, 5.0f });
-
-		// 加算合成で綺麗に光らせる
-		auraObj_->SetPipelineType(PipelineType::Object3D_Additive);
-	}
-
-	// 1. 円柱（Cylinder）モデルを生成（名前: "auraCylinderModel"、分割数32、半径1.5、高さ4.0）
-	ModelManager::GetInstance()->CreateCylinderModel("auraCylinderModel", 32, 1.5f, 4.0f);
-
-	auraCylinderObj_ = Obj3d::Create("auraCylinderModel");
-	if ( auraCylinderObj_ ) {
-
-		// ⭕️ 画像は .png のままでOK！
-		auraCylinderObj_->GetModel()->SetTexture(textures_["gradationLine"].srvIndex);
-
-	
-		// ⭕️ 絶対にディゾルブ（透明化）させないように、閾値をマイナスにしておく
-		auraCylinderObj_->SetDissolveThreshold(-1.0f);
-
-		// 影で真っ黒になるのを防ぐ
-		auraCylinderObj_->GetModel()->GetMaterial()->enableLighting = 0;
-
-		// テストObjと被らないように横にズラす
-		auraCylinderObj_->SetTranslation({ -5.0f, 2.0f, 5.0f });
-
-		// 加算合成
-		auraCylinderObj_->SetPipelineType(PipelineType::Object3D_Additive);
-	}
-	
-	
-	skinnedObj_ = SkinnedObj3d::Create("human", "resources/human", "walk.gltf");
-	skinnedObj_->SetEnvironmentMap(textures_["skybox"].srvIndex); // スキニングも
-	skinnedObj_->SetTranslation({ 0.0f, 0.0f, 5.0f });
-	skinnedObj_->SetScale({ 1.0f, 1.0f, 1.0f });
-	skinnedObj_->SetRotation({ 0.0f, 3.14159f, 0.0f });
-
-	EditorManager::GetInstance()->SetTargetSkinnedObj(skinnedObj_.get());
-
-	// デプスステンシル作成 (TextureManagerシングルトン)
-	depthStencilResource_ = TextureManager::GetInstance()->CreateDepthStencilTextureResource(
-		windowProc->GetClientWidth(), windowProc->GetClientHeight()
-	);
-
-	
-
-	EditorManager::GetInstance()->SetCamera(camera_.get());
-
-	sprite_ = Sprite::Create(textures_["uvChecker"].srvIndex, spritePos_);
-
-	// GPUパーティクル初期化 (テクスチャを指定する)
-	GPUParticleManager::GetInstance()->Initialize(
-		dxCommon, SrvManager::GetInstance(), "resources/uvChecker.png");
-
-
-	// エミッターの初期設定
-	GPUParticleEmitterData emitterData;
-	emitterData.position = { 0.0f, 0.0f, 0.0f };
-	emitterData.emitRate = 20.0f;
-	emitter_.SetData(emitterData);
-
-	// エディタにエミッターを渡す（F1で開くエディタで操作できるようになる）
-	EditorManager::GetInstance()->SetParticleEmitter(&emitter_);
-
-	auto initialEffect = std::make_unique<HitEffect>();
-	initialEffect->Initialize(
-		{ 0.0f, 0.0f, 5.0f },           // 目の前に発生
-		camera_.get(),
-		textures_["circle2"].srvIndex,  // テクスチャ
-		textures_["skybox"].srvIndex
-	);
-	hitEffects_.push_back(std::move(initialEffect));
-	
-}
-
-void GamePlayScene::Update(){
-	
-	// Blenderインポータからの「カメラに適用」要求を反映
-	if ( BlenderImporter* importer = EditorManager::GetInstance()->GetBlenderImporter() ) {
-		Vector3 blCamPos, blCamRot;
-		if ( importer->ConsumeCameraRequest(blCamPos, blCamRot) ) {
-			camera_->SetTranslation(blCamPos);
-			camera_->SetRotation(blCamRot);
-		}
-	}
-
-	// デバッグカメラ更新
-	if (debugCamera_) {
-		debugCamera_->Update(camera_.get());
-	}
-	// カメラ更新
-	camera_->Update();
-
-	// 実行中のブロック投げ（Bキーで生成＋物理更新）
-	UpdateThrownBlocks();
-
-	Input* input = Input::GetInstance();
-
-	// ゲームプレイ入力の許可判定：
-	//   エディタが閉じている（通常プレイ） or エディタ表示中でも Play モードなら操作可。
-	//   Edit モード中（編集作業中）は誤操作防止のためゲーム入力を止める。
-	bool gameplayInput = !EditorManager::GetInstance()->IsActive()
-		|| EditorManager::GetInstance()->GetMode() == EngineMode::Play;
-
-	// 1. スペースキーでエフェクト発生＋BGM再生（1か所に統合）
-	if (gameplayInput && input->Triggerkey(DIK_SPACE)) {
-		// 新しいエフェクトを生成
-		auto newEffect = std::make_unique<HitEffect>();
-
-		// 発生場所（例：目の前）、カメラ、テクスチャ、環境マップを渡して初期化
-		newEffect->Initialize(
-			{ 5.0f, 0.0f, 5.0f },            // 発生位置
-			camera_.get(),                 // カメラ
-			textures_["gradationLine"].srvIndex,  // 鋭い光用の丸いテクスチャ
-			textures_["skybox"].srvIndex   // 反射用の環境マップ
-		);
-
-		// リストに追加して、あとは任せる！
-		hitEffects_.push_back(std::move(newEffect));
-
-		// BGM再生 (シングルトン)
-		AudioManager::GetInstance()->PlayWave(bgmFile_);
-	}
-
-	// 2. リストに載っている全エフェクトを更新
-	for (auto& effect : hitEffects_) {
-		effect->Update();
-	}
-
-	// 3. 寿命が尽きて「死んだ」エフェクトをリストから自動削除
-	hitEffects_.remove_if([](const std::unique_ptr<HitEffect>& e) {
-		return e->IsDead();
-		});
-
-	// ★ 新しい円柱オーラの更新処理
-	if ( auraCylinderObj_ ) {
-		// スクロール速度の計算（1秒間で1周するペース。デルタタイム基準）
-		auraCylinderScroll_ += Time::GetInstance()->GetDeltaTime();
-		if ( auraCylinderScroll_ > 1.0f ) {
-			auraCylinderScroll_ -= 1.0f;
-		}
-
-		// V方向（縦方向）にUVをずらす行列を作成
-		Matrix4x4 uvTransform = MakeTranslate({ 0.0f, auraCylinderScroll_, 0.0f });
-
-		// マテリアルに行列を適用
-		auraCylinderObj_->GetModel()->GetMaterial()->uvTransform = uvTransform;
-
-		// オブジェクトの行列更新
-		auraCylinderObj_->Update();
-	}
-
-
-	// タイトルシーンへ移動
-	if ( input->Triggerkey(DIK_T) ) {
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
-	}
-	// パーティクル発生 (シングルトン)
-	if ( input->Triggerkey(DIK_P) ) {
-		ParticleManager::GetInstance()->Emit("Circle", { 0.0f, 0.0f, 0.0f }, 10);
-	}
-	// パーティクル更新
-	ParticleManager::GetInstance()->Update(camera_.get());
-
-
-	if ( auraObj_ ) {
-		// 1. スクロール値を毎フレーム少しずつ増やす（デルタタイム基準）
-		float scrollSpeed = Time::GetInstance()->GetDeltaTime(); // 1秒間に1.0スクロールする速さ
-		auraUvScrollOffset_ += scrollSpeed;
-
-		// 1.0を超えたら0に戻す（オーバーフロー防止）
-		if ( auraUvScrollOffset_ > 1.0f ) {
-			auraUvScrollOffset_ -= 1.0f;
-		}
-
-		// 2. UVをV方向(Y軸)に移動させる行列を作成
-		Matrix4x4 uvTransform = MakeTranslate({ 0.0f, auraUvScrollOffset_, 0.0f });
-
-		// （応用：スライドのようにU方向にScaleをかけて解像度を細かく見せたい場合は以下のように合成します）
-		// Matrix4x4 uvScale = MakeScaleMatrix({ 3.0f, 1.0f, 1.0f }); 
-		// uvTransform = Multiply(uvScale, uvTransform);
-
-		//auraObj_->SetRotation({ 1.5708f, 0.0f, 0.0f });
-
-		// 3. マテリアルにUVTransform行列をセット
-		auraObj_->GetModel()->GetMaterial()->uvTransform = uvTransform;
-
-		// 4. オブジェクトの更新
-		auraObj_->Update();
-	}
-
-	// テストオブジェクト更新
-	if ( testObj_ ){
-		testObj_->Update();
-	}
-
-	if (skinnedObj_) {
-		// 再生するだけ（編集UIなし）
-		if (skinnedAnimTrack_.duration > 0.0f) {
-			skinnedAnimTime_ += Time::GetInstance()->GetDeltaTime();
-			if (skinnedAnimTime_ > skinnedAnimTrack_.duration) {
-				skinnedAnimTime_ = 0.0f;
-			}
-			Vector3 pos, rot, scale;
-			skinnedAnimTrack_.UpdateTransformAtTime(skinnedAnimTime_, pos, rot, scale);
-			skinnedObj_->SetTranslation(pos);
-			skinnedObj_->SetRotation(rot);
-			skinnedObj_->SetScale(scale);
-		}
-		skinnedObj_->Update();
-	}
-
-	if ( sprite_ ) {
-		sprite_->Update();
-	}
-
-	PostEffect::GetInstance()->Update();
-
-	if ( input->Triggerkey(DIK_G) ){
-		// GPUパーティクル更新（デルタタイム基準）
-		GPUParticleManager::GetInstance()->Update(Time::GetInstance()->GetDeltaTime(), camera_.get());
-	}
-
-	emitter_.Update(Time::GetInstance()->GetDeltaTime());
-}
-
-// 実行中に投げるブロックの生成・物理・寿命管理
-void GamePlayScene::UpdateThrownBlocks(){
-	if ( !camera_ ) return;
-	float dt = Time::GetInstance()->GetDeltaTime();
-
-	// ゲームプレイ入力の許可判定（Edit モード中は投げられない）
-	bool gameplayInput = !EditorManager::GetInstance()->IsActive()
-		|| EditorManager::GetInstance()->GetMode() == EngineMode::Play;
-
-	// --- Bキーで生成（カメラの見ている方向へ投げる） ---
-	if ( gameplayInput && Input::GetInstance()->Triggerkey(DIK_B) ) {
-		// カメラのワールド行列から前方向(+Z)を取り出す
-		const Matrix4x4& w = camera_->GetWorldMatrix();
-		Vector3 fwd = { w.m[2][0], w.m[2][1], w.m[2][2] };
-		float len = std::sqrt(fwd.x * fwd.x + fwd.y * fwd.y + fwd.z * fwd.z);
-		if ( len > 0.0001f ) { fwd.x /= len; fwd.y /= len; fwd.z /= len; }
-		Vector3 camPos = camera_->GetWorldPosition();
-
-		ThrownBlock b;
-		b.obj = Obj3d::Create("block");             // 既定カメラで生成される
-		b.pos = { camPos.x + fwd.x * 2.0f, camPos.y + fwd.y * 2.0f, camPos.z + fwd.z * 2.0f };
-		b.vel = { fwd.x * 22.0f, fwd.y * 22.0f + 6.0f, fwd.z * 22.0f }; // 前方へ＋少し上に放る
-		b.life = 8.0f;
-		if ( b.obj ) {
-			b.obj->SetTranslation(b.pos);
-			b.obj->Update();
-			thrownBlocks_.push_back(std::move(b));
-		}
-	}
-
-	// --- 物理更新（重力＋地面バウンド） ---
-	const float gravity = -24.0f;
-	const float groundY = 0.0f;
-	for ( auto it = thrownBlocks_.begin(); it != thrownBlocks_.end(); ) {
-		it->vel.y += gravity * dt;
-		it->pos.x += it->vel.x * dt;
-		it->pos.y += it->vel.y * dt;
-		it->pos.z += it->vel.z * dt;
-
-		// 地面で軽くバウンドして減衰
-		if ( it->pos.y < groundY ) {
-			it->pos.y = groundY;
-			it->vel.x *= 0.5f;
-			it->vel.z *= 0.5f;
-			it->vel.y = -it->vel.y * 0.35f;
-		}
-
-		it->life -= dt;
-		if ( it->obj ) {
-			it->obj->SetTranslation(it->pos);
-			it->obj->Update();
-		}
-
-		if ( it->life <= 0.0f ) { it = thrownBlocks_.erase(it); } else { ++it; }
-	}
-}
-
-void GamePlayScene::Draw(){
-	auto dxCommon = DirectXCommon::GetInstance();
-	auto commandList = dxCommon->GetCommandList();
-
-	// GPUパーティクルの描画準備（DispatchでComputeシェーダーを実行して、描画に必要なデータをGPU側で更新してもらう）
-	GPUParticleManager::GetInstance()->Dispatch(commandList);
-
-
-	// 1. 【MRT開始】キャンバスを2枚(色用とマスク用)セットする！
-	PostEffect::GetInstance()->PreDrawSceneMRT(commandList);
-
-	// --- 3D描画の前準備 ---
-	Obj3dCommon::GetInstance()->PreDraw(commandList);
-
-	// 1. 先に「不透明」なものを全部描き切る！！！
-	if ( testObj_ ){ testObj_->Draw(); }
-	if ( skinnedObj_ ) { skinnedObj_->Draw(); }
-
-	// レベルエディタで配置したオブジェクト（マップ）を描画する
-	EditorManager::GetInstance()->Draw();
-
-	// 実行中に投げたブロックを描画する
-	for ( auto& b : thrownBlocks_ ) { if ( b.obj ) b.obj->Draw(); }
-
-
-	// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-		// ⭕️ 2. ここで背景（スカイボックス）を描く！！！
-		// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-	if ( skybox_ ) {
-		skybox_->Draw(commandList, camera_.get());
-	}
-
-	// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-	// ⭕️ 3. 最後に「透明・加算合成」のものを描く！！！（順番超大事）
-	// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-	if ( auraCylinderObj_ ) {
-		auraCylinderObj_->Draw();
-	}
-
-	if ( auraObj_ ) {
-		auraObj_->Draw();
-	}
-
-	for ( auto& effect : hitEffects_ ) {
-		effect->Draw();
-	}
-
-	// --- パーティクル描画 ---
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::Particle);
-	ParticleManager::GetInstance()->Draw(commandList);
-
-	// --- GPUパーティクル描画 ---
-	GPUParticleManager::GetInstance()->Draw(commandList);
-
-
-	// デバッグ描画：MRT（シーンRT）内で線を描く → ポストエフェクト/Bloomを通って
-	//   Game View にも単体表示にも反映される（深度テストありで3D形状に隠れる）。
-	if ( showDebugGrid_ ) {
-		DebugDraw::GetInstance()->Grid(20.0f, 1.0f, { 0.3f, 0.3f, 0.35f, 0.5f }, 0.0f);
-	}
-	DebugDraw::GetInstance()->Render(camera_.get());
-
-	// 2. 【MRT終了】3Dの描画が終わったので、2枚のキャンバスを読み込みモードに戻す
-	PostEffect::GetInstance()->PostDrawSceneMRT(commandList);
-
-
-	// 3. ポストエフェクト処理（バックバッファへの最終出力は FinalBlit に任せる）
-	PostEffect::GetInstance()->Draw(commandList, false);
-
-	// 4. エフェクト後の「色画像」と「マスク画像」の番号(SRV)をもらう
-	uint32_t colorSrv = PostEffect::GetInstance()->GetSrvIndex();
-	uint32_t maskSrv  = PostEffect::GetInstance()->GetMaskSrvIndex();
-
-	// 5. Bloomに「色」と「マスク」を両方渡す
-	Bloom::GetInstance()->Render(commandList, colorSrv, maskSrv);
-	uint32_t finalSrv = Bloom::GetInstance()->GetResultSrvIndex();
-
-	// 5.5 SDF（文字/画像）を最終画像に焼き込む
-	//     → エディタの Game View にもそのまま映る。
-	//     Bloom無効時は合成RTを経由しないので、後でバックバッファへ直描きする
-	bool sdfBaked = false;
-	if ( Bloom::GetInstance()->IsEnabled() ) {
-		SDFManager::GetInstance()->DrawIntoTexture(commandList, Bloom::GetInstance()->GetCombineTexture());
-		sdfBaked = true;
-	}
-
-	// エディタに最終的なゲーム画面のSRVを渡す（Game View 表示用）
-	EditorManager::GetInstance()->SetGameViewSrvIndex(finalSrv);
-
-	// 6. 最終結果をバックバッファへ書き出す（RTV リセット込み）
-	//    エディタアクティブ時はRTVのセットのみ行い描画はスキップする
-	PostEffect::GetInstance()->FinalBlit(commandList, finalSrv, EditorManager::GetInstance()->IsActive());
-
-	// --- スプライト・UI描画 ---
-	SpriteCommon::GetInstance()->PreDraw(commandList);
-	if (sprite_) { sprite_->Draw(); }
-	TextManager::GetInstance()->Draw();
-
-	// SDF 描画（Bloom無効で焼き込めなかった場合のみバックバッファへ直描き）
-	if ( !sdfBaked ) {
-		SDFManager::GetInstance()->Draw(commandList);
-	}
-	
-
-}
-
-void GamePlayScene::DrawDebugUI(){
+#include "game/player/Player.h"
+#include "game/enemy/EnemyEditor.h"
+#include "game/enemy/EnemyLevelConvert.h"
+#include "game/enemy/EnemyRailPin.h"
+#include "game/camera/EditorCameraUtil.h"
+#include "game/scene/GamePlayAssets.h"
+#include "game/demo/DemoShowcase.h"
+#include "game/editor/PlaySceneInspector.h"
+#include "game/transition/KamishibaiTransition.h"
 
 #ifdef USE_IMGUI
-	// 3Dオブジェクト、カメラ、パーティクルのUI
-	Obj3dCommon::GetInstance()->DrawDebugUI();
-	if ( camera_ ) { camera_->DrawDebugUI(); }
-	if ( debugCamera_ ) { debugCamera_->DrawDebugUI(); }
-	ParticleManager::GetInstance()->DrawDebugUI();
-
-
-	TextManager::GetInstance()->DrawDebugUI();
-
-	// デバッグ描画（DebugDraw）の表示設定 — 共有「詳細設定」窓に合流
-	if ( ImGui::Begin("インスペクター (詳細設定)") ) {
-		if ( ImGui::CollapsingHeader("デバッグ描画 (DebugDraw)") ) {
-			ImGui::Checkbox("グリッドを表示", &showDebugGrid_);
-			ImGui::TextDisabled("Box/Sphere/Line はコードから積む。Game View にも表示されます");
-		}
-	}
-	ImGui::End();
-
-	ImGui::Begin("Environment Map Control");
-
-	// 例：テスト用のキューブ (testObj_) だけ反射をいじれるようにする
-	if ( testObj_ ) {
-		// GetModel() でモデルを取得し、そのマテリアルの数値をスライダーで直接操作する
-		ImGui::SliderFloat("Cube Reflect", &testObj_->GetModel()->GetMaterial()->environmentCoefficient, 0.0f, 1.0f);
-	}	
-	ImGui::End();
-
-
-	ImGui::Begin("Block Dissolve Test");
-
-	// スライダーで 0.0(通常) 〜 1.0(消滅) を操作
-	if ( ImGui::SliderFloat("ブロックの消滅度", &dissolveThreshold_, 0.0f, 1.0f) ) {
-		if ( testObj_ ) {
-			// スライダーを動かすと、このブロックの閾値だけが書き換わる
-			testObj_->SetDissolveThreshold(dissolveThreshold_);
-		}
-	}
-
-	// 便利なリセットボタン
-	if ( ImGui::Button("元に戻す") ) {
-		dissolveThreshold_ = 0.0f;
-		if ( testObj_ ){
-
-			testObj_->SetDissolveThreshold(0.0f);
-		}
-			
-	}
-	ImGui::SameLine();
-	if ( ImGui::Button("完全に消す") ) {
-		dissolveThreshold_ = 1.0f;
-		if ( testObj_ ){
-			testObj_->SetDissolveThreshold(1.0f);
-		}
-	}
-
-	ImGui::End();
-
+#include "externals/imgui/imgui.h"
 #endif
 
+// --- エンジン側のファイル ---
+#include "engine/particle/ParticleManager.h"
+#include "engine/graphics/PipelineManager.h"
+#include "engine/scene/SceneManager.h"
+#include "engine/camera/Camera.h"
+#include "engine/camera/DebugCamera.h"
+#include "engine/base/Input.h"
+#include "engine/2d/SpriteCommon.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/base/DirectXCommon.h"
+#include "engine/base/TimeManager.h"
+#include "engine/2d/Sprite.h"
+#include "engine/audio/AudioManager.h"
+#include "engine/base/WindowProc.h"
+#include "engine/graphics/TextureManager.h"
+#include "engine/utils/Easing.h"
+#include "engine/graphics/RenderTexture.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/DebugDraw.h"
+#include "engine/postEffect/PostEffect.h"
+#include "engine/utils/TextManager.h"
+#include "engine/sdf/SDFManager.h"
+#include "engine/particle/GPUParticleManager.h"
+#include "engine/utils/Level/BlenderImporter.h"
+#include "engine/utils/Level/LevelEditor.h"
+#include "engine/utils/Level/RailEditor.h"
+#include "engine/postEffect/Bloom.h"
+
+#include "externals/nlohmann/json.hpp"
+
+#include "engine/utils/ScreenCapture.h"
+#include "game/stage/StageRecords.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <fstream>
+
+using namespace KazumimiEngine;
+
+GamePlayScene::GamePlayScene(){
+	features_.railEditing  = true; // レール・道・敵の配置を編集する
+}
+GamePlayScene::~GamePlayScene() = default;
+
+// =====================================================================
+//  初期化：読み込み（BaseScene がカメラを作る前）→ 見た目 → ゲーム部品
+// =====================================================================
+// BGM・SE・モデル・テクスチャの読み込みと、SDF演出のパイプライン構築
+namespace {
+	// 今のステージの名前（resources/stage_intro/<名前>.json：ステージ開始カードの中身とイントロカメラ）
+	constexpr const char* kStageName = "stage1";
+	constexpr const char* kStartCueSe = "resources/ui/se_start.wav"; // 操作開始の合図の音
+	constexpr float kStartCueDuration = 1.0f;                        // 「スタート！」を出している長さ（秒）
+	// 遠くの見える限界（m）。カメラの既定 100 だと、ステージの奥の空（80m ほど先）が斜めから見た時に切れる
+	constexpr float kFarClip = 200.0f;
 }
 
-void GamePlayScene::ReloadMap(){}
+void GamePlayScene::OnLoadResources(){
+	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
-GamePlayScene::GamePlayScene(){}
+	// 音・モデル・テクスチャ（ゲーム中に名前で引かれる物は全部ここで先に読む）
+	GamePlayAssets::Load(bgmFile_, textures_);
 
-GamePlayScene::~GamePlayScene(){}
-// 終了
-void GamePlayScene::Finalize(){
-	// エディタが保持している外部ポインタをリセット（ダングリングポインタ防止）
-	EditorManager::GetInstance()->ResetSceneReferences();
+	// ブロックの一括描画を準備（見た目グループごとに1ドローコール）。
+	//   モデルとテクスチャが揃った後に呼ぶ（ディゾルブ用SRVの束縛先が必要なため）
+	blockSystem_.Initialize(textures_["uvChecker"].srvIndex);
 
-	GPUParticleManager::GetInstance()->Finalize();
+	// SDF演出のパイプライン構築（産卵・舌で食べる・敵の消滅・溶け道）
+	eggSystem_.InitializeBirthFx(commandList);
+	dissolveRoad_.Initialize(commandList);
+	// 溶け道の調整UIを SDF パネル（SDF化の管理画面）の最下部へ差し込む
+	//   ※「調整項目」ウィンドウ内から同名 Begin で追記する方式は、タブが同じドックに
+	//     入ると片方しか描画されず絶対に表示されないため、フック方式で確実に出す
+	SDFManager::GetInstance()->SetExtraPanelUI([this]{ dissolveRoad_.DrawImGui(); });
+}
 
-	thrownBlocks_.clear();
+// カメラ・共通機能の用意が済んだ後（Obj3d::Create がデフォルトカメラを掴むため）
+void GamePlayScene::OnInitialize(){
+	avatar_.Initialize(textures_["skybox"].srvIndex);
+	aimThrow_.Initialize();          // 紙を切り抜いた照準（構え中だけ表示）
+	swallow_.InitializeMark();       // 食べられる敵の頭の上のベロの印
+	hud_.Initialize();
+	SetupGameplay();
+	intro_.Initialize();             // ステージ開始の演技（ロールの見た目）
+	intro_.LoadSettings(kStageName); // イントロカメラとロールの置き場所
+	BuildBackdrop();
+	sky_.Initialize("resources/sky/paper_sky.dds"); // いちばん奥の紙の空
+	SetupCaptureTakes();             // 撮影のテイク：記録・再生の始めに戻す状態
+	// 編集を始めた時のカメラ：裏の世界の地面（表の道の奥、-z 側）より上から、表のステージを少し見下ろす
+	//   （共通の初期位置 (0, 2, -15) は裏の世界の地面の中に入ってしまう）
+	GetCamera()->SetTranslation({ 0.0f, 7.5f, -10.0f });
+	GetCamera()->SetRotation({ 0.25f, 0.0f, 0.0f });
+	eggCombo_.SetContext(&backdrop_, &eggSystem_, &coinSystem_); // 卵の奥投げ・はじけ飛ぶコンボ
+	eggCombo_.Prewarm(textures_["noise0"].srvIndex);              // 代役（光る物・飛ぶ物）を先に作る
+	eggCombo_.SetStage(kStageName);
+	eggCombo_.SetOnMaxCombo([this]{ gameOver_.Heal(1); });        // ×8 で♡が 1 つ戻る
+	aimThrow_.SetCombo(&eggCombo_);
+	// 体力（♡）とゲームオーバー
+	GameOverFlow::Context gameOverContext;
+	gameOverContext.player    = player_.get();
+	gameOverContext.avatar    = &avatar_;
+	gameOverContext.railField = &railField_;
+	gameOverContext.camCtrl   = &camCtrl_;
+	gameOverContext.screenFx  = &screenFx_;
+	gameOverContext.camera    = GetCamera();
+	gameOverContext.farClip   = kFarClip;
+	gameOverContext.resetStage = [this]{ ResetStageForRetry(); };
+	gameOverContext.onRespawn  = [this]{ flip_.ResetToFront(); }; // 落ちてスタートへ戻る時は表へ
+	gameOver_.Initialize(gameOverContext, backdrop_);
+	// カメラ反転（表から見る ⇔ 裏から見る）
+	WorldFlip::Context flipContext;
+	flipContext.player    = player_.get();
+	flipContext.railField = &railField_;
+	flipContext.camCtrl   = &camCtrl_;
+	flipContext.backdrop  = &backdrop_;
+	flipContext.eggs      = &eggSystem_;
+	flipContext.camera    = GetCamera();
+	flip_.Initialize(flipContext, kStageName);
+	SetupClear();
+	// 操作開始の「スタート！」
+	startPop_ = Sprite::Create(TextureManager::GetInstance()->Load("resources/ui/start_pop.png").srvIndex, { 0.0f, 0.0f },
+	                           { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.5f, 0.5f });
+	startPopSize_ = startPop_->GetSize();
+	AudioManager::GetInstance()->LoadWave(kStartCueSe);
+	// 遠くの見える限界を広げる（ステージの奥の丘・空は 80m ほど先。斜めに見るイントロのカメラでも切れないように）
+	GetCamera()->SetFarClip(kFarClip);
+}
 
+// ゴールとクリア演出（輪・集計・「ゴール！」・リザルト）の用意。集計係へ、プレイの出来事の知らせをつなぐ
+void GamePlayScene::SetupClear(){
+	ClearFlow::Context clearContext;
+	clearContext.player    = player_.get();
+	clearContext.avatar    = &avatar_;
+	clearContext.railField = &railField_;
+	clearContext.camera    = GetCamera();
+	clearContext.eggSystem = &eggSystem_;
+	clearContext.eggCombo  = &eggCombo_;
+	clearContext.health    = &gameOver_;
+	clearContext.onGoal    = [this]{ OnGoalReached(); };
+	clear_.Initialize(clearContext, kStageName, textures_["uvChecker"].srvIndex);
+	// 提出用・プレイ会用：クリアしたステージに入り直したら、ゴールの手前から（clear.json の playSession）
+	retryNearGoal_ = clear_.Settings().playSession.retryNearGoal && StageRecords::GetInstance()->IsCleared(kStageName);
+	// 集計係は、出来事を受け取って数えるだけ（卵・体力・敵の処理と、クリア演出を直接つながない）
+	eggCombo_.OnComboChanged().Connect([this](int combo){ clear_.Tally().NoteCombo(combo); });
+	gameOver_.OnDamaged().Connect([this]{ clear_.Tally().NoteDamage(); });
+	enemyMgr_.OnEnemyDefeated().Connect([this]{ clear_.Tally().NoteEnemyDefeated(); });
+}
+
+// ゴールの輪をくぐった瞬間：構えの途中・ベロを出している途中でも破綻しないよう、やめさせる
+void GamePlayScene::OnGoalReached(){
+	aimThrow_.Reset();
+	swallow_.Reset();
+	eggSystem_.SetAimHolding(false);
+	player_->SetTurnLocked(false);
+	player_->SetMoveSpeedScale(1.0f);
+	gameOver_.HideHearts();
+}
+
+// クリア演出の間：ゲームの時間（敵・動くレール・当たり判定）は止め、恐竜（自動操縦と演技）・卵・演出だけ進める。
+//   演出は、ゲームの時間（ヒットストップなどで止まる）とは別の、止まらない時間で進める
+void GamePlayScene::UpdateClearStaging(float deltaTime){
+	const float stagingDelta = Time::GetInstance()->GetUnscaledDeltaTime();
+	clear_.UpdateBeforePlayer(stagingDelta);   // キーの代わり（着地する所へ歩く）と演技
+	player_->Update(railField_.GetRails());
+	const float yaw = player_->GetRotation().y;
+	UpdateEggFollowGround();
+	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・飛んでいる卵
+	eggCombo_.Update(player_->GetPosition(), GetCamera(), deltaTime); // はじけている途中の物を、空中で止めない
+	clear_.UpdateAfterPlayer(stagingDelta);    // 場面を進める（カメラ・小道具・リザルト）
+	hitFeel_.NotifyCameraOverridden();
+	combat_.UpdateEffects(deltaTime);
+}
+
+// ステージ全体にクラフトの背景を置く（resources/map/<stage>_backdrop.json。tools/stage_intro/make_stage_backdrop.py がマップから作る）
+void GamePlayScene::BuildBackdrop(){
+	//   手直し（背景エディタで直した所）は <stage>_backdrop_edit.json から重ねる。どちらも無ければ背景なし
+	backdrop_.LoadStage(kStageName, textures_["uvChecker"].srvIndex);
+	editorTools_.LoadBackdropThumbnails();
+}
+
+// プレイヤーの、今のレールの上の進み具合（0＝始め・1＝終わり）
+float GamePlayScene::PlayerRailProgress() const{
+	const auto& rails = railField_.GetRails();
+	const int rail = player_ ? player_->GetCurrentRail() : -1;
+	if ( rail < 0 || rail >= ( int ) rails.size() || rails[rail].GetLength() <= 0.0f ) { return 0.0f; }
+	return std::clamp(player_->GetCurrentDistance() / rails[rail].GetLength(), 0.0f, 1.0f);
+}
+
+StageIntroSequence::Context GamePlayScene::IntroContext(){
+	StageIntroSequence::Context context;
+	context.player    = player_.get();
+	context.avatar    = &avatar_;
+	context.railField = &railField_;
+	context.camCtrl   = &camCtrl_;
+	context.eggSystem = &eggSystem_;
+	return context;
+}
+
+// ステージ開始の演出の合図（KamishibaiTransition::ChangeSceneWithStageIntro の定義 stage_intro.json から）
+void GamePlayScene::OnTransitionCue(const std::string& cue){
+	if ( !player_ ) { return; }
+	// エディタ付きのビルドは編集モードで始まる。ステージ開始の演出から入った時は、プレイから始める
+	//   （Play ボタンを押したのと同じ。止めたい時はエディタの Stop で編集モードへ）
+	if ( cue == "introStart" && EditorManager::GetInstance()->GetMode() != EngineMode::Play ) {
+		EditorManager::GetInstance()->RequestPlay();
+		HandleModeTransition(EngineMode::Play);
+	}
+	// ゴールの手前から入り直した時は、ステージ開始の演技（手を振る・ロールを押す）をしない（カードが開いたらすぐ遊べる）
+	if ( !retryNearGoal_ ) { intro_.OnCue(cue, IntroContext()); }
+	if ( cue == "introEnd" ) { startCuePending_ = true; } // 演技が終わった：キーが効くようになったら合図
+}
+
+// 操作開始の合図：遷移が終わってキーが効くようになった瞬間に「スタート！」と音（演出の後だけ）
+// 後ろの卵を地面に置くための情報：恐竜が着地しているか・真下に地面（道・ブロックの上面）があるか・その高さ
+void GamePlayScene::UpdateEggFollowGround(){
+	float groundY = 0.0f;
+	const bool hasGround = player_->GetGroundBelow(railField_.GetRails(), groundY);
+	eggSystem_.SetFollowGround(player_->IsGrounded(), hasGround, groundY);
+	const float cameraYaw = GetCamera()->GetRotation().y; // カメラの向いている方＝奥
+	eggSystem_.SetFollowAway({ std::sin(cameraYaw), 0.0f, std::cos(cameraYaw) });
+}
+
+void GamePlayScene::UpdateStartCue(float deltaTime){
+	if ( startCuePending_ && !Input::GetInstance()->IsLocked() ) {
+		startCuePending_ = false;
+		startCueTime_ = 0.0f;
+		AudioManager::GetInstance()->PlayWave(kStartCueSe);
+	}
+	if ( startCueTime_ >= 0.0f ) {
+		startCueTime_ += deltaTime;
+		if ( startCueTime_ > kStartCueDuration ) { startCueTime_ = -1.0f; }
+	}
+}
+
+void GamePlayScene::DrawStartCue(){
+	if ( startCueTime_ < 0.0f || !startPop_ ) { return; }
+	const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
+	const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
+	const float t = startCueTime_;
+	// ポンと出て（少し行き過ぎて戻る）、少し止まってから、上へ浮きながら消える
+	const float pop = Easing::EaseOutBack(Easing::Clamp01(t / 0.25f));
+	const float fade = Easing::Clamp01(( t - ( kStartCueDuration - 0.3f ) ) / 0.3f);
+	const float scale = UiScale::FromHeight(height) * 0.75f * pop;
+	const Vector2 size = startPopSize_;
+	startPop_->SetPosition({ width * 0.5f, height * 0.4f - fade * 40.0f * height / UiScale::kBaseHeight });
+	startPop_->SetSize({ size.x * scale, size.y * scale });
+	startPop_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f - fade });
+	startPop_->Update();
+	startPop_->Draw();
+}
+
+// プレイヤー・敵エディタ・レール・各種シーン部品の用意
+void GamePlayScene::SetupGameplay(){
+	player_ = std::make_unique<Player>();
+	player_->Initialize();
+	enemyEditor_ = std::make_unique<EnemyEditor>();
+	enemyEditor_->Initialize();
+
+	// 卵・吐き出し弾がブロックと道に当たるようにする
+	obstacles_.Initialize(&blockSystem_, &railField_.GetRails());
+	// ベロは壁（ブロック）と道の面（上り坂）を通り抜けない（壁越しに敵を食べられない・坂の中へ伸びない）。
+	//   道の面は先の 1 点しか見ないので、付け根から少しずつ進めて、最初にぶつかった所で止める
+	swallow_.SetWallQuery([this](const Vector3& from, const Vector3& to, Vector3& outHit){
+		constexpr float kTongueRadius = 0.08f; // ベロの太さ（ブロック・道に当たる大きさ）
+		constexpr float kStep = 0.1f;          // 進める間(m)
+		const Vector3 move { to.x - from.x, to.y - from.y, to.z - from.z };
+		const float length = std::sqrt(move.x * move.x + move.y * move.y + move.z * move.z);
+		const int steps = ( std::max )( 1, static_cast<int>( std::ceil(length / kStep) ) );
+		Vector3 previous = from;
+		for ( int i = 1; i <= steps; ++i ) {
+			const float t = static_cast<float>( i ) / static_cast<float>( steps );
+			const Vector3 point { from.x + move.x * t, from.y + move.y * t, from.z + move.z * t };
+			if ( obstacles_.Sweep(previous, point, kTongueRadius, outHit) ) { return true; }
+			previous = point;
+		}
+		return false;
+	});
+	eggSystem_.SetObstacleQuery(
+		[this](const Vector3& from, const Vector3& to, float radius, Vector3& outHitPos) -> bool {
+			return obstacles_.Sweep(from, to, radius, outHitPos);
+		});
+
+	// 戦闘（踏みつけ/卵命中）＋ヒット演出（エフェクト用テクスチャを渡す）
+	combat_.Initialize(textures_["circle"].srvIndex, textures_["skybox"].srvIndex);
+
+	// エフェクトの事前生成：初撃破の瞬間に Obj3d を数十個作るとゲームが固まるので、
+	// ロード中のいま全部作ってプールに積んでおく。パフの数は最悪フレーム
+	// （卵トレイル約13個借用中＋命中バースト8＋割れ演出6＋投げ煙6）を賄う量＝返却上限に合わせる
+	combat_.Prewarm(GetCamera(), 4);
+	eggSystem_.PrewarmPuffPool("fxSphere", 32);
+	eggSystem_.PrewarmPuffPool("eggShell", 28);
+	eggSystem_.PrewarmPuffPool("eggShellGreen", 12);
+
+	// ノードエディタの「→ ゲーム値」に調整値を登録する（ノードからプレイ中の挙動をリアルタイムに動かせる）。
+	//   ※ポインタ登録なので、シーン終了時（Finalize）に必ず解除する
+	EditorManager* editorManager = EditorManager::GetInstance();
+	editorManager->ClearNodeGameValues(); // シーン再初期化時の二重登録防止
+	editorManager->RegisterNodeGameValue("プレイヤー移動速度",   player_->MoveSpeedPtr(),  0.5f, 20.0f);
+	editorManager->RegisterNodeGameValue("ジャンプ力",           player_->JumpPowerPtr(),  1.0f, 20.0f);
+	editorManager->RegisterNodeGameValue("卵の投げ初速",         aimThrow_.ThrowSpeedNormalPtr(), 1.0f, 40.0f);
+	editorManager->RegisterNodeGameValue("ロックオン投げ初速",   aimThrow_.ThrowSpeedLockPtr(),   1.0f, 60.0f);
+	editorManager->RegisterNodeGameValue("飲み込みの届く距離",   swallow_.SwallowReachPtr(), 0.5f, 10.0f);
+	editorManager->RegisterNodeGameValue("飲み込みクールタイム", swallow_.SwallowCooldownPtr(), 0.0f, 2.0f);
+
+	// レールはエディタ保持の最新データから構築（編集・緑線・プレイヤーを同じデータに一本化）
+	SyncRailsFromEditor();
+}
+
+// =====================================================================
+//  エディタの編集をシーンへ反映
+// =====================================================================
+void GamePlayScene::SyncFromEditors(){
+	ApplyRailRemaps();       // レールの作り直し（下のライブ同期）より先に済ませること
+	SyncRailsLive();
+
+	// ブロックのノード錨を維持（レール編集で曲線長が変わってもブロックが道に沿って滑らない）。
+	//   レール同期（railField_ 再構築）の後に呼ぶこと。dist が引き直されたら blockVersion が上がり
+	//   SyncBlockEdits が拾って見た目も追従する
+	if ( LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor() ) {
+		levelEditor->GetRailEditor()->UpdateBlockAnchors(railField_.GetRails());
+	}
+
+	SyncEnemyEdits();
+	SyncBlockEdits();
+	HandleCameraRequests();
+}
+
+// レールの数や並びが変わっていたら（削除・その元に戻す/やり直し）、敵のレール番号を付け替える。
+//   消えたレールの敵は外し、よみがえったレールの敵は戻す。コインとブロックはレールエディタ側で付け替え済み。
+//   敵は敵エディタが配置の正本なのでここで行う
+void GamePlayScene::ApplyRailRemaps(){
+	LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
+	if ( !enemyEditor_ || !levelEditor ) return;
+	RailEditor::RailRemap remap;
+	while ( levelEditor->GetRailEditor()->ConsumeRailRemap(remap) ) {
+		enemyEditor_->ApplyRailRemap(remap.oldToNew, EnemyLevelConvert::ToSpawnDatas(remap.revived));
+		railErasedPending_ = true; // 番号が変わったので、この後のレール作り直しで距離を張り直さない
+	}
+}
+
+// レールのライブ同期：エディタで編集されたら緑線とプレイヤー用データを作り直す。
+//   ドラッグ中は「最大10回/秒の軽量同期」に間引き、マウスアップ後に本同期を1回行う
+void GamePlayScene::SyncRailsLive(){
+	EditorManager* editorManager = EditorManager::GetInstance();
+	const bool dragging = editorManager->IsRailDragging();
+	const bool changed = ( editorManager->GetRailEditVersion() != railField_.Version() );
+	railSyncTimer_ += Time::kFixedDeltaTime;
+	if ( changed && dragging ) {
+		railFullSyncPending_ = true; // ドラッグが終わったら本生成する
+		if ( railSyncTimer_ >= 0.1f ) { // 10Hz
+			railSyncTimer_ = 0.0f;
+			SyncRailsFromEditor(true);
+		}
+	} else if ( !dragging && ( changed || railFullSyncPending_ ) ) {
+		railFullSyncPending_ = false;
+		SyncRailsFromEditor(false);
+	}
+}
+
+void GamePlayScene::SyncEnemyEdits(){
+	if ( !enemyEditor_ ) return;
+	EditorManager* editorManager = EditorManager::GetInstance();
+
+	// マップが読み込まれたら、保存済みの敵配置をエディタへ復元する。
+	//   敵ゼロのマップでも必ず反映する（以前は空だとスキップ→前マップの敵が残留し、
+	//   そのまま保存すると別マップの敵が紛れ込むバグがあった）
+	int mapLoadVersion = editorManager->GetMapLoadVersion();
+	if ( mapLoadVersion != lastMapLoadVersion_ ) {
+		lastMapLoadVersion_ = mapLoadVersion;
+		enemyEditor_->SetSpawnDatas(EnemyLevelConvert::ToSpawnDatas(editorManager->GetEditorEnemyData()));
+	}
+
+	// 追加・削除・編集があったら即リスポーン＆保存用データへ反映
+	//   （実体は同じ種類なら使い回すので、数値をドラッグしている間に毎フレーム通っても軽い）
+	if ( enemyEditor_->ConsumeChanged() ) {
+		editorManager->SetEditorEnemyData(EnemyLevelConvert::ToLevelEnemies(enemyEditor_->GetSpawnDatas()));
+		SpawnEnemies();
+	}
+}
+
+// ブロックのライブ同期：ペイント配置/削除のたびにブロックだけ作り直す
+//   （レール・道・敵はそのまま＝クリック連打しても軽い）
+void GamePlayScene::SyncBlockEdits(){
+	EditorManager* editorManager = EditorManager::GetInstance();
+	int blockVersion = editorManager->GetEditorBlockVersion();
+	if ( blockVersion == lastBlockVersion_ ) return;
+	lastBlockVersion_ = blockVersion;
+	blockSystem_.Sync(editorManager->GetEditorBlocks(), &railField_.GetRails());
+	if ( player_ ) { player_->SetBlocks(&blockSystem_); }
+}
+
+void GamePlayScene::HandleCameraRequests(){
+	EditorManager* editorManager = EditorManager::GetInstance();
+	const auto& rails = railField_.GetRails();
+
+	// 敵エディタの「カメラをここへ」：その敵が画面の中央に来る位置へカメラを引いて置く
+	int focusIndex = -1;
+	if ( enemyEditor_ && enemyEditor_->ConsumeFocusRequest(focusIndex) ) {
+		const EnemySpawnData& spawnData = enemyEditor_->GetSpawnDatas()[focusIndex];
+		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, spawnData.railIndex, spawnData.distance,
+		                              Enemy::PickHeightOf(spawnData));
+	}
+	// 乗り換えデバッガの接続点インスペクタ：行をクリックした接続点へカメラを寄せる
+	int debugRail = -1; float debugDist = 0.0f;
+	if ( transferDebugger_.ConsumeFocusRequest(debugRail, debugDist) ) {
+		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, debugRail, debugDist, 0.0f);
+	}
+	// 配置ビュー（レール展開図）の「カメラをここへ」
+	int focusRail = -1; float focusDist = 0.0f, focusHeight = 0.0f;
+	if ( editorTools_.ConsumeStripFocusRequest(focusRail, focusDist, focusHeight) ) {
+		EditorCameraUtil::FocusOnRail(*GetCamera(), rails, focusRail, focusDist, focusHeight);
+	}
+	// カメラエディタからの「この画角をプレビュー」要求（Blenderからのカメラ要求は BaseScene が受け持つ）
+	Vector3 requestPos, requestRot;
+	if ( LevelEditor* levelEditor = editorManager->GetLevelEditor() ) {
+		if ( levelEditor->GetRailEditor()->ConsumeCameraPreviewRequest(requestPos, requestRot) ) {
+			GetCamera()->SetTranslation(requestPos);
+			GetCamera()->SetRotation(requestRot);
+		}
+	}
+}
+
+// レールをエディタ最新へ作り直し、敵・コイン・ブロックも配置し直す。
+//   レール本体・緑線・動きは RailField が担当。敵は RailField の責務外なので Sync 後に生成する。
+//   simple=true はドラッグ中の軽量同期：道は簡易リボンのみ・敵の張り直しや再生成は行わない
+//   （マウスアップ後に simple=false の本同期が1回走って最終形になる）
+void GamePlayScene::SyncRailsFromEditor(bool simple){
+	EditorManager* editorManager = EditorManager::GetInstance();
+	const uint32_t whiteTex = textures_.count("white") ? textures_["white"].srvIndex : 0;
+
+	if ( simple ) {
+		railField_.Sync(GetCamera(), whiteTex);                     // レール本体＋緑線
+		roadMesh_.Build(railField_.GetRails(), GetCamera(), true);  // 道は簡易プレビュー
+		trainVisuals_.Build(railField_.GetRails(), textures_["noise0"].srvIndex); // 線路も引きずりに付いてくる
+		return;
+	}
+
+	// 敵のピン留め：編集前のレールで各敵のワールド位置を覚え、作り直した後にその場所へ張り直す。
+	//   ※マップ読込直後のフレームは対象外：今の敵配置は旧マップの敵なので、
+	//     張り直して保存データへ書き戻すと読込した新マップの敵配置を潰してしまう。
+	//   ※レール番号が変わった直後も対象外：作り直す前のレール配列とは番号が合わない
+	const bool repin = enemyEditor_
+		&& ( editorManager->GetMapLoadVersion() == lastMapLoadVersion_ ) && !railErasedPending_;
+	railErasedPending_ = false;
+	EnemyRailPin pin;
+	if ( repin ) {
+		// 動くレールのプレビュー中でも、置いた場所（基準の位置）で覚える。
+		//   このすぐ後の Sync でどのみち基準の位置へ戻るので、先に戻しても見た目は変わらない
+		railField_.ResetMotion();
+		pin.Capture(*enemyEditor_, railField_.GetRails());
+	}
+
+	railField_.Sync(GetCamera(), whiteTex);               // レール本体＋緑線を作り直す
+	roadMesh_.Build(railField_.GetRails(), GetCamera());  // レール下の道メッシュも敷き直す
+	dissolveRoad_.Build(railField_.GetRails());             // SDF溶け道のパネル敷設点も打ち直す
+	trainVisuals_.Build(railField_.GetRails(), textures_["noise0"].srvIndex); // 列車と線路
+
+	if ( repin ) {
+		pin.Apply(*enemyEditor_, railField_.GetRails());
+		// マップ保存用データにも張り直した距離を反映（保存した時に位置がズレないように）
+		editorManager->SetEditorEnemyData(EnemyLevelConvert::ToLevelEnemies(enemyEditor_->GetSpawnDatas()));
+	}
+	SpawnEnemies();
+
+	// マップのスタート地点をプレイヤーへ（Initialize/リスポーンで使われる）
+	if ( player_ ) { player_->SetSpawn(railField_.GetStartRail(), railField_.GetStartDistance()); }
+	clear_.OnRailsSynced(); // ゴールの輪を置き直す
+
+	// カメラ演出ゾーン・コイン・ブロックもエディタの配置から作り直す
+	camCtrl_.Sync(editorManager->GetEditorCameraZones(), railField_.GetRails());
+	camCtrl_.SyncRailCameras(editorManager->GetEditorRailCameras()); // レールごとのカメラ
+	coinSystem_.Sync(editorManager->GetEditorCoins(), railField_.GetRails());
+	blockSystem_.Sync(editorManager->GetEditorBlocks(), &railField_.GetRails());
+	lastBlockVersion_ = editorManager->GetEditorBlockVersion();
+	if ( player_ ) { player_->SetBlocks(&blockSystem_); }
+}
+
+void GamePlayScene::SpawnEnemies(){
+	if ( !enemyEditor_ ) { enemyMgr_.Clear(); return; }
+	enemyMgr_.Spawn(enemyEditor_->GetSpawnDatas(), railField_.GetRails());
+}
+
+// =====================================================================
+//  更新
+// =====================================================================
+void GamePlayScene::OnPreUpdate(){
+	hitFeel_.UpdateHitStop();     // 踏みつけ等のヒットストップ
+	SyncFromEditors();            // エディタ編集（レール／敵／カメラ要求）をシーンへ反映
+}
+
+void GamePlayScene::OnUpdate(){
+	EngineMode currentMode = EditorManager::GetInstance()->GetMode();
+	HandleModeTransition(currentMode);
+	if ( currentMode == EngineMode::Play ) { UpdatePlayMode(); }
+	UpdateSceneVisuals(currentMode);
+
+	// 初めて敵を倒した瞬間のフリーズを無くすため、起動直後に演出を一度通しておく
+	screenFx_.UpdateWarmup(combat_, eggSystem_, currentMode == EngineMode::Play);
+
+	// タイトルへ戻る（読み込み中のカードで切り替える）
+	if ( Input::GetInstance()->TriggerKey(DIK_T) ) {
+		KamishibaiTransition::ChangeSceneWithCard("TITLE");
+	}
+}
+
+// カメラ更新（デバッグカメラ＋ヒット時のシェイク）とヒット点中心のポストエフェクト
+void GamePlayScene::UpdateCamera(){
+	if ( GetDebugCamera() ) { GetDebugCamera()->Update(GetCamera()); }
+	hitFeel_.ApplyCameraShake(GetCamera());          // ヒット時に一瞬揺らす
+	GetCamera()->Update();
+	hitFeel_.UpdateImpactPostEffect(GetCamera());    // カメラ確定後にスクリーン投影する
+}
+
+// SDF看板の近接表示：プレイ中はプレイヤー位置を基準に「近づいた時だけ表示」が効く
+//   （エディット中は配置作業ができるよう常に全表示）
+bool GamePlayScene::GetSdfViewerPosition(Vector3& outPos) const{
+	if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play || !player_ ) return false;
+	outPos = player_->GetPosition();
+	if ( gameOver_.HidesScene() ) { outPos = { 0.0f, -100000.0f, 0.0f }; } // 紙に貼り替えている間は、看板の文字を出さない
+	return true;
+}
+
+// Edit↔Play の切り替わり瞬間のリセット処理
+void GamePlayScene::HandleModeTransition(EngineMode current){
+	if ( prevMode_ == EngineMode::Edit && current == EngineMode::Play ) { OnPlayStart(); }
+	if ( prevMode_ == EngineMode::Play && current == EngineMode::Edit ) { OnEditStart(); }
+	prevMode_ = current;
+}
+
+// エディット → プレイ：最新レールで確定し、プレイヤーをスタートへ、エフェクト・卵を消す
+void GamePlayScene::OnPlayStart(){
+	screenFx_.EnablePlayLook(); // クラフト世界観の常時ポストエフェクト（プレイ中だけ）
+	SyncRailsFromEditor();
+	// 右クリック「ここからテストプレイ」：この1回だけ開始位置を上書きする
+	//   （SyncRailsFromEditor が通常スタートを SetSpawn した後に上書き。
+	//     プレイ中に落ちた時のリスポーンもこの地点になる＝そこだけ何度も試せる）
+	editorTools_.ConsumeTestPlayRequest(testPlayRail_, testPlayDist_);
+	if ( testPlayRail_ >= 0 && testPlayRail_ < ( int ) railField_.GetRails().size() ) {
+		player_->SetSpawn(testPlayRail_, testPlayDist_);
+	} else if ( retryNearGoal_ && railField_.HasGoal() ) {
+		// 提出用・プレイ会用：ゴールの手前から（落ちた時の戻り先もここ）。カメラは補間せずに置く
+		const float back = clear_.Settings().playSession.retryBack;
+		player_->SetSpawn(railField_.GetGoalRail(), ( std::max )( 0.0f, railField_.GetGoalDistance() - back ));
+		snapCameraOnce_ = true;
+	}
+	player_->Initialize();
+	player_->SetMovementLocked(false);
+	gameOver_.OnPlayStart(); // 体力を満タンに（出しはしない）
+	camCtrl_.Reset();        // 向き切替トリガーの状態を初期化（前回プレイの向きを持ち越さない）
+	flip_.OnPlayStart();     // 表から始める
+	if ( Demo() ) { Demo()->OnPlayStart(); } // デモの HitEffect を消す
+	combat_.ClearEffects();
+	eggSystem_.Initialize();
+	aimThrow_.Reset();       // 構え状態を解除
+	swallow_.Reset();        // 舌アクションを解除（敵が作り直されるので target_ を確実に手放す）
+	coinSystem_.ResetPlay(); // コインを全部復活させる
+	blockSystem_.ResetPlay(); // ？ブロックを未使用に戻す
+	eggCombo_.Reset();       // コンボ・かくれ花を戻す
+	clear_.OnPlayStart(enemyMgr_.SpawnedCount()); // 集計を最初から・ゴールの輪を閉じる
+}
+
+// プレイ → エディット：動くレールを基準位置に戻す（編集と表示を一致させる）
+void GamePlayScene::OnEditStart(){
+	// ステージ開始の演出の途中でエディタに切り替えた：演出をやめて、プレイヤーを元に戻す
+	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
+	gameOver_.OnEditStart(); // ゲームオーバー演出をやめて、体力を満タンに
+	clear_.OnEditStart();    // クリア演出をやめて、ゴールの輪を閉じる
+	flip_.OnEditStart();     // 表へ（全部のレールを出す）
+	screenFx_.DisablePlayLook();
+	railField_.ResetMotion();
+	testPlayRail_ = -1;      // テストプレイの開始位置上書きは1回で解除（次は通常スタート）
+	coinSystem_.ResetPlay(); // 取得済みコインを復活（エディタで配置が見えなくならないように）
+	eggCombo_.Reset();       // ゆれている背景を元の形へ（編集で保存されないように）
+	// カメラ関連の後始末：
+	//   ・回転フリーズ中に Stop しても時間が止まったままにならないよう Reset（内部で TimeScale を戻す）
+	//   ・ゾーンで視野角を変えたまま戻るとエディタ画面が広角/望遠のままになるので標準に戻す
+	camCtrl_.Reset();
+	GetCamera()->SetFovY(0.78f);
+}
+
+// プレイ中（時間が動いている時）のゲーム進行
+void GamePlayScene::UpdatePlayMode(){
+	const float deltaTime = Time::GetInstance()->GetDeltaTime();
+
+	// ゲームオーバー演出の間は、ゲームの時間を止めて演出だけ進める
+	if ( gameOver_.UpdateBeforeGame(intro_.IsActive()) ) {
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
+
+	// クリア演出の間は、画面の上下のぼかしを消す（門のてっぺんの卵まで、画面の上から下まで写すため）
+	screenFx_.UpdateTiltFocus(clear_.IsActive(), Time::GetInstance()->GetUnscaledDeltaTime());
+
+	// クリア演出の間は、ゲームの時間を止めて、恐竜と演出だけ進める
+	if ( clear_.IsActive() ) {
+		UpdateClearStaging(deltaTime);
+		return;
+	}
+
+	// ステージ開始の演技のロール（操作開始の後も、画面の外へ出るまで転がり続ける）
+	intro_.UpdateRoll(deltaTime);
+
+	// ステージ開始の演技中：ゲームの時間（動くレール・敵・当たり判定など）は止め、プレイヤーとカメラだけ動かす
+	if ( intro_.IsActive() ) {
+		const StageIntroSequence::Context context = IntroContext();
+		intro_.UpdateInput(context, deltaTime);    // キーの代わり（何も押さない）と、演技の途中の向き・土ぼこり
+		player_->Update(railField_.GetRails());
+		const float yaw = player_->GetRotation().y;
+		UpdateEggFollowGround();
+		eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime); // 後ろの卵・土ぼこり
+		camCtrl_.SetPlayerRail(player_->GetCurrentRail(), PlayerRailProgress()); // 演技の後に戻る追従の位置を、始まりのレールのカメラに
+		intro_.UpdateCamera(GetCamera(), context, deltaTime);
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
+
+	// カメラ反転の回り込み中：ゲームの時間を止めて、カメラだけ回す
+	if ( flip_.Update(GetDebugCamera() && GetDebugCamera()->IsActive()) ) {
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
+
+	// 動くレール → プレイヤー → 敵 の順で更新（位置の整合のため）。
+	//   「乗ったら動き出す」レールの発動判定用に、接地中のプレイヤーのレール番号を渡す
+	const int ridingRail = player_->IsGrounded() ? player_->GetCurrentRail() : -1;
+	railField_.UpdateMotion(deltaTime, ridingRail, player_->GetCurrentRail()); // 列車は跳んでいる間も「乗っている」
+	railField_.DrawWaitingLiftMarkers(deltaTime);
+
+	// カメラの向きを渡す：向き切替（180°回り込み等）の後も「Dで画面の右へ」進めるように、
+	// プレイヤー側でキー→ワールド方向の割り当てを回す
+	player_->SetCameraYaw(GetCamera()->GetRotation().y);
+	// ベロを出している間は振り向き禁止（移動は可）。出したまま反転して見た目が破綻するのを防ぐ
+	player_->SetTurnLocked(swallow_.IsTongueActive());
+	// 卵の構え中は狙い（カーソル）方向を向く（後ろ狙いなら振り向く）
+	player_->SetFaceOverride(aimThrow_.IsAiming(), aimThrow_.GetAimYaw());
+	// 構えている間は、狙いながらそろそろ歩く（見た目は体が構えのまま、足だけ歩く。PlayerAvatar）
+	player_->SetMoveSpeedScale(aimThrow_.IsAiming() ? 0.6f : 1.0f);
+	// 構え中は後ろの列の先頭の卵を非表示（手に持っている扱い。キャンセルで列に戻る）
+	eggSystem_.SetAimHolding(aimThrow_.IsAiming());
+	// 卵の奥投げ：反転スイッチを狙っている時は、その後ろの背景をロックしない
+	{
+		std::vector<Vector3> centers; std::vector<float> radii;
+		flip_.GetSwitchSpheres(centers, radii);
+		std::vector<EggCombo::Blocker> blockers;
+		for ( size_t i = 0; i < centers.size(); ++i ) { blockers.push_back({ centers[i], radii[i] }); }
+		eggCombo_.SetAimBlockers(blockers);
+	}
+	// 狙いの線・球（デバッグ）は「当たり判定を表示」の時だけ
+	aimThrow_.SetDebugVisible(showHitShapes_);
+	swallow_.SetDebugVisible(showHitShapes_);
+	// 構え中はベロ(E)と産卵(左Ctrl)を発動禁止（両手が卵でふさがっている）
+	swallow_.SetActionBlocked(aimThrow_.IsAiming());
+	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
+	player_->Update(railField_.GetRails());
+	// 歩いて壁にぶつかった：顔がつぶれる動き・ぺたんの音・小さな手ごたえ
+	if ( player_->ConsumeWallBump() ) {
+		avatar_.PlayWallBump();
+		AudioManager::GetInstance()->PlayWave("resources/kamishibai/se_patan.wav", false, 0.45f);
+		hitFeel_.Trigger(0.04f, 0.05f);
+	}
+	// ジャンプ台で跳ねた：足元のばねを縮めてびよんと戻し、音を鳴らす
+	{
+		int springRail = -1; float springDist = 0.0f, springFoot = 0.0f;
+		if ( player_->ConsumeSpringBounce(springRail, springDist, springFoot) ) {
+			blockSystem_.NotifySpringBounce(springRail, springDist, springFoot);
+			AudioManager::GetInstance()->PlayWave("resources/se/se_spring.wav", false, 0.6f);
+		}
+	}
+
+	// 敵の移動＋吸い込みTick。吸い込み完了 → お腹に+1（口元で緑がふわっと）。
+	//   ブロックを渡す＝パトロールの敵が壁で引き返す（貫通防止）
+	enemyMgr_.Update(railField_.GetRails(), player_->GetPosition(), deltaTime, [&](const Vector3& pos){
+		eggSystem_.AddToBelly();
+		eggSystem_.SpawnSwallowFx(pos);
+	}, &blockSystem_);
+
+	combat_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera());               // 当たり判定＋踏みつけ
+	if ( gameOver_.UpdateAfterCombat() ) { return; }                                     // ぶつかった・落ちた → ♡が減る。最後の♡ならここで止まる
+	swallow_.Update(*player_, enemyMgr_, eggSystem_, hitFeel_, GetCamera(), deltaTime);  // 舌・産卵
+	aimThrow_.Update(*player_, enemyMgr_, eggSystem_, GetCamera(), deltaTime);           // 卵の構え・投げ
+	flip_.CheckEggHits();                                                                // 卵 ×「？」スイッチ → 反転
+	if ( railField_.HasRolls() ) {                                                       // 卵 × 巻いた草のマット → 転がって広がる
+		eggSystem_.ResolveHits([this](const Vector3& from, const Vector3& to, float radius){ return railField_.HitRoll(from, to, radius); });
+	}
+
+	// 卵の追従・飛行・割れの更新
+	float yaw = player_->GetRotation().y;
+	UpdateEggFollowGround();
+	eggSystem_.Update(player_->GetPosition(), { std::sin(yaw), 0.0f, std::cos(yaw) }, deltaTime);
+	eggCombo_.Update(player_->GetPosition(), GetCamera(), deltaTime); // 奥へ投げた卵：当たった物がはじけ飛んでコンボ
+
+	// ゴールの輪をくぐったら、クリア演出へ（とどめを受けてゲームオーバーへ向かっている途中は、クリアにしない）
+	if ( !gameOver_.IsDying() && clear_.CheckGoal() ) {
+		hitFeel_.NotifyCameraOverridden();
+		return;
+	}
+
+	// プレイ中カメラ（プレイヤー追従＋カメラ演出ゾーン）
+	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true); } // 撮影のテイクの始め：補間せずに置く
+	camCtrl_.SetPlayerRail(player_->GetCurrentRail(), PlayerRailProgress()); // レールの上の進み具合（だんだん変わるカメラ）
+	camCtrl_.Update(GetCamera(), player_->GetPosition(), player_->IsGrounded(), railField_.GetRails(),
+		GetDebugCamera() && GetDebugCamera()->IsActive(), deltaTime);
+	if ( snapCameraOnce_ ) { camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, false); snapCameraOnce_ = false; }
+	ScreenCapture::GetInstance()->ApplyCameraLock(GetCamera()); // 撮影の画角プリセットで固定している間は、追従カメラより優先
+	hitFeel_.NotifyCameraOverridden(); // カメラ位置を上書きしたのでシェイクの自己相殺をリセット
+	transferDebugger_.Record(*player_, railField_.GetRails(), GetCamera(), deltaTime); // 乗り換えデバッガの記録
+
+	// デモ入力（Space=BGM+HitEffect / P=パーティクル）。デモ表示OFF（表示メニュー）の間は入力ごと無効
+	if ( IsDemoVisible() ) {
+		Demo()->UpdatePlay(Input::GetInstance(), GetCamera(), textures_, bgmFile_);
+	}
+
+	// エフェクトの更新（timeScale 適用 deltaTime → ヒットストップで一緒に止まる）
+	combat_.UpdateEffects(deltaTime);
+}
+
+// モードに関わらず毎フレーム行う見た目の更新
+void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
+	EditorManager* editorManager = EditorManager::GetInstance();
+	const bool playing = ( mode == EngineMode::Play );
+	const Vector3 playerPos = player_->GetPosition();
+	transferDebugger_.UpdateTimeControl(playing); // 乗り換えデバッガのスロー・一時停止・コマ送り（次のフレームに効く）
+	UpdateStartCue(Time::GetInstance()->GetUnscaledDeltaTime());
+
+	// Editモード中も敵の見た目（WVP行列）を毎フレーム更新する。
+	//   Obj3d::Update は「呼ばれた時のカメラ行列」を焼き込むため、これが無いと
+	//   デバッグカメラを動かした時に敵が古い行列のまま描かれ、画面に貼り付いて付いてくる。
+	//   dt=0 で呼ぶのでパトロール等の移動は起きない
+	//   ゲームの時間を止めている間（ステージ開始の演技・ゲームオーバー）も同じ。止めたまま更新しないと、
+	//   カメラが動いても敵だけ止めた瞬間の画面の位置に貼り付く（再開の絵にも死んだ時の位置で写っていた）
+	if ( !playing || intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() || clear_.IsActive() ) {
+		enemyMgr_.Update(railField_.GetRails(), playerPos, 0.0f, nullptr, &blockSystem_);
+	}
+
+	// カメラ演出ゾーンの可視化（球=発動範囲 / 白い箱=カメラ位置の目安。編集中も見える）
+	camCtrl_.DrawZoneMarkers(railField_.GetRails());
+
+	// レールと道
+	railField_.UpdateMarkers(); // レール緑線（カメラ移動に追従）
+	roadMesh_.SetJointVisible(editorManager->GetEditorJointVisible());
+	// 動くレールのエディタプレビュー：Playを押さなくても動きを再生して組み方を確認できる
+	if ( mode == EngineMode::Edit ) { railField_.UpdateEditorPreview(editorManager->GetEditorRailMotionPreview()); }
+	// 布ロードの展開：ステージ開始の演出の間だけ、ロールが転がった所まで布を敷く（それ以外は全部）
+	roadMesh_.SetUnroll(railField_.GetStartRail(), railField_.GetStartDistance(),
+	                    ( playing && intro_.IsUnrolling() ) ? intro_.UnrollFront() : -1.0f);
+	roadMesh_.UpdateCloth(railField_.GetRails());
+	roadMesh_.Update(railField_.GetRails());              // 道メッシュ（動くレール追従＋カメラ追従）
+	dissolveRoad_.Update(playerPos, Time::kFixedDeltaTime);        // SDF溶け道の現れ/溶け（エディタ中も動きが見える）
+
+	// コイン（回転・浮遊はエディタ中も見せる。取得判定はプレイ中のみ）とブロック
+	coinSystem_.Update(playerPos, playing, Time::kFixedDeltaTime);
+	// 裏から見ている間：恐竜よりカメラ側のブロック・敵を隠す（表の道の物が画面をふさがないように）
+	{
+		Vector3 cutPivot {}; float cutGap = 0.0f;
+		const bool backCut = flip_.GetBackCut(playing, cutPivot, cutGap);
+		blockSystem_.SetViewCut(backCut, cutPivot.z + cutGap, cutPivot.y + 0.6f);
+		enemyMgr_.SetViewCut(backCut, cutPivot.z + cutGap);
+	}
+	blockSystem_.Update();
+
+	// 落下ミス→リスポーン：アイリスワイプで閉じて→開く
+	if ( playing ) {
+		if ( player_->ConsumeFellRespawn() ) {
+			screenFx_.StartMissIris();
+			// 動くレールを基準位置へ戻す（「片道で行ったきり」の列車が戻らず詰むのを防ぐ。
+			//   「乗ったら動き出す」は待機に、「出現する道」は消えた状態に戻る＝区間をやり直せる。
+			//   渡し板「ころころ」は一度広げたらそのまま）
+			railField_.ResetMotion(true);
+		}
+		screenFx_.UpdateIris({ playerPos.x, playerPos.y + 0.8f, playerPos.z }, *GetCamera()); // 円の中心＝胸元
+	}
+
+	// ？ブロックから出たコイン：カウント加算＋金色の粒が飛び出す演出
+	Vector3 bumpCoinPos {};
+	while ( blockSystem_.ConsumeBumpCoin(bumpCoinPos) ) {
+		coinSystem_.AddBonus(1);
+		for ( int i = 0; i < 6; ++i ) {
+			float angle = ( float ) i / 6.0f * Math::kTwoPi;
+			Vector3 vel = { std::cos(angle) * 1.5f, 3.5f + ( float ) ( i % 3 ) * 0.6f, std::sin(angle) * 1.5f };
+			eggSystem_.SpawnPuff(bumpCoinPos, vel, { 1.0f, 0.85f, 0.2f, 1.0f }, 0.12f, 0.5f, "fxSphere");
+		}
+	}
+
+	// プレイヤーの見た目（Play中は追従、Edit中はスタート地点のプレビュー）
+	PlayerAvatar::Context avatarContext;
+	avatarContext.playing   = playing;
+	avatarContext.player    = player_.get();
+	avatarContext.railField = &railField_;
+	avatarContext.swallow   = &swallow_;
+	avatarContext.aimThrow  = &aimThrow_;
+	avatarContext.eggSystem = &eggSystem_;
+	clear_.UpdateVisuals(Time::GetInstance()->GetUnscaledDeltaTime()); // ゴールの輪・紙吹雪
+	flip_.UpdateVisuals(playing);                          // カメラ反転：スイッチ・裏から見る時に隠す背景
+	gameOver_.UpdateVisuals(playing, playerPos); // やられポーズと♡の輪（恐竜の見た目の更新の前）
+	avatar_.Update(avatarContext);
+
+	hud_.Update(eggSystem_, aimThrow_.IsAiming(), coinSystem_);
+	hud_.SetCombo(eggCombo_.ComboCount(), eggCombo_.ComboAlpha(), eggCombo_.ComboPop());
+	hud_.SetFlowers(eggCombo_.FlowersFound(), eggCombo_.FlowersTotal(), eggCombo_.FlowerPop());
+	hud_.SetComboFlowers(eggCombo_.ComboFlowersFound(), eggCombo_.ComboFlowersTotal(), eggCombo_.ComboFlowerPop());
+	if ( playing ) { StageRecords::GetInstance()->NoteCoins(kStageName, coinSystem_.CollectedCount()); } // ワールドマップの「コイン」
+	backdrop_.Update(GetCamera());
+	trainVisuals_.Update(railField_.GetRails(), GetCamera(), Time::GetInstance()->GetDeltaTime(), player_->GetCurrentRail()); // 列車・渡し板（動くレールを進めた後）・けむり
+	eggCombo_.UpdateVisuals(); // 光る物・飛ぶ物の代役（カメラが決まった後）
+}
+
+// =====================================================================
+//  描画
+// =====================================================================
+// 不透明（Obj3d の準備・環境マップの束縛は BaseScene が済ませている）
+void GamePlayScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
+	// ゲームオーバー演出で紙に貼り替えている間は、紙・机・恐竜だけ
+	gameOver_.DrawOpaque();
+	if ( gameOver_.HidesScene() ) { return; }
+	const bool playing = ( EditorManager::GetInstance()->GetMode() == EngineMode::Play );
+	avatar_.Draw(playing, player_.get());      // プレイヤー（無敵中は点滅）＋手持ちの卵
+	enemyMgr_.Draw();
+	eggSystem_.Draw();
+	coinSystem_.Draw();
+	flip_.Draw();                              // 「？」スイッチ（裏の間は奥の岩肌も）
+	swallow_.Draw();                           // 舌（伸ばす/引き込む動作中だけ）
+	intro_.Draw();                             // ステージ開始の演技のロール
+	clear_.DrawOpaque();                       // ゴールの輪（卵の殻。Edit でも見える）
+	roadMesh_.Draw();                          // 道メッシュ（Edit/Play どちらでも見える本番の見た目）
+	// レール経路の緑線マーカーは「エディット中だけ」（Play中・リリース版では道メッシュだけが残る）
+	if ( !playing ) { railField_.DrawMarkers(); }
+}
+
+// いちばん奥の空（物の無いすき間だけが空になる。裏の世界・カメラ反転・クリアのカメラでも同じ）
+void GamePlayScene::OnDrawBackground(ID3D12GraphicsCommandList* commandList){
+	if ( gameOver_.HidesScene() ) { return; }
+	sky_.Draw(commandList, GetCamera());
+}
+
+void GamePlayScene::OnDrawInstanced(){
+	if ( gameOver_.HidesScene() ) { return; }
+	blockSystem_.Draw(GetCamera()); // 配置ブロック（見た目グループごとに1ドローコール）
+	backdrop_.Draw(GetCamera());    // ステージのクラフトの背景（モデルごとに1ドローコール）
+	trainVisuals_.Draw(GetCamera()); // 列車と線路
+	eggCombo_.Draw();               // 狙って光っている物・はじけ飛んでいる物（背景の代役）
+	clear_.DrawInstanced(GetCamera()); // クリア演出の紙吹雪
+}
+
+void GamePlayScene::OnDrawTransparent(ID3D12GraphicsCommandList* /*commandList*/){
+	if ( gameOver_.HidesScene() ) { return; }
+	gameOver_.DrawTransparent(); // やられの演技の星
+	combat_.Draw(); // 踏みつけ/命中の立体エフェクト
+	clear_.DrawTransparent(); // クリア演出の切り文字・棒付きの星（透明な所のある板）
+}
+
+void GamePlayScene::OnDrawSdf(ID3D12GraphicsCommandList* commandList){
+	if ( gameOver_.HidesScene() ) { return; }
+	eggSystem_.DrawBirthFx(commandList);   // 産卵エロージョン演出中のSDF卵
+	dissolveRoad_.Draw(commandList);       // SDF溶け道
+}
+
+// スプライト・HUD（画面出力の後）
+void GamePlayScene::OnDrawUI(ID3D12GraphicsCommandList* commandList){
+	const bool playing = EditorManager::GetInstance()->GetMode() == EngineMode::Play;
+	if ( clear_.DrawUI() ) { return; }           // クリア演出の間は、HUD・♡・照準の代わりにリザルト画面
+	if ( gameOver_.DrawUI(playing) ) { return; } // ゲームオーバー演出の間は HUD の代わりにゲームオーバーの画面（それ以外は♡）
+	aimThrow_.DrawSprite(); // 構え中だけ紙の照準（投げた直後はぱっと開いて消える）
+	if ( playing ) { swallow_.DrawSprite(); } // 食べられる敵の頭の上のベロの印
+	// 卵・コインのHUD（プレイ中のみ。エディット中は編集の邪魔になるので出さない）
+	//   ステージ開始の演出の間は隠す（カメラが後ろへ戻り始めたら出す）
+	if ( EditorManager::GetInstance()->GetMode() == EngineMode::Play && !intro_.IsHudHidden() ) { hud_.Draw(commandList); }
+	DrawStartCue(); // 操作開始の「スタート！」
+}
+
+// 最終画像ができた所：ゲームオーバー演出の写し取り（死んだ瞬間・再開する所）
+void GamePlayScene::OnFrameComposed(ID3D12GraphicsCommandList* commandList, RenderTexture* finalTarget){
+	gameOver_.OnFrameComposed(commandList, finalTarget);
+}
+
+// やりなおし：ステージをプレイ開始の時と同じに戻す（プレイヤー・カメラ・♡は GameOverFlow が戻す）
+// 撮影のテイク：記録を始めた所（レール・距離）を覚え、記録・再生の始めに同じ状態へ戻す
+void GamePlayScene::SetupCaptureTakes(){
+	ScreenCapture::TakeHooks hooks;
+	hooks.scene = "GAMEPLAY";
+	hooks.capture = [this](nlohmann::json& start, std::string& error){
+		if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play ) { error = "Play 中に押す"; return false; }
+		if ( intro_.IsActive() || gameOver_.IsActive() || flip_.IsFlipping() || clear_.IsActive() ) { error = "演出の間は始められない"; return false; }
+		if ( !player_->IsGrounded() ) { error = "地面に立っている時に押す"; return false; }
+		start["rail"] = player_->GetCurrentRail();
+		start["dist"] = player_->GetDebugStep().dist;
+		return true;
+	};
+	hooks.apply = [this](const nlohmann::json& start){ RestartForTake(start.value("rail", -1), start.value("dist", 0.0f)); };
+	ScreenCapture::GetInstance()->SetTakeHooks(hooks);
+}
+
+// プレイを最初の状態からやり直し、プレイヤーを rail / dist に立たせる（敵・コイン・？ブロック・卵・♡・カメラも戻す）
+void GamePlayScene::RestartForTake(int rail, float dist){
+	if ( EditorManager::GetInstance()->GetMode() != EngineMode::Play ) { return; }
+	if ( intro_.IsActive() ) { intro_.Reset(IntroContext()); }
+	testPlayRail_ = rail; // OnPlayStart がこの場所に立たせる（落ちた時の戻り先もここ）
+	testPlayDist_ = dist;
+	OnPlayStart();
+	railField_.ResetMotion();
+	SpawnEnemies();
+	// カメラは補間せずに追従の位置へ置く（遠くから寄ってくる所から始まらないように）。
+	//   プレイヤーの位置は次の Player::Update で決まるので、ここではレールの上の開始地点で置き、次のプレイの更新でもう一度置く
+	const auto& rails = railField_.GetRails();
+	if ( rail >= 0 && rail < ( int ) rails.size() ) {
+		camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, true);
+		camCtrl_.Update(GetCamera(), rails[rail].GetPositionByDistance(dist), true, rails, false, 0.0f);
+		camCtrl_.SetFlip(camCtrl_.FlipYaw(), 1.0f, false);
+		GetCamera()->Update();
+	}
+	snapCameraOnce_ = true;
+}
+
+void GamePlayScene::ResetStageForRetry(){
+	aimThrow_.Reset();
+	eggCombo_.Reset();
+	swallow_.Reset();
+	SpawnEnemies();        // 敵は置き直し（倒した敵も戻る）
+	clear_.OnPlayStart(enemyMgr_.SpawnedCount()); // 集計も最初から
+	combat_.ClearEffects();
+	eggSystem_.Initialize();
+	coinSystem_.ResetPlay();
+	blockSystem_.ResetPlay();
+	flip_.ResetToFront();
+}
+
+// =====================================================================
+//  デバッグUI（ImGui）
+// =====================================================================
+void GamePlayScene::OnDebugUI(){
+#ifdef USE_IMGUI
+	DrawHitShapes();
+
+	SceneEditContext editContext = MakeEditContext();
+	editorTools_.DrawPanels(editContext);
+	editorTools_.UpdateGameView(editContext);
+	flip_.UpdateEditor(editContext); // カメラ反転：パネル「カメラ反転」・Game View のクリックで置く・名札
+	// 背景エディタで的を選んでいる：卵を当てた時にはじける順（コンボの道）を線で見せる
+	if ( editContext.editor->GetMode() == EngineMode::Edit && editContext.editor->IsPanelVisible(EditorManager::Panel_Backdrop)
+		&& editorTools_.BackdropTool().ShowComboPreview() ) {
+		eggCombo_.DrawPreview(editorTools_.BackdropTool().Selection(), *GetCamera());
+	}
+	// 乗り換えデバッガ（パネルを開いている間だけ重ね描き）
+	if ( editContext.editor->IsPanelVisible(EditorManager::Panel_RailDebug) ) {
+		const bool playing = ( editContext.editor->GetMode() == EngineMode::Play );
+		transferDebugger_.DrawOverlay(railField_.GetRails(), player_.get(), playing);
+		transferDebugger_.DrawWindow(railField_.GetRails(), player_.get(), editContext.railEditor, editContext.editor);
+	}
+#endif
+}
+
+SceneEditContext GamePlayScene::MakeEditContext(){
+	EditorManager* editorManager = EditorManager::GetInstance();
+	SceneEditContext context;
+	context.editor      = editorManager;
+	context.gameView    = &editorManager->GetGameViewMouse();
+	context.rails       = &railField_.GetRails();
+	context.railField   = &railField_;
+	context.levelEditor = editorManager->GetLevelEditor();
+	context.railEditor  = context.levelEditor ? context.levelEditor->GetRailEditor() : nullptr;
+	context.enemyEditor = enemyEditor_.get();
+	context.blockSystem = &blockSystem_;
+	context.coinSystem  = &coinSystem_;
+	context.camera      = GetCamera();
+	context.player      = player_.get();
+	context.editing     = ( editorManager->GetMode() == EngineMode::Edit );
+	context.backdrop    = &backdrop_;
+	context.stageName   = kStageName;
+	return context;
+}
+
+// 当たり判定の形をワイヤーで表示（パネルを閉じていても、チェックが入っていれば出す）
+void GamePlayScene::DrawHitShapes(){
+	if ( !showHitShapes_ ) return;
+	for ( auto& enemy : enemyMgr_.GetEnemies() ) { enemy->DrawHitShape({ 1.0f, 0.3f, 0.3f, 1.0f }); }
+	combat_.DrawPlayerHitShape(*player_, { 0.3f, 1.0f, 0.4f, 1.0f });
+	coinSystem_.DrawHitShapes({ 1.0f, 0.85f, 0.2f, 1.0f });                              // コインの球
+	CoinSystem::DrawPickupBody(player_->GetPosition(), { 1.0f, 0.85f, 0.2f, 0.6f });    // コインを取る体の筒
+	blockSystem_.DrawHitShapes({ 0.3f, 0.85f, 1.0f, 0.8f });
+	eggSystem_.DrawHitShapes({ 1.0f, 0.9f, 0.2f, 1.0f });
+}
+
+// 共有の「インスペクター (詳細設定)」へ足す項目（レール表示・道・視点プリセット・当たり判定）
+void GamePlayScene::OnDrawInspector(){
+	PlaySceneInspector::Targets targets;
+	targets.camera           = GetCamera();
+	targets.railField        = &railField_;
+	targets.roadMesh         = &roadMesh_;
+	targets.dissolveRoad     = &dissolveRoad_;
+	targets.cameraController = &camCtrl_;
+	targets.coinSystem       = &coinSystem_;
+	targets.blockSystem      = &blockSystem_;
+	targets.combat           = &combat_;
+	targets.avatar           = &avatar_;
+	PlaySceneInspector::Draw(targets);
+#ifdef USE_IMGUI
+	// ステージ開始の演技のクリップを、その場で流して確かめる（「止める」で元の動きへ）
+	gameOver_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
+	clear_.DrawInspector(EditorManager::GetInstance()->GetMode() == EngineMode::Play);
+	if ( ImGui::CollapsingHeader("ステージ開始の演技") ) {
+		for ( const char* clip : { "IntroWave", "IntroPush", "IntroJump", "WallBump" } ) {
+			if ( ImGui::Button(clip) ) { avatar_.PlayIntroClip(clip); }
+			ImGui::SameLine();
+		}
+		if ( ImGui::Button("止める") ) { avatar_.ClearIntroClip(); }
+		ImGui::TextDisabled("流しているクリップ：%s", avatar_.GetIntroClip().empty() ? "なし" : avatar_.GetIntroClip().c_str());
+	}
+#endif
+}
+
+// インスペクターの「デバッグ描画」へ足す項目
+void GamePlayScene::OnDrawDebugDrawOptions(){
+	PlaySceneInspector::DrawHitShapeToggle(&showHitShapes_);
+}
+
+// =====================================================================
+//  終了
+// =====================================================================
+void GamePlayScene::OnFinalize(){
+	// SDFパネルへ差し込んだ溶け道設定UI（this をキャプチャ）を解除する
+	//   （エディタの外部ポインタ・ノードのゲーム値・GPUパーティクルの後始末は BaseScene が行う）
+	SDFManager::GetInstance()->SetExtraPanelUI(nullptr);
+	ScreenCapture::GetInstance()->ClearTakeHooks(); // this をキャプチャしている
+	gameOver_.Finalize();
+	clear_.Finalize();
+	flip_.Finalize();
 	textures_.clear();
-	depthStencilResource_.Reset();
 }

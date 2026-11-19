@@ -1,5 +1,6 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <wrl.h>
 #include <string>
@@ -13,7 +14,7 @@
 
 #include "engine/utils/LogManager.h"
 
-
+namespace KazumimiEngine {
 
 // 前方宣言 
 class DirectXCommon;
@@ -21,6 +22,7 @@ class SrvManager;
 class ResourceFactory;
 
 
+// 読み込んだテクスチャ 1 枚（リソース・SRV の番号・大きさ）
 struct TextureData{
     Microsoft::WRL::ComPtr<ID3D12Resource> resource;
     uint32_t srvIndex;
@@ -29,19 +31,19 @@ struct TextureData{
 
 };
 
-class TextureManager{
-
+// =====================================================================
+//  TextureManager：テクスチャの読み込み。
+//   画像ファイルを読んで GPU へ送り、シェーダーから見るための番号（SRV）を作る。
+//   同じファイルは 1 回だけ読み、2 回目からは同じ番号を返す（Load）
+// =====================================================================
+class TextureManager : public Singleton<TextureManager> {
+	friend class Singleton<TextureManager>; // 土台（Singleton）だけが作れる
 public:
 
 	/// <summary>
 	/// 初期化
 	// </summary>
     void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device,DirectXCommon* dxCommon,SrvManager* srvManager);
-
-   static  TextureManager* GetInstance(){
-        static TextureManager instance;
-        return &instance;
-	}
 
    // 終了処理
    void Finalize();
@@ -63,12 +65,9 @@ public:
         ID3D12GraphicsCommandList* commandList
     );
 
-    /// <summary>
-    /// キャッシュを無視してテクスチャを再読み込みする（ホットリロード用）。
-    /// ロード済みなら同じ SRV スロットへ上書きするので、
-    /// SRVインデックスを保持している側はそのまま使い続けられる。
-    /// ※GPUがアイドルの安全なタイミング（BeginCommandRecording中など）で呼ぶこと
-    /// </summary>
+    // キャッシュを無視して再読み込み（SDFアトラス等のホットリロード用）。
+    //   既存エントリがあれば SRV スロットを引き継いで上書きするので、
+    //   参照側が持っている srvIndex はそのまま有効。
     TextureData ReloadTextureAndCreateSRV(
         const std::string& filePath,
         ID3D12GraphicsCommandList* commandList
@@ -143,11 +142,14 @@ public:
     }*/
 
 private:
+    // 外からは作れない（GetInstance で取り出す）
+    TextureManager() = default;
+    ~TextureManager() = default;
 
     // -------------------- 内部リソース --------------------
 
     Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;   // DX12 デバイス
-    logs::LogManager logManager;                    // ログ出力用
+    logs::LogManager logManager_;                    // ログ出力用
     ResourceFactory* resourceBuffer_ = nullptr; // バッファ生成の補助クラス
 
     DirectXCommon* dxCommon_ = nullptr;
@@ -158,11 +160,12 @@ private:
 
 
 
-    std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureMap;
+    std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> textureMap_;
 
-    std::unordered_map<std::string, TextureData> textureDatas;
+    std::unordered_map<std::string, TextureData> textureDatas_;
 
     std::vector< Microsoft::WRL::ComPtr<ID3D12Resource>> intermediateResources_;
 
 };
 
+} // namespace KazumimiEngine

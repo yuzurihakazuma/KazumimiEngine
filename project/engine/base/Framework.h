@@ -2,6 +2,8 @@
 #include <Windows.h>
 #include <memory>
 
+namespace KazumimiEngine {
+
 // フレームワーククラス
 class Framework{
 public:
@@ -32,3 +34,5 @@ public:
 protected:
 	bool endRequest_ = false;
 };
+
+} // namespace KazumimiEngine

@@ -1,11 +1,11 @@
 #pragma once
-#include "engine/Base/Framework.h"
+#include "engine/base/Framework.h"
 #include <memory>
 
 class SceneFactory;
 
 // ゲームクラス
-class Game : public Framework{
+class Game : public KazumimiEngine::Framework{
 public:
 	// オーバーライド
 	void Initialize() override;

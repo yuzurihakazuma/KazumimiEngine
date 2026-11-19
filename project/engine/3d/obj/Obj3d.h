@@ -8,9 +8,11 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 #include "engine/math/Matrix4x4.h"
-#include "Animation.h"
+#include "engine/3d/animation/Animation.h"
 #include "IAnimatable.h"
 #include "engine/graphics/PipelineType.h"
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class Obj3dCommon;
@@ -85,6 +87,14 @@ public:
 	void SetDissolveThreshold(float threshold);
 	void SetNoiseTexture(uint32_t textureIndex);
 
+	// 物ごとのマテリアル：この物だけ色を明るくしたり光らせたりする（モデルのマテリアルは同じモデルの物すべてで共有なので書き換えない）。
+	//   brighten＝色に掛ける倍率、emissive＝1 を超えると光る（マスクに書かれて Bloom で光る）。enabled=false でモデルのまま
+	void SetMaterialOverride(bool enabled, float brighten = 1.0f, float emissive = 0.0f);
+	bool HasMaterialOverride() const { return materialOverrideOn_; }
+private:
+	D3D12_GPU_VIRTUAL_ADDRESS PrepareMaterialOverride();
+public:
+
 	// 環境マップ用テクスチャのSRVインデックスをセットする
 	void SetEnvironmentMap(uint32_t srvIndex){ skyboxTextureIndex_ = srvIndex; }
 
@@ -116,7 +126,7 @@ private:
 	bool isBillboardY_ = false; // Y軸ビルボード
 
 	// 行列計算用（計算を楽にするために保持）
-	Transform transform { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
+	Transform transform_ { {1.0f,1.0f,1.0f}, {0.0f,0.0f,0.0f}, {0.0f,0.0f,0.0f} };
 
 	// 外部参照
 	Obj3dCommon* obj3dCommon_ = nullptr; // 所有しない参照
@@ -130,6 +140,12 @@ private:
 	// ディゾルブエフェクト用リソース
 	Microsoft::WRL::ComPtr<ID3D12Resource> dissolveResource_;
 	DissolveData* dissolveData_ = nullptr;
+	// SetMaterialOverride（初めて使う時に作る）
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialOverrideResource_;
+	void* materialOverrideData_ = nullptr;
+	bool  materialOverrideOn_ = false;
+	float materialBrighten_ = 1.0f;
+	float materialEmissive_ = 0.0f;
 	uint32_t noiseTextureIndex_ = 0;
 
 	// 再生中のアニメーションデータ
@@ -152,3 +168,5 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> customPipeline_;
 
 };
+
+} // namespace KazumimiEngine

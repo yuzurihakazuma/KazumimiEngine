@@ -1,12 +1,16 @@
 #include "HitEffect.h"
+#include "engine/base/TimeManager.h"
+#include "engine/math/MathUtil.h"
 #include <random>
 #include "engine/3d/model/Model.h"
 #include "engine/graphics/PipelineType.h"
 
+namespace KazumimiEngine {
+
 void HitEffect::Initialize(const Vector3& position, Camera* camera, uint32_t textureIndex, uint32_t envMapIndex) {
     std::random_device seed_gen;
     std::mt19937 engine(seed_gen());
-    std::uniform_real_distribution<float> rotDist(0.0f, 3.141592f * 2.0f); // 0～360度
+    std::uniform_real_distribution<float> rotDist(0.0f, Math::kTwoPi); // 0～360度
     std::uniform_real_distribution<float> scaleYDist(2.0f, 5.0f);         // 長さのランダム幅（ガチ小さめ）
 
     for (int i = 0; i < 8; ++i) {
@@ -45,7 +49,7 @@ void HitEffect::Update() {
 
     for (auto& spark : sparks_) {
         if (spark.currentTime < spark.lifeTime) {
-            spark.currentTime += 1.0f / 60.0f;
+            spark.currentTime += Time::kFixedDeltaTime;
             isDead_ = false;
 
             // 【消える演出】時間経過でサイズを 1.0 → 0.0 へ
@@ -69,3 +73,5 @@ void HitEffect::Draw() {
         }
     }
 }
+
+} // namespace KazumimiEngine

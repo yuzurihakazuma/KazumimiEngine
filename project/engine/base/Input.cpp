@@ -2,21 +2,17 @@
 #include <cassert>
 #include <cmath>
 
-Input* Input::GetInstance() {
-	static Input instance;
-	return &instance;
-}
-
+namespace KazumimiEngine {
 
 void Input::Finalize() {
 	// 取得状態を解放
-	if (keyboard) {
-		keyboard->Unacquire();
-		keyboard.Reset();
+	if (keyboard_) {
+		keyboard_->Unacquire();
+		keyboard_.Reset();
 	}
-	if (mouse) {
-		mouse->Unacquire();
-		mouse.Reset();
+	if (mouse_) {
+		mouse_->Unacquire();
+		mouse_.Reset();
 	}
 }
 
@@ -27,69 +23,107 @@ void Input::Initialize(HWND hwnd) {
 	assert(SUCCEEDED(result));
 
 	//  キーボードの初期化
-	result = directInput->CreateDevice(GUID_SysKeyboard, keyboard.GetAddressOf(), NULL);
+	result = directInput->CreateDevice(GUID_SysKeyboard, keyboard_.GetAddressOf(), NULL);
 	assert(SUCCEEDED(result));
 	// データフォーマットの設定
-	result = keyboard->SetDataFormat(&c_dfDIKeyboard);
+	result = keyboard_->SetDataFormat(&c_dfDIKeyboard);
 	assert(SUCCEEDED(result));
 	// 協調レベルの設定（フォアグラウンド、非排他、Winキー無効）
-	result = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	result = keyboard_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(result));
-	keyboard->Acquire();
+	keyboard_->Acquire();
 
 	//  マウスの初期化
-	result = directInput->CreateDevice(GUID_SysMouse, mouse.GetAddressOf(), NULL);
+	result = directInput->CreateDevice(GUID_SysMouse, mouse_.GetAddressOf(), NULL);
 	assert(SUCCEEDED(result));
 	// 拡張マウスデータフォーマット
-	result = mouse->SetDataFormat(&c_dfDIMouse2);
+	result = mouse_->SetDataFormat(&c_dfDIMouse2);
 	assert(SUCCEEDED(result));
 	// 協調レベルの設定（フォアグラウンド、非排他）
-	result = mouse->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
+	result = mouse_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
 	assert(SUCCEEDED(result));
-	mouse->Acquire();
+	mouse_->Acquire();
 }
 
 void Input::Update() {
 	//  キーボードの更新
-	memcpy(preKeys, keys, sizeof(keys));
+	memcpy(preKeys_, keys_, sizeof(keys_));
 	// デバイスの状態を取得
-	HRESULT result = keyboard->GetDeviceState(sizeof(keys), keys);
+	HRESULT result = keyboard_->GetDeviceState(sizeof(keys_), keys_);
 	if (FAILED(result)) {
 		// キーボードの状態が取得できない場合は、再度Acquireしてみる
-		keyboard->Acquire();
+		keyboard_->Acquire();
 		// 再度状態を取得
-		keyboard->GetDeviceState(sizeof(keys), keys);
+		result = keyboard_->GetDeviceState(sizeof(keys_), keys_);
+	}
+	if (FAILED(result)) {
+		// それでも取れない間（フォーカス喪失中など）は前フレームの押下状態が残り続け、
+		// キーが押しっぱなし扱いになる → 全キー離した状態にする
+		ZeroMemory(keys_, sizeof(keys_));
 	}
 
 	//  マウスの更新
-	preMouseState = mouseState;
+	preMouseState_ = mouseState_;
 	// デバイスの状態を取得
-	result = mouse->GetDeviceState(sizeof(DIMOUSESTATE2), &mouseState);
+	result = mouse_->GetDeviceState(sizeof(DIMOUSESTATE2), &mouseState_);
 	if (FAILED(result)) {
 		// マウスの状態が取得できない場合は、再度Acquireしてみる
-		mouse->Acquire();
+		mouse_->Acquire();
 		// 再度状態を取得
-		mouse->GetDeviceState(sizeof(DIMOUSESTATE2), &mouseState);
+		result = mouse_->GetDeviceState(sizeof(DIMOUSESTATE2), &mouseState_);
+	}
+	if (FAILED(result)) {
+		// 取得できない間は lX/lY/lZ（移動・ホイールの差分）に前フレームの値が残り続け、
+		// 同じ差分が毎フレーム再適用される（＝ホイールを最後に回していると
+		// デバッグカメラが延々ズームし続けて画面が吹っ飛ぶバグの原因）→ 差分軸は必ずゼロへ
+		mouseState_.lX = mouseState_.lY = mouseState_.lZ = 0;
 	}
 
 	//  コントローラーの更新
-	preJoyState = joyState;
+	preJoyState_ = joyState_;
 	// プレイヤー0 (1P) の状態を取得
-	DWORD dwResult = XInputGetState(0, &joyState);
+	DWORD dwResult = XInputGetState(0, &joyState_);
 	// コントローラーが接続されているかを判定
-	isJoyConnected = (dwResult == ERROR_SUCCESS);
+	isJoyConnected_ = (dwResult == ERROR_SUCCESS);
 }
 
 // =====================================
 //  キーボード処理
 // =====================================
-bool Input::Pushkey(BYTE keyNumber) {
-	// キーが押されているかを判定 (0x80は最上位ビットで、キーが押されているときにセットされる)
-	return (keys[keyNumber] & 0x80);
+// F1〜F12・Esc：テイクに記録せず、再生中も本物のキーのまま使う
+bool Input::IsTakeLiveKey(BYTE keyNumber){
+	return keyNumber == DIK_ESCAPE || ( keyNumber >= DIK_F1 && keyNumber <= DIK_F10 ) || keyNumber == DIK_F11 || keyNumber == DIK_F12;
 }
-bool Input::Triggerkey(BYTE keyNumber) {
+
+std::vector<uint8_t> Input::GetPressedKeysForTake() const{
+	std::vector<uint8_t> pressed;
+	if ( textInputActive_ ) { return pressed; } // 文字入力中はゲームにキーが届いていない
+	for ( int key = 0; key < 256; ++key ) {
+		if ( ( keys_[key] & 0x80 ) && !IsTakeLiveKey(static_cast< BYTE >( key )) ) { pressed.push_back(static_cast< uint8_t >( key )); }
+	}
+	return pressed;
+}
+
+void Input::OverrideKeysForTake(const std::vector<uint8_t>& pressed){
+	for ( int key = 0; key < 256; ++key ) {
+		if ( !IsTakeLiveKey(static_cast< BYTE >( key )) ) { keys_[key] = 0; }
+	}
+	for ( uint8_t key : pressed ) {
+		if ( !IsTakeLiveKey(key) ) { keys_[key] = 0x80; }
+	}
+	ZeroMemory(&joyState_, sizeof(joyState_));
+	isJoyConnected_ = false;
+}
+
+bool Input::PushKey(BYTE keyNumber) {
+	if (textInputActive_ || locked_) { return false; } // 文字入力中・遷移の演出中はゲーム側のキー操作を止める
+	// キーが押されているかを判定 (0x80は最上位ビットで、キーが押されているときにセットされる)
+	return (keys_[keyNumber] & 0x80);
+}
+bool Input::TriggerKey(BYTE keyNumber) {
+	if (textInputActive_ || locked_) { return false; } // 文字入力中・遷移の演出中はゲーム側のキー操作を止める
 	// キーが押された瞬間を判定 (前フレームでは押されていなくて、今フレームで押されている場合)
-	return !(preKeys[keyNumber] & 0x80) && (keys[keyNumber] & 0x80);
+	return !(preKeys_[keyNumber] & 0x80) && (keys_[keyNumber] & 0x80);
 }
 
 // =====================================
@@ -97,23 +131,23 @@ bool Input::Triggerkey(BYTE keyNumber) {
 // =====================================
 bool Input::PushMouseButton(int buttonNumber) {
 	// ボタンが押されているかを判定 (0x80は最上位ビットで、ボタンが押されているときにセットされる)
-	return (mouseState.rgbButtons[buttonNumber] & 0x80) != 0;
+	return (mouseState_.rgbButtons[buttonNumber] & 0x80) != 0;
 }
 bool Input::TriggerMouseButton(int buttonNumber) {
 	// ボタンが押された瞬間を判定 (前フレームでは押されていなくて、今フレームで押されている場合)
-	return !(preMouseState.rgbButtons[buttonNumber] & 0x80) && (mouseState.rgbButtons[buttonNumber] & 0x80);
+	return !(preMouseState_.rgbButtons[buttonNumber] & 0x80) && (mouseState_.rgbButtons[buttonNumber] & 0x80);
 }
 float Input::GetMouseMoveX() {
 	// マウスの移動量を取得 (前フレームからの相対値)
-	return static_cast<float>(mouseState.lX);
+	return static_cast<float>(mouseState_.lX);
 }
 float Input::GetMouseMoveY() {
 	// マウスの移動量を取得 (前フレームからの相対値)
-	return static_cast<float>(mouseState.lY);
+	return static_cast<float>(mouseState_.lY);
 }
 float Input::GetMouseWheel() {
 	// マウスホイールの回転量を取得 (前フレームからの相対値)
-	return static_cast<float>(mouseState.lZ);
+	return static_cast<float>(mouseState_.lZ);
 }
 
 // =====================================
@@ -121,52 +155,52 @@ float Input::GetMouseWheel() {
 // =====================================
 bool Input::GetJoystickState() {
 	// コントローラーが接続されているかを返す
-	return isJoyConnected;
+	return isJoyConnected_;
 }
 bool Input::PushJoystickButton(WORD button) {
 	// ボタンが押されているかを判定 (XINPUT_GAMEPAD_Aなどのビットフラグを指定)
-	if (!isJoyConnected) {
+	if (!isJoyConnected_) {
 		return false;
 	}
-	// joyState.Gamepad.wButtonsは、どのボタンが押されているかをビットフラグで表しているため、指定したボタンのビットがセットされているかを判定します。
-	return (joyState.Gamepad.wButtons & button) != 0;
+	// joyState_.Gamepad.wButtonsは、どのボタンが押されているかをビットフラグで表しているため、指定したボタンのビットがセットされているかを判定します。
+	return (joyState_.Gamepad.wButtons & button) != 0;
 }
 bool Input::TriggerJoystickButton(WORD button) {
 	// ボタンが押された瞬間を判定 (前フレームでは押されていなくて、今フレームで押されている場合)
-	if (!isJoyConnected) {
+	if (!isJoyConnected_) {
 		return false;
 	}
-	// preJoyState.Gamepad.wButtonsは、前フレームのボタンの状態をビットフラグで表しているため、指定したボタンのビットが前フレームではセットされていなくて、今フレームでセットされているかを判定します。
-	return !(preJoyState.Gamepad.wButtons & button) && (joyState.Gamepad.wButtons & button);
+	// preJoyState_.Gamepad.wButtonsは、前フレームのボタンの状態をビットフラグで表しているため、指定したボタンのビットが前フレームではセットされていなくて、今フレームでセットされているかを判定します。
+	return !(preJoyState_.Gamepad.wButtons & button) && (joyState_.Gamepad.wButtons & button);
 }
 
 // ※スティックは触っていなくても微妙に数値が入るため「デッドゾーン(遊び)」を設けています
 float Input::GetLeftStickX() {
-	if (!isJoyConnected) {
+	if (!isJoyConnected_) {
 		return 0.0f;
 	}
-	float x = static_cast<float>(joyState.Gamepad.sThumbLX) / 32768.0f;
+	float x = static_cast<float>(joyState_.Gamepad.sThumbLX) / 32768.0f;
 	return (std::abs(x) < 0.2f) ? 0.0f : x;
 }
 float Input::GetLeftStickY() {
-	if (!isJoyConnected) {
+	if (!isJoyConnected_) {
 		return 0.0f;
 	}
-	float y = static_cast<float>(joyState.Gamepad.sThumbLY) / 32768.0f;
+	float y = static_cast<float>(joyState_.Gamepad.sThumbLY) / 32768.0f;
 	return (std::abs(y) < 0.2f) ? 0.0f : y;
 }
 float Input::GetRightStickX() {
-	if (!isJoyConnected) {
+	if (!isJoyConnected_) {
 		return 0.0f;
 	}
-	float x = static_cast<float>(joyState.Gamepad.sThumbRX) / 32768.0f;
+	float x = static_cast<float>(joyState_.Gamepad.sThumbRX) / 32768.0f;
 	return (std::abs(x) < 0.2f) ? 0.0f : x;
 }
 float Input::GetRightStickY() {
-	if (!isJoyConnected) {
+	if (!isJoyConnected_) {
 		return 0.0f;
 	}
-	float y = static_cast<float>(joyState.Gamepad.sThumbRY) / 32768.0f;
+	float y = static_cast<float>(joyState_.Gamepad.sThumbRY) / 32768.0f;
 	return (std::abs(y) < 0.2f) ? 0.0f : y;
 }
 
@@ -182,15 +216,15 @@ static Vector2 ProcessStick(float rawX, float rawY, float deadzone){
 }
 
 Vector2 Input::GetLeftStick(float deadzone){
-	if ( !isJoyConnected ) return { 0.0f, 0.0f };
-	float x = static_cast<float>(joyState.Gamepad.sThumbLX) / 32768.0f;
-	float y = static_cast<float>(joyState.Gamepad.sThumbLY) / 32768.0f;
+	if ( !isJoyConnected_ ) return { 0.0f, 0.0f };
+	float x = static_cast<float>(joyState_.Gamepad.sThumbLX) / 32768.0f;
+	float y = static_cast<float>(joyState_.Gamepad.sThumbLY) / 32768.0f;
 	return ProcessStick(x, y, deadzone);
 }
 Vector2 Input::GetRightStick(float deadzone){
-	if ( !isJoyConnected ) return { 0.0f, 0.0f };
-	float x = static_cast<float>(joyState.Gamepad.sThumbRX) / 32768.0f;
-	float y = static_cast<float>(joyState.Gamepad.sThumbRY) / 32768.0f;
+	if ( !isJoyConnected_ ) return { 0.0f, 0.0f };
+	float x = static_cast<float>(joyState_.Gamepad.sThumbRX) / 32768.0f;
+	float y = static_cast<float>(joyState_.Gamepad.sThumbRY) / 32768.0f;
 	return ProcessStick(x, y, deadzone);
 }
 
@@ -205,7 +239,7 @@ bool Input::IsAction(const std::string& action){
 	auto it = actions_.find(action);
 	if ( it == actions_.end() ) return false;
 	for ( const auto& b : it->second ) {
-		if ( b.key != 0 && Pushkey(b.key) ) return true;
+		if ( b.key != 0 && PushKey(b.key) ) return true;
 		if ( b.pad != 0 && PushJoystickButton(b.pad) ) return true;
 	}
 	return false;
@@ -214,8 +248,10 @@ bool Input::IsActionTriggered(const std::string& action){
 	auto it = actions_.find(action);
 	if ( it == actions_.end() ) return false;
 	for ( const auto& b : it->second ) {
-		if ( b.key != 0 && Triggerkey(b.key) ) return true;
+		if ( b.key != 0 && TriggerKey(b.key) ) return true;
 		if ( b.pad != 0 && TriggerJoystickButton(b.pad) ) return true;
 	}
 	return false;
 }
+
+} // namespace KazumimiEngine

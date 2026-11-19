@@ -3,7 +3,12 @@
 #include <Windows.h>   // EXCEPTION_POINTERS, SYSTEMTIME など
 #include <DbgHelp.h>   // MINIDUMP_TYPE
 
+namespace KazumimiEngine {
 
+// =====================================================================
+//  CrashDumper：ゲームが落ちた時に、原因を調べるためのダンプファイルを書き出す。
+//   起動時に Install しておくと、処理されなかった例外でダンプが残る。WriteDumpNow で好きな時にも書ける
+// =====================================================================
 class CrashDumper{
 public:
 	// クラッシュダンプを生成する
@@ -21,3 +26,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

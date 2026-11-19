@@ -4,9 +4,11 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include <vector>
+#include <source_location>
 #include "engine/graphics/BlendMode.h"
 #include <dxcapi.h>
 
+namespace KazumimiEngine {
 
 // グラフィックスパイプラインを簡単に構築するためのビルダー
 class GraphicsPipelineBuilder{
@@ -28,7 +30,9 @@ public:
 	GraphicsPipelineBuilder& SetRenderTargets(const std::vector<DXGI_FORMAT>& rtvFormats);
 
 	// 最後にPSOを生成する
-	void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState);
+	//   where：呼び出し元。リークレポートに出る名前になる
+	void Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState,
+		const std::source_location& where = std::source_location::current());
 
 
 
@@ -38,3 +42,5 @@ private:
 	// PipelineManagerにあったGetBlendDescをこっちに移動させるとスッキリします
 	D3D12_BLEND_DESC GetBlendDesc(BlendMode blendMode);
 };
+
+} // namespace KazumimiEngine

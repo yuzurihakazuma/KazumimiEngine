@@ -2,6 +2,8 @@
 // --- 標準・外部ライブラリ ---
 #include <d3d12.h>
 
+namespace KazumimiEngine {
+
 // ブレンドモードの種類
 enum class BlendMode{
 	kNone,      // ブレンドなし
@@ -14,3 +16,5 @@ enum class BlendMode{
 
 // ブレンド設定を取得
 D3D12_BLEND_DESC GetBlendDesc(BlendMode blendMode);
+
+} // namespace KazumimiEngine

@@ -1,6 +1,8 @@
 #pragma once
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // 色定義
 namespace Colors {
     // 赤・緑・青・アルファ(透明度)
@@ -14,3 +16,5 @@ namespace Colors {
     static const Vector4 MAGENTA = { 1.0f, 0.0f, 1.0f, 1.0f }; // 紫
     static const Vector4 GRAY = { 0.5f, 0.5f, 0.5f, 1.0f }; // 灰色
 }
+
+} // namespace KazumimiEngine

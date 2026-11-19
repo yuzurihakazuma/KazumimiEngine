@@ -1,9 +1,12 @@
 #pragma once
 #include <string>
+#include "engine/rail/RailSkin.h"
 #include <vector>
 
 // 使っているVector3の定義に合わせて include を調整してください
 #include "engine/math/struct.h"
+
+namespace KazumimiEngine {
 
 // 配置オブジェクト1個分のデータ
 struct LevelObjectData{
@@ -13,12 +16,201 @@ struct LevelObjectData{
     Vector3 scale { 1.0f, 1.0f, 1.0f };
 };
 
+// 敵の配置1体分のデータ（マップ保存用）。
+//   type は game 側 EnemyType と対応する整数(0=Zako, 1=Strong ...)。
+//   engine が game の enum に依存しないよう、ここでは int で持つ。
+struct LevelEnemyData{
+    int   type = 0;
+    int   railIndex = 0;
+    float distance = 0.0f;
+    int   patrol = 0; // 1=レールを往復パトロール（旧データはフィールド無し=0で動かない）
+    float patrolMin = -1.0f; // 行動範囲の始点(m)。-1=レール全体
+    float patrolMax = -1.0f; // 行動範囲の終点(m)。-1=レール全体
+    // --- 個体ごとの動き（game 側 EnemySpawnData と同じ意味。旧データは項目なし＝既定値）---
+    std::string name;            // 一覧に出す名前（空=種類名）
+    float speed         = 0.0f;  // 移動速度(m/s)。0以下=種類の既定値
+    int   startDir      = 1;     // 最初の進行方向（+1/-1）
+    float turnWait      = 0.0f;  // 折り返しで立ち止まる秒数
+    float chaseRange    = 0.0f;  // プレイヤーを追い始める距離(m)。0=追わない
+    float chaseSpeedMul = 1.5f;  // 追跡中の速度倍率
+    float hoverHeight   = -1.0f; // レールから浮く高さ(m)。負=種類の既定
+    float bobAmp        = 0.0f;  // 上下に揺れる幅(m)
+    float bobSpeed      = 2.0f;  // 揺れの速さ
+    float biteRange     = -1.0f; // カミバナの噛みつき距離(m)。負=既定
+    float scale         = 1.0f;  // 大きさの倍率
+    bool operator==(const LevelEnemyData&) const = default; // 未保存判定（dirty）用
+};
+
+// レール上のカメラ演出ゾーン1個分のデータ（マップ保存用）。
+//   mode=0（固定カメラ）: 半径内にいる間だけ「アンカー+offset」からプレイヤーを見る。離れると戻る。
+//   mode=1（向き切替）  : 通過した瞬間に追従カメラの向き(yaw)・距離・高さが切り替わり、
+//                         次のトリガーまで【維持】される（180度回してそのままゲーム続行、等）。
+struct LevelCameraZone{
+    int     railIndex = 0;              // アンカーのレール番号
+    int     nodeIndex = 0;              // アンカーのノード番号
+    float   radius    = 4.0f;           // 発動する半径 (m)
+    int     mode      = 1;              // 0=固定カメラ / 1=追従の向き切替（維持）
+    // --- mode=0 用 ---
+    Vector3 offset { 0.0f, 3.0f, -6.0f }; // アンカーからのカメラ位置オフセット
+    // --- mode=1 用 ---
+    float   yawDeg    = 180.0f;         // カメラの向き（0=後ろから / 180=正面から / ±90=横から）
+    float   dist      = 10.0f;          // プレイヤーからの距離 (m)
+    float   height    = 3.5f;           // プレイヤーからの高さ (m)
+    int     revert    = 0;              // 1=半径から出たら通常の向きへ戻る / 0=次のトリガーまで維持
+    int     freeze    = 0;              // 1=回転が終わるまで時間を止める / 0=動きながら回す
+    // --- 共通 ---
+    float   fovDeg    = 45.0f;          // 視野角（度）。45=標準
+};
+
+// レールごとのカメラ（railLines と同じ並び）。enabled のレールに乗った時、追従カメラがこの向き・距離・高さ・画角へ動く。
+//   enabled でないレールに乗ると、いつもの追従（横から）へ戻る。カメラ演出ゾーンは、これより後に効く（ゾーンに入った時に上書き）
+struct RailCamera {
+    int   enabled = 0;      // 1＝このレールのカメラを使う
+    float yawDeg  = 0.0f;   // 回り込む角度（0＝いつもの横から。＋で進む先（+X）の方へ回り込む）
+    float dist    = 10.0f;  // プレイヤーからの距離 (m)
+    float height  = 3.5f;   // プレイヤーからの高さ (m)
+    float fovDeg  = 45.0f;  // 視野角（度）
+    // だんだん変える：レールの始め（上の値）から終わり（下の値）へ、プレイヤーの進み具合でなめらかに変える
+    int   blend      = 0;
+    float yawEndDeg  = 0.0f;
+    float distEnd    = 10.0f;
+    float heightEnd  = 3.5f;
+    float fovEndDeg  = 45.0f;
+    bool operator==(const RailCamera&) const = default;
+};
+
+// レールごとの列車の設定（railLines と同じ並び）。enabled の足場（ガイド追従のレール）は列車になる：
+//   駅（ガイドの区間の両はし）で待つ → 乗ると発車 → 次の駅で止まる。走っている間は降りられない。
+//   ガイドのレールは線路になる（枕木とレールを描き、歩けない）
+struct RailTrain {
+    int   enabled  = 0;      // 1＝列車
+    float departSec = 0.8f;  // 乗ってから発車までの秒
+    float returnSec = 4.0f;  // 降りてから、だれも乗らなければ元の駅へ戻るまでの秒（負＝戻らない）
+    int   engine   = 1;      // 1＝先頭に機関車を付ける（見た目。駅の位置も機関車のぶん内側になる）
+    float speed    = 5.0f;   // 走る速さ(m/秒)。出発・到着はなめらかに加速・減速する
+    // 線路（ガイド）の点ごとの速さの倍率（1＝そのまま。点と点の間はなめらかにつなぐ。足りない点は 1）
+    std::vector<float> speedMuls;
+    // 渡し板（列車ではないレールの設定）：このレールを、列車 boardFor の駅の渡し板にする（-1＝しない）。
+    //   列車がその駅に止まっている時だけ、板がぱたんと倒れて開き、歩ける（閉じている間は乗れない）
+    int   boardFor = -1;
+    // 1＝渡し板「ころころ」：卵を当てると、巻いた草のマットが転がって広がる（一度広げたらそのまま。列車は要らない）
+    int   boardMode = 0;
+    bool operator==(const RailTrain&) const = default;
+};
+
 // マップ全体のデータ
+// 収集物（コイン）1枚：レール上の距離と高さで配置する
+struct CoinData {
+    int   rail   = 0;    // 配置先レール番号
+    float dist   = 0.0f; // レール上の距離(m)
+    float height = 1.0f; // レール線からの高さ(m)
+    bool operator==(const CoinData&) const = default; // Undo履歴の変化検知用
+};
+
+// ブロック1個：レール上の距離＋高さ段数で置く1m角の足場/壁（マリオメーカー風配置）。
+//   dist は1mグリッドに吸着した値。level=0 がレール面の上、1 でその1段上…
+struct BlockData {
+    int   rail  = 0;    // 配置先レール番号
+    float dist  = 0.0f; // レール上の距離(m)。1m刻み
+    int   level = 0;    // 高さ段数（1段=1m）
+    float side  = 0.0f; // 道幅方向のずれ(m)。1m刻み。0=中心線（当たるのは中心のみ／横は飾り）
+    int   type  = 0;    // 種類（0=スポンジ/1=段ボール層/2=斜面45°/3=ゆるい斜面/4=バネ/5=？/6=すり抜け/7=横長2m/8=台座2×2m）
+    // --- ノード錨：レール編集でブロックが道に沿って滑るのを防ぐ ---
+    //   dist は「始点からの弧長」なので、手前のノードを動かすと曲線長が変わり位置がずれる。
+    //   そこで「どのノードから何m先か」を覚えておき、レール編集後に dist を引き直す
+    int   anchorNode   = -1;   // 基準ノード番号（-1=未計算。RailEditor::UpdateBlockAnchors が埋める）
+    float anchorOffset = 0.0f; // 基準ノードからレールに沿った距離(m)
+    bool operator==(const BlockData&) const = default; // Undo履歴の変化検知用
+};
+
+// マップ 1 つぶんのデータ（配置物・レール・レールごとの設定・敵・コイン・ブロックなど）。保存ファイルの中身と同じ
 struct LevelData{
     std::string name;
 
     // オブジェクト配置型レベルデータ
     std::vector<LevelObjectData> objects;
+
+	// レール型レベルデータ
+    std::vector<std::vector<Vector3>> railLines;
+
+    // 各レールのタイプ（railLines と同じ並び・同じ要素数を維持する）
+    //   -1 = 自動判定 / 0 = 横(A/D移動) / 1 = 縦(W/S移動)
+    std::vector<int> railTypes;
+
+    // 各レールの動き（railLines と同じ並び・同じ要素数を維持する）
+    //   x,y,z = sin波の振幅(m)（全て0なら動かない） / w = 周期(秒)
+    std::vector<Vector4> railMotions;
+
+    // 各レールの地面タイプ（railLines と同じ並び・同じ要素数を維持する）
+    //   0 = Safe（安全） / 1 = Gap（穴：飛び出し可） / 2 = NoGround（地面なし：即落下）
+    std::vector<int> railGroundTypes;
+
+    // 各レールの「ノード単位の穴指定」（外= railLines と同じ並び / 内= 各レールのノードと同じ並び・1=穴）
+    std::vector<std::vector<int>> railNodeHoles;
+
+    // 各レールの表示フラグ（railLines と同じ並び）。1=表示 / 0=非表示（連結用の見えないレール）
+    std::vector<int> railVisible;
+
+    // 各レールの線のつなぎ方（railLines と同じ並び）。0=スプライン(なめらか) / 1=直線(カクカク)
+    std::vector<int> railLineModes;
+
+    // 各レールの道生成モード（railLines と同じ並び）。0=自動で道を敷く / 1=道なし
+    //   カメラ用・敵専用・演出用など「レールだけ欲しい」路線に使う（仕様書_残タスク §4）
+    std::vector<int> railRoadModes;
+    std::vector<int> railEndPlazas; // 端の丸広場（bit0=始点 / bit1=終点。0=なし）
+    std::vector<int> railGuideRails; // ガイドレール追従（波形3）の対象レール番号（-1=なし）
+    // ガイド追従の詳細（railLines と同じ並び）。ヨッシー1-1の列車のように
+    // 「ガイドのここからここまで」を滑らかに動かすための区間と動き方
+    std::vector<float> railGuideStarts; // ガイド上の開始距離(m)。0=ガイドの始点
+    std::vector<float> railGuideEnds;   // ガイド上の終了距離(m)。-1=ガイドの終点まで
+    std::vector<int>   railGuideModes;  // 0=一周ループ / 1=往復（端でコサイン緩急の滑らか折り返し）/ 2=片道
+    std::vector<int>   railGuideAligns; // 0=向きそのまま / 1=列車式（経路のカーブに合わせて転回する）
+    std::vector<float> railGuideDwells; // 停車時間(秒)：往復=両端で停まる / 片道=出発までの待ち（0=なし）
+    std::vector<std::string> railGroups; // 路線のグループ名（空=未分類。リスト絞り込み/一括操作用）
+    std::vector<CoinData> coins;         // 収集物（コイン）の配置
+    std::vector<BlockData> blocks;       // ブロック（乗れる/ぶつかる1m角）の配置
+
+    // 各レールの動きの波形（railLines と同じ並び）
+    //   0=サイン往復 / 1=端で一時停止つき往復 / 2=円運動
+    std::vector<int> railMotionTypes;
+    // 各レールの動きの位相（0〜1。複数レールの動きをずらす）
+    std::vector<float> railMotionPhases;
+    // 各レールの動き出し（railLines と同じ並び）
+    //   0=最初から動く / 1=プレイヤーが乗ったら動き出す（ヨッシー式。以後動き続ける）
+    std::vector<int> railMotionTriggers;
+    // 各レールの「後から出現する道」設定（railLines と同じ並び）
+    //   -1=最初からある / >=0 = そのレール番号にプレイヤーが乗ったら出現する
+    std::vector<int> railAppearTriggers;
+
+    // 各レールの片方向設定（0=両方向 / 1=正方向のみ(front→back) / 2=逆方向のみ）
+    std::vector<int> railOneWay;
+
+    // 各レールの移動速度倍率（1=通常。2で加速レール、0.5で減速レール）
+    std::vector<float> railSpeedMuls;
+
+    // 各レールの道の見た目（布ロード：土台のみ/布のみ/布＋土台/見せない と布の幅・色など。railLines と同じ並び）
+    std::vector<RailSkin> railSkins;
+
+    // 各レールのカメラ（そのレールに乗っている間の追従カメラ。railLines と同じ並び）
+    std::vector<RailCamera> railCameras;
+
+    // 各レールの列車の設定（railLines と同じ並び）
+    std::vector<RailTrain> railTrains;
+
+    // スタート地点（レール番号＋ノード番号。プレイヤーの開始・リスポーン先）
+    int startRailIndex = 0;
+    int startNodeIndex = 0;
+
+    // ゴール地点（レール番号＋ノード番号）。railIndex=-1 なら未設定
+    int goalRailIndex = -1;
+    int goalNodeIndex = 0;
+
+    // レール上のカメラ演出ゾーン（プレイヤーが近づくとカメラが指定位置・画角になる）
+    std::vector<LevelCameraZone> cameraZones;
+
+    // 敵の配置（レール上に置く敵。マップと一緒に保存/読込する）
+    std::vector<LevelEnemyData> enemies;
+
 
     // 必要ならタイル情報も残してOK
     int width = 10;
@@ -27,3 +219,5 @@ struct LevelData{
     float baseY = -2.0f;
     std::vector<std::vector<int>> tiles;
 };
+
+} // namespace KazumimiEngine

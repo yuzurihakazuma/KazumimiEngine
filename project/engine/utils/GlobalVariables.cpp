@@ -1,6 +1,6 @@
 #include "GlobalVariables.h"
+#include "engine/utils/JsonFile.h"
 
-#include <fstream>
 #include <filesystem>
 
 #include "externals/nlohmann/json.hpp"
@@ -8,12 +8,9 @@
 #include "externals/imgui/imgui.h"
 #endif
 
-using json = nlohmann::json;
+namespace KazumimiEngine {
 
-GlobalVariables* GlobalVariables::GetInstance(){
-    static GlobalVariables instance;
-    return &instance;
-}
+using json = nlohmann::json;
 
 void GlobalVariables::CreateGroup(const std::string& groupName){
     datas_[groupName]; // 無ければ空グループを作る
@@ -135,8 +132,7 @@ void GlobalVariables::SaveFile(const std::string& group){
     std::error_code ec;
     std::filesystem::create_directories(kDirectoryPath, ec);
 
-    std::ofstream file(kDirectoryPath + group + ".json");
-    if ( file.is_open() ) { file << root.dump(4); }
+    JsonFile::Save(kDirectoryPath + group + ".json", root, 4);
 }
 
 void GlobalVariables::LoadFiles(){
@@ -152,11 +148,8 @@ void GlobalVariables::LoadFiles(){
 }
 
 void GlobalVariables::LoadFile(const std::string& group){
-    std::ifstream file(kDirectoryPath + group + ".json");
-    if ( !file.is_open() ) return;
-
     json root;
-    try { file >> root; } catch ( ... ) { return; }
+    if ( !JsonFile::Load(kDirectoryPath + group + ".json", root) ) return;
 
     if ( !root.contains(group) ) return;
     const json& jGroup = root[group];
@@ -177,3 +170,5 @@ void GlobalVariables::LoadFile(const std::string& group){
         }
     }
 }
+
+} // namespace KazumimiEngine

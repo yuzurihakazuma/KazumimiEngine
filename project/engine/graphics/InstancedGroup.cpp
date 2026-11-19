@@ -1,13 +1,17 @@
 #include "InstancedGroup.h"
-#include "Engine/3D/Model/ModelManager.h"
-#include "Model.h"
-#include "Engine/Base/DirectXCommon.h"
-#include "Engine/Graphics/ResourceFactory.h"
-#include "Engine/Graphics/PipelineManager.h"
-#include "Engine/3D/Obj/Obj3dCommon.h"
-#include "Engine/Camera/Camera.h"
-#include "Engine/Graphics/SrvManager.h"
+#include "engine/3d/model/ModelManager.h"
+#include "engine/3d/model/Model.h"
+#include "engine/base/DirectXCommon.h"
+#include "engine/graphics/ResourceFactory.h"
+#include "engine/graphics/PipelineManager.h"
+#include "engine/3d/obj/Obj3dCommon.h"
+#include "engine/camera/Camera.h"
+#include "engine/graphics/SrvManager.h"
+#include <algorithm>
 #include <cassert>
+#include <cstring>
+
+namespace KazumimiEngine {
 
 void InstancedGroup::Initialize(const std::string& modelName, uint32_t maxInstanceCount) {
 	maxInstanceCount_ = maxInstanceCount;
@@ -40,13 +44,32 @@ void InstancedGroup::Update(const std::vector<std::unique_ptr<Obj3d>>& objects) 
 	}
 }
 
+void InstancedGroup::Update(const std::vector<Obj3d::TransformationMatrix>& matrices) {
+	currentInstanceCount_ = ( std::min )( ( uint32_t ) matrices.size(), maxInstanceCount_ );
+	if ( currentInstanceCount_ > 0 ) {
+		std::memcpy(instancingData_, matrices.data(), sizeof(Obj3d::TransformationMatrix) * currentInstanceCount_);
+	}
+}
+
+void InstancedGroup::Update(const std::vector<Obj3d*>& objects) {
+	currentInstanceCount_ = 0;
+	for (Obj3d* obj : objects) {
+		if (!obj) continue;
+		if (currentInstanceCount_ >= maxInstanceCount_) break;
+		instancingData_[currentInstanceCount_] = obj->GetMatrixData();
+		currentInstanceCount_++;
+	}
+}
+
 void InstancedGroup::Draw(const Camera* camera) {
 	if (currentInstanceCount_ == 0 || !model_) return;
 
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
 	// 1. パイプラインを「一括描画専用(InstancedObject3D)」に切り替え！
-	PipelineManager::GetInstance()->SetPipeline(commandList, PipelineType::InstancedObject3D);
+	// タイル貼りのモデル（UV が 0〜1 を超えて繰り返す）は、テクスチャを縦もリピートする版で描く（Obj3d と同じ判断）
+	PipelineManager::GetInstance()->SetPipeline(commandList,
+		model_->UsesTiledUV() ? PipelineType::InstancedObject3D_WrapUV : PipelineType::InstancedObject3D);
 
 	// 2. 1万個分の配列を直接GPUにドーンと渡す！ (t0)
 	commandList->SetGraphicsRootShaderResourceView(1, instancingResource_->GetGPUVirtualAddress());
@@ -62,6 +85,13 @@ void InstancedGroup::Draw(const Camera* camera) {
 	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(7, noiseTextureIndex_);
 	commandList->SetGraphicsRootConstantBufferView(8, dissolveResource_->GetGPUVirtualAddress());
 
+	// [9] 環境マップ (t3)。ルートシグネチャが宣言している以上、未束縛のまま Draw すると
+	// デバッグレイヤーの ERROR（DESCRIPTOR_TABLE_NOT_SET）で停止する。Obj3d::Draw と同じ扱いに揃える
+	SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(9,
+		Obj3dCommon::GetInstance()->GetEnvironmentTextureSrvIndex());
+
 	// 4. いざ、一括描画！！ (集めた個数だけ一気に描く！)
 	model_->Draw(currentInstanceCount_);
 }
+
+} // namespace KazumimiEngine

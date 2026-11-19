@@ -1,13 +1,16 @@
 #include "LevelManager.h"
+#include "engine/utils/JsonFile.h"
 #include "externals/nlohmann/json.hpp"
 #include <fstream>
 #include <cassert>
 
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 void LevelManager::Save(const std::string& fileName, const LevelData& levelData){
-    json j;
-    j["name"] = levelData.name;
+    json rootJson;
+    rootJson["name"] = levelData.name;
 
     // オブジェクトのリストをJSONの配列に変換する
     json objectsArray = json::array();
@@ -21,15 +24,251 @@ void LevelManager::Save(const std::string& fileName, const LevelData& levelData)
 
         objectsArray.push_back(jsonObj);
     }
-    j["objects"] = objectsArray;
+
+    // レールノードのリストも同様に配列に変換する（複数レール対応）
+    json linesArray = json::array();
+    for ( const auto& line : levelData.railLines ) {
+        json railArray = json::array();
+        for ( const auto& nodePos : line ) {
+            // [x, y, z] の配列形式で保存
+            railArray.push_back({ nodePos.x, nodePos.y, nodePos.z });
+        }
+        linesArray.push_back(railArray);
+    }
+    rootJson["railLines"] = linesArray;
+
+    // 各レールのタイプ（-1=自動 / 0=横 / 1=縦）。railLines と数を合わせて保存
+    json typesArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int railType = ( i < levelData.railTypes.size() ) ? levelData.railTypes[i] : -1;
+        typesArray.push_back(railType);
+    }
+    rootJson["railTypes"] = typesArray;
+
+    // 各レールの動き [振幅x, 振幅y, 振幅z, 周期]。railLines と数を合わせて保存
+    json motionsArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        Vector4 motion = ( i < levelData.railMotions.size() ) ? levelData.railMotions[i] : Vector4 { 0.0f, 0.0f, 0.0f, 2.0f };
+        motionsArray.push_back({ motion.x, motion.y, motion.z, motion.w });
+    }
+    rootJson["railMotions"] = motionsArray;
+
+    // 各レールの地面タイプ(0=Safe/1=Gap/2=NoGround)。railLines と数を合わせて保存
+    json groundArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int groundType = ( i < levelData.railGroundTypes.size() ) ? levelData.railGroundTypes[i] : 0;
+        groundArray.push_back(groundType);
+    }
+    rootJson["railGroundTypes"] = groundArray;
+
+    // 各レールのノード単位の穴指定（外=レール / 内=ノード・1=穴）
+    json holesArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        json holeArray = json::array();
+        if ( i < levelData.railNodeHoles.size() ) {
+            for ( int holeFlag : levelData.railNodeHoles[i] ) holeArray.push_back(holeFlag);
+        }
+        holesArray.push_back(holeArray);
+    }
+    rootJson["railNodeHoles"] = holesArray;
+
+    // 各レールの表示フラグ(1=表示/0=非表示)。railLines と数を合わせて保存
+    json visibleArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int visibleFlag = ( i < levelData.railVisible.size() ) ? levelData.railVisible[i] : 1;
+        visibleArray.push_back(visibleFlag);
+    }
+    rootJson["railVisible"] = visibleArray;
+
+    // 各レールの線のつなぎ方(0=スプライン/1=直線)。railLines と数を合わせて保存
+    json lineModeArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int lineMode = ( i < levelData.railLineModes.size() ) ? levelData.railLineModes[i] : 0;
+        lineModeArray.push_back(lineMode);
+    }
+    rootJson["railLineModes"] = lineModeArray;
+
+    // 各レールの道生成モード(0=自動/1=なし)。railLines と数を合わせて保存
+    json roadModeArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int roadMode = ( i < levelData.railRoadModes.size() ) ? levelData.railRoadModes[i] : 0;
+        roadModeArray.push_back(roadMode);
+    }
+    rootJson["railRoadModes"] = roadModeArray;
+
+    // 各レールの端の丸広場（bit0=始点/bit1=終点）。railLines と数を合わせて保存
+    json endPlazaArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int endPlaza = ( i < levelData.railEndPlazas.size() ) ? levelData.railEndPlazas[i] : 0;
+        endPlazaArray.push_back(endPlaza);
+    }
+    rootJson["railEndPlazas"] = endPlazaArray;
+
+    // ガイドレール追従の対象レール番号（railLines と数を合わせて保存）
+    json guideRailArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        int guideRail = ( i < levelData.railGuideRails.size() ) ? levelData.railGuideRails[i] : -1;
+        guideRailArray.push_back(guideRail);
+    }
+    rootJson["railGuideRails"] = guideRailArray;
+
+    // ガイド追従の区間と動き方（railLines と数を合わせて保存）
+    json guideStartArray = json::array();
+    json guideEndArray   = json::array();
+    json guideModeArray  = json::array();
+    json guideAlignArray = json::array();
+    json guideDwellArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        guideStartArray.push_back(( i < levelData.railGuideStarts.size() ) ? levelData.railGuideStarts[i] : 0.0f);
+        guideEndArray.push_back(( i < levelData.railGuideEnds.size() ) ? levelData.railGuideEnds[i] : -1.0f);
+        guideModeArray.push_back(( i < levelData.railGuideModes.size() ) ? levelData.railGuideModes[i] : 0);
+        guideAlignArray.push_back(( i < levelData.railGuideAligns.size() ) ? levelData.railGuideAligns[i] : 0);
+        guideDwellArray.push_back(( i < levelData.railGuideDwells.size() ) ? levelData.railGuideDwells[i] : 0.0f);
+    }
+    rootJson["railGuideStarts"] = guideStartArray;
+    rootJson["railGuideEnds"]   = guideEndArray;
+    rootJson["railGuideModes"]  = guideModeArray;
+    rootJson["railGuideAligns"] = guideAlignArray;
+    rootJson["railGuideDwells"] = guideDwellArray;
+
+    // 路線のグループ名（railLines と数を合わせて保存）
+    json groupArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        groupArray.push_back(( i < levelData.railGroups.size() ) ? levelData.railGroups[i] : "");
+    }
+    rootJson["railGroups"] = groupArray;
+
+    // 収集物（コイン）の配置
+    json coinArray = json::array();
+    for ( const auto& coin : levelData.coins ) {
+        coinArray.push_back({ { "rail", coin.rail }, { "dist", coin.dist }, { "height", coin.height } });
+    }
+    rootJson["coins"] = coinArray;
+
+    // ブロック（乗れる/ぶつかる1m角）の配置
+    json blockArray = json::array();
+    for ( const auto& block : levelData.blocks ) {
+        blockArray.push_back({ { "rail", block.rail }, { "dist", block.dist },
+                               { "level", block.level }, { "side", block.side },
+                               { "type", block.type },
+                               { "anchor", block.anchorNode }, { "anchorOff", block.anchorOffset } });
+    }
+    rootJson["blocks"] = blockArray;
+
+    // 各レールの動き波形/位相・片方向・速度倍率（railLines と数を合わせて保存）
+    json motionTypeArray = json::array();
+    json motionPhaseArray = json::array();
+    json motionTriggerArray = json::array();
+    json oneWayArray = json::array();
+    json speedMulArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        motionTypeArray.push_back(( i < levelData.railMotionTypes.size() ) ? levelData.railMotionTypes[i] : 0);
+        motionPhaseArray.push_back(( i < levelData.railMotionPhases.size() ) ? levelData.railMotionPhases[i] : 0.0f);
+        motionTriggerArray.push_back(( i < levelData.railMotionTriggers.size() ) ? levelData.railMotionTriggers[i] : 0);
+        oneWayArray.push_back(( i < levelData.railOneWay.size() ) ? levelData.railOneWay[i] : 0);
+        speedMulArray.push_back(( i < levelData.railSpeedMuls.size() ) ? levelData.railSpeedMuls[i] : 1.0f);
+    }
+    rootJson["railMotionTypes"]    = motionTypeArray;
+    rootJson["railMotionPhases"]   = motionPhaseArray;
+    rootJson["railMotionTriggers"] = motionTriggerArray;
+    rootJson["railOneWay"]         = oneWayArray;
+    rootJson["railSpeedMuls"]      = speedMulArray;
+
+    // レールごとのカメラ。railLines と数を合わせて保存
+    json cameraArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        const RailCamera camera = ( i < levelData.railCameras.size() ) ? levelData.railCameras[i] : RailCamera {};
+        json entry = { { "use", camera.enabled }, { "yaw", camera.yawDeg }, { "dist", camera.dist },
+                       { "height", camera.height }, { "fov", camera.fovDeg } };
+        if ( camera.blend ) {
+            entry["blend"] = camera.blend;
+            entry["yawEnd"] = camera.yawEndDeg;
+            entry["distEnd"] = camera.distEnd;
+            entry["heightEnd"] = camera.heightEnd;
+            entry["fovEnd"] = camera.fovEndDeg;
+        }
+        cameraArray.push_back(entry);
+    }
+    rootJson["railCameras"] = cameraArray;
+
+    // レールごとの列車。railLines と数を合わせて保存
+    json trainArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        const RailTrain train = ( i < levelData.railTrains.size() ) ? levelData.railTrains[i] : RailTrain {};
+        trainArray.push_back({ { "use", train.enabled }, { "depart", train.departSec }, { "return", train.returnSec },
+                               { "engine", train.engine }, { "board", train.boardFor }, { "boardMode", train.boardMode },
+                               { "speed", train.speed }, { "speedMuls", train.speedMuls } });
+    }
+    rootJson["railTrains"] = trainArray;
+
+    // 道の見た目（布ロード）。railLines と数を合わせて保存
+    json skinArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        const RailSkin skin = ( i < levelData.railSkins.size() ) ? levelData.railSkins[i] : RailSkin {};
+        skinArray.push_back({ { "style", skin.style }, { "width", skin.width }, { "lift", skin.lift }, { "curl", skin.curl },
+                              { "color", { skin.color.x, skin.color.y, skin.color.z } }, { "stitch", skin.stitch },
+                              { "layer", skin.layer } });
+    }
+    rootJson["railSkins"] = skinArray;
+
+    // 後から出現する道（railLines と数を合わせて保存）
+    json appearTriggerArray = json::array();
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        appearTriggerArray.push_back(( i < levelData.railAppearTriggers.size() ) ? levelData.railAppearTriggers[i] : -1);
+    }
+    rootJson["railAppearTriggers"] = appearTriggerArray;
+
+    // スタート/ゴール地点
+    rootJson["startRailIndex"] = levelData.startRailIndex;
+    rootJson["startNodeIndex"] = levelData.startNodeIndex;
+    rootJson["goalRailIndex"]  = levelData.goalRailIndex;
+    rootJson["goalNodeIndex"]  = levelData.goalNodeIndex;
+
+    // カメラ演出ゾーン
+    json camArray = json::array();
+    for ( const auto& zone : levelData.cameraZones ) {
+        camArray.push_back({
+            { "railIndex", zone.railIndex }, { "nodeIndex", zone.nodeIndex },
+            { "radius", zone.radius },
+            { "mode", zone.mode },
+            { "offset", { zone.offset.x, zone.offset.y, zone.offset.z } },
+            { "yawDeg", zone.yawDeg }, { "dist", zone.dist }, { "height", zone.height },
+            { "revert", zone.revert }, { "freeze", zone.freeze },
+            { "fovDeg", zone.fovDeg },
+        });
+    }
+    rootJson["cameraZones"] = camArray;
+
+    // 敵の配置 [type, railIndex, distance]
+    json enemiesArray = json::array();
+    for ( const auto& enemy : levelData.enemies ) {
+        json enemyJson;
+        enemyJson["type"]      = enemy.type;
+        enemyJson["railIndex"] = enemy.railIndex;
+        enemyJson["distance"]  = enemy.distance;
+        enemyJson["patrol"]    = enemy.patrol;
+        enemyJson["patrolMin"] = enemy.patrolMin;
+        enemyJson["patrolMax"] = enemy.patrolMax;
+        // 個体ごとの動き
+        enemyJson["name"]          = enemy.name;
+        enemyJson["speed"]         = enemy.speed;
+        enemyJson["startDir"]      = enemy.startDir;
+        enemyJson["turnWait"]      = enemy.turnWait;
+        enemyJson["chaseRange"]    = enemy.chaseRange;
+        enemyJson["chaseSpeedMul"] = enemy.chaseSpeedMul;
+        enemyJson["hoverHeight"]   = enemy.hoverHeight;
+        enemyJson["bobAmp"]        = enemy.bobAmp;
+        enemyJson["bobSpeed"]      = enemy.bobSpeed;
+        enemyJson["biteRange"]     = enemy.biteRange;
+        enemyJson["scale"]         = enemy.scale;
+        enemiesArray.push_back(enemyJson);
+    }
+    rootJson["enemies"] = enemiesArray;
+
+    rootJson["objects"] = objectsArray;
 
     // ファイルに書き込み
-    std::ofstream file(fileName);
-    if ( file.is_open() ) {
-        // dump(4) は見やすくするためにインデント（空白）を4つ入れる設定です
-        file << j.dump(4);
-        file.close();
-    }
+    JsonFile::Save(fileName, rootJson, 4); // 字下げ 4 で、人が読める形に
 }
 
 LevelData LevelManager::Load(const std::string& fileName){
@@ -41,15 +280,15 @@ LevelData LevelManager::Load(const std::string& fileName){
         return levelData;
     }
 
-    json j;
-    file >> j;
+    json rootJson;
+    file >> rootJson;
 
     // マップ名の読み込み（無い場合は "Unknown" にする）
-    levelData.name = j.value("name", "Unknown");
+    levelData.name = rootJson.value("name", "Unknown");
 
     // オブジェクトの配列を読み込む
-    if ( j.contains("objects") && j["objects"].is_array() ) {
-        for ( const auto& jsonObj : j["objects"] ) {
+    if ( rootJson.contains("objects") && rootJson["objects"].is_array() ) {
+        for ( const auto& jsonObj : rootJson["objects"] ) {
             LevelObjectData obj;
             obj.type = jsonObj.value("type", "unknown");
 
@@ -72,7 +311,304 @@ LevelData LevelManager::Load(const std::string& fileName){
             // 読み込んだオブジェクトをリストに追加
             levelData.objects.push_back(obj);
         }
+
+    }
+
+    // ★複数レールの配列を読み込む
+    if ( rootJson.contains("railLines") && rootJson["railLines"].is_array() ) {
+        for ( const auto& lineObj : rootJson["railLines"] ) {
+            std::vector<Vector3> line;
+            for ( const auto& posObj : lineObj ) {
+                Vector3 pos;
+                pos.x = posObj[0]; pos.y = posObj[1]; pos.z = posObj[2];
+                line.push_back(pos);
+            }
+            levelData.railLines.push_back(line);
+        }
+    }
+    // ★古いセーブデータ互換用（昔の railNodes があった場合）
+    else if ( rootJson.contains("railNodes") && rootJson["railNodes"].is_array() ) {
+        std::vector<Vector3> line;
+        for ( const auto& posObj : rootJson["railNodes"] ) {
+            Vector3 pos;
+            pos.x = posObj[0]; pos.y = posObj[1]; pos.z = posObj[2];
+            line.push_back(pos);
+        }
+        levelData.railLines.push_back(line);
+    }
+
+    // レールのタイプを読み込む（-1=自動 / 0=横 / 1=縦）
+    if ( rootJson.contains("railTypes") && rootJson["railTypes"].is_array() ) {
+        for ( const auto& railTypeJson : rootJson["railTypes"] ) {
+            levelData.railTypes.push_back(railTypeJson.get<int>());
+        }
+    }
+
+    // レールの動きを読み込む [振幅x, 振幅y, 振幅z, 周期]
+    if ( rootJson.contains("railMotions") && rootJson["railMotions"].is_array() ) {
+        for ( const auto& motionJson : rootJson["railMotions"] ) {
+            Vector4 motion { 0.0f, 0.0f, 0.0f, 2.0f };
+            if ( motionJson.is_array() && motionJson.size() >= 4 ) {
+                motion.x = motionJson[0]; motion.y = motionJson[1]; motion.z = motionJson[2]; motion.w = motionJson[3];
+            }
+            levelData.railMotions.push_back(motion);
+        }
+    }
+
+    // 地面タイプを読み込む（0=Safe/1=Gap/2=NoGround。無ければデフォルト0=Safe）
+    if ( rootJson.contains("railGroundTypes") && rootJson["railGroundTypes"].is_array() ) {
+        for ( const auto& groundTypeJson : rootJson["railGroundTypes"] ) {
+            levelData.railGroundTypes.push_back(groundTypeJson.get<int>());
+        }
+    }
+
+    // ノード単位の穴指定を読み込む（外=レール / 内=ノード）
+    if ( rootJson.contains("railNodeHoles") && rootJson["railNodeHoles"].is_array() ) {
+        for ( const auto& holeArrayJson : rootJson["railNodeHoles"] ) {
+            std::vector<int> holes;
+            if ( holeArrayJson.is_array() ) {
+                for ( const auto& holeJson : holeArrayJson ) holes.push_back(holeJson.get<int>());
+            }
+            levelData.railNodeHoles.push_back(holes);
+        }
+    }
+
+    // 表示フラグを読み込む（1=表示/0=非表示。無ければデフォルト1=表示）
+    if ( rootJson.contains("railVisible") && rootJson["railVisible"].is_array() ) {
+        for ( const auto& visibleJson : rootJson["railVisible"] ) {
+            levelData.railVisible.push_back(visibleJson.get<int>());
+        }
+    }
+
+    // 線のつなぎ方を読み込む（0=スプライン/1=直線。キーが無い旧JSONは後段の resize で全て0=スプライン）
+    if ( rootJson.contains("railLineModes") && rootJson["railLineModes"].is_array() ) {
+        for ( const auto& lineModeJson : rootJson["railLineModes"] ) {
+            levelData.railLineModes.push_back(lineModeJson.get<int>());
+        }
+    }
+
+    // 道生成モードを読み込む（0=自動/1=なし。キーが無い旧JSONは後段の resize で全て0=自動になる）
+    if ( rootJson.contains("railGroups") && rootJson["railGroups"].is_array() ) {
+        for ( const auto& groupJson : rootJson["railGroups"] ) {
+            levelData.railGroups.push_back(groupJson.get<std::string>());
+        }
+    }
+    if ( rootJson.contains("railGuideRails") && rootJson["railGuideRails"].is_array() ) {
+        for ( const auto& guideRailJson : rootJson["railGuideRails"] ) {
+            levelData.railGuideRails.push_back(guideRailJson.get<int>());
+        }
+    }
+    if ( rootJson.contains("railEndPlazas") && rootJson["railEndPlazas"].is_array() ) {
+        for ( const auto& endPlazaJson : rootJson["railEndPlazas"] ) {
+            levelData.railEndPlazas.push_back(endPlazaJson.get<int>());
+        }
+    }
+    // ガイド追従の区間と動き方（キーが無い旧JSONは後段の resize でデフォルトが入る）
+    if ( rootJson.contains("railGuideStarts") && rootJson["railGuideStarts"].is_array() ) {
+        for ( const auto& guideStartJson : rootJson["railGuideStarts"] ) { levelData.railGuideStarts.push_back(guideStartJson.get<float>()); }
+    }
+    if ( rootJson.contains("railGuideEnds") && rootJson["railGuideEnds"].is_array() ) {
+        for ( const auto& guideEndJson : rootJson["railGuideEnds"] ) { levelData.railGuideEnds.push_back(guideEndJson.get<float>()); }
+    }
+    if ( rootJson.contains("railGuideModes") && rootJson["railGuideModes"].is_array() ) {
+        for ( const auto& guideModeJson : rootJson["railGuideModes"] ) { levelData.railGuideModes.push_back(guideModeJson.get<int>()); }
+    }
+    if ( rootJson.contains("railGuideAligns") && rootJson["railGuideAligns"].is_array() ) {
+        for ( const auto& guideAlignJson : rootJson["railGuideAligns"] ) { levelData.railGuideAligns.push_back(guideAlignJson.get<int>()); }
+    }
+    if ( rootJson.contains("railGuideDwells") && rootJson["railGuideDwells"].is_array() ) {
+        for ( const auto& guideDwellJson : rootJson["railGuideDwells"] ) { levelData.railGuideDwells.push_back(guideDwellJson.get<float>()); }
+    }
+    // 収集物（コイン）を読み込む（キーが無い旧JSONはコインなし）
+    if ( rootJson.contains("coins") && rootJson["coins"].is_array() ) {
+        for ( const auto& coinJson : rootJson["coins"] ) {
+            CoinData coin;
+            coin.rail   = coinJson.value("rail", 0);
+            coin.dist   = coinJson.value("dist", 0.0f);
+            coin.height = coinJson.value("height", 1.0f);
+            levelData.coins.push_back(coin);
+        }
+    }
+    // ブロックを読み込む（キーが無い旧JSONはブロックなし）
+    if ( rootJson.contains("blocks") && rootJson["blocks"].is_array() ) {
+        for ( const auto& blockJson : rootJson["blocks"] ) {
+            BlockData block;
+            block.rail  = blockJson.value("rail", 0);
+            block.dist  = blockJson.value("dist", 0.0f);
+            block.level = blockJson.value("level", 0);
+            block.side  = blockJson.value("side", 0.0f); // 旧データは中心線上
+            block.type  = blockJson.value("type", 0);    // 旧データはスポンジ
+            block.anchorNode   = blockJson.value("anchor", -1);     // 旧データは未計算→初回に自動で錨付け
+            block.anchorOffset = blockJson.value("anchorOff", 0.0f);
+            levelData.blocks.push_back(block);
+        }
+    }
+    if ( rootJson.contains("railRoadModes") && rootJson["railRoadModes"].is_array() ) {
+        for ( const auto& roadModeJson : rootJson["railRoadModes"] ) {
+            levelData.railRoadModes.push_back(roadModeJson.get<int>());
+        }
+    }
+
+    // 動き波形/位相・片方向・速度倍率を読み込む（無ければ後段の resize でデフォルトが入る）
+    if ( rootJson.contains("railMotionTypes") && rootJson["railMotionTypes"].is_array() ) {
+        for ( const auto& motionTypeJson : rootJson["railMotionTypes"] ) { levelData.railMotionTypes.push_back(motionTypeJson.get<int>()); }
+    }
+    if ( rootJson.contains("railMotionPhases") && rootJson["railMotionPhases"].is_array() ) {
+        for ( const auto& motionPhaseJson : rootJson["railMotionPhases"] ) { levelData.railMotionPhases.push_back(motionPhaseJson.get<float>()); }
+    }
+    if ( rootJson.contains("railMotionTriggers") && rootJson["railMotionTriggers"].is_array() ) {
+        for ( const auto& motionTriggerJson : rootJson["railMotionTriggers"] ) { levelData.railMotionTriggers.push_back(motionTriggerJson.get<int>()); }
+    }
+    if ( rootJson.contains("railAppearTriggers") && rootJson["railAppearTriggers"].is_array() ) {
+        for ( const auto& appearTriggerJson : rootJson["railAppearTriggers"] ) { levelData.railAppearTriggers.push_back(appearTriggerJson.get<int>()); }
+    }
+    if ( rootJson.contains("railOneWay") && rootJson["railOneWay"].is_array() ) {
+        for ( const auto& oneWayJson : rootJson["railOneWay"] ) { levelData.railOneWay.push_back(oneWayJson.get<int>()); }
+    }
+    if ( rootJson.contains("railSpeedMuls") && rootJson["railSpeedMuls"].is_array() ) {
+        for ( const auto& speedMulJson : rootJson["railSpeedMuls"] ) { levelData.railSpeedMuls.push_back(speedMulJson.get<float>()); }
+    }
+    if ( rootJson.contains("railCameras") && rootJson["railCameras"].is_array() ) {
+        for ( const auto& cameraJson : rootJson["railCameras"] ) {
+            RailCamera camera;
+            if ( cameraJson.is_object() ) {
+                camera.enabled = cameraJson.value("use", camera.enabled);
+                camera.yawDeg  = cameraJson.value("yaw", camera.yawDeg);
+                camera.dist    = cameraJson.value("dist", camera.dist);
+                camera.height  = cameraJson.value("height", camera.height);
+                camera.fovDeg  = cameraJson.value("fov", camera.fovDeg);
+                camera.blend     = cameraJson.value("blend", camera.blend);
+                camera.yawEndDeg = cameraJson.value("yawEnd", camera.yawDeg);
+                camera.distEnd   = cameraJson.value("distEnd", camera.dist);
+                camera.heightEnd = cameraJson.value("heightEnd", camera.height);
+                camera.fovEndDeg = cameraJson.value("fovEnd", camera.fovDeg);
+            }
+            levelData.railCameras.push_back(camera);
+        }
+    }
+    if ( rootJson.contains("railTrains") && rootJson["railTrains"].is_array() ) {
+        for ( const auto& trainJson : rootJson["railTrains"] ) {
+            RailTrain train;
+            if ( trainJson.is_object() ) {
+                train.enabled   = trainJson.value("use", train.enabled);
+                train.departSec = trainJson.value("depart", train.departSec);
+                train.returnSec = trainJson.value("return", train.returnSec);
+                train.engine    = trainJson.value("engine", train.engine);
+                train.boardFor  = trainJson.value("board", train.boardFor);
+                train.boardMode = trainJson.value("boardMode", train.boardMode);
+                train.speed     = trainJson.value("speed", train.speed);
+                if ( trainJson.contains("speedMuls") && trainJson["speedMuls"].is_array() ) {
+                    train.speedMuls = trainJson["speedMuls"].get<std::vector<float>>();
+                }
+            }
+            levelData.railTrains.push_back(train);
+        }
+    }
+    if ( rootJson.contains("railSkins") && rootJson["railSkins"].is_array() ) {
+        for ( const auto& skinJson : rootJson["railSkins"] ) {
+            RailSkin skin;
+            skin.style  = skinJson.value("style", skin.style);
+            skin.width  = skinJson.value("width", skin.width);
+            skin.lift   = skinJson.value("lift", skin.lift);
+            skin.curl   = skinJson.value("curl", skin.curl);
+            skin.stitch = skinJson.value("stitch", skin.stitch);
+            skin.layer  = skinJson.value("layer", skin.layer);
+            if ( skinJson.contains("color") && skinJson["color"].is_array() && skinJson["color"].size() >= 3 ) {
+                skin.color = { skinJson["color"][0].get<float>(), skinJson["color"][1].get<float>(), skinJson["color"][2].get<float>() };
+            }
+            levelData.railSkins.push_back(skin);
+        }
+    }
+
+    // スタート/ゴール地点（無ければデフォルト：スタート=レール0ノード0 / ゴール=未設定）
+    levelData.startRailIndex = rootJson.value("startRailIndex", 0);
+    levelData.startNodeIndex = rootJson.value("startNodeIndex", 0);
+    levelData.goalRailIndex  = rootJson.value("goalRailIndex", -1);
+    levelData.goalNodeIndex  = rootJson.value("goalNodeIndex", 0);
+
+    // カメラ演出ゾーン
+    if ( rootJson.contains("cameraZones") && rootJson["cameraZones"].is_array() ) {
+        for ( const auto& zoneJson : rootJson["cameraZones"] ) {
+            LevelCameraZone zone;
+            zone.railIndex = zoneJson.value("railIndex", 0);
+            zone.nodeIndex = zoneJson.value("nodeIndex", 0);
+            zone.radius    = zoneJson.value("radius", 4.0f);
+            zone.mode      = zoneJson.value("mode", 0); // 旧データ（modeなし）は固定カメラ扱い
+            if ( zoneJson.contains("offset") && zoneJson["offset"].is_array() && zoneJson["offset"].size() >= 3 ) {
+                zone.offset = { zoneJson["offset"][0], zoneJson["offset"][1], zoneJson["offset"][2] };
+            }
+            zone.yawDeg = zoneJson.value("yawDeg", 180.0f);
+            zone.dist   = zoneJson.value("dist", 10.0f);
+            zone.height = zoneJson.value("height", 3.5f);
+            zone.revert = zoneJson.value("revert", 0); // 旧データは維持(0)扱い
+            zone.freeze = zoneJson.value("freeze", 0); // 旧データは止めない(0)扱い
+            zone.fovDeg = zoneJson.value("fovDeg", 45.0f);
+            levelData.cameraZones.push_back(zone);
+        }
+    }
+
+    // 敵の配置を読み込む [type, railIndex, distance]
+    if ( rootJson.contains("enemies") && rootJson["enemies"].is_array() ) {
+        for ( const auto& enemyJson : rootJson["enemies"] ) {
+            LevelEnemyData enemy;
+            enemy.type      = enemyJson.value("type", 0);
+            enemy.railIndex = enemyJson.value("railIndex", 0);
+            enemy.distance  = enemyJson.value("distance", 0.0f);
+            enemy.patrol    = enemyJson.value("patrol", 0); // 旧データは0=動かない
+            enemy.patrolMin = enemyJson.value("patrolMin", -1.0f); // 旧データは-1=レール全体
+            enemy.patrolMax = enemyJson.value("patrolMax", -1.0f);
+            // 個体ごとの動き（旧データは項目なし＝既定値＝従来と同じ動き）
+            enemy.name          = enemyJson.value("name", std::string());
+            enemy.speed         = enemyJson.value("speed", 0.0f);
+            enemy.startDir      = enemyJson.value("startDir", 1);
+            enemy.turnWait      = enemyJson.value("turnWait", 0.0f);
+            enemy.chaseRange    = enemyJson.value("chaseRange", 0.0f);
+            enemy.chaseSpeedMul = enemyJson.value("chaseSpeedMul", 1.5f);
+            enemy.hoverHeight   = enemyJson.value("hoverHeight", -1.0f);
+            enemy.bobAmp        = enemyJson.value("bobAmp", 0.0f);
+            enemy.bobSpeed      = enemyJson.value("bobSpeed", 2.0f);
+            enemy.biteRange     = enemyJson.value("biteRange", -1.0f);
+            enemy.scale         = enemyJson.value("scale", 1.0f);
+            levelData.enemies.push_back(enemy);
+        }
+    }
+
+    // 万が一レールが1本もない場合は、空のレールを1つ追加しておく
+    if ( levelData.railLines.empty() ) {
+        levelData.railLines.push_back(std::vector<Vector3>());
+    }
+
+    // タイプ・動き・地面フラグ配列を railLines と同じ数に整える（足りない分はデフォルト）
+    levelData.railTypes.resize(levelData.railLines.size(), -1);
+    levelData.railMotions.resize(levelData.railLines.size(), Vector4 { 0.0f, 0.0f, 0.0f, 2.0f });
+    levelData.railGroundTypes.resize(levelData.railLines.size(), 1); // 既定は Gap（端から落ちられる）
+    levelData.railVisible.resize(levelData.railLines.size(), 1);
+    levelData.railLineModes.resize(levelData.railLines.size(), 0);
+    levelData.railRoadModes.resize(levelData.railLines.size(), 0);
+    levelData.railEndPlazas.resize(levelData.railLines.size(), 0);
+    levelData.railGuideRails.resize(levelData.railLines.size(), -1);
+    levelData.railGuideStarts.resize(levelData.railLines.size(), 0.0f);
+    levelData.railGuideEnds.resize(levelData.railLines.size(), -1.0f);
+    levelData.railGuideModes.resize(levelData.railLines.size(), 0);
+    levelData.railGuideAligns.resize(levelData.railLines.size(), 0);
+    levelData.railGuideDwells.resize(levelData.railLines.size(), 0.0f);
+    levelData.railGroups.resize(levelData.railLines.size());
+    levelData.railMotionTypes.resize(levelData.railLines.size(), 0);
+    levelData.railMotionPhases.resize(levelData.railLines.size(), 0.0f);
+    levelData.railMotionTriggers.resize(levelData.railLines.size(), 0);
+    levelData.railAppearTriggers.resize(levelData.railLines.size(), -1);
+    levelData.railOneWay.resize(levelData.railLines.size(), 0);
+    levelData.railSpeedMuls.resize(levelData.railLines.size(), 1.0f);
+    levelData.railCameras.resize(levelData.railLines.size());
+    levelData.railTrains.resize(levelData.railLines.size());
+    levelData.railSkins.resize(levelData.railLines.size());
+    levelData.railNodeHoles.resize(levelData.railLines.size());
+    // 各レールの穴配列をノード数に合わせる（足りない分は0=穴なし）
+    for ( size_t i = 0; i < levelData.railLines.size(); ++i ) {
+        levelData.railNodeHoles[i].resize(levelData.railLines[i].size(), 0);
     }
 
     return levelData;
 }
+
+} // namespace KazumimiEngine

@@ -8,6 +8,8 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 
+namespace KazumimiEngine {
+
 void SDFSprite::Initialize() {
     auto factory = ResourceFactory::GetInstance();
     transformBuffer_ = factory->CreateBufferResource(sizeof(TransformCB));
@@ -123,6 +125,10 @@ void SDFSprite::UpdateBuffers(const SDFAtlas& atlas) {
         setV4(paramsData_->baseColor, color_);
         setV4(paramsData_->outlineColor, outlineColor_);
         setV4(paramsData_->glowColor, glowColor_);
+        // 近接フェード（本体・フチ・グローの全アルファに掛ける）
+        paramsData_->baseColor[3]    *= drawAlpha_;
+        paramsData_->outlineColor[3] *= drawAlpha_;
+        paramsData_->glowColor[3]    *= drawAlpha_;
         paramsData_->edgeBias = edgeBias_;
         paramsData_->outlineWidth = outlineWidth_;
         paramsData_->glowWidth = glowWidth_;
@@ -153,3 +159,5 @@ void SDFSprite::Draw(ID3D12GraphicsCommandList* commandList, const SDFAtlas& atl
     SrvManager::GetInstance()->SetGraphicsRootDescriptorTable(2, atlas.GetSrvIndex());           // t0
     commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);
 }
+
+} // namespace KazumimiEngine

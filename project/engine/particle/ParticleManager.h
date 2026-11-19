@@ -1,6 +1,7 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <d3d12.h>
+#include "engine/base/Singleton.h"
 #include <vector>
 #include <list>
 #include <string>
@@ -10,6 +11,8 @@
 
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
+
+namespace KazumimiEngine {
 
 // 前方宣言
 class DirectXCommon;
@@ -70,13 +73,9 @@ struct ParticleGroup{
 };
 
 // マネージャクラス
-class ParticleManager{
+class ParticleManager : public Singleton<ParticleManager> {
+	friend class Singleton<ParticleManager>; // 土台（Singleton）だけが作れる
 public: // 静的メンバ関数
-    // シングルトンインスタンス取得
-    static ParticleManager* GetInstance(){
-        static ParticleManager instance;
-        return &instance;
-    }
 
 public: // メンバ関数
     // 初期化
@@ -117,8 +116,6 @@ public: // ゲッター・セッター
 private: // シングルトン用（コンストラクタ隠蔽）
     ParticleManager() = default;
     ~ParticleManager() = default;
-    ParticleManager(const ParticleManager&) = delete;
-    ParticleManager& operator=(const ParticleManager&) = delete;
 
     void CreateModel();
 
@@ -142,5 +139,7 @@ private: // メンバ変数
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_ {};
 
     // 最大インスタンス数（1グループあたり）
-    const uint32_t kNumMaxInstance = 10000;
+    static constexpr uint32_t kNumMaxInstance = 10000;
 };
+
+} // namespace KazumimiEngine

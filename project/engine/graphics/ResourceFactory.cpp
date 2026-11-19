@@ -3,11 +3,7 @@
 // --- 標準ライブラリ ---
 #include <cassert>
 
-ResourceFactory* ResourceFactory::GetInstance(){
-	static ResourceFactory instance;
-	return &instance;
-}
-
+namespace KazumimiEngine {
 
 // 指定されたバイトサイズのバッファリソース（Upload Heap）を生成する
 Microsoft::WRL::ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uint64_t sizeInBytes){
@@ -32,7 +28,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> ResourceFactory::CreateBufferResource(uin
 	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;// バッファリソースは行優先レイアウトを指定
 	// リソースを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = device_->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = device_->CreateCommittedResource(
 		&heapProps, // Upload Heap を指定
 		D3D12_HEAP_FLAG_NONE, // ヒープフラグはなし
 		&desc,// バッファリソースのディスクリプションを指定
@@ -82,7 +78,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> ResourceFactory::CreateRenderTextureResou
 	// リソースを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
 
-	HRESULT hr = device_->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = device_->CreateCommittedResource(
 		&heapProps, // Default Heap を指定
 		D3D12_HEAP_FLAG_NONE, // ヒープフラグはなし
 		&desc, // テクスチャリソースのディスクリプションを指定
@@ -115,7 +111,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> ResourceFactory::CreateUAVBuffer(size_t s
 	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS; // UAVに必須
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = device_->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = device_->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
@@ -133,3 +129,5 @@ void ResourceFactory::Finalize(){
 
 	device_.Reset();
 }
+
+} // namespace KazumimiEngine

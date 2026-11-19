@@ -1,5 +1,6 @@
 #pragma once
 // --- 標準ライブラリ ---
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <d3d12.h>
 #include <cstdint>
@@ -7,19 +8,18 @@
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // 前方宣言
 class DirectXCommon;
 class Camera;
 
 
 // 3Dオブジェクト共通クラス
-class Obj3dCommon{
+class Obj3dCommon : public Singleton<Obj3dCommon> {
+	friend class Singleton<Obj3dCommon>; // 土台（Singleton）だけが作れる
 public:
 	
-	static Obj3dCommon* GetInstance(){
-		static Obj3dCommon instance;
-		return &instance;
-	}
 	
 	static const uint32_t MAX_DIRECTIONAL_LIGHTS = 4;
 	
@@ -30,6 +30,7 @@ public:
 		float intensity;   // 輝度
 	};
 
+	// 平行光源の定数バッファ（ライトの配列と有効な数）。GPU へ送る形
 	struct DirectionalLightData{
 		DirectionalLight lights[MAX_DIRECTIONAL_LIGHTS];
 		int32_t activeCount; // 現在有効なライトの数
@@ -106,8 +107,6 @@ private:
 	// コンストラクタを private にして外部からの生成を禁止
 	Obj3dCommon() = default;
 	~Obj3dCommon() = default;
-	Obj3dCommon(const Obj3dCommon&) = delete;
-	Obj3dCommon& operator=(const Obj3dCommon&) = delete;
 
 private:
 	DirectXCommon* dxCommon_ = nullptr; // 所有しない参照
@@ -130,3 +129,4 @@ private:
 	const Camera* defaultCamera_ = nullptr;
 };
 
+} // namespace KazumimiEngine

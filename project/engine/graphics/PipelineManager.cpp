@@ -7,7 +7,10 @@
 #include "engine/graphics/ShaderCompiler.h"
 #include "engine/graphics/RootSignatureBuilder.h"
 #include "engine/graphics/GraphicsPipelineBuilder.h"
+#include "engine/graphics/D3DDebugName.h"
 #include "engine/postEffect/PostEffect.h"
+
+namespace KazumimiEngine {
 
 // 終了処理
 void PipelineManager::Finalize(){
@@ -18,6 +21,10 @@ void PipelineManager::Finalize(){
 	object3DRootSignature_.Reset();
 	object3DPipelineState_.Reset();
 	object3DPipelineStateNone_.Reset();
+	object3DWrapRootSignature_.Reset();
+	object3DWrapPipelineState_.Reset();
+	instancedObject3DWrapRootSignature_.Reset();
+	instancedObject3DWrapPipelineState_.Reset();
 
 	// インスタンシング専用のリソースも忘れずに解放
 	instancedObject3DRootSignature_.Reset();
@@ -34,6 +41,8 @@ void PipelineManager::Finalize(){
 	// GPUパーティクル用のリソースも忘れずに解放
 	gpuParticleComputeRootSignature_.Reset();
 	gpuParticleComputePipelineState_.Reset();
+	gpuParticleEmitRootSignature_.Reset();
+	gpuParticleEmitPipelineState_.Reset();
 	gpuParticleDrawRootSignature_.Reset();
 	gpuParticleDrawPipelineState_.Reset();
 
@@ -43,7 +52,7 @@ void PipelineManager::Finalize(){
 	object3DPipelineStateAdditive_.Reset();
 
 	// ポストエフェクトの種類ごとのパイプラインステートも忘れずに解放
-	for ( int i = 0; i < 14; ++i ) {
+	for ( int i = 0; i < 18; ++i ) {
 		if ( postEffectPipelineStates_[i] != nullptr ) {
 			postEffectPipelineStates_[i].Reset();
 		}
@@ -93,6 +102,8 @@ void PipelineManager::Initialize(DirectXCommon* dxCommon){
 	// GPUパーティクル用のルートシグネチャとパイプラインの作成
 	CreateGPUParticleComputeRootSignature();
 	CreateGPUParticleComputePipeline();
+	CreateGPUParticleEmitRootSignature();
+	CreateGPUParticleEmitPipeline();
 
 	// Draw用のルートシグネチャとパイプラインの作成
 	CreateGPUParticleDrawRootSignature();
@@ -130,6 +141,10 @@ void PipelineManager::SetPipeline(
 		commandList->SetGraphicsRootSignature(instancedObject3DRootSignature_.Get());
 		commandList->SetPipelineState(instancedObject3DPipelineState_.Get());
 		break;
+	case PipelineType::InstancedObject3D_WrapUV: // インスタンシング（タイル貼りのモデル用。バインドの並びは同じ）
+		commandList->SetGraphicsRootSignature(instancedObject3DWrapRootSignature_.Get());
+		commandList->SetPipelineState(instancedObject3DWrapPipelineState_.Get());
+		break;
 	case PipelineType::Particle: // パーティクル用
 		commandList->SetGraphicsRootSignature(particleRootSignature_.Get());
 		commandList->SetPipelineState(particlePipelineState_.Get());
@@ -154,6 +169,10 @@ void PipelineManager::SetPipeline(
 		commandList->SetGraphicsRootSignature(object3DRootSignature_.Get());
 		commandList->SetPipelineState(object3DPipelineStateAdditive_.Get());
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		break;
+	case PipelineType::Object3D_WrapUV: // タイル貼りのモデル用（バインドの並びは Object3D と同じ）
+		commandList->SetGraphicsRootSignature(object3DWrapRootSignature_.Get());
+		commandList->SetPipelineState(object3DWrapPipelineState_.Get());
 		break;
 
 		//s
@@ -211,24 +230,27 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PipelineManager::CreateCustomObject3
 // ルートシグネチャの生成 Object3D用
 void PipelineManager::CreateObject3DRootSignature(){
 
-	RootSignatureBuilder builder;
-	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
-	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
-	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
-	builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
-	builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
-	builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
-	builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
+	// 通常版と「縦もリピートする版」を作る。違いはサンプラーだけで、バインドの並びは同じ
+	for ( bool wrapV : { false, true } ) {
+		RootSignatureBuilder builder;
+		builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
+		builder.AddCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);               // [1]: 座標 (b0)
+		builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_PIXEL); // [2]: テクスチャ (t0)
+		builder.AddCBV(1, D3D12_SHADER_VISIBILITY_PIXEL);                // [3]: ライト1 (b1)
+		builder.AddCBV(2, D3D12_SHADER_VISIBILITY_PIXEL);                // [4]: カメラ (b2)
+		builder.AddCBV(3, D3D12_SHADER_VISIBILITY_PIXEL);                // [5]: ポイントライト (b3)
+		builder.AddCBV(4, D3D12_SHADER_VISIBILITY_PIXEL);                // [6]: スポットライト (b4)
 
-	// ディゾルブ用のリソースを追加
-	builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
-	builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ進行度 (b5)
+		// ディゾルブ用のリソースを追加
+		builder.AddDescriptorTableSRV(1, D3D12_SHADER_VISIBILITY_PIXEL); // [7]: ノイズ画像 (t1)
+		builder.AddCBV(5, D3D12_SHADER_VISIBILITY_PIXEL);                // [8]: ディゾルブ進行度 (b5)
 
-	builder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [9]: 環境マップ (t2)
+		builder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [9]: 環境マップ (t2)
 
-	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
-	// 構築して object3DRootSignature_ に入れる！
-	builder.Build(dxCommon_->GetDevice(), object3DRootSignature_);
+		builder.AddDefaultSampler(0, wrapV);                             // サンプラー (s0)
+		// 構築して object3DRootSignature_ / object3DWrapRootSignature_ に入れる！
+		builder.Build(dxCommon_->GetDevice(), wrapV ? object3DWrapRootSignature_ : object3DRootSignature_);
+	}
 
 }
 // グラフィックスパイプラインの生成 Object3D用
@@ -255,6 +277,17 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }, // RTVフォーマットを指定
 		object3DPipelineStateNone_
 	);
+	// タイル貼りのモデル用（テクスチャを縦横ともリピート。それ以外はカリングあり用と同じ）
+	CreateGraphicsPipelineCommon(
+		L"resources/shaders/Object3d/Object3d.VS.hlsl",
+		L"resources/shaders/Object3d/Object3d.PS.hlsl",
+		object3DWrapRootSignature_.Get(),
+		BlendMode::kNormal,
+		D3D12_CULL_MODE_BACK,
+		true,
+		{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
+		object3DWrapPipelineState_
+	);
 	// 加算合成用
 	CreateGraphicsPipelineCommon(
 		L"resources/shaders/Object3d/Object3d.VS.hlsl",
@@ -270,8 +303,8 @@ void PipelineManager::CreateObject3DGraphicsPipeline(){
 }
 // ルートシグネチャの生成 インスタンシング専用
 void PipelineManager::CreateInstancedObject3DRootSignature(){
-
-
+	// 通常版と「縦もリピートする版」を作る。違いはサンプラーだけで、バインドの並びは同じ
+	for ( bool wrapV : { false, true } ) {
 	RootSignatureBuilder builder;
 
 	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_PIXEL);                // [0]: マテリアル (b0)
@@ -290,10 +323,9 @@ void PipelineManager::CreateInstancedObject3DRootSignature(){
 
 	builder.AddDescriptorTableSRV(3, D3D12_SHADER_VISIBILITY_PIXEL); // [9]: 環境マップ (t3)
 
-	builder.AddDefaultSampler(0);                                    // サンプラー (s0)
-	builder.Build(dxCommon_->GetDevice(), instancedObject3DRootSignature_);
-
-
+	builder.AddDefaultSampler(0, wrapV);                             // サンプラー (s0)
+	builder.Build(dxCommon_->GetDevice(), wrapV ? instancedObject3DWrapRootSignature_ : instancedObject3DRootSignature_);
+	}
 }
 
 // グラフィックスパイプラインの生成 インスタンシング専用
@@ -308,16 +340,18 @@ void PipelineManager::CreateInstancedObject3DGraphicsPipeline(){
 		{ "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	GraphicsPipelineBuilder builder;
-	builder.SetRootSignature(instancedObject3DRootSignature_.Get())
-		.SetShaders(vsBlob.Get(), psBlob.Get())
-		.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
-		.SetBlendMode(BlendMode::kNormal)
-		.SetCullMode(D3D12_CULL_MODE_BACK)
-		.SetDepthStencil(true, true) // 深度書き込みON
-		.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // RTVフォーマットを指定
-
-	builder.Build(dxCommon_->GetDevice(), instancedObject3DPipelineState_);
+	// 通常版と、タイル貼りのモデル用（テクスチャを縦横ともリピート）
+	for ( bool wrapV : { false, true } ) {
+		GraphicsPipelineBuilder builder;
+		builder.SetRootSignature(wrapV ? instancedObject3DWrapRootSignature_.Get() : instancedObject3DRootSignature_.Get())
+			.SetShaders(vsBlob.Get(), psBlob.Get())
+			.SetInputLayout(inputElementDescs, _countof(inputElementDescs))
+			.SetBlendMode(BlendMode::kNormal)
+			.SetCullMode(D3D12_CULL_MODE_BACK)
+			.SetDepthStencil(true, true) // 深度書き込みON
+			.SetRenderTargets({ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB }); // RTVフォーマットを指定
+		builder.Build(dxCommon_->GetDevice(), wrapV ? instancedObject3DWrapPipelineState_ : instancedObject3DPipelineState_);
+	}
 
 
 }
@@ -398,6 +432,10 @@ void PipelineManager::CreatePostEffectPipeline(){
 		L"resources/shaders/PostEffect/MaskedDistortion.PS.hlsl", // 11: MaskedDistortion
 		L"resources/shaders/PostEffect/MaskedGlow.PS.hlsl",       // 12: MaskedGlow
 		L"resources/shaders/PostEffect/MaskedSepia.PS.hlsl",      // 13: MaskedSepia
+		L"resources/shaders/PostEffect/PictureBook.PS.hlsl",      // 14: PictureBook（絵本風）
+		L"resources/shaders/PostEffect/TiltShift.PS.hlsl",        // 15: TiltShift（ジオラマ）
+		L"resources/shaders/PostEffect/PaperGrain.PS.hlsl",       // 16: PaperGrain（紙の質感）
+		L"resources/shaders/PostEffect/IrisWipe.PS.hlsl",         // 17: IrisWipe（アイリス）
 	};
 
 	// パイプラインの共通設定（ブレンドやカリングなど）
@@ -408,14 +446,16 @@ void PipelineManager::CreatePostEffectPipeline(){
 		.SetDepthStencil(false)
 		.SetBlendMode(BlendMode::kNormal);
 
-	// for文で7個のシェーダーを一気にコンパイルして配列に保存！
-	for ( int i = 0; i < 14; ++i ) {
+	// for文で全シェーダーを一気にコンパイルして配列に保存！
+	for ( int i = 0; i < 18; ++i ) {
 		auto psBlob = dxCommon_->GetShaderCompiler().CompileShader(psPaths[i], L"ps_6_0");
 		builder.SetShaders(vsBlob.Get(), psBlob.Get());
 		builder.Build(dxCommon_->GetDevice(), postEffectPipelineStates_[i]);
 	}
 }
 
+
+// 
 // ルートシグネチャの生成 スキニングメッシュ用
 void PipelineManager::CreateSkinningObject3DRootSignature(){
 	RootSignatureBuilder builder;
@@ -466,8 +506,10 @@ void PipelineManager::CreateSkinningObject3DGraphicsPipeline(){
 // ルートシグネチャの生成 GPUパーティクル用 Computeシェーダー用
 void PipelineManager::CreateGPUParticleComputeRootSignature(){
 	RootSignatureBuilder builder;
-	builder.AddDescriptorTableUAV(0);                          // [0]: u0 (RWStructuredBuffer)
-	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_ALL);            // [1]: b0 (deltaTime等)
+	builder.AddDescriptorTableUAV(0);                          // [0]: u0 パーティクル (RWStructuredBuffer)
+	builder.AddDescriptorTableUAV(1);                          // [1]: u1 FreeList（空きスロット番号）
+	builder.AddDescriptorTableUAV(2);                          // [2]: u2 FreeListIndex（空き数カウンタ）
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_ALL);            // [3]: b0 (deltaTime等)
 	builder.BuildForCompute(dxCommon_->GetDevice(), gpuParticleComputeRootSignature_);
 }
 
@@ -481,8 +523,34 @@ void PipelineManager::CreateGPUParticleComputePipeline(){
 	psoDesc.pRootSignature = gpuParticleComputeRootSignature_.Get();
 	psoDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
 		&psoDesc, IID_PPV_ARGS(&gpuParticleComputePipelineState_));
+	assert(SUCCEEDED(hr));
+}
+
+// ルートシグネチャの生成 GPUパーティクル用 Emit（発生）Computeシェーダー用
+void PipelineManager::CreateGPUParticleEmitRootSignature(){
+	RootSignatureBuilder builder;
+	builder.AddDescriptorTableUAV(0);                                 // [0]: u0 パーティクル
+	builder.AddDescriptorTableUAV(1);                                 // [1]: u1 FreeList
+	builder.AddDescriptorTableUAV(2);                                 // [2]: u2 FreeListIndex
+	builder.AddDescriptorTableSRV(0, D3D12_SHADER_VISIBILITY_ALL);    // [3]: t0 発生リクエスト
+	builder.AddCBV(0, D3D12_SHADER_VISIBILITY_ALL);                   // [4]: b0 (emitCount)
+	builder.BuildForCompute(dxCommon_->GetDevice(), gpuParticleEmitRootSignature_);
+}
+
+// パイプラインの生成 GPUパーティクル用 Emit（発生）Computeシェーダー用
+void PipelineManager::CreateGPUParticleEmitPipeline(){
+	auto csBlob = dxCommon_->GetShaderCompiler().CompileShader(
+		L"resources/shaders/Particle/ParticleEmit.CS.hlsl", L"cs_6_0");
+	assert(csBlob);
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = gpuParticleEmitRootSignature_.Get();
+	psoDesc.CS = { csBlob->GetBufferPointer(), csBlob->GetBufferSize() };
+
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateComputePipelineState(
+		&psoDesc, IID_PPV_ARGS(&gpuParticleEmitPipelineState_));
 	assert(SUCCEEDED(hr));
 }
 
@@ -557,6 +625,12 @@ void PipelineManager::SetGPUParticleComputePipeline(ID3D12GraphicsCommandList* c
 	commandList->SetPipelineState(gpuParticleComputePipelineState_.Get());
 }
 
+// GPUパーティクルのEmit（発生）用Computeパイプラインをコマンドリストにセットする関数
+void PipelineManager::SetGPUParticleEmitPipeline(ID3D12GraphicsCommandList* commandList){
+	commandList->SetComputeRootSignature(gpuParticleEmitRootSignature_.Get());
+	commandList->SetPipelineState(gpuParticleEmitPipelineState_.Get());
+}
+
 // GPUパーティクル用のDrawシェーダーパイプラインをコマンドリストにセットする関数
 void PipelineManager::SetGPUParticleDrawPipeline(ID3D12GraphicsCommandList* commandList){
 	commandList->SetGraphicsRootSignature(gpuParticleDrawRootSignature_.Get());
@@ -574,7 +648,8 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 	D3D12_CULL_MODE cullMode, 				// カリングモード
 	bool isDepthWrite, 					// 深度書き込みの有無
 	const std::vector<DXGI_FORMAT>& rtvFormats,
-	Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState// 生成結果
+	Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState,// 生成結果
+	const std::source_location& where
 ){
 	// 1. シェーダーコンパイル
 	Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob =
@@ -631,8 +706,9 @@ void PipelineManager::CreateGraphicsPipelineCommon(
 
 	// 結果を保存
 	pipelineState = nullptr;
-	HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)); // PSO生成
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)); // PSO生成
 	assert(SUCCEEDED(hr));
+	SetD3DDebugName(pipelineState.Get(), L"PSO", where);
 }
 
 // ブレンドステートの共通関数
@@ -647,3 +723,5 @@ void PipelineManager::SetPostEffectPipeline(ID3D12GraphicsCommandList* commandLi
 		commandList->SetPipelineState(postEffectPipelineStates_[index].Get());
 	}
 }
+
+} // namespace KazumimiEngine

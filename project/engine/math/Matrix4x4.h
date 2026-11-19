@@ -1,6 +1,8 @@
 #pragma once
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 namespace MatrixMath {
 	// ---------------------------------------------
 	// 行列計算
@@ -23,6 +25,10 @@ namespace MatrixMath {
 
 	Matrix4x4 MakeDirectionRotation(const Vector3& forward, const Vector3& up = { 0.0f, 1.0f, 0.0f });
 
+	// 回転行列 → X・Y・Z の角度（MakeAffine と同じ順番：X → Y → Z）。
+	//   「置いた向きのまま、世界の決めた向きへ倒す・回す」時に、行列で回してから角度へ戻すのに使う
+	Vector3 ToEulerXYZ(const Matrix4x4& rotation);
+
 	Matrix4x4 MakeAffine(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
 
 	// Quaternion を使ったアフィン変換行列（スキニング・アニメーション用）
@@ -43,4 +49,14 @@ namespace MatrixMath {
 	Matrix4x4 Orthographic(float left, float top, float right, float bottom, float nearClip, float farClip);
 	Matrix4x4 PerspectiveFov(float fovY, float aspectRatio, float nearClip, float farClip);
 	Matrix4x4 Viewport(float left, float top, float width, float height, float minDepth, float maxDepth);
+
+	// ---------------------------------------------
+	// 画面投影（world↔NDC。狙いカーソル・エディタのノード描画など画面系の共通処理）
+	// ---------------------------------------------
+	// ワールド点 → NDC(-1..1)。カメラの後方にある場合は false（行ベクトル・v*VP 規約）
+	bool WorldToNdc(const Vector3& world, const Matrix4x4& viewProj, Vector2& outNdc);
+	// NDC(-1..1, z=0..1) → ワールド点（invViewProj = Inverse(viewProj) を渡す）
+	Vector3 NdcToWorld(float ndcX, float ndcY, float ndcZ, const Matrix4x4& invViewProj);
 }
+
+} // namespace KazumimiEngine

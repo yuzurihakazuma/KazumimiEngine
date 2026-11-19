@@ -1,26 +1,32 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <cstdint>
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <dxgiformat.h>
 #include <wrl.h>
+#include <vector>
 
+namespace KazumimiEngine {
 
 // 前方宣言
 class DirectXCommon;
 
 // SRVマネージャー
-class SrvManager{
+class SrvManager : public Singleton<SrvManager> {
+	friend class Singleton<SrvManager>; // 土台（Singleton）だけが作れる
 public:
-	static SrvManager* GetInstance();
 
 	// 初期化
 	void Initialize(DirectXCommon* dxCommon);
 	// 終了処理
 	void Finalize();
 
-	// SRV用ディスクリプタヒープからディスクリプタを1つ割り当てる
+	// SRV用ディスクリプタヒープからディスクリプタを1つ割り当てる（返された番号があれば、それを使い回す）
 	uint32_t Allocate();
+	// 使い終わった番号を返す（シーンごとに作る物は、消す時に必ず返す。返さないと上限を超えて、ほかの絵が壊れる）
+	void Free(uint32_t index);
+	uint32_t GetUsedCount() const{ return useIndex_ - ( uint32_t ) freeList_.size(); }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(uint32_t index);
@@ -31,6 +37,9 @@ public:
 	void CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
 
 	void CreateSRVforTextureCube(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels);
+
+	// 3Dテクスチャ（ボリューム）用SRVの作成（SDFボリュームのレイマーチングで使用）
+	void CreateSRVforTexture3D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels);
 
 	void PreDraw();
 
@@ -61,14 +70,15 @@ private:
 	// ディスクリプタヒープ
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps_;
 
-	// 使用中のインデックス
+	// 使用中のインデックス（ここまで配った）
 	uint32_t useIndex_ = 0;
+	// 返された番号（次の Allocate で使い回す）
+	std::vector<uint32_t> freeList_;
 private:
 	// コンストラクタを private にして外部からの new を禁止
 	SrvManager() = default;
 	~SrvManager() = default;
-	SrvManager(const SrvManager&) = delete;
-	SrvManager& operator=(const SrvManager&) = delete;
 
 };
 
+} // namespace KazumimiEngine

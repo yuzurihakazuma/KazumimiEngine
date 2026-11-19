@@ -1,4 +1,10 @@
 #pragma once
+#include <chrono>
+#include "engine/base/Singleton.h"
+#include <cstdint>
+
+namespace KazumimiEngine {
+
 // =============================================================
 //  Time : エンジン共通の時間管理（デルタタイム / ポーズ / スロー）
 //  - ヘッダオンリー（.vcxproj への追加不要）
@@ -8,15 +14,12 @@
 //      GetUnscaledDeltaTime() : 実時間（UI やエディタなど止めたくないもの用）
 //  ※ ファイル名は Time.h にすると C標準 <time.h> と衝突するため TimeManager.h
 // =============================================================
-#include <chrono>
-#include <cstdint>
-
-class Time {
+class Time : public Singleton<Time> {
+	friend class Singleton<Time>; // 土台（Singleton）だけが作れる
 public:
-	static Time* GetInstance() {
-		static Time instance;
-		return &instance;
-	}
+	// 固定の 1 コマの時間（秒）。60fps の 1 フレーム。
+	//   「実際にかかった時間に関係なく、1 フレームぶんだけ進める」所は、数字で書かずにこれを使う
+	static constexpr float kFixedDeltaTime = 1.0f / 60.0f;
 
 	// 毎フレーム1回、フレーム先頭で呼ぶ
 	void Update() {
@@ -31,6 +34,8 @@ public:
 		// ブレークポイントや初回フレームでの異常な大ジャンプを防ぐためにクランプ
 		if (dt > maxDelta_) { dt = maxDelta_; }
 		if (dt < 0.0f) { dt = 0.0f; }
+		// 固定コマ送り（撮影の録画中など）：実際にかかった時間に関係なく、1フレーム＝1/60秒で進める
+		if (fixedStep_) { dt = kFixedDeltaTime; }
 
 		unscaledDeltaTime_ = dt;
 		deltaTime_ = dt * timeScale_;
@@ -57,10 +62,13 @@ public:
 	// デルタタイムの上限（秒）。既定 0.1（=最低10fps相当でクランプ）
 	void SetMaxDelta(float seconds) { maxDelta_ = seconds; }
 
+	// 固定コマ送り：true の間は1フレーム＝1/60秒（保存などで1フレームが遅くなっても、動きは60fpsのまま）。
+	//   次の Update から効く
+	void SetFixedStep(bool fixed) { fixedStep_ = fixed; }
+	bool IsFixedStep() const { return fixedStep_; }
+
 private:
 	Time() = default;
-	Time(const Time&) = delete;
-	Time& operator=(const Time&) = delete;
 
 	using clock = std::chrono::steady_clock;
 
@@ -72,5 +80,8 @@ private:
 	float  unscaledTotalTime_ = 0.0f;
 	float  timeScale_ = 1.0f;
 	float  maxDelta_ = 0.1f;
+	bool   fixedStep_ = false;
 	uint64_t frameCount_ = 0;
 };
+
+} // namespace KazumimiEngine

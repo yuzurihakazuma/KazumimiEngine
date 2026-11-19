@@ -14,6 +14,8 @@
 #include "engine/base/TimeManager.h"
 #include "engine/utils/RenderStats.h"
 
+namespace KazumimiEngine {
+
 void PerformanceMonitor::Initialize() {
     // VRAM 照会用に IDXGIAdapter3 を自前で取得（エンジン本体は触らない）
     Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
@@ -43,7 +45,7 @@ void PerformanceMonitor::MinAvgMax(const float* buf, float& outMin, float& outAv
     outMin = mn; outAvg = sum / ( float ) n; outMax = mx;
 }
 
-void PerformanceMonitor::DrawDebugUI(float cpuUpdateMs, float cpuDrawMs) {
+void PerformanceMonitor::DrawDebugUI([[maybe_unused]] float cpuUpdateMs, [[maybe_unused]] float cpuDrawMs) {
 #ifdef USE_IMGUI
     ImGui::Begin("パフォーマンスモニター");
 
@@ -148,3 +150,5 @@ void PerformanceMonitor::DrawDebugUI(float cpuUpdateMs, float cpuDrawMs) {
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

@@ -1,5 +1,6 @@
 #include "SkinnedObj3d.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -9,6 +10,7 @@
 #include "engine/camera/Camera.h"
 #include "engine/math/Matrix4x4.h"
 #include "engine/math/QuaternionMath.h"
+#include "engine/math/VectorMath.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/TimeManager.h"
 #include "engine/utils/RenderStats.h"
@@ -17,6 +19,8 @@
 #include "engine/graphics/PipelineManager.h"
 #include "engine/graphics/PipelineType.h"
 #include <externals/imgui/imgui.h>
+
+namespace KazumimiEngine {
 
 using namespace MatrixMath;
 
@@ -45,6 +49,11 @@ std::unique_ptr<SkinnedObj3d> SkinnedObj3d::Create(
 // --------------------------------------------------
 // 初期化
 // --------------------------------------------------
+SkinnedObj3d::~SkinnedObj3d(){
+	// 骨の行列の SRV を返す（返さないと、作り直すたびに SRV が増え続けて上限を超える）
+	if ( skinClusterCreated_ ) { SrvManager::GetInstance()->Free(skinCluster_.srvIndex); }
+}
+
 void SkinnedObj3d::Initialize(
 	Model* model,
 	const std::string& directoryPath,
@@ -70,7 +79,9 @@ void SkinnedObj3d::Initialize(
 	// スケルトンの作成
 	skeleton_ = CreateSkeleton(model_->GetRootNode());
 
-	// スキンクラスターの作成（inverseBindPose も設定される）
+	// スキンクラスターの作成（inverseBindPose も設定される）。作り直す時は、前の SRV を返してから
+	if ( skinClusterCreated_ ) { SrvManager::GetInstance()->Free(skinCluster_.srvIndex); }
+	skinClusterCreated_ = true;
 	skinCluster_ = CreateSkinCluster(
 		skeleton_,
 		model_->GetInverseBindPoseMap(),
@@ -82,14 +93,47 @@ void SkinnedObj3d::Initialize(
 	animation_ = LoadAnimationFromFile(directoryPath, animFilename);
 }
 
+// ファイル内の全アニメーションクリップを名前で読み込む（glTFの Idle/Walk/TongueOut 等）
+void SkinnedObj3d::LoadClips(const std::string& directoryPath, const std::string& filename){
+	std::vector<std::string> names = GetAnimationClipNames(directoryPath, filename);
+	for ( uint32_t i = 0; i < ( uint32_t ) names.size(); ++i ) {
+		clips_[names[i]] = LoadAnimationFromFile(directoryPath, filename, i);
+	}
+	if ( !names.empty() ) { currentClip_ = names[0]; animation_ = clips_[names[0]]; }
+}
+
+// 指定ジョイントのワールド座標（モデル空間の骨行列 × ワールド行列）
+bool SkinnedObj3d::GetJointWorldPosition(const std::string& jointName, Vector3& out) const{
+	for ( const auto& joint : skeleton_.joints ) {
+		if ( joint.name != jointName ) continue;
+		Matrix4x4 world = Multiply(joint.skeletonSpaceMatrix, worldMatrix_);
+		out = { world.m[3][0], world.m[3][1], world.m[3][2] };
+		return true;
+	}
+	return false;
+}
+
+// クリップ切り替え。既に同じクリップなら何もしない（毎フレーム呼んで良い）
+void SkinnedObj3d::SetClip(const std::string& name, bool loop){
+	if ( currentClip_ == name ) { isLoop_ = loop; return; }
+	auto it = clips_.find(name);
+	if ( it == clips_.end() ) return; // 無い名前は無視（従来の単一アニメ運用を壊さない）
+	animation_ = it->second;
+	currentClip_ = name;
+	isLoop_ = loop;
+	animationTime_ = 0.0f; // 頭から再生
+}
+
 // --------------------------------------------------
 // 更新（毎フレーム）
 // --------------------------------------------------
 void SkinnedObj3d::Update(){
 
 	if ( !isPause_ ) {
-		// --- アニメーション時間を進める（デルタタイム基準）---
-		animationTime_ += Time::GetInstance()->GetDeltaTime();
+		// --- アニメーション時間を進める（デルタタイム×再生速度）---
+		//   再生速度は呼び出し側が毎フレーム決められる（例：プレイヤーの移動速度に合わせて
+		//   歩きモーションを進める＝止まれば止まり、速く動くほど足も速くなる）
+		animationTime_ += Time::GetInstance()->GetDeltaTime() * playbackSpeed_;
 		if ( isLoop_ ) {
 			animationTime_ = std::fmod(animationTime_, animation_.duration);
 		} else {
@@ -117,11 +161,57 @@ void SkinnedObj3d::Update(){
 	// --- スケルトンにアニメーションを適用して行列を更新 ---
 	UpdateSkeleton(skeleton_, animation_, animationTime_);
 
+	// --- 重ねがけ（アニメ適用後）：指定の骨だけ別のクリップの形に差し替える ---
+	bool rebuild = false;
+	if ( hasLayer_ ) {
+		auto found = clips_.find(layerClip_);
+		if ( found != clips_.end() ) {
+			const Animation& layer = found->second;
+			const float time = layer.duration > 0.0f ? std::fmod(std::fmod(layerTime_, layer.duration) + layer.duration, layer.duration) : 0.0f;
+			for ( auto& joint : skeleton_.joints ) {
+				if ( std::find(layerBones_.begin(), layerBones_.end(), joint.name) == layerBones_.end() ) { continue; }
+				auto node = layer.nodeAnimations.find(joint.name);
+				if ( node == layer.nodeAnimations.end() ) { continue; }
+				joint.transform.translate = CalculateValue(node->second.translate.keyframes, time);
+				joint.transform.rotate = CalculateValue(node->second.rotate.keyframes, time);
+				joint.transform.scale = CalculateValue(node->second.scale.keyframes, time);
+				rebuild = true;
+			}
+		}
+	}
+
+	// --- ボーン上書き（アニメ適用後）：ベロの長さ等をゲーム側で直接制御する ---
+	if ( hasBoneOverride_ ) {
+		for ( auto& joint : skeleton_.joints ) {
+			if ( joint.name == overrideBoneName_ ) {
+				if ( overrideReplace_ ) {
+					joint.transform.scale = overrideBoneScale_;
+				} else {
+					joint.transform.scale.x *= overrideBoneScale_.x;
+					joint.transform.scale.y *= overrideBoneScale_.y;
+					joint.transform.scale.z *= overrideBoneScale_.z;
+				}
+			}
+		}
+		rebuild = true;
+	}
+	if ( rebuild ) {
+		for ( auto& joint : skeleton_.joints ) { // 手動モードと同じ手順で行列を作り直す（親→子順）
+			joint.localMatrix = MakeAffineMatrix(joint.transform.scale, joint.transform.rotate, joint.transform.translate);
+			if ( joint.parent ) { joint.skeletonSpaceMatrix = Multiply(joint.localMatrix, skeleton_.joints[*joint.parent].skeletonSpaceMatrix); }
+			else { joint.skeletonSpaceMatrix = joint.localMatrix; }
+		}
+	}
+
+	// --- 骨を目標へ向ける（アニメ・上書きの後。親の行列が決まってから）---
+	if ( hasBoneAim_ ) { ApplyBoneAim(); }
+
 	// --- MatrixPalette を計算して GPU バッファに書き込む ---
 	UpdateSkinCluster(skinCluster_, skeleton_, model_->GetBoneOrder());
 
 	// --- WVP 行列の計算（Obj3d と同じ処理） ---
 	Matrix4x4 worldMatrix = MakeAffine(scale_, rotation_, translate_);
+	worldMatrix_ = worldMatrix; // ジョイントのワールド座標取得用に保持
 
 	Matrix4x4 worldViewProjectionMatrix;
 	if ( camera_ ) {
@@ -136,6 +226,45 @@ void SkinnedObj3d::Update(){
 	transformationMatrixData_->World = worldMatrix;
 	transformationMatrixData_->WVP = worldViewProjectionMatrix;
 	transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
+}
+
+// 骨の +Y（伸びる向き）がワールドの aimTarget_ を向くように、その骨の回転を置き換える。
+//   親の空間で「+Y → 目標の向き」の最短の回転にする（ベロのように軸まわりに形が同じ物向け）
+void SkinnedObj3d::ApplyBoneAim(){
+	Joint* joint = nullptr;
+	for ( auto& candidate : skeleton_.joints ) { if ( candidate.name == aimBoneName_ ) { joint = &candidate; break; } }
+	if ( !joint ) { return; }
+	const Matrix4x4 world = MakeAffine(scale_, rotation_, translate_);
+	const Matrix4x4 parentWorld = joint->parent ? Multiply(skeleton_.joints[*joint->parent].skeletonSpaceMatrix, world) : world;
+	// 骨の付け根（ワールド）から目標への向きを、親の空間の向きへ直す。
+	//   親の行列の 3 本の軸（行）へ映して、軸の長さ（スケール）で割る（逆行列を使わない。向きだけなので平行移動は要らない）
+	const Vector3 jointWorld = Transforms(joint->transform.translate, parentWorld);
+	const Vector3 toTarget = VectorMath::Subtract(aimTarget_, jointWorld);
+	if ( VectorMath::Length(toTarget) < 1e-5f ) { return; }
+	Vector3 dir {};
+	float* components[3] = { &dir.x, &dir.y, &dir.z };
+	for ( int row = 0; row < 3; ++row ) {
+		const Vector3 axis { parentWorld.m[row][0], parentWorld.m[row][1], parentWorld.m[row][2] };
+		const float lengthSq = VectorMath::Dot(axis, axis);
+		*components[row] = lengthSq > 1e-10f ? VectorMath::Dot(toTarget, axis) / lengthSq : 0.0f;
+	}
+	if ( VectorMath::Length(dir) < 1e-5f ) { return; }
+	dir = VectorMath::Normalize(dir);
+	const Vector3 yAxis { 0.0f, 1.0f, 0.0f };
+	Vector3 axis = VectorMath::Cross(yAxis, dir);
+	const float dot = std::clamp(VectorMath::Dot(yAxis, dir), -1.0f, 1.0f);
+	if ( VectorMath::Length(axis) < 1e-5f ) { axis = { 1.0f, 0.0f, 0.0f }; } // 真上・真下
+	Quaternion rotate = QuaternionMath::MakeRotateAxisAngleQuaternion(VectorMath::Normalize(axis), std::acos(dot));
+	// 回す向きの約束（行ベクトル×行列）がどちらでも合うように、+Y が本当に dir へ向く方を選ぶ
+	const Matrix4x4 check = QuaternionMath::MakeRotateMatrix(rotate);
+	const Vector3 rotatedY { check.m[1][0], check.m[1][1], check.m[1][2] };
+	if ( VectorMath::Dot(rotatedY, dir) < 0.999f ) { rotate = QuaternionMath::Conjugate(rotate); }
+	joint->transform.rotate = rotate;
+	for ( auto& each : skeleton_.joints ) { // 親→子の順に行列を作り直す
+		each.localMatrix = MakeAffineMatrix(each.transform.scale, each.transform.rotate, each.transform.translate);
+		if ( each.parent ) { each.skeletonSpaceMatrix = Multiply(each.localMatrix, skeleton_.joints[*each.parent].skeletonSpaceMatrix); }
+		else { each.skeletonSpaceMatrix = each.localMatrix; }
+	}
 }
 
 // --------------------------------------------------
@@ -183,7 +312,7 @@ void SkinnedObj3d::Draw(){
 
 	// モデル描画（[0] マテリアル・[2] テクスチャ・DrawCall は内部でやってくれる）
 	if ( model_ ) {
-		model_->Draw();
+		model_->Draw(1, PrepareMaterialOverride());
 	}
 }
 
@@ -219,3 +348,27 @@ void SkinnedObj3d::SetDissolveThreshold(float threshold){
 		dissolveData_->threshold = threshold;
 	}
 }
+
+void SkinnedObj3d::SetMaterialOverride(bool enabled, float brighten, float emissive){
+	materialOverrideOn_ = enabled;
+	materialBrighten_ = brighten;
+	materialEmissive_ = emissive;
+	if ( enabled && !materialOverrideResource_ ) {
+		materialOverrideResource_ = obj3dCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Model::Material));
+		materialOverrideResource_->Map(0, nullptr, &materialOverrideData_);
+	}
+}
+
+// 描く直前：モデルのマテリアルを写して、この物の分だけ変える（GPU が読むのはこのフレームのコマンドが流れた時）
+D3D12_GPU_VIRTUAL_ADDRESS SkinnedObj3d::PrepareMaterialOverride(){
+	if ( !materialOverrideOn_ || !materialOverrideData_ || !model_ || !model_->GetMaterial() ) { return 0; }
+	Model::Material material = *model_->GetMaterial();
+	material.color.x *= materialBrighten_;
+	material.color.y *= materialBrighten_;
+	material.color.z *= materialBrighten_;
+	material.emissive = materialEmissive_;
+	*static_cast< Model::Material* >( materialOverrideData_ ) = material;
+	return materialOverrideResource_->GetGPUVirtualAddress();
+}
+
+} // namespace KazumimiEngine

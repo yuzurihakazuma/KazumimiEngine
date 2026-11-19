@@ -1,4 +1,5 @@
 #include "TextManager.h"
+#include "engine/utils/JsonFile.h"
 
 // --- 標準ライブラリ ---
 #include <fstream>
@@ -15,6 +16,8 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/WindowProc.h"
 #include "engine/graphics/SrvManager.h"
+
+namespace KazumimiEngine {
 
 using json = nlohmann::json;
 
@@ -221,11 +224,8 @@ void TextManager::Save(const std::string& filePath){
 }
 
 void TextManager::Load(const std::string& filePath){
-	std::ifstream file(filePath);
-	if ( !file.is_open() ) return;
-
 	json j;
-	file >> j;
+	if ( !JsonFile::Load(filePath, j) ) return;
 
 	texts_.clear(); // 現在のリストをリセット
 
@@ -264,3 +264,5 @@ void TextManager::Finalize(){
 	resourceDescriptors_.reset();
 	graphicsMemory_.reset();
 }
+
+} // namespace KazumimiEngine

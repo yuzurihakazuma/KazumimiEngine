@@ -1,0 +1,297 @@
+#include "game/camera/PlayCameraController.h"
+#include "engine/math/MathUtil.h"
+
+#include "engine/camera/Camera.h"
+#include "engine/rail/SplineRail.h"
+#include "engine/graphics/DebugDraw.h"
+#include "engine/base/TimeManager.h" // 回転フリーズ（タイムスケール制御）用
+#include "engine/math/VectorMath.h"
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
+
+#include <algorithm>
+#include <cmath>
+
+using namespace KazumimiEngine;
+
+using namespace VectorMath;
+
+// マップのカメラゾーン設定を実行用へ変換（ノード番号→レール上の距離）
+void PlayCameraController::Sync(const std::vector<LevelCameraZone>& zones, const std::vector<SplineRail>& rails){
+    zones_.clear();
+    for ( const auto& z : zones ) {
+        if ( z.railIndex < 0 || z.railIndex >= ( int ) rails.size() ) continue;
+        Zone cz;
+        cz.rail   = z.railIndex;
+        int maxN  = ( int ) rails[z.railIndex].Nodes().size() - 1;
+        int node  = std::clamp(z.nodeIndex, 0, ( std::max )( maxN, 0 ));
+        cz.dist   = rails[z.railIndex].GetDistanceFromT(( float ) node);
+        cz.radius = z.radius;
+        cz.mode   = z.mode;
+        cz.offset = z.offset;
+        cz.yawRad    = z.yawDeg * Math::kDegToRad;
+        cz.camDist   = z.dist;
+        cz.camHeight = z.height;
+        cz.revert    = ( z.revert != 0 );
+        cz.freeze    = ( z.freeze != 0 );
+        cz.fovRad = z.fovDeg * Math::kDegToRad;
+        zones_.push_back(cz);
+    }
+    lastZone_ = -1;
+}
+
+// 追従の目標だけを通常（followOffset_ 基準）へ戻す。Cur はそのまま＝補間で滑らかに復帰する
+void PlayCameraController::SetDefaultTargets(){
+    float d = std::sqrt(followOffset_.x * followOffset_.x + followOffset_.z * followOffset_.z);
+    camYawTgt_  = std::atan2(followOffset_.x, -followOffset_.z); // (0,3.5,-10)→0=後ろから
+    camDistTgt_ = ( d > 0.5f ) ? d : 10.0f;
+    camHgtTgt_  = followOffset_.y;
+    camFovTgt_  = 0.78f;
+}
+
+// レールごとのカメラ：乗り換えた時だけ目標を切り替える。空中（レールが -1）の間は、前のレールのまま
+void PlayCameraController::ApplyRailCamera(){
+    if ( playerRail_ < 0 ) { return; }
+    const bool has = playerRail_ < ( int ) railCameras_.size() && railCameras_[playerRail_].enabled != 0;
+    // 「だんだん変える」レールの上：進み具合に合わせて、毎フレーム目標を決め直す（今の値はいつもの補間で追う）
+    if ( has && railCameras_[playerRail_].blend && playerRail_ == lastRail_ ) {
+        const RailCamera& camera = railCameras_[playerRail_];
+        const float t = std::clamp(railProgress_, 0.0f, 1.0f);
+        const float w = t * t * ( 3.0f - 2.0f * t ); // なめらかに
+        camYawTgt_  = Math::Lerp(camera.yawDeg, camera.yawEndDeg, w) * Math::kDegToRad;
+        camDistTgt_ = ( std::max )( Math::Lerp(camera.dist, camera.distEnd, w), 0.5f );
+        camHgtTgt_  = Math::Lerp(camera.height, camera.heightEnd, w);
+        camFovTgt_  = Math::Lerp(camera.fovDeg, camera.fovEndDeg, w) * Math::kDegToRad;
+        return;
+    }
+    if ( playerRail_ == lastRail_ ) { return; }
+    const bool first = ( lastRail_ < 0 ); // プレイを始めた直後：補間せずに置く（始まりに回り込まない）
+    lastRail_ = playerRail_;
+    if ( has ) {
+        const RailCamera& camera = railCameras_[playerRail_];
+        const float w = camera.blend ? std::clamp(railProgress_, 0.0f, 1.0f) : 0.0f;
+        const float s = w * w * ( 3.0f - 2.0f * w );
+        camYawTgt_  = Math::Lerp(camera.yawDeg, camera.blend ? camera.yawEndDeg : camera.yawDeg, s) * Math::kDegToRad;
+        camDistTgt_ = ( std::max )( Math::Lerp(camera.dist, camera.blend ? camera.distEnd : camera.dist, s), 0.5f );
+        camHgtTgt_  = Math::Lerp(camera.height, camera.blend ? camera.heightEnd : camera.height, s);
+        camFovTgt_  = Math::Lerp(camera.fovDeg, camera.blend ? camera.fovEndDeg : camera.fovDeg, s) * Math::kDegToRad;
+        railCameraActive_ = true;
+    } else if ( railCameraActive_ ) {
+        SetDefaultTargets(); // カメラを決めていないレールへ：いつもの追従へ戻る
+        railCameraActive_ = false;
+    }
+    if ( first ) {
+        camYawCur_ = camYawTgt_; camDistCur_ = camDistTgt_; camHgtCur_ = camHgtTgt_; camFovCur_ = camFovTgt_;
+    }
+}
+
+// 追従カメラの向き/距離/高さ/画角を初期状態（followOffset_ 基準）へ戻す
+void PlayCameraController::Reset(){
+    SetDefaultTargets();
+    camYawCur_  = camYawTgt_;
+    camDistCur_ = camDistTgt_;
+    camHgtCur_  = camHgtTgt_;
+    camFovCur_  = camFovTgt_;
+    lastZone_ = -1;
+    lastRail_ = -1;           // 次の Update で、乗っているレールのカメラを補間せずに置く
+    railCameraActive_ = false;
+    heightReady_ = false; // 次の Update でプレイヤーの高さに合わせ直す
+    flipYaw_ = 0.0f;
+    flipDistScale_ = 1.0f;
+    flipSnap_ = false;
+    // 回転フリーズ中にモードが切り替わっても時間が止まったままにならないよう必ず戻す
+    if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(1.0f); freezingRotation_ = false; }
+}
+
+// カメラが追う高さ：着地している所。ジャンプでは動かさない（画面ごと上下に揺れない）。
+//   ・上へ upMargin_ より高く跳んだ/飛ばされた → はみ出した分だけ上へ追う
+//   ・空中で着地した所より downMargin_ 下へ行った（段差を降りる） → 追う。ただし holeDepth_ より深い（穴に落ちた）なら追わない
+float PlayCameraController::UpdateFocusHeight(const Vector3& playerPos, bool grounded, float dt){
+    if ( !heightReady_ ) {
+        groundY_ = focusY_ = playerPos.y;
+        heightReady_ = true;
+        return focusY_;
+    }
+    float target = groundY_;
+    if ( grounded ) {
+        groundY_ = target = playerPos.y;
+    } else if ( playerPos.y > groundY_ + upMargin_ ) {
+        target = playerPos.y - upMargin_;
+    } else if ( playerPos.y < groundY_ - downMargin_ && playerPos.y > groundY_ - holeDepth_ ) {
+        target = playerPos.y + downMargin_;
+    }
+    // 上下は横より少しゆっくり（着地のたびにカクッと動かない）
+    focusY_ += ( target - focusY_ ) * ( std::min )( 3.0f * dt, 1.0f );
+    return focusY_;
+}
+
+void PlayCameraController::Update(Camera* camera, const Vector3& playerPos, bool grounded, const std::vector<SplineRail>& rails,
+                                  bool debugCamActive, float dt){
+    if ( !followCam_ || !camera ) return;
+    if ( debugCamActive ) return; // デバッグカメラ優先
+
+    // レールごとのカメラ（乗り換えた時だけ。この後のゾーンの切り替えの方が優先される）
+    ApplyRailCamera();
+
+    // --- ゾーンの入退場判定（ヒステリシス付き）---
+    //   入り=半径ちょうど / 出=半径×1.25。境界ぴったりに立った時に「入った/出た」が
+    //   毎フレーム入れ替わり、目標角が交互に切り替わってカメラが激しく震えるのを防ぐ。
+    //   さらに向き切替の適用は「入った瞬間だけ」にして、境界での再発火（フリーズ連打）も防ぐ。
+
+    // 1) 今入っているゾーンからの離脱チェック
+    if ( lastZone_ >= 0 && lastZone_ < ( int ) zones_.size() ) {
+        const Zone& z = zones_[lastZone_];
+        bool leave = true;
+        if ( z.rail >= 0 && z.rail < ( int ) rails.size() ) {
+            Vector3 a = rails[z.rail].GetPositionByDistance(z.dist);
+            leave = ( Length(playerPos - a) > z.radius * 1.25f ); // 出る判定は少し外側
+        }
+        if ( leave ) {
+            // 「戻る」設定の向き切替から出た → 追従の目標を通常へ（Cur は補間でゆっくり戻る）
+            if ( z.mode == 1 && z.revert ) { SetDefaultTargets(); }
+            lastZone_ = -1;
+        }
+    } else {
+        lastZone_ = -1;
+    }
+
+    // 2) 未入場なら、新しく入ったゾーンを探す（一番近いもの）
+    if ( lastZone_ < 0 ) {
+        float bestD = 1e30f;
+        for ( int i = 0; i < ( int ) zones_.size(); ++i ) {
+            const Zone& z = zones_[i];
+            if ( z.rail < 0 || z.rail >= ( int ) rails.size() ) continue;
+            Vector3 a = rails[z.rail].GetPositionByDistance(z.dist); // 動くレールなら animOffset 込みで追従
+            float d = Length(playerPos - a);
+            if ( d < z.radius && d < bestD ) { bestD = d; lastZone_ = i; }
+        }
+        // 入った瞬間だけ、向き切替の目標を適用（毎フレーム適用しない）
+        if ( lastZone_ >= 0 && zones_[lastZone_].mode == 1 ) {
+            const Zone& z = zones_[lastZone_];
+            camYawTgt_  = z.yawRad;
+            camDistTgt_ = z.camDist;
+            camHgtTgt_  = z.camHeight;
+            camFovTgt_  = z.fovRad;
+
+            // 「回転中は時間を止める」：まだ大きく回す必要があるならフリーズ開始。
+            //   （角度を少し変えるだけの演出は freeze OFF でそのまま進ませる＝ゾーンごとに選べる）
+            if ( z.freeze ) {
+                const float dy = Math::AngleDelta(camYawCur_, camYawTgt_);
+                if ( std::abs(dy) > 0.26f ) { freezingRotation_ = true; } // 約15°以上回すなら停止演出
+            }
+        }
+    }
+
+    // 3) 固定カメラ(mode0)ゾーンに入っている間の情報（毎フレーム位置を追う）
+    const Zone* active = nullptr;
+    Vector3 anchor {};
+    if ( lastZone_ >= 0 && zones_[lastZone_].mode == 0 ) {
+        const Zone& z = zones_[lastZone_];
+        if ( z.rail >= 0 && z.rail < ( int ) rails.size() ) {
+            anchor = rails[z.rail].GetPositionByDistance(z.dist);
+            active = &z;
+        }
+    }
+
+    // 回転フリーズ中：時間を止める（毎フレーム上書き＝ヒットストップ終了で戻されても維持）。
+    //   dt=0 になるので、カメラの補間だけリアル時間(1/60)で進めて回転を完了させる。
+    if ( freezingRotation_ ) { Time::GetInstance()->SetTimeScale(0.0f); }
+    float camDt = ( freezingRotation_ || flipSnap_ ) ? Time::kFixedDeltaTime : dt;
+    if ( flipSnap_ ) { groundY_ = focusY_ = playerPos.y; heightReady_ = true; } // 反転中：高さも補間しない
+    float k = ( std::min )( 4.0f * camDt, 1.0f );
+    // 追う点：横と奥行きはプレイヤー、高さは着地している所
+    const Vector3 focus { playerPos.x, UpdateFocusHeight(playerPos, grounded, camDt), playerPos.z };
+
+    // 目標のカメラ位置と視野角
+    Vector3 targetPos;
+    float   targetFov;
+    if ( active && active->mode == 0 ) {
+        // 固定カメラ：範囲内だけアンカー+オフセットに固定
+        targetPos = { anchor.x + active->offset.x, anchor.y + active->offset.y, anchor.z + active->offset.z };
+        targetFov = active->fovRad;
+    } else {
+        // 追従：向き(yaw)を最短経路で滑らかに回す → 180度切替は「回り込み」の演出になる
+        const float dyaw = Math::AngleDelta(camYawCur_, camYawTgt_);
+
+        // 回転フリーズ：ほぼ回り終わったら時間を戻してゲーム再開
+        if ( freezingRotation_ && std::abs(dyaw) < 0.05f ) {
+            freezingRotation_ = false;
+            Time::GetInstance()->SetTimeScale(1.0f);
+        }
+
+        camYawCur_  += dyaw * k;
+        camDistCur_ += ( camDistTgt_ - camDistCur_ ) * k;
+        camHgtCur_  += ( camHgtTgt_  - camHgtCur_ )  * k;
+
+        targetPos = FollowTargetPosition(focus);
+        targetFov = camFovTgt_;
+    }
+
+    // 位置・画角を滑らかに補間（急に切り替わらない＝演出として自然）
+    Vector3 cur = camera->GetWorldPosition();
+    Vector3 np = { cur.x + ( targetPos.x - cur.x ) * k,
+                   cur.y + ( targetPos.y - cur.y ) * k,
+                   cur.z + ( targetPos.z - cur.z ) * k };
+    if ( flipSnap_ ) { np = targetPos; } // 反転中：弧の上にそのまま置く
+    camera->SetTranslation(np);
+
+    // 向き：固定カメラはプレイヤー（少し上）を見る。
+    //   追従は追従の向き・距離・高さだけで決まる角度（プレイヤーの方へ首を振らない。カメラが遅れて付いてくる間も画面が回らない）
+    Vector3 look;
+    if ( active && active->mode == 0 ) {
+        look = { playerPos.x - np.x, ( playerPos.y + kLookHeight ) - np.y, playerPos.z - np.z };
+    } else {
+        const float yaw = camYawCur_ + flipYaw_;
+        const float dist = camDistCur_ * flipDistScale_;
+        look = { -std::sin(yaw) * dist, kLookHeight - camHgtCur_, std::cos(yaw) * dist };
+    }
+    float horiz = std::sqrt(look.x * look.x + look.z * look.z);
+    if ( horiz > 1e-4f || std::abs(look.y) > 1e-4f ) {
+        float yaw   = std::atan2(look.x, look.z);
+        float pitch = std::atan2(-look.y, horiz); // +で下を向く（行ベクトル×RotX の規約）
+        camera->SetRotation({ pitch, yaw, 0.0f });
+    }
+
+    camFovCur_ += ( targetFov - camFovCur_ ) * k;
+    camera->SetFovY(camFovCur_);
+}
+
+Vector3 PlayCameraController::FollowTargetPosition(const Vector3& playerPos) const{
+    const float yaw = camYawCur_ + flipYaw_;
+    const float dist = camDistCur_ * flipDistScale_;
+    return { playerPos.x + std::sin(yaw) * dist,
+             playerPos.y + camHgtCur_,
+             playerPos.z - std::cos(yaw) * dist };
+}
+
+// カメラ演出ゾーンの可視化（球=発動範囲 / 白い箱=カメラ位置の目安 / 線=対応）
+void PlayCameraController::DrawZoneMarkers(const std::vector<SplineRail>& rails) const{
+    for ( const auto& z : zones_ ) {
+        if ( z.rail < 0 || z.rail >= ( int ) rails.size() ) continue;
+        Vector3 a = rails[z.rail].GetPositionByDistance(z.dist);
+        // mode0=アンカー+オフセット / mode1=切替後の追従位置の目安（アンカーをプレイヤーと見なす）
+        Vector3 c;
+        if ( z.mode == 1 ) {
+            c = { a.x + std::sin(z.yawRad) * z.camDist, a.y + z.camHeight, a.z - std::cos(z.yawRad) * z.camDist };
+        } else {
+            c = { a.x + z.offset.x, a.y + z.offset.y, a.z + z.offset.z };
+        }
+        // 向き切替はオレンジ / 固定カメラは水色で区別
+        Vector4 col = ( z.mode == 1 ) ? Vector4{ 1.0f, 0.6f, 0.2f, 0.35f } : Vector4{ 0.3f, 0.8f, 1.0f, 0.35f };
+        DebugDraw::GetInstance()->Sphere(a, z.radius, col, 16);
+        DebugDraw::GetInstance()->Box(c, { 0.5f, 0.4f, 0.7f }, { 1.0f, 1.0f, 1.0f, 0.9f });
+        DebugDraw::GetInstance()->Line(a, c, { col.x, col.y, col.z, 0.8f });
+    }
+}
+
+void PlayCameraController::DrawDebugUI(){
+#ifdef USE_IMGUI
+    ImGui::Checkbox("プレイ中カメラ: プレイヤー追従", &followCam_);
+    ImGui::DragFloat3("追従オフセット", &followOffset_.x, 0.1f);
+    ImGui::DragFloat("上へ追う高さ(ジャンプ)", &upMargin_, 0.05f, 0.5f, 10.0f);
+    ImGui::DragFloat("下へ追う高さ(段差)", &downMargin_, 0.05f, 0.2f, 10.0f);
+    ImGui::DragFloat("穴とみなす深さ", &holeDepth_, 0.05f, 0.5f, 20.0f);
+    ImGui::TextDisabled("ゾーン数: %d（レールエディタの「カメラ演出」で追加）", ( int ) zones_.size());
+#endif
+}

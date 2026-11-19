@@ -1,18 +1,22 @@
 #pragma once
 // --- 標準ライブラリ ---
 #include <memory>
+#include "engine/base/Singleton.h"
 #include <string>
 #include <chrono>
+
+namespace KazumimiEngine {
+
 // 前方宣言
 class IScene;
 class AbstractSceneFactory;
 class Sprite;
+class ISceneTransition;
 
 // シーンマネージャークラス
-class SceneManager{
+class SceneManager : public Singleton<SceneManager> {
+	friend class Singleton<SceneManager>; // 土台（Singleton）だけが作れる
 public:
-	// シングルトンインスタンスの取得
-	static SceneManager* GetInstance();
 	// シーンマネージャーの初期化
 	void Update();
 	// シーンマネージャーの描画
@@ -32,6 +36,11 @@ public:
 
 	void Finalize();
 
+	// シーン遷移の演出（紙芝居など）。持ち主は呼び出し側（Game）。nullptr で外す
+	void SetTransition(ISceneTransition* transition){ transition_ = transition; }
+	ISceneTransition* GetTransition() const{ return transition_; }
+	IScene* GetCurrentScene() const{ return currentScene_.get(); }
+
 	// 現在のシーン固有のデバッグUIを描画
 	void DrawCurrentSceneDebugUI();
 
@@ -42,15 +51,14 @@ public:
 
 private:
 	// コンストラクタを private にして外部からの生成を禁止
-	SceneManager() = default;
+	SceneManager();  // cpp 側で定義（前方宣言だけの型を unique_ptr で持つため）
 	~SceneManager();
-	SceneManager(const SceneManager&) = delete;
-	SceneManager& operator=(const SceneManager&) = delete;
 
 	std::unique_ptr<IScene> currentScene_ = nullptr;
 	std::unique_ptr<IScene> nextScene_ = nullptr;
 
 	AbstractSceneFactory* sceneFactory_ = nullptr;
+	ISceneTransition* transition_ = nullptr; // シーンが変わっても残る遷移の演出
 
 	float cpuUpdateTimeMs_ = 0.0f;
 	float cpuDrawTimeMs_ = 0.0f;
@@ -69,3 +77,5 @@ private:
 	void EnsureFadeSprite();   // フェード用スプライトを必要時に生成
 	void DrawFadeOverlay();    // 黒オーバーレイ描画
 };
+
+} // namespace KazumimiEngine

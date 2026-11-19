@@ -1,17 +1,26 @@
 #pragma once
-#include <memory>  
+#include <memory>
+#include "engine/base/Singleton.h"
+#include <vector>
+#include "engine/math/struct.h" // Vector3
+#include "engine/utils/Level/LevelData.h" // LevelEnemyData
+#include "engine/utils/Level/RailEditor.h" // SnapTarget（自動スナップ接続 §5）
+
+struct ImVec2; // ImGui の 2D の点（Game View の四角を渡すのに使う。中身は imgui.h）
+
+namespace KazumimiEngine {
 
 class LevelEditor;
 class BlenderImporter;
-class FileEditor;
-class PerformanceMonitor;
-class NodeEditor;
 class Camera;
 class DebugCamera;
 class GPUParticleEditor;
 class GPUParticleEmitter;
 class SkinnedObj3d;
 class Obj3d;
+class PerformanceMonitor;
+class FileEditor;
+class NodeEditor;
 
 
 enum class EngineMode{
@@ -19,11 +28,15 @@ enum class EngineMode{
     Play  // 時間が動き、ゲームとして遊べる状態
 };
 
-class EditorManager{
+// =====================================================================
+//  EditorManager：エディタ全体のまとめ役（ImGui）。
+//   ドックと各パネルの表示、Edit（編集）と Play（プレイ）の切り替え、ギズモ、Game View の表示を受け持つ。
+//   エディタが入るのは Debug と Development だけ（Release は ImGui を使わない）
+// =====================================================================
+class EditorManager : public Singleton<EditorManager> {
+	friend class Singleton<EditorManager>; // 土台（Singleton）だけが作れる
 public:
 
-    // シングルトンインスタンスの取得
-    static EditorManager* GetInstance();
 
 
     // ImGuiのフレーム開始（Game::Update の先頭で呼ぶ）
@@ -54,14 +67,181 @@ public:
 
     void SetParticleEmitter(GPUParticleEmitter* emitter);
 
+    // レベルエディタへのアクセス（FileEditor / NodeEditor がオブジェクト配置等で使う）
+    LevelEditor* GetLevelEditor(){ return levelEditor_.get(); }
+
+    // --- ノードエディタへの「ゲーム値」登録（シーンから転送）---
+    //   プレイヤー速度・卵の投げ初速などの float を登録すると「→ ゲーム値」ノードで動かせる。
+    //   ポインタは所有しないため、シーン終了時に必ず ClearNodeGameValues() を呼ぶこと。
+    void RegisterNodeGameValue(const std::string& label, float* target, float minV, float maxV);
+    void ClearNodeGameValues();
+
     // エディタがアクティブかどうか
     bool IsActive() const{ return isEditorActive_; }
+    void SetActive(bool active){ isEditorActive_ = active; } // F1 と同じ（撮影がエディタを隠す時など）
+
+    // ===== UIシェル（F2で切替）=====
+    //   Dock : 従来どおりの全パネルドッキング表示（挙動・見た目は完全に従来のまま）
+    //   Icon : ゲームビュー全画面＋左端アイコンツールバーで必要なパネルだけ浮遊表示
+    enum class UiShell { Dock, Icon };
+    // アイコンモードで開閉できるパネルの分類（アイコン1個=1パネル）
+    enum EditorPanel {
+        Panel_Control,     // 操作（Play/Stop・タイムスケール）
+        Panel_Hierarchy,   // ヒエラルキー（配置リスト）
+        Panel_Assets,      // アセットブラウザ
+        Panel_Inspector,   // インスペクター（詳細設定）※9クラス合流の束
+        Panel_Transform,   // インスペクター（Transform）
+        Panel_Rail,        // レールエディタ
+        Panel_Camera,      // カメラエディタ
+        Panel_Items,       // 配置エディタ（コイン/ブロック）
+        Panel_Enemy,       // 敵配置エディタ
+        Panel_GpuParticle, // GPUパーティクル
+        Panel_Sdf,         // SDF（フォント/画像）
+        Panel_Perf,        // パフォーマンスモニター
+        Panel_File,        // ファイルエディタ
+        Panel_Minimap,     // ミニマップ（俯瞰ビュー）※保存の並び維持のため必ず末尾に追加する
+        Panel_Layout,      // 配置ビュー（レール展開図。ブロック・敵・コインをパネルの中で配置する）
+        Panel_Backdrop,    // 背景エディタ（クラフトの背景を置く・選ぶ・消す）
+        Panel_RailDebug,   // 乗り換えデバッガ（レールからレールへ移る時のずれを数値で見る）
+        Panel_WorldFlip,   // カメラ反転（反転スイッチ・レールのカメラの向き・つなぐ道）
+        Panel_Capture,     // 撮影（スクショ・連番録画・テイク・画角プリセット。ScreenCapture）
+        Panel_Count
+    };
+    // 横に広く使うパネルか。アイコンモードでは右の縦積みドロワーに入れず、画面の下に横長で出す
+    static bool IsWidePanel(int panel){ return panel == Panel_Layout; }
+    UiShell GetUiShell() const{ return uiShell_; }
+    // このパネルを今フレーム描くべきか。どちらのモードでも開閉できる（機能は両モード共通）：
+    //   Dockモード＝既定は全部表示で、メニューバー「ウィンドウ」から非表示にできる。
+    //   Iconモード＝ツールバーのアイコンで選んだものだけ true（非表示パネルは Begin ごと呼ばれない＝コストゼロ）
+    bool IsPanelVisible(int panel) const{
+        if ( panel < 0 || panel >= Panel_Count ) return false;
+        if ( uiShellFrame_ == UiShell::Dock ) return !dockPanelHidden_[panel]; // フレーム先頭で確定した値で判定
+        return panelVisible_[panel];
+    }
+    // パネルを開く/閉じる（今のUIモード側の表示状態を変える。Game View の操作からパネルを開く用）
+    void SetPanelVisible(int panel, bool visible){
+        if ( panel < 0 || panel >= Panel_Count ) return;
+        if ( uiShell_ == UiShell::Dock ) { dockPanelHidden_[panel] = !visible; }
+        else                             { panelVisible_[panel] = visible; }
+    }
 
 	// シーンから SkinnedObj3d を登録する。シーン終了時は必ず nullptr を渡してリセットすること
 	void SetTargetSkinnedObj(SkinnedObj3d* obj){ targetSkinnedObj_ = obj; }
+	SkinnedObj3d* GetTargetSkinnedObj() const{ return targetSkinnedObj_; }
 
 	// ギズモ／インスペクタで操作する対象オブジェクトを登録する（シーンから渡す）
 	void SetGizmoTarget(Obj3d* obj){ gizmoTarget_ = obj; }
+	Obj3d* GetGizmoTarget() const{ return gizmoTarget_; }
+	// ギズモの操作の種類（ImGuizmo::OPERATION の値。7=移動 / 120=回転 / 896=拡縮）
+	int  GetGizmoOperation() const{ return gizmoOperation_; }
+	void SetGizmoOperation(int operation){ gizmoOperation_ = operation; }
+
+	// --- レール編集データの公開（ゲーム側が同じレールを使うため）---
+	// 編集の世代番号。ノード移動/追加/削除/直線/カーブ/読込のたびに増える
+	int GetRailEditVersion() const;
+	// 現在エディタが保持しているレールの節点リスト
+	const std::vector<std::vector<Vector3>>& GetEditorRailLines() const;
+	// 各レールのタイプ（-1=自動 / 0=横 / 1=縦）。railLines と同じ並び
+	const std::vector<int>& GetEditorRailTypes() const;
+	// 各レールの動き（x,y,z=振幅 / w=周期）。railLines と同じ並び
+	const std::vector<Vector4>& GetEditorRailMotions() const;
+	// 各レールの地面タイプ（0=Safe/1=Gap/2=NoGround）。railLines と同じ並び
+	const std::vector<int>& GetEditorRailGroundTypes() const;
+	// 各レールのノード単位の穴指定（外=レール / 内=ノード・1=穴）
+	const std::vector<std::vector<int>>& GetEditorRailNodeHoles() const;
+	// 各レールの表示フラグ（1=表示/0=非表示）。railLines と同じ並び
+	const std::vector<int>& GetEditorRailVisible() const;
+	// 各レールの線のつなぎ方（0=スプライン/1=直線）。railLines と同じ並び
+	const std::vector<int>& GetEditorRailLineModes() const;
+	// 各レールの道生成モード（0=自動/1=なし）。railLines と同じ並び（§4）
+	const std::vector<int>& GetEditorRailRoadModes() const;
+	const std::vector<int>& GetEditorRailEndPlazas() const; // 端の丸広場（bit0=始点/bit1=終点）
+	const std::vector<int>& GetEditorRailGuideRails() const; // ガイドレール追従の対象（-1=なし）
+	const std::vector<float>& GetEditorRailGuideStarts() const; // ガイド区間の開始(m)
+	const std::vector<float>& GetEditorRailGuideEnds() const;   // ガイド区間の終了(m)。-1=終点まで
+	const std::vector<int>&   GetEditorRailGuideModes() const;  // 0=一周ループ/1=往復
+	const std::vector<int>&   GetEditorRailGuideAligns() const; // 0=向き固定/1=列車式（経路に合わせ転回）
+	const std::vector<float>& GetEditorRailGuideDwells() const; // 停車時間(秒)：往復=両端/片道=出発待ち
+	const std::vector<CoinData>& GetEditorCoins() const; // 収集物（コイン）の配置
+
+	// --- ブロック（乗れる/ぶつかる1m角。Game Viewペイント配置の橋渡し）---
+	const std::vector<BlockData>& GetEditorBlocks() const;
+	int  GetEditorBlockVersion() const;                    // 変化したらゲーム側が作り直す
+	bool IsEditorBlockPaintMode() const;                   // 配置モード中か（Game Viewクリックの奪い先）
+	bool IsEditorBlockEraseMode() const;                   // 消しゴムモード中か
+	int  GetEditorBlockPaintType() const;                  // 置くブロックの種類
+	int  GetEditorBlockPaintShape() const;                 // 塗り方（0=1個/1=柱/2=階段）
+	bool HasEditorBlock(int rail, float dist, int level, float side) const;
+	void AddEditorBlock(int rail, float dist, int level, float side, int type);
+	void RemoveEditorBlock(int rail, float dist, int level, float side);
+	bool GetEditorRailMotionPreview() const; // 動くレールをエディタ中も再生するか
+	void SetEditorRailMotionPreview(bool v); // 同（ゲームビュー右クリックメニューからの切替用）
+	// ゲーム側から Play モードを開始する（右クリック「ここからテストプレイ」用。Playボタンと同じ処理）
+	void RequestPlay();
+	// デモ展示（回転ブロック/オーラ/SDF卵/見本の人形）を置くか（表示メニューでON/OFF）。
+	//   OFF の間はシーンが展示物を作らない（ON→OFF で削除される）。editor_ui.ini に保存
+	bool IsDemoVisible() const{ return showDemo_; }
+	// 今のシーンがデモ展示を持つか（持たないシーンでは表示メニュー／ツールバーの「デモ」を出さない）
+	void SetDemoAvailable(bool v){ demoAvailable_ = v; }
+	// 床のデバッググリッドを出すか（表示メニュー／インスペクターでON/OFF）。editor_ui.ini に保存
+	bool IsGridVisible() const{ return showGrid_; }
+	void SetGridVisible(bool v){ if ( showGrid_ != v ) { showGrid_ = v; SaveUiConfig(); } }
+	// レールエディタで選択中のノード（レール番号＋ワールド座標）。
+	//   敵エディタの「選択ノードの位置に配置」用。未選択なら false
+	bool GetEditorSelectedNode(int& outRail, Vector3& outPos) const;
+
+	// Game View 上のマウス情報（ゲーム側の配置エディタが独自ピッキングをするための橋渡し）
+	struct GameViewMouse {
+		bool      hovered = false;     // マウスが Game View 画像の上にあるか
+		bool      gizmoActive = false; // ギズモ操作中（クリックを奪わないため）
+		Vector2   mousePos {};         // マウスのスクリーン座標
+		Vector2   imgMin {};           // Game View 画像の左上（スクリーン座標）
+		Vector2   imgSize {};          // Game View 画像のサイズ
+		Matrix4x4 viewProj {};         // エディタ表示に使ったカメラの VP 行列
+	};
+	const GameViewMouse& GetGameViewMouse() const{ return gameViewMouse_; }
+	// Game View へモデルが落とされた（ファイルエディタ・背景パレットからのドラッグ＆ドロップ "DND_MODEL"）。
+	//   あれば true（モデル名と落とした時のマウスの位置）。取り出すと消える。誰も取らなければ次のフレームで消える
+	bool ConsumeGameViewDrop(std::string& outModel, Vector2& outMouse){
+		if ( !gameViewDrop_.valid ) return false;
+		outModel = gameViewDrop_.model;
+		outMouse = gameViewDrop_.mouse;
+		gameViewDrop_.valid = false;
+		return true;
+	}
+	// ゲーム側がドラッグ操作中（敵の直接ドラッグ等）にレール編集のマウス操作を止める
+	void SetExternalDragActive(bool active){ externalDragActive_ = active; }
+	// このシーンがレール編集を使うか（false の間は Game View にレールの線・ノードを出さず、操作もしない）。
+	//   レールを持たないシーン（タイトルなど）が初期化時に false を渡す
+	void SetRailEditingEnabled(bool enabled){ railEditingEnabled_ = enabled; }
+	// シーン専用のマップへ切り替える（空文字＝ステージのマップへ戻す）。シーンの初期化から呼ぶ
+	void UseSceneMap(const std::string& fileName);
+	// ゲームビューのガイドハンドル（足場のガイドを直接つかむ操作）でドラッグ中か。
+	//   道の再生成を10Hzに間引く判定（IsRailDragging）に含める
+	void SetGameViewGuideDragging(bool v){ gameViewGuideDragging_ = v; }
+	// ジョイント表示モード（0=エディタのみ/1=常に/2=非表示。RoadMesh が参照）
+	int GetEditorJointVisible() const;
+	// レールノードをギズモ/フリーハンド/リフト経路エディタでドラッグ中か（ドラッグ中は道の再生成を間引く）
+	bool IsRailDragging() const;
+	const std::vector<int>&   GetEditorRailMotionTypes() const;  // 動きの波形（0=sin/1=停止つき/2=円）
+	const std::vector<float>& GetEditorRailMotionPhases() const; // 動きの位相（0〜1）
+	const std::vector<int>&   GetEditorRailMotionTriggers() const; // 動き出し（0=最初から/1=乗ったら）
+	const std::vector<int>&   GetEditorRailAppearTriggers() const; // 出現する道（-1=通常/N=レールNに乗ると出現）
+	const std::vector<int>&   GetEditorRailOneWay() const;       // 片方向（0=両/1=正/2=逆）
+	const std::vector<float>& GetEditorRailSpeedMuls() const;    // 速度倍率
+	const std::vector<RailSkin>& GetEditorRailSkins() const;     // 道の見た目（布ロード）
+	int GetEditorStartRail() const;  // スタート地点（レール番号）
+	int GetEditorStartNode() const;  // スタート地点（ノード番号）
+	int GetEditorGoalRail() const;   // ゴール地点（レール番号。-1=未設定）
+	int GetEditorGoalNode() const;   // ゴール地点（ノード番号）
+	const std::vector<LevelCameraZone>& GetEditorCameraZones() const; // カメラ演出ゾーン
+	const std::vector<RailCamera>& GetEditorRailCameras() const;      // レールごとのカメラ
+	const std::vector<RailTrain>& GetEditorRailTrains() const;        // レールごとの列車の設定
+
+	// --- 敵の配置（マップと一緒に保存/読込）。シーンの EnemyEditor と同期する ---
+	void SetEditorEnemyData(const std::vector<LevelEnemyData>& e); // シーン→エディタ（保存に乗せる）
+	const std::vector<LevelEnemyData>& GetEditorEnemyData() const; // エディタ→シーン（読込で復元）
+	int  GetMapLoadVersion() const;                                // 増えたら新しいマップが読まれた合図
 
 	// メニューバーから ON/OFF するためにシーンのデバッグカメラを登録する（所有しない）
 	void SetDebugCamera(DebugCamera* dc){ debugCamera_ = dc; }
@@ -80,16 +260,11 @@ public:
     // Blenderインポータの取得（シーン側がカメラ適用要求を受け取るのに使う）
     BlenderImporter* GetBlenderImporter() const{ return blenderImporter_.get(); }
 
-    // レベルエディタの取得（ファイルエディタ等から配置/マップ読込に使う）
-    LevelEditor* GetLevelEditor() const{ return levelEditor_.get(); }
-
 private:
 
     // シングルトンなので外部からの生成・コピーを禁止
-    EditorManager() = default;
-    ~EditorManager();  // cpp 側で定義（unique_ptr の前方宣言対応）
-    EditorManager(const EditorManager&) = delete;
-    EditorManager& operator=(const EditorManager&) = delete;
+    EditorManager();   // cpp 側で定義（unique_ptr の前方宣言対応）
+    ~EditorManager();
 
 
 private:
@@ -100,16 +275,66 @@ private:
     // Blenderシーンインポータ（levelEditor_ に反映する）
     std::unique_ptr<BlenderImporter> blenderImporter_ = nullptr;
 
-    // ファイルエディタ（Project風のファイル閲覧・テキスト編集）
-    std::unique_ptr<FileEditor> fileEditor_ = nullptr;
-
-    // パフォーマンスモニター（履歴グラフ・メモリ/VRAM表示）
+    // 性能モニター（master_engine から移植：FPS/メモリ/VRAM/ドローコール）
     std::unique_ptr<PerformanceMonitor> perfMonitor_ = nullptr;
 
-    // ノードエディタ（Unreal風のノードグラフ）
-    // 表示メニュー「ノードエディタ」でON/OFF
+    // ファイルエディタ（Project風。master_engine から移植）
+    std::unique_ptr<FileEditor> fileEditor_ = nullptr;
+
+    // ノードエディタ（ブループリント風。master_engine から移植）
     std::unique_ptr<NodeEditor> nodeEditor_ = nullptr;
-    bool showNodeEditor_ = false;
+    bool showNodeEditor_ = false; // 表示メニューでON/OFF
+
+    // Blenderインポータのパネル表示（普段は邪魔なので非表示。表示メニューでON/OFF。
+    //   非表示でもエクスプローラーからのD&Dインポート等の機能自体は生きている）
+    bool showBlenderImporter_ = false;
+
+    // デモ展示（回転ブロック/オーラ/SDF卵/見本の人形）と調整項目ウィンドウの表示。
+    //   マップ制作には不要なので既定OFF。表示メニューでON/OFF（GamePlaySceneが参照）
+    bool showDemo_ = false;
+    bool demoAvailable_ = false;
+    bool showGrid_ = false;
+    bool showGlobalVars_ = false;
+
+    // --- UIシェル（アイコンモード）の状態 ---
+    // --- Update の中身（順に呼ぶ。長い 1 つの関数だった物を、役割ごとに分けた）---
+    void SetupDockSpace();           // ドックの土台と、はじめての時のパネルの並び
+    void DrawControlWindow();        // コントロールウィンドウ（Edit / Play・時間）
+    void DrawMainMenuBar();          // メインメニューバー
+    void UpdateGameViewEditing(const ImVec2& imgMin, const ImVec2& imgSize, bool imageHovered); // Game View の上の編集（ギズモ・レール）
+    void UpdateRailEditing(RailEditor* railEditor, const ImVec2& imgMin, const ImVec2& imgSize, bool imageHovered); // レールのマウス・キー操作と線の表示
+    void DrawTransformInspector();   // インスペクター（Transform）
+    void DrawIconToolbar();          // 左端のアイコンツールバー（Iconモードのみ）
+    void DrawUiSettingsWindow();     // フォント・UIスケール設定ウィンドウ
+    void ApplyWorkspace(int index);  // ワークスペースプリセット適用（0=設置/1=調整/2=レール/3=敵/4=全部閉じる）
+    void SaveUiConfig() const;       // resources/editor_ui.ini へ保存（モード/パネル/フォント）
+    void LoadUiConfig();
+    UiShell uiShell_ = UiShell::Dock;
+    // このフレームで実際に使うシェル（Beginでドッキング有効/無効と同時に確定させる。
+    //   F2等でフレーム途中に uiShell_ が変わっても、UI分岐は必ずこちらを使うこと。
+    //   途中で切り替えると「ドッキング無効のままドック再構築」が走りImGui内部でクラッシュする）
+    UiShell uiShellFrame_ = UiShell::Dock;
+    bool panelVisible_[Panel_Count] = {}; // Iconモードで表示中のパネル
+    // Dockモードで「非表示」にしたパネル（既定{}=全部false=全部表示。メニューバー「ウィンドウ」で切替）。
+    //   否定形で持つのは、配列のゼロ初期化＝従来どおり全表示になるようにするため
+    bool dockPanelHidden_[Panel_Count] = {};
+    bool dockRelayoutPending_ = false;    // アイコン→ドック復帰時に初期レイアウトを組み直す
+    float uiDrawerWidth_ = 460.0f;        // ドロワーの幅（UI設定・縁ドラッグで変更、保存）
+    int   uiDrawerSide_ = 0;              // ドロワーの位置（0=右 / 1=左。ツールバーは反対側へ）
+    bool  uiAutoShowEditor_ = false;      // 起動時からエディタを表示する（F1不要にする設定）
+    bool  uiDrawerWidthDirty_ = false;    // 縁ドラッグ中フラグ（離した時に保存）
+    bool uiConfigLoaded_ = false;
+    bool showUiSettings_ = false;
+    int  uiFontIndex_ = 0;           // ImGuiManager のフォント一覧のインデックス
+    float uiFontScale_ = 1.0f;
+
+    // Game View マウス情報（毎フレーム更新。ゲーム側の配置エディタへの橋渡し）
+    GameViewMouse gameViewMouse_ {};
+    struct GameViewDrop { bool valid = false; std::string model; Vector2 mouse {}; int frame = 0; };
+    GameViewDrop gameViewDrop_; // Game View へ落とされたモデル（ConsumeGameViewDrop）
+    bool externalDragActive_ = false; // ゲーム側がドラッグ中（レール編集のマウス操作を止める）
+    bool railEditingEnabled_ = true;  // 今のシーンがレール編集を使うか（SetRailEditingEnabled）
+    bool gameViewGuideDragging_ = false; // ゲームビューのガイドハンドルをドラッグ中（同期間引き用）
 
 	// カメラ（SceneManagerから渡してもらう）
     bool isEditorActive_ = false;
@@ -131,5 +356,37 @@ private:
     int gizmoOperation_ = 7;             // ImGuizmo::TRANSLATE(=7) を既定に
     int gizmoMode_ = 1;                  // ImGuizmo::WORLD(=1)
 
+    bool railFreehandStroking_ = false;  // フリーハンドで描画ストローク中か
+
+    // レール編集：矩形選択／まとめて移動用
+    bool  railRubberActive_ = false;            // 矩形選択ドラッグ中か
+    float railRubberStartX_ = 0.0f;             // 矩形選択の開始位置（スクリーン座標）
+    float railRubberStartY_ = 0.0f;
+    // レール編集：線を引っ張って点を追加（線を押して動かす＝挿入＋そのままドラッグ / 動かさず離す＝路線選択）
+    bool    railPullPending_ = false;  // 線を押した直後（動くか離すかの判定待ち）
+    bool    railPullActive_  = false;  // 挿入した点をマウスで引っ張り中
+    int     railPullRail_    = -1;     // 対象レール
+    int     railPullSegIdx_  = 0;      // 押した線分番号（InsertRailNode へ渡す）
+    int     railPullNode_    = -1;     // 引っ張り中のノード番号
+    float   railPullStartX_  = 0.0f;   // 押した位置（判定用スクリーン座標）
+    float   railPullStartY_  = 0.0f;
+    Vector3 railPullSegPoint_ { 0.0f, 0.0f, 0.0f }; // 押した位置の線上の点（挿入位置）
+    Vector3 railSelPivot_ { 0.0f, 0.0f, 0.0f }; // 選択ギズモのピボット（ドラッグ中は保持）
+    bool  railSelDragging_ = false;             // ギズモで選択群を移動中か
+
+    // 自動スナップ接続（§5）：端点ドラッグ中の接続候補（緑プレビュー→マウスアップで確定）
+    RailEditor::SnapTarget railSnapCandidate_ {};
+    int   railSnapDragRail_  = -1;   // ドラッグ中の端点が属するレール（-1=候補なし）
+    bool  railSnapDragFront_ = true; // ドラッグ中の端点が先頭側か
+    bool  railSnapHeightGap_ = false; // 候補が「真上から見れば近いが高さだけズレている」相手か
+
+    // エディタ有り(USE_IMGUI)＝編集モードから開始。リリース＝エディタが無いので
+    // いきなりプレイモードで開始し、プレイヤーが動けて敵も出る状態にする。
+#ifdef USE_IMGUI
     EngineMode currentMode_ = EngineMode::Edit;
+#else
+    EngineMode currentMode_ = EngineMode::Play;
+#endif
 };
+
+} // namespace KazumimiEngine

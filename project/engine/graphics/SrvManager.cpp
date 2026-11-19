@@ -5,11 +5,7 @@
 // --- エンジン側のファイル ---
 #include "engine/base/DirectXCommon.h"
 
-SrvManager* SrvManager::GetInstance() {
-	static SrvManager instance;
-	return &instance;
-}
-
+namespace KazumimiEngine {
 
 void SrvManager::Initialize(DirectXCommon* dxCommon){
 
@@ -30,7 +26,12 @@ void SrvManager::Initialize(DirectXCommon* dxCommon){
 
 
 uint32_t SrvManager::Allocate(){
-	
+	// 返された番号があれば、それを使い回す
+	if ( !freeList_.empty() ) {
+		const uint32_t reused = freeList_.back();
+		freeList_.pop_back();
+		return reused;
+	}
 	assert(useIndex_ < kMaxSrvCount_);
 	
 	// 使用中のインデックスを返してインクリメント
@@ -39,6 +40,11 @@ uint32_t SrvManager::Allocate(){
 	useIndex_++;
 	
 	return index;// 戻り値
+}
+
+void SrvManager::Free(uint32_t index){
+	if ( index >= useIndex_ ) { return; }
+	freeList_.push_back(index);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE SrvManager::GetCPUDescriptorHandle(uint32_t index){
@@ -104,6 +110,19 @@ void SrvManager::CreateSRVforTextureCube(uint32_t index, ID3D12Resource* resourc
 	dxCommon_->GetDevice()->CreateShaderResourceView(resource, &srvDesc, GetCPUDescriptorHandle(index));
 }
 
+// 3Dテクスチャ（ボリューム）用SRV。SDFボリュームのレイマーチングで使用する
+void SrvManager::CreateSRVforTexture3D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT Format, UINT MipLevels){
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc {};
+	srvDesc.Format = Format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+	srvDesc.Texture3D.MostDetailedMip = 0;
+	srvDesc.Texture3D.MipLevels = MipLevels;
+	srvDesc.Texture3D.ResourceMinLODClamp = 0.0f;
+
+	dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, GetCPUDescriptorHandle(srvIndex));
+}
+
 void SrvManager::PreDraw(){
 		// SRVヒープの設定
 	ID3D12DescriptorHeap* descriptorHeap[] = {descriptorHeaps_.Get()};
@@ -143,3 +162,5 @@ void SrvManager::SetComputeRootDescriptorTable(UINT rootParamIndex, uint32_t srv
 void SrvManager::Finalize() {
 	descriptorHeaps_.Reset(); // ヒープを解放
 }
+
+} // namespace KazumimiEngine

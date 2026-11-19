@@ -345,3 +345,21 @@ project/Dumps/
 *.ilk
 *.idb
 *.ipch
+# 撮影機能（ScreenCapture）が保存するスクショ・連番録画・テイク・プリセット
+project/capture/
+# 動画・GIF（撮影の録画・make_gif.py の書き出しなど。1 本で数十 MB になるので、どこにあっても git へ送らない）
+*.mp4
+*.webm
+*.avi
+*.mov
+*.mkv
+*.gif
+# スライド用の撮影の置き場
+project/_slide_capture/
+
+# tools：確かめ用の道具（blocksim / railsim など）のビルドの出力と、絵の確認用の画像（どれも作り直せる）
+tools/*/obj/
+tools/*/*.exe
+tools/*/build.txt
+tools/*/preview_*.png
+tools/*/pose_*.png

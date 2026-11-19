@@ -1,0 +1,101 @@
+#pragma once
+#include "engine/math/struct.h"
+#include "game/title/TitleTopple.h"
+
+#include <memory>
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class Model;
+class Obj3d;
+}
+
+// =====================================================================
+//  TitleAmbience：タイトルの背景を「生きている」ように見せる動き。
+//   物を増やすのではなく、もう置いてある物を少しずつ動かす：
+//   ・風 … マップに置いた草・花・木が、左から右へ風が通るようにゆれる。雲は糸で吊られてゆっくり流れる
+//   ・恐竜への反応 … 恐竜がそばを通ると、草と花が押されて倒れ、ぷるぷる揺れて戻る
+//   ・紙の波 … 草原と丘の間に、紙で作った波の列が左右にすれ違う（舞台の波の仕掛け）。置く物はこれだけ増やす
+//
+//  草・花・木・雲はマップ（title.json）に置いた物をそのまま動かす。置いた位置（保存される値）は変えず、
+//  表示だけを動かすので、エディタで保存しても揺れが書き込まれることはない。
+//  エディタを出している間は止める（物をつかんで動かす時に揺れていると作業しづらいため）
+// =====================================================================
+class TitleAmbience {
+public:
+    TitleAmbience();
+    ~TitleAmbience();
+
+    void Initialize(KazumimiEngine::Camera* camera);
+    void Finalize();
+    // dinoPosition：恐竜の足元（草・花が押される中心）
+    void Update(float deltaTime, const KazumimiEngine::Vector3& dinoPosition);
+    void Draw(); // 紙の波（草・花などはマップの物なのでエディタ側が描く）
+
+    // インスペクターから切り替える
+    bool& RefWindEnabled(){ return windEnabled_; }
+    bool& RefWavesEnabled(){ return wavesEnabled_; }
+    bool& RefMoveWhileEditing(){ return moveWhileEditing_; }
+    float& RefWindStrength(){ return windStrength_; }
+
+    // --- 倒す（紙芝居遷移の退場）---
+    // マップに置いた段ボール（地面と空以外）と紙の波を、origin から近い順に奥へ倒し始める
+    void BeginTopple(const KazumimiEngine::Vector3& origin);
+    bool IsToppling() const{ return toppling_; }
+    float GetToppleDuration() const{ return toppleDuration_; } // 全部が寝るまでの秒数
+    int  ConsumeLandings();  // 前回から地面に着いた物の数（パタンの音用）
+
+private:
+    // 動かす物の種類（マップの type 名から決める）
+    enum class Kind { Grass, Flower, Tree, Cloud };
+    // 動かす配置物 1 つ（草・花・木・雲）。恐竜に押された角度と、ゆれの状態
+    struct Mover {
+        int   index = 0;       // マップの配置物の番号
+        Kind  kind = Kind::Grass;
+        float bend = 0.0f;     // 恐竜に押されて倒れている角度
+        float bendSpeed = 0.0f;
+    };
+    // 紙の波1列
+    struct WaveRow {
+        std::unique_ptr<KazumimiEngine::Model> model;
+        std::unique_ptr<KazumimiEngine::Obj3d> object;
+        KazumimiEngine::Vector3 basePosition {};
+        float   slide = 0.0f;  // 左右に動く幅(m)
+        float   speed = 0.0f;  // 動く速さ
+        float   phase = 0.0f;
+    };
+
+    void BindMapObjects();                 // マップの配置物から、動かす物を探し直す
+    void UpdateMapObjects(float deltaTime, const KazumimiEngine::Vector3& dinoPosition, bool moving);
+    void CreateWaves(KazumimiEngine::Camera* camera);
+    void UpdateTopple(float deltaTime);
+
+    // 倒す物（マップの配置物の番号と、倒れ始めるまでの遅れ）
+    struct Faller {
+        int   index = 0;
+        float delay = 0.0f;
+        float direction = 0.0f;  // 倒れる向き（真後ろ=0、右奥が正）
+        TitleTopple::Weight weight = TitleTopple::kMedium;
+        bool  hanging = false; // 糸で吊った雲：倒れずに、糸が切れて下へ落ちる
+    };
+    std::vector<Faller> fallers_;
+    std::vector<float>  waveDelays_;   // 紙の波の列ごとの遅れ（真後ろへ倒れる）
+    bool  toppling_ = false;
+    float toppleTime_ = 0.0f;
+    float toppleDuration_ = 0.0f;
+    int   landings_ = 0;
+
+    std::vector<Mover> movers_;
+    int  boundObjectCount_ = -1;   // 探した時の配置物の数（変わったら探し直す）
+    int  boundMapVersion_ = -1;    // 探した時のマップ読込回数
+    bool wasMoving_ = false;       // 前フレームに動かしていたか（止めた瞬間に元の位置へ戻す）
+
+    std::vector<WaveRow> waves_;
+    float time_ = 0.0f;
+
+    bool  windEnabled_ = true;
+    bool  wavesEnabled_ = true;
+    bool  moveWhileEditing_ = false; // エディタを出している間も動かす
+    float windStrength_ = 1.0f;
+};

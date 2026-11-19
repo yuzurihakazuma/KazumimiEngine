@@ -3,6 +3,7 @@
 #include <cassert>
 // --- エンジン側のファイル ---
 #include "engine/scene/IScene.h"
+#include "engine/scene/ISceneTransition.h"
 #include "engine/scene/AbstractSceneFactory.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/base/Input.h"
@@ -13,14 +14,11 @@
 #include "engine/graphics/TextureManager.h"
 #include "engine/utils/Easing.h"
 
+namespace KazumimiEngine {
 
-
-// シングルトンクラスの実装
-SceneManager* SceneManager::GetInstance(){
-	static SceneManager instance;
-	return &instance;
-}
 // デストラクタ
+SceneManager::SceneManager() = default;
+
 SceneManager::~SceneManager(){
 	// 現在のシーンを終了
 	if ( currentScene_ ) {
@@ -29,17 +27,21 @@ SceneManager::~SceneManager(){
 		// シーン情報をクリア
 		currentScene_ = nullptr;
 	}
+	fadeSprite_.reset();
 }
 // シーンマネージャーの更新
 void SceneManager::Update(){
 
 #ifdef _DEBUG
-	if ( Input::GetInstance()->Triggerkey(DIK_R) ) {
+	if ( Input::GetInstance()->TriggerKey(DIK_R) ) {
 		if ( currentScene_ ) {
 			currentScene_->Reload(); // 現在のシーンが何であれリロードを叩く！
 		}
 	}
 #endif
+
+	// --- 遷移の演出（紙芝居など）。シーンより先に進める（演出が切り替えを頼むと、このフレームで切り替わる）---
+	if ( transition_ ) { transition_->Update(Time::GetInstance()->GetUnscaledDeltaTime()); }
 
 	// --- フェード遷移の進行（実時間で。ポーズ中でも進む）---
 	if ( fadeState_ != FadeState::None ) {
@@ -172,6 +174,8 @@ void SceneManager::Finalize() {
 		currentScene_->Finalize();
 		currentScene_.reset();    
 	}
+	if ( transition_ ) { transition_->Finalize(); transition_ = nullptr; }
+	fadeSprite_.reset();
 }
 
 void SceneManager::DrawCurrentSceneDebugUI(){
@@ -179,3 +183,5 @@ void SceneManager::DrawCurrentSceneDebugUI(){
 		currentScene_->DrawDebugUI();
 	}
 }
+
+} // namespace KazumimiEngine

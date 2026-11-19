@@ -5,6 +5,8 @@
 // --- エンジン側のファイル ---
 #include "engine/base/DirectXCommon.h"
 
+namespace KazumimiEngine {
+
 void ModelCommon::Initialize(DirectXCommon* dxCommon){
 
 	// NULLチェック
@@ -22,3 +24,4 @@ DirectXCommon* ModelCommon::GetDxCommon() const{
 
 }
 
+} // namespace KazumimiEngine

@@ -1,4 +1,6 @@
 #include "ParticleManager.h"
+#include "engine/base/TimeManager.h"
+#include "engine/utils/JsonFile.h"
 #include "ParticleManager.h"
 
 // --- 標準ライブラリ ---
@@ -24,6 +26,8 @@ using json = nlohmann::json;
 #include "engine/math/Matrix4x4.h"
 #include "engine/math/VectorMath.h"
 
+namespace KazumimiEngine {
+
 // 名前空間の使用を宣言
 using namespace MatrixMath;
 using namespace VectorMath;
@@ -41,14 +45,21 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 
 	D3D12_RESOURCE_DESC resourceDesc {};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = ( sizeof(Vector4) + 0xFF ) & ~0xFF;
+	// シェーダーの Material（Particle.hlsli）と同じ並び：色・ライティング・UV の変換行列
+	struct ParticleMaterial {
+		Vector4   color;
+		int32_t   enableLighting;
+		float     padding[3];
+		Matrix4x4 uvTransform;
+	};
+	resourceDesc.Width = ( sizeof(ParticleMaterial) + 0xFF ) & ~0xFF;
 	resourceDesc.Height = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&uploadHeapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -58,10 +69,14 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 	);
 	assert(SUCCEEDED(hr));
 
-	// 白色(1,1,1,1)を書き込んでおく
-	Vector4* data = nullptr;
+	// 白色(1,1,1,1)と、UV の変換は単位行列を書き込んでおく
+	//   （以前は色だけ書いていて UV の変換が 0 のままだったため、どの粒もテクスチャの左上の1点の色で塗られていた。
+	//     左上が透明な画像だと、全部が捨てられて何も出なかった）
+	ParticleMaterial* data = nullptr;
 	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &data ));
-	*data = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	data->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	data->enableLighting = 0;
+	data->uvTransform = MatrixMath::MakeIdentity4x4();
 	materialResource_->Unmap(0, nullptr);
 
 
@@ -106,7 +121,7 @@ void ParticleManager::Update(Camera* camera){
 			Particle& p = group.particles[i];
 
 			// 1. 更新処理
-			p.currentTime += 1.0f / 60.0f; // 時間を進める
+			p.currentTime += Time::kFixedDeltaTime; // 時間を進める
 
 			// 寿命尽きたら「Swap & Pop」で超高速削除
 			if ( p.currentTime >= p.lifeTime ) {
@@ -218,7 +233,7 @@ void ParticleManager::CreateParticleGroup(const std::string& name, const std::st
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&uploadHeapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -297,7 +312,7 @@ void ParticleManager::CreateModel(){
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
+	[[maybe_unused]] HRESULT hr = dxCommon_->GetDevice()->CreateCommittedResource(
 		&uploadHeapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -488,13 +503,10 @@ void ParticleManager::Save(){
 
 // 🌟 JSONファイルから設定を読み込む
 void ParticleManager::Load(){
-	std::ifstream file("resources/ParticleSettings.json");
-	if ( !file.is_open() ) {
+	nlohmann::json root;
+	if ( !JsonFile::Load("resources/ParticleSettings.json", root) ) {
 		return; // ファイルがなければ何もしない
 	}
-
-	nlohmann::json root;
-	file >> root;
 
 	for ( auto& [name, group] : particleGroups_ ) {
 		// JSON内にこのグループの設定が保存されていれば読み込む
@@ -526,3 +538,5 @@ void ParticleManager::Load(){
 		}
 	}
 }
+
+} // namespace KazumimiEngine

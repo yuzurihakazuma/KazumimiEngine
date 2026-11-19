@@ -22,5 +22,53 @@
             1.0
         ],
         "startScale": 1.0
+    },
+    "IntroSparkleY": {
+        "minVelocity": [
+            -0.01,
+            0.01,
+            -0.01
+        ],
+        "maxVelocity": [
+            0.01,
+            0.025,
+            0.01
+        ],
+        "gravity": -0.0004,
+        "minLifeTime": 0.5,
+        "maxLifeTime": 0.8,
+        "startScale": 0.25,
+        "endScale": 0.0,
+        "isBillboard": true,
+        "startColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ]
+    },
+    "IntroSparkleP": {
+        "minVelocity": [
+            -0.01,
+            0.01,
+            -0.01
+        ],
+        "maxVelocity": [
+            0.01,
+            0.025,
+            0.01
+        ],
+        "gravity": -0.0004,
+        "minLifeTime": 0.5,
+        "maxLifeTime": 0.8,
+        "startScale": 0.25,
+        "endScale": 0.0,
+        "isBillboard": true,
+        "startColor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+        ]
     }
 }

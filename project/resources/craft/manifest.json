@@ -1,0 +1,1027 @@
+{
+  "generator": "CraftKit v2",
+  "coords": "Y-up, +Z forward (glTF). DX12左手系では Z を反転し、三角形の巻き順を反転",
+  "units": "meter",
+  "ground_top": 0.14,
+  "grid": 2.0,
+  "textures_dir": "textures",
+  "assets": [
+    {
+      "name": "ground_tile_grass",
+      "file": "models/ground_tile_grass.gltf",
+      "category": "ground",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -1.0056,
+        0.0,
+        -1.0043
+      ],
+      "bounds_max": [
+        1.0053,
+        0.14,
+        1.006
+      ],
+      "size": [
+        2.0109,
+        0.14,
+        2.0103
+      ],
+      "tris": 376,
+      "materials": [
+        "M_kraft",
+        "M_kraft_edge",
+        "M_felt_grass"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0002,
+          0.07,
+          0.0008
+        ],
+        "size": [
+          2.0109,
+          0.14,
+          2.0103
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "ground_tile_path",
+      "file": "models/ground_tile_path.gltf",
+      "category": "ground",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -1.0056,
+        0.0,
+        -1.0043
+      ],
+      "bounds_max": [
+        1.0053,
+        0.148,
+        1.0174
+      ],
+      "size": [
+        2.0109,
+        0.148,
+        2.0217
+      ],
+      "tris": 516,
+      "materials": [
+        "M_kraft",
+        "M_kraft_edge",
+        "M_felt_grass",
+        "M_paper_path"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0002,
+          0.074,
+          0.0065
+        ],
+        "size": [
+          2.0109,
+          0.148,
+          2.0217
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "ground_block_step",
+      "file": "models/ground_block_step.gltf",
+      "category": "ground",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -1.014,
+        0.0,
+        -1.0137
+      ],
+      "bounds_max": [
+        1.0139,
+        0.62,
+        1.0131
+      ],
+      "size": [
+        2.0278,
+        0.62,
+        2.0268
+      ],
+      "tris": 500,
+      "materials": [
+        "M_kraft",
+        "M_kraft",
+        "M_kraft_edge",
+        "M_felt_grass"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0001,
+          0.31,
+          -0.0003
+        ],
+        "size": [
+          2.0278,
+          0.62,
+          2.0268
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "tree_cutout_00",
+      "file": "models/tree_cutout_00.gltf",
+      "category": "tree",
+      "variant_of": "tree_cutout",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.8856,
+        -0.0025,
+        -0.58
+      ],
+      "bounds_max": [
+        0.8962,
+        2.3242,
+        0.055
+      ],
+      "size": [
+        1.7818,
+        2.3267,
+        0.635
+      ],
+      "tris": 484,
+      "materials": [
+        "M_kraft",
+        "M_kraft_edge",
+        "M_felt_leaf"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0,
+          0.55,
+          0
+        ],
+        "size": [
+          0.3,
+          1.1,
+          0.3
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "tree_cutout_01",
+      "file": "models/tree_cutout_01.gltf",
+      "category": "tree",
+      "variant_of": "tree_cutout",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.8516,
+        -0.0037,
+        -0.58
+      ],
+      "bounds_max": [
+        0.9128,
+        2.3055,
+        0.055
+      ],
+      "size": [
+        1.7644,
+        2.3092,
+        0.635
+      ],
+      "tris": 484,
+      "materials": [
+        "M_kraft",
+        "M_kraft_edge",
+        "M_felt_leaf"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0,
+          0.55,
+          0
+        ],
+        "size": [
+          0.3,
+          1.1,
+          0.3
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "tree_cutout_02",
+      "file": "models/tree_cutout_02.gltf",
+      "category": "tree",
+      "variant_of": "tree_cutout",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.9006,
+        -0.0036,
+        -0.58
+      ],
+      "bounds_max": [
+        0.8557,
+        2.2902,
+        0.055
+      ],
+      "size": [
+        1.7563,
+        2.2937,
+        0.635
+      ],
+      "tris": 484,
+      "materials": [
+        "M_kraft",
+        "M_kraft_edge",
+        "M_felt_leaf"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0,
+          0.55,
+          0
+        ],
+        "size": [
+          0.3,
+          1.1,
+          0.3
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "tree_round_small_00",
+      "file": "models/tree_round_small_00.gltf",
+      "category": "tree",
+      "variant_of": "tree_round_small",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.4525,
+        0.0,
+        -0.4261
+      ],
+      "bounds_max": [
+        0.4108,
+        1.241,
+        0.4269
+      ],
+      "size": [
+        0.8633,
+        1.241,
+        0.8531
+      ],
+      "tris": 612,
+      "materials": [
+        "M_kraft",
+        "M_felt_leaf",
+        "M_kraft_edge",
+        "M_felt_grass"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0,
+          0.25,
+          0
+        ],
+        "size": [
+          0.2,
+          0.5,
+          0.2
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "tree_round_small_01",
+      "file": "models/tree_round_small_01.gltf",
+      "category": "tree",
+      "variant_of": "tree_round_small",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.423,
+        0.0,
+        -0.4389
+      ],
+      "bounds_max": [
+        0.4267,
+        1.2548,
+        0.4252
+      ],
+      "size": [
+        0.8497,
+        1.2548,
+        0.8641
+      ],
+      "tris": 612,
+      "materials": [
+        "M_kraft",
+        "M_felt_leaf",
+        "M_kraft_edge",
+        "M_felt_grass"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0,
+          0.25,
+          0
+        ],
+        "size": [
+          0.2,
+          0.5,
+          0.2
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "grass_tuft_00",
+      "file": "models/grass_tuft_00.gltf",
+      "category": "decor",
+      "variant_of": "grass_tuft",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.35,
+        0.0,
+        -0.005
+      ],
+      "bounds_max": [
+        0.35,
+        0.3133,
+        0.1276
+      ],
+      "size": [
+        0.7,
+        0.3133,
+        0.1326
+      ],
+      "tris": 88,
+      "materials": [
+        "M_paper_grass",
+        "M_paper_grass",
+        "M_paper_grass2"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "grass_tuft_01",
+      "file": "models/grass_tuft_01.gltf",
+      "category": "decor",
+      "variant_of": "grass_tuft",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.35,
+        0.0,
+        -0.005
+      ],
+      "bounds_max": [
+        0.35,
+        0.3125,
+        0.1276
+      ],
+      "size": [
+        0.7,
+        0.3125,
+        0.1326
+      ],
+      "tris": 88,
+      "materials": [
+        "M_paper_grass",
+        "M_paper_grass",
+        "M_paper_grass2"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "grass_tuft_02",
+      "file": "models/grass_tuft_02.gltf",
+      "category": "decor",
+      "variant_of": "grass_tuft",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.35,
+        0.0,
+        -0.005
+      ],
+      "bounds_max": [
+        0.35,
+        0.3128,
+        0.1276
+      ],
+      "size": [
+        0.7,
+        0.3128,
+        0.1326
+      ],
+      "tris": 88,
+      "materials": [
+        "M_paper_grass",
+        "M_paper_grass",
+        "M_paper_grass2"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "flower_orange",
+      "file": "models/flower_orange.gltf",
+      "category": "decor",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.1385,
+        0.0,
+        -0.018
+      ],
+      "bounds_max": [
+        0.16,
+        0.6043,
+        0.03
+      ],
+      "size": [
+        0.2985,
+        0.6043,
+        0.048
+      ],
+      "tris": 632,
+      "materials": [
+        "M_paper_grass",
+        "M_paper_orange",
+        "M_paper_yellow"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "flower_red",
+      "file": "models/flower_red.gltf",
+      "category": "decor",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.1385,
+        0.0,
+        -0.018
+      ],
+      "bounds_max": [
+        0.16,
+        0.6043,
+        0.03
+      ],
+      "size": [
+        0.2985,
+        0.6043,
+        0.048
+      ],
+      "tris": 632,
+      "materials": [
+        "M_paper_grass",
+        "M_paper_red",
+        "M_paper_yellow"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "flower_white",
+      "file": "models/flower_white.gltf",
+      "category": "decor",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.1385,
+        0.0,
+        -0.018
+      ],
+      "bounds_max": [
+        0.16,
+        0.6043,
+        0.03
+      ],
+      "size": [
+        0.2985,
+        0.6043,
+        0.048
+      ],
+      "tris": 632,
+      "materials": [
+        "M_paper_grass",
+        "M_paper_white",
+        "M_paper_yellow"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "fence_sticks",
+      "file": "models/fence_sticks.gltf",
+      "category": "prop",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.6498,
+        -0.0108,
+        -0.01
+      ],
+      "bounds_max": [
+        0.6498,
+        0.5734,
+        0.05
+      ],
+      "size": [
+        1.2996,
+        0.5842,
+        0.06
+      ],
+      "tris": 408,
+      "materials": [
+        "M_wood_stick",
+        "M_wood_stick"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0,
+          0.2813,
+          0.02
+        ],
+        "size": [
+          1.2996,
+          0.5842,
+          0.06
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "sign_arrow",
+      "file": "models/sign_arrow.gltf",
+      "category": "prop",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.25,
+        0.0,
+        -0.025
+      ],
+      "bounds_max": [
+        0.55,
+        0.975,
+        0.05
+      ],
+      "size": [
+        0.8,
+        0.975,
+        0.075
+      ],
+      "tris": 52,
+      "materials": [
+        "M_wood_stick",
+        "M_paper_red",
+        "M_kraft_edge"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0,
+          0.45,
+          0
+        ],
+        "size": [
+          0.1,
+          0.9,
+          0.1
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "paper_cup",
+      "file": "models/paper_cup.gltf",
+      "category": "prop",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.28,
+        0.0,
+        -0.28
+      ],
+      "bounds_max": [
+        0.28,
+        0.5016,
+        0.28
+      ],
+      "size": [
+        0.56,
+        0.5016,
+        0.56
+      ],
+      "tris": 280,
+      "materials": [
+        "M_paper_white",
+        "M_paper_blue"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0.0,
+          0.2508,
+          0.0
+        ],
+        "size": [
+          0.56,
+          0.5016,
+          0.56
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "paper_rock_00",
+      "file": "models/paper_rock_00.gltf",
+      "category": "prop",
+      "variant_of": "paper_rock",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.3209,
+        -0.0144,
+        -0.3085
+      ],
+      "bounds_max": [
+        0.3193,
+        0.4617,
+        0.3167
+      ],
+      "size": [
+        0.6402,
+        0.4761,
+        0.6252
+      ],
+      "tris": 320,
+      "materials": [
+        "M_paper_stone"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0008,
+          0.2237,
+          0.0041
+        ],
+        "size": [
+          0.6402,
+          0.4761,
+          0.6252
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "paper_rock_01",
+      "file": "models/paper_rock_01.gltf",
+      "category": "prop",
+      "variant_of": "paper_rock",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.3323,
+        -0.0297,
+        -0.2919
+      ],
+      "bounds_max": [
+        0.3172,
+        0.4605,
+        0.3194
+      ],
+      "size": [
+        0.6496,
+        0.4902,
+        0.6113
+      ],
+      "tris": 320,
+      "materials": [
+        "M_paper_stone"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0075,
+          0.2154,
+          0.0137
+        ],
+        "size": [
+          0.6496,
+          0.4902,
+          0.6113
+        ]
+      },
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "hill_backdrop_00",
+      "file": "models/hill_backdrop_00.gltf",
+      "category": "backdrop",
+      "variant_of": "hill_backdrop",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -4.0,
+        0.0,
+        -0.83
+      ],
+      "bounds_max": [
+        4.0,
+        2.577,
+        0.03
+      ],
+      "size": [
+        8.0,
+        2.577,
+        0.86
+      ],
+      "tris": 388,
+      "materials": [
+        "M_felt_hill_2",
+        "M_kraft_edge",
+        "M_kraft"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "hill_backdrop_01",
+      "file": "models/hill_backdrop_01.gltf",
+      "category": "backdrop",
+      "variant_of": "hill_backdrop",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -4.0,
+        0.0,
+        -0.83
+      ],
+      "bounds_max": [
+        4.0,
+        2.7892,
+        0.03
+      ],
+      "size": [
+        8.0,
+        2.7892,
+        0.86
+      ],
+      "tris": 388,
+      "materials": [
+        "M_felt_hill_2",
+        "M_kraft_edge",
+        "M_kraft"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "hill_backdrop_far",
+      "file": "models/hill_backdrop_far.gltf",
+      "category": "backdrop",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -6.0,
+        0.0,
+        -0.03
+      ],
+      "bounds_max": [
+        6.0,
+        3.6508,
+        0.03
+      ],
+      "size": [
+        12.0,
+        3.6508,
+        0.06
+      ],
+      "tris": 364,
+      "materials": [
+        "M_felt_hill_1",
+        "M_kraft_edge"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "sky_backdrop",
+      "file": "models/sky_backdrop.gltf",
+      "category": "backdrop",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -20.0269,
+        -0.023,
+        -0.03
+      ],
+      "bounds_max": [
+        20.0062,
+        10.0299,
+        0.03
+      ],
+      "size": [
+        40.0331,
+        10.0528,
+        0.06
+      ],
+      "tris": 396,
+      "materials": [
+        "M_paper_sky",
+        "M_kraft_edge"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "cloud_cutout_00",
+      "file": "models/cloud_cutout_00.gltf",
+      "category": "backdrop",
+      "variant_of": "cloud_cutout",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.7,
+        0.0,
+        -0.02
+      ],
+      "bounds_max": [
+        0.7,
+        2.0,
+        0.02
+      ],
+      "size": [
+        1.4,
+        2.0,
+        0.04
+      ],
+      "tris": 344,
+      "materials": [
+        "M_paper_white",
+        "M_kraft_edge"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "cloud_cutout_01",
+      "file": "models/cloud_cutout_01.gltf",
+      "category": "backdrop",
+      "variant_of": "cloud_cutout",
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.7,
+        0.0,
+        -0.02
+      ],
+      "bounds_max": [
+        0.7,
+        2.0,
+        0.02
+      ],
+      "size": [
+        1.4,
+        2.0,
+        0.04
+      ],
+      "tris": 344,
+      "materials": [
+        "M_paper_white",
+        "M_kraft_edge"
+      ],
+      "collider": null,
+      "swappable_faces": [],
+      "note": ""
+    },
+    {
+      "name": "title_board",
+      "file": "models/title_board.gltf",
+      "category": "title",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -1.6098,
+        -0.35,
+        -0.065
+      ],
+      "bounds_max": [
+        1.6074,
+        2.4097,
+        0.036
+      ],
+      "size": [
+        3.2171,
+        2.7597,
+        0.101
+      ],
+      "tris": 368,
+      "materials": [
+        "M_kraft",
+        "M_kraft_edge",
+        "M_logo_face",
+        "M_wood_stick"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          -0.0012,
+          1.0298,
+          -0.0145
+        ],
+        "size": [
+          3.2171,
+          2.7597,
+          0.101
+        ]
+      },
+      "swappable_faces": [
+        "M_logo_face"
+      ],
+      "note": "M_logo_face をロゴ画像に差し替え。杭の先端が y=-0.35 まで地面に刺さる"
+    },
+    {
+      "name": "menu_target",
+      "file": "models/menu_target.gltf",
+      "category": "title",
+      "variant_of": null,
+      "pivot": "bottom_center",
+      "bounds_min": [
+        -0.42,
+        0.0,
+        -0.025
+      ],
+      "bounds_max": [
+        0.42,
+        1.206,
+        0.056
+      ],
+      "size": [
+        0.84,
+        1.206,
+        0.081
+      ],
+      "tris": 404,
+      "materials": [
+        "M_wood_stick",
+        "M_paper_red",
+        "M_kraft_edge",
+        "M_menu_face"
+      ],
+      "collider": {
+        "type": "box",
+        "center": [
+          0.0,
+          0.603,
+          0.0155
+        ],
+        "size": [
+          0.84,
+          1.206,
+          0.081
+        ]
+      },
+      "swappable_faces": [
+        "M_menu_face"
+      ],
+      "note": "M_menu_face に項目名テクスチャ。ベロの当たり判定にコライダーを使う"
+    }
+  ]
+}

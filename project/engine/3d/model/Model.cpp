@@ -1,11 +1,13 @@
 #include "Model.h"
 // --- 標準ライブラリ ---
 #include <cassert>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <filesystem>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -22,9 +24,11 @@
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/ResourceFactory.h"
 
+namespace KazumimiEngine {
+
 using namespace MatrixMath;
 
-void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename){
+void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, bool keepOrigin){
 
 	// 1. ModelCommonのポインタを記録
 	this->modelCommon_ = modelCommon;
@@ -34,13 +38,19 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 	// 2. モデルデータをファイルから読み込む (引数のパスを使う)
 	modelData_ = LoadModelFile(directoryPath, filename);
 
-	// 3. モデルの頂点座標を中心（原点）に合わせる
-	if (modelData_.boneOrder.empty()) {
+	// 3. モデルの頂点座標を中心（原点）に合わせる。
+	//    ※ keepOrigin=true のモデルはファイルの原点をそのまま使う。
+	//      クラフトブロックや花は「原点=底面中心」で作られており、勝手に重心へ
+	//      センタリングすると描画だけ半分沈む（配置座標は底面基準のため）
+	if (modelData_.boneOrder.empty() && !keepOrigin) {
 		AdjustModelCenter();
 	}
 	// 4. マテリアルデータの読み込み (.mtlファイル)
 	if ( modelData_.material.textureFilePath.empty() ) {
 		modelData_.material.textureFilePath = "resources/uvChecker.png";
+	}
+	for ( auto& subMesh : modelData_.subMeshes ) {
+		if ( subMesh.textureFilePath.empty() ) { subMesh.textureFilePath = modelData_.material.textureFilePath; }
 	}
 
 	// 5. バッファの作成
@@ -200,6 +210,11 @@ void Model::InitializePrimitive(ModelCommon* modelCommon, const ModelData& model
 	this->modelCommon_ = modelCommon;
 	this->modelData_ = modelData;
 
+	// テクスチャ未指定の保険（CreateBuffers はパスを無条件に読むため、
+	// 空のまま渡されると空パスのロードで assert してしまう。後で SetTexture で差し替え可能）
+	if ( modelData_.material.textureFilePath.empty() ) {
+		modelData_.material.textureFilePath = "resources/uvChecker.png";
+	}
 
 	CreateBuffers();
 }
@@ -322,7 +337,9 @@ void Model::InitializeCylinder(ModelCommon* modelCommon, int subdivision, float 
 	modelData_.material.textureFilePath = "resources/uvChecker.png";
 	CreateBuffers();
 }
-void Model::Draw(uint32_t instanceCount) {
+void Model::Draw(uint32_t instanceCount, D3D12_GPU_VIRTUAL_ADDRESS materialOverride) {
+	// 描くものが無い（動的メッシュが空）なら何もしない
+	if ( drawIndexCount_ == 0 ) { return; }
 	// 1. コマンドリストを取得する
 	// ModelCommon経由でDirectXCommonから取得
 	ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
@@ -335,10 +352,20 @@ void Model::Draw(uint32_t instanceCount) {
 
 	// 4. マテリアル定数バッファの設定 (RootParameter 0番)
 	// ※元のObj3d.cppで 0番 に設定していたものです
-	commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+	//   materialOverride があれば、物ごとのマテリアル（Obj3d::SetMaterialOverride。モデルの共有マテリアルは書き換えない）
+	commandList->SetGraphicsRootConstantBufferView(0, materialOverride ? materialOverride : materialResource_->GetGPUVirtualAddress());
 	// プリミティブトポロジの設定（三角形リスト）
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	// 複数テクスチャのモデル：マテリアルごとにテクスチャを張り替えて、その範囲だけ描く
+	if ( !modelData_.subMeshes.empty() ) {
+		for ( size_t i = 0; i < modelData_.subMeshes.size(); ++i ) {
+			const SubMesh& subMesh = modelData_.subMeshes[i];
+			commandList->SetGraphicsRootDescriptorTable(2, subMeshTextureHandles_[i]);
+			commandList->DrawIndexedInstanced(subMesh.indexCount, instanceCount, subMesh.indexStart, 0, 0);
+		}
+		return;
+	}
 
 	// 5. テクスチャの設定 (RootParameter 2番)
 	// ※元のObj3d.cppで 2番 に設定していたものです
@@ -350,7 +377,7 @@ void Model::Draw(uint32_t instanceCount) {
 
 	// 6. 描画コマンドの発行
 	// インデックスを使って描画
-	commandList->DrawIndexedInstanced(static_cast< UINT >( modelData_.indices.size() ), instanceCount, 0, 0, 0);
+	commandList->DrawIndexedInstanced(drawIndexCount_, instanceCount, 0, 0, 0);
 
 
 }
@@ -368,6 +395,7 @@ void Model::SetTexture(uint32_t textureIndex){
 
 	// SrvManagerから新しいGPUハンドルを取得して、描画用の textureHandle_ を上書きする
 	textureHandle_ = modelCommon_->GetDxCommon()->GetSrvManager()->GetGPUDescriptorHandle(textureIndex);
+	ApplyTextureToAllSubMeshes();
 }
 
 // ファイルパスを指定して変更（新しく読み込む、またはパス指定で楽をしたい場合）
@@ -388,18 +416,45 @@ void Model::SetTexture(const std::string& textureFilePath){
 	textureHandle_ = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(
 		modelData_.material.textureIndex
 	);
+	ApplyTextureToAllSubMeshes();
+}
+
+// モデル全体のテクスチャ上書きを、マテリアルごとの分にも反映する（SetTexture は「全体をこの1枚に」の意味）
+void Model::ApplyTextureToAllSubMeshes(){
+	for ( size_t i = 0; i < modelData_.subMeshes.size(); ++i ) {
+		modelData_.subMeshes[i].textureFilePath = modelData_.material.textureFilePath;
+		modelData_.subMeshes[i].textureIndex = modelData_.material.textureIndex;
+		subMeshTextureHandles_[i] = textureHandle_;
+	}
+}
+
+// 指定した名前のマテリアルの面だけテクスチャを差し替える
+bool Model::SetMaterialTexture(const std::string& materialName, const std::string& textureFilePath){
+	auto dxCommon = modelCommon_->GetDxCommon();
+	bool found = false;
+	for ( size_t i = 0; i < modelData_.subMeshes.size(); ++i ) {
+		SubMesh& subMesh = modelData_.subMeshes[i];
+		if ( subMesh.materialName != materialName ) { continue; }
+		subMesh.textureFilePath = textureFilePath;
+		subMesh.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+			textureFilePath, dxCommon->GetCommandList()).srvIndex;
+		subMeshTextureHandles_[i] = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(subMesh.textureIndex);
+		found = true;
+	}
+	return found;
 }
 
 void Model::DrawOnly(uint32_t instanceCount){
+	if ( drawIndexCount_ == 0 ) { return; }
 	ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
 
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
 	commandList->IASetIndexBuffer(&indexBufferView_);
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	
+
 	// 描画 (テクスチャのセット処理は飛ばす)
-	commandList->DrawIndexedInstanced(static_cast< UINT >( modelData_.indices.size() ), instanceCount, 0, 0, 0);
+	commandList->DrawIndexedInstanced(drawIndexCount_, instanceCount, 0, 0, 0);
 }
 
 Node Model::ParseNode(const aiNode* node) {
@@ -437,14 +492,37 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 	ModelData modelData;
 	Assimp::Importer importer;
 	std::string filePath = directoryPath + "/" + filename;
+	OutputDebugStringA(("LoadModelFile: " + filePath + "\n").c_str()); // クラッシュ時にどのモデルか分かるように
 
-	// 1. ファイルを読み込む (三角形化、UV反転、面順反転のオプション付き)
-	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_Triangulate);
+	// 1. ファイルを読み込む (三角形化、UV反転、面順反転のオプション付き)。
+	//    GenNormals: 法線を持たないモデル（スクリプト生成のOBJ等）にはフラット法線を自動生成する。
+	//    これが無いと Release では assert が消えて mNormals(null) を読みアクセス違反で落ちる
+	const aiScene* scene = importer.ReadFile(filePath.c_str(),
+		aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_GenNormals);
 	assert(scene != nullptr && scene->HasMeshes()); // 読み込めない、またはメッシュがない場合はエラー
+
+	// マテリアルごとのテクスチャ（ディフューズ）を先に調べる。
+	//   "../textures/x.png" のような相対指定は正規化して、同じ画像が別名で二重に読まれないようにする
+	std::vector<std::string> materialTextures(scene->mNumMaterials);
+	std::string firstTexture; // 最初に見つかったテクスチャ（テクスチャ無しマテリアルの代わりにも使う）
+	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
+		aiMaterial* material = scene->mMaterials[materialIndex];
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) == 0) { continue; }
+		aiString textureFilePath;
+		material->GetTexture(aiTextureType_DIFFUSE, 0, &textureFilePath);
+		std::string path = directoryPath + "/" + textureFilePath.C_Str();
+		if (path.find("..") != std::string::npos) {
+			path = std::filesystem::path(path).lexically_normal().generic_string();
+		}
+		materialTextures[materialIndex] = path;
+		if (firstTexture.empty()) { firstTexture = path; }
+	}
+	int lastMaterialIndex = -1; // 直前のメッシュのマテリアル（同じなら描画範囲をつなげる）
 
 	// 2. メッシュの解析
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 		aiMesh* mesh = scene->mMeshes[meshIndex];
+		const uint32_t indexStart = static_cast<uint32_t>(modelData.indices.size());
 		assert(mesh->HasNormals()); // 法線がないモデルは今回は非対応
 		assert(mesh->HasTextureCoords(0)); // UVがないモデルは今回は非対応
 
@@ -520,6 +598,8 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 			vertex.position = { position.x, position.y, position.z, 1.0f };
 			vertex.normal = { normal.x, normal.y, normal.z };
 			vertex.texcoord = { texcoord.x, texcoord.y };
+			// 縦方向に 0〜1 をはみ出す UV があれば、繰り返し貼り（タイル貼り）のモデルとして描く
+			if (texcoord.y < -0.01f || texcoord.y > 1.01f) { modelData.tiledUV = true; }
 			vertex.influence = influences[vertexIndex];
 
 			// もしボーン影響が全くない頂点なら、ルート（またはインデックス0）に100%影響とする
@@ -557,22 +637,32 @@ Model::ModelData Model::LoadModelFile(const std::string& directoryPath, const st
 				modelData.indices.push_back(baseVertex + face.mIndices[element]);
 			}
 		}
-	}
 
-	// 5. Material(マテリアル)の解析
-	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
-		aiMaterial* material = scene->mMaterials[materialIndex];
-
-		// テクスチャ（ディフューズマップ）があるか確認
-		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
-			aiString textureFilePath;
-			material->GetTexture(aiTextureType_DIFFUSE, 0, &textureFilePath);
-
-			// パスを結合して自分たちの構造体に保存
-			modelData.material.textureFilePath = directoryPath + "/" + textureFilePath.C_Str();
-			break; // 複数のマテリアルがあっても、一旦最初のものだけ使う
+		// 4. このメッシュの描画範囲をマテリアルと結び付ける
+		const uint32_t indexCount = static_cast<uint32_t>(modelData.indices.size()) - indexStart;
+		const int materialIndex = static_cast<int>(mesh->mMaterialIndex);
+		if (materialIndex == lastMaterialIndex && !modelData.subMeshes.empty()) {
+			modelData.subMeshes.back().indexCount += indexCount;
+		} else {
+			SubMesh subMesh;
+			subMesh.indexStart = indexStart;
+			subMesh.indexCount = indexCount;
+			if (mesh->mMaterialIndex < scene->mNumMaterials) {
+				subMesh.materialName = scene->mMaterials[mesh->mMaterialIndex]->GetName().C_Str();
+				subMesh.textureFilePath = materialTextures[mesh->mMaterialIndex];
+			}
+			// テクスチャを持たないマテリアルは、最初に見つかったテクスチャで描く（これまでの見た目と同じ）
+			if (subMesh.textureFilePath.empty()) { subMesh.textureFilePath = firstTexture; }
+			modelData.subMeshes.push_back(subMesh);
+			lastMaterialIndex = materialIndex;
 		}
 	}
+
+	// 5. モデル全体の既定テクスチャ。全部が同じ1枚なら、範囲分けをせず今まで通り1回で描く
+	modelData.material.textureFilePath = firstTexture;
+	const bool singleTexture = std::all_of(modelData.subMeshes.begin(), modelData.subMeshes.end(),
+		[&](const SubMesh& subMesh){ return subMesh.textureFilePath == firstTexture; });
+	if (singleTexture) { modelData.subMeshes.clear(); }
 	// ノード階層の解析
 	modelData.rootNode = ParseNode(scene->mRootNode);
 
@@ -629,6 +719,14 @@ void Model::CreateBuffers(){
 		modelData_.material.textureIndex
 	);
 
+	// マテリアルごとのテクスチャ（複数テクスチャのモデルだけ）
+	subMeshTextureHandles_.clear();
+	for ( auto& subMesh : modelData_.subMeshes ) {
+		subMesh.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+			subMesh.textureFilePath, commandList).srvIndex;
+		subMeshTextureHandles_.push_back(dxCommon->GetSrvManager()->GetGPUDescriptorHandle(subMesh.textureIndex));
+	}
+
 
 	// 2. 頂点リソースを作る
 	vertexResource_ = resourceFactory->CreateBufferResource(sizeof(VertexData) * modelData_.vertices.size());
@@ -669,9 +767,93 @@ void Model::CreateBuffers(){
 	// デフォルト値
 	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	materialData_->enableLighting = true;
+	materialData_->matte = 0.0f;
 	materialData_->uvTransform = MakeIdentity4x4();
 	materialData_->shininess = 32.0f;
 	materialData_->emissive = 0.0f;
 	materialData_->environmentCoefficient = 0.0f;
 
+	// 静的モデルの描画数はここで確定（Draw は drawIndexCount_ を参照する）
+	drawIndexCount_ = static_cast< uint32_t >( modelData_.indices.size() );
+
 }
+
+// 動的メッシュとして初期化：容量ぶんのバッファを一度だけ確保して Map を保持する
+void Model::InitializeDynamic(ModelCommon* modelCommon, uint32_t vertexCapacity, uint32_t indexCapacity,
+                              const std::string& textureFilePath){
+	modelCommon_ = modelCommon;
+
+	// テクスチャ未指定の保険（空パスのロードは起動時 assert になる）
+	modelData_.material.textureFilePath = textureFilePath.empty() ? "resources/uvChecker.png" : textureFilePath;
+
+	auto dxCommon = modelCommon_->GetDxCommon();
+	auto resourceFactory = dxCommon->GetResourceFactory();
+
+	// テクスチャ（呼び出し側が先読みしておくこと。ここではキャッシュヒット前提）
+	modelData_.material.textureIndex = TextureManager::GetInstance()->LoadTextureAndCreateSRV(
+		modelData_.material.textureFilePath,
+		dxCommon->GetCommandList()
+	).srvIndex;
+	textureHandle_ = dxCommon->GetSrvManager()->GetGPUDescriptorHandle(modelData_.material.textureIndex);
+
+	// 頂点/インデックスは容量ぶんを確保して Map しっぱなしにする
+	vertexCapacity_ = ( std::max )( vertexCapacity, 3u );
+	indexCapacity_  = ( std::max )( indexCapacity, 3u );
+
+	vertexResource_ = resourceFactory->CreateBufferResource(sizeof(VertexData) * vertexCapacity_);
+	assert(vertexResource_ != nullptr);
+	vertexResource_->Map(0, nullptr, reinterpret_cast< void** >( &vertexMap_ ));
+	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
+	vertexBufferView_.SizeInBytes = UINT(sizeof(VertexData) * vertexCapacity_);
+	vertexBufferView_.StrideInBytes = sizeof(VertexData);
+
+	indexResource_ = resourceFactory->CreateBufferResource(sizeof(uint32_t) * indexCapacity_);
+	assert(indexResource_ != nullptr);
+	indexResource_->Map(0, nullptr, reinterpret_cast< void** >( &indexMap_ ));
+	indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+	indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * indexCapacity_);
+	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+	// マテリアル（静的パスと同じ既定値）
+	materialResource_ = resourceFactory->CreateBufferResource(sizeof(Material));
+	assert(materialResource_ != nullptr);
+	materialResource_->Map(0, nullptr, reinterpret_cast< void** >( &materialData_ ));
+	materialData_->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialData_->enableLighting = true;
+	materialData_->matte = 0.0f;
+	materialData_->uvTransform = MakeIdentity4x4();
+	materialData_->shininess = 32.0f;
+	materialData_->emissive = 0.0f;
+	materialData_->environmentCoefficient = 0.0f;
+
+	drawIndexCount_ = 0; // UpdateMesh されるまで何も描かない
+}
+
+// 動的メッシュの内容を差し替える（容量超過時のみ2倍に伸ばして再確保）
+void Model::UpdateMesh(const std::vector<VertexData>& vertices, const std::vector<uint32_t>& indices){
+	auto resourceFactory = modelCommon_->GetDxCommon()->GetResourceFactory();
+
+	// 容量超過は2倍ずつ伸ばして作り直す（稀。毎フレーム WaitForGPU 運用なのでフレーム間なら安全）
+	if ( vertices.size() > vertexCapacity_ ) {
+		while ( vertexCapacity_ < vertices.size() ) { vertexCapacity_ *= 2; }
+		vertexResource_ = resourceFactory->CreateBufferResource(sizeof(VertexData) * vertexCapacity_);
+		assert(vertexResource_ != nullptr);
+		vertexResource_->Map(0, nullptr, reinterpret_cast< void** >( &vertexMap_ ));
+		vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
+		vertexBufferView_.SizeInBytes = UINT(sizeof(VertexData) * vertexCapacity_);
+	}
+	if ( indices.size() > indexCapacity_ ) {
+		while ( indexCapacity_ < indices.size() ) { indexCapacity_ *= 2; }
+		indexResource_ = resourceFactory->CreateBufferResource(sizeof(uint32_t) * indexCapacity_);
+		assert(indexResource_ != nullptr);
+		indexResource_->Map(0, nullptr, reinterpret_cast< void** >( &indexMap_ ));
+		indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+		indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * indexCapacity_);
+	}
+
+	if ( !vertices.empty() ) { std::memcpy(vertexMap_, vertices.data(), sizeof(VertexData) * vertices.size()); }
+	if ( !indices.empty() )  { std::memcpy(indexMap_,  indices.data(),  sizeof(uint32_t)   * indices.size()); }
+	drawIndexCount_ = static_cast< uint32_t >( indices.size() );
+}
+
+} // namespace KazumimiEngine

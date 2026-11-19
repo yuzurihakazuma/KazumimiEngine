@@ -1,9 +1,11 @@
 #include "Matrix4x4.h"
 #include "engine/math/QuaternionMath.h"
 #include "engine/math/VectorMath.h"
+#include <algorithm>
 #include <cmath>
 #include <cassert>
 
+namespace KazumimiEngine {
 
 namespace MatrixMath {
 
@@ -195,6 +197,15 @@ namespace MatrixMath {
     }
 
 	// Quaternion を使ったアフィン変換行列
+    // 回転行列 → X・Y・Z の角度（MakeAffine は X → Y → Z の順に回す。行ベクトル）
+    Vector3 ToEulerXYZ(const Matrix4x4& rotation) {
+        Vector3 result;
+        result.y = std::asin(std::clamp(-rotation.m[0][2], -1.0f, 1.0f));
+        result.x = std::atan2(rotation.m[1][2], rotation.m[2][2]);
+        result.z = std::atan2(rotation.m[0][1], rotation.m[0][0]);
+        return result;
+    }
+
     Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
         Matrix4x4 scaleMatrix = MakeScale(scale);
         Matrix4x4 rotateMatrix = QuaternionMath::MakeRotateMatrix(rotate); // Quaternion → 回転行列
@@ -295,4 +306,31 @@ namespace MatrixMath {
         return result;
     }
 
+    // ワールド点 → NDC(-1..1)。カメラの後方にある場合は false
+    //   （以前は EditorManager / AimThrowController が同じ計算をそれぞれ持っていた）
+    bool WorldToNdc(const Vector3& world, const Matrix4x4& viewProj, Vector2& outNdc) {
+        float clipW = world.x * viewProj.m[0][3] + world.y * viewProj.m[1][3]
+                    + world.z * viewProj.m[2][3] + viewProj.m[3][3];
+        if (clipW <= 0.0001f) { return false; } // カメラ後方（0除算・反転を防ぐ）
+        float clipX = world.x * viewProj.m[0][0] + world.y * viewProj.m[1][0]
+                    + world.z * viewProj.m[2][0] + viewProj.m[3][0];
+        float clipY = world.x * viewProj.m[0][1] + world.y * viewProj.m[1][1]
+                    + world.z * viewProj.m[2][1] + viewProj.m[3][1];
+        outNdc = { clipX / clipW, clipY / clipW };
+        return true;
+    }
+
+    // NDC(-1..1, z=0..1) → ワールド点（レイ生成は z=0 と z=1 の2点を結ぶ）
+    Vector3 NdcToWorld(float ndcX, float ndcY, float ndcZ, const Matrix4x4& invViewProj) {
+        float w = ndcX * invViewProj.m[0][3] + ndcY * invViewProj.m[1][3]
+                + ndcZ * invViewProj.m[2][3] + invViewProj.m[3][3];
+        return {
+            (ndcX * invViewProj.m[0][0] + ndcY * invViewProj.m[1][0] + ndcZ * invViewProj.m[2][0] + invViewProj.m[3][0]) / w,
+            (ndcX * invViewProj.m[0][1] + ndcY * invViewProj.m[1][1] + ndcZ * invViewProj.m[2][1] + invViewProj.m[3][1]) / w,
+            (ndcX * invViewProj.m[0][2] + ndcY * invViewProj.m[1][2] + ndcZ * invViewProj.m[2][2] + invViewProj.m[3][2]) / w,
+        };
+    }
+
 } // namespace MatrixMath
+
+} // namespace KazumimiEngine

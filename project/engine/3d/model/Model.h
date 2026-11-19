@@ -15,10 +15,19 @@
 #include "engine/math/Matrix4x4.h"
 #include "engine/3d/animation/Skeleton.h"
 
-// 前方宣言
-class ModelCommon;
 struct aiNode;
 
+namespace KazumimiEngine {
+
+// 前方宣言
+class ModelCommon;
+
+// =====================================================================
+//  Model：3D モデル 1 個のデータ。
+//   ファイル（obj / gltf）から、頂点・マテリアル・テクスチャ・骨（スキン）・アニメーションを読み、GPU の頂点バッファを持つ。
+//   同じファイルは ModelManager が 1 回だけ読み、Obj3d・SkinnedObj3d・InstancedGroup が借りて描く。
+//   読む時に形の中心を原点へ寄せる（置いた場所どおりに出したい物は keepOrigin = true で読む）
+// =====================================================================
 class Model{
 
 public: // サブクラス定義
@@ -43,10 +52,24 @@ public: // サブクラス定義
 		uint32_t textureIndex = 0;
 	};
 
+	// マテリアルごとの描画範囲（1モデルで複数のテクスチャを使う時だけ作る）
+	struct SubMesh{
+		uint32_t indexStart = 0;       // indices の中の開始位置
+		uint32_t indexCount = 0;       // 描くインデックス数
+		std::string materialName;      // ファイル上のマテリアル名（面の差し替えに使う）
+		std::string textureFilePath;
+		uint32_t textureIndex = 0;
+	};
+
+	// モデル 1 つぶんの読み込んだデータ（頂点・インデックス・マテリアル・ノード）
 	struct ModelData{
 		std::vector<VertexData> vertices; // 頂点データ
 		std::vector<uint32_t> indices;    // インデックスデータ
-		MaterialData material;            // マテリアルデータ
+		MaterialData material;            // マテリアルデータ（モデル全体の既定＝最初に見つかったテクスチャ）
+		// 複数テクスチャのモデルだけ中身が入る（空＝全体を material の1枚で描く）
+		std::vector<SubMesh> subMeshes;
+		// UV が 0〜1 を超えて繰り返す（タイル貼り）モデルか。true ならテクスチャを縦横ともリピートして描く
+		bool tiledUV = false;
 		Node rootNode; // モデルの階層構造のルートノード
 		std::map<std::string, Matrix4x4>     inverseBindPoseMap;
 		std::vector<std::string> boneOrder; // ボーンの順番（頂点のjointIndicesと対応させるため）
@@ -55,7 +78,8 @@ public: // サブクラス定義
 	struct Material{
 		Vector4 color;// 材質の色
 		int32_t enableLighting;// ライティングの有効無効
-		float padding[3];       // 4 bytes * 3 = 12 bytes (行列を16バイト境界に合わせるための詰め物)
+		float matte;            // 1でハイライト（鏡面反射）を出さない。紙・フェルトなど、つやの無い素材用（既定0）
+		float padding[2];       // 4 bytes * 2 = 8 bytes (行列を16バイト境界に合わせるための詰め物)
 		Matrix4x4 uvTransform;
 		float shininess;       
 		float padding2[2];      // 8バイト (HLSLの float2 padding と一致)
@@ -68,7 +92,9 @@ public: // メンバ関数
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename);
+	// keepOrigin=true でファイルの原点を維持（重心への自動センタリングを行わない。
+	// 底面原点で作られた配置物＝クラフトブロック・花などに使う）
+	void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename, bool keepOrigin = false);
 	// <summary>
 	/// 球モデルの初期化
 	/// </summary>
@@ -89,6 +115,20 @@ public: // メンバ関数
 	void InitializePrimitive(ModelCommon* modelCommon, const ModelData& modelData);
 
 	// <summary>
+	/// 動的メッシュとして初期化：固定容量の頂点/インデックスバッファを一度だけ確保し Map を保持する。
+	/// 以後は UpdateMesh の memcpy と描画数更新だけで形を変えられる（毎フレームの作り直しゼロ）。
+	/// ※エンジンは毎フレーム WaitForGPU するシングルバッファ運用なので Map しっぱなし書き換えが公認パターン（DebugDraw と同方式）
+	/// </summary>
+	void InitializeDynamic(ModelCommon* modelCommon, uint32_t vertexCapacity, uint32_t indexCapacity,
+	                       const std::string& textureFilePath);
+
+	// <summary>
+	/// 動的メッシュの内容を差し替える（容量超過時のみ2倍に伸ばして再確保）。
+	/// Draw より前（Update フェーズ）で呼ぶこと。空を渡すと何も描かれなくなる。
+	/// </summary>
+	void UpdateMesh(const std::vector<VertexData>& vertices, const std::vector<uint32_t>& indices);
+
+	// <summary>
 	/// リングモデルの初期化
 	/// </summary>
 	void InitializeRing(ModelCommon* modelCommon, int subdivision = 32, float outerRadius = 1.0f, float innerRadius = 0.2f);
@@ -101,9 +141,12 @@ public: // メンバ関数
 	/// <summary>
 	/// 描画
 	/// </summary>
-	void Draw(uint32_t instanceCount = 1);
+	void Draw(uint32_t instanceCount = 1, D3D12_GPU_VIRTUAL_ADDRESS materialOverride = 0);
 
 	Material* GetMaterial(){ return materialData_; }
+
+	// CPU側モデルデータの参照（RoadMesh のピースベイク等、頂点を焼き込む用途）
+	const ModelData& GetModelData() const{ return modelData_; }
 
 	const Node& GetRootNode() const { return modelData_.rootNode; }
 
@@ -131,6 +174,15 @@ public: // メンバ関数
 	// テクスチャを「ファイルパス」から読み込んで上書き設定する
 	void SetTexture(const std::string& textureFilePath);
 
+	// タイル貼り（UV が 0〜1 を超えて繰り返す）モデルか。読み込んだモデルは UV から自動で決まる。
+	//   コードで作ったモデルを繰り返し貼りにしたい時は SetTiledUV(true)
+	bool UsesTiledUV() const{ return modelData_.tiledUV; }
+	void SetTiledUV(bool tiled){ modelData_.tiledUV = tiled; }
+
+	// 指定した名前のマテリアルの面だけ、テクスチャを差し替える（看板のロゴ面・的の項目名など）。
+	//   複数テクスチャのモデル専用。その名前のマテリアルが無ければ false
+	bool SetMaterialTexture(const std::string& materialName, const std::string& textureFilePath);
+
 private: // 内部関数
 	 
 	// aiNodeからNode構造体を再帰的に作る関数
@@ -144,6 +196,8 @@ private: // 内部関数
 	void AdjustModelCenter();
 	// / バッファの作成
 	void CreateBuffers();
+	// SetTexture の上書き（モデル全体をこの1枚に）を、マテリアルごとの分にも反映する
+	void ApplyTextureToAllSubMeshes();
 
 
 	
@@ -166,7 +220,18 @@ private: // メンバ変数
 	// データを書き込むためのポインタ (Map用)
 	Material* materialData_ = nullptr;
 
+	// --- 動的メッシュ用（InitializeDynamic 時のみ使用）---
+	uint32_t vertexCapacity_ = 0;      // 確保済み頂点容量（0なら静的モデル）
+	uint32_t indexCapacity_  = 0;      // 確保済みインデックス容量
+	uint32_t drawIndexCount_ = 0;      // 実際に描画するインデックス数（静的は CreateBuffers が設定）
+	VertexData* vertexMap_ = nullptr;  // Map保持ポインタ（Unmapしない）
+	uint32_t*   indexMap_  = nullptr;
+
 	// テクスチャハンドル
 	D3D12_GPU_DESCRIPTOR_HANDLE textureHandle_ {};
+	// マテリアルごとのテクスチャハンドル（modelData_.subMeshes と同じ並び）
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> subMeshTextureHandles_;
 
 };
+
+} // namespace KazumimiEngine

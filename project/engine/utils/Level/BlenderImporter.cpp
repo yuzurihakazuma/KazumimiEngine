@@ -1,4 +1,6 @@
 #include "BlenderImporter.h"
+#include "engine/utils/JsonFile.h"
+#include "engine/math/MathUtil.h"
 
 // --- 標準ライブラリ ---
 #include <fstream>
@@ -15,6 +17,8 @@
 #include "engine/utils/ImGuiManager.h"
 #include "engine/3d/model/ModelManager.h"
 #include "engine/math/Matrix4x4.h"
+
+namespace KazumimiEngine {
 
 using json = nlohmann::json;
 using namespace MatrixMath;
@@ -123,7 +127,7 @@ namespace{
 
         // 度→ラジアン
         if ( ctx.rotationInDegrees ) {
-            const float deg2rad = 3.14159265358979323846f / 180.0f;
+            const float deg2rad = Math::kDegToRad;
             rot.x *= deg2rad; rot.y *= deg2rad; rot.z *= deg2rad;
         }
 
@@ -231,16 +235,12 @@ void BlenderImporter::SaveSettings() const{
     j["cameraCorrection"] = cameraCorrection_;
     j["lastImportedPath"] = importedPath_;
 
-    std::ofstream file(kSettingsPath);
-    if ( file.is_open() ) { file << j.dump(4); }
+    JsonFile::Save(kSettingsPath, j, 4);
 }
 
 void BlenderImporter::LoadSettings(){
-    std::ifstream file(kSettingsPath);
-    if ( !file.is_open() ) return;
-
     json j;
-    try { file >> j; } catch ( ... ) { return; }
+    if ( !JsonFile::Load(kSettingsPath, j) ) return;
 
     folder_ = j.value("folder", folder_);
     convertAxes_ = j.value("convertAxes", convertAxes_);
@@ -299,7 +299,7 @@ bool BlenderImporter::ConsumeCameraRequest(Vector3& outPos, Vector3& outRot){
     if ( cameraCorrection_ ) {
         // Blenderカメラはローカル -Z が前方（rx=90°で水平を向く）。
         // 座標変換で rx → -rx になっているので +90° すると エンジンの前方 +Z と一致する
-        outRot.x += 3.14159265358979323846f * 0.5f;
+        outRot.x += Math::kHalfPi;
     }
     return true;
 }
@@ -332,12 +332,13 @@ bool BlenderImporter::EnsureModelLoaded(const std::string& modelName){
     if ( ModelManager::GetInstance()->FindModel(modelName) ) return true;
 
     namespace fs = std::filesystem;
-    // 探索順: resources/<名前>/<名前>.obj → .gltf → resources/<名前>.obj → .gltf
+    // 探索順: resources/<名前>/<名前>.obj → .gltf → resources/<名前>.obj → .gltf → クラフトキット
     const std::pair<std::string, std::string> candidates[] = {
         { "resources/" + modelName, modelName + ".obj" },
         { "resources/" + modelName, modelName + ".gltf" },
         { "resources",              modelName + ".obj" },
         { "resources",              modelName + ".gltf" },
+        { "resources/craft/models", modelName + ".gltf" }, // CraftKit の file_name はここを指す
     };
     for ( const auto& c : candidates ) {
         std::error_code ec;
@@ -475,6 +476,12 @@ void BlenderImporter::DrawDebugUI(){
         Import(importedPath_);
     }
     if ( importedPath_.empty() ) ImGui::EndDisabled();
+    ImGui::SameLine();
+    // インポートの取り消し：ApplyImportedData がインポート前を配置履歴に積むので、それを1手戻す
+    if ( ImGui::Button("取り消す") ) {
+        if ( levelEditor_ ) { levelEditor_->Undo(); }
+    }
+    if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("直前のインポート（や配置操作）を1手元に戻します"); }
 
     // =========================================================
     // 4. ホットリロード（ファイル更新を検知して自動再インポート）
@@ -543,3 +550,5 @@ void BlenderImporter::DrawDebugUI(){
     ImGui::End();
 #endif
 }
+
+} // namespace KazumimiEngine

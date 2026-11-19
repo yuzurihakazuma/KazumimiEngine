@@ -8,20 +8,21 @@
 #include <utility>
 
 // --- エンジン内部ヘッダー ---
-#include "Engine/2D/SpriteCommon.h"
-#include "Engine/Base/DirectXCommon.h"
+#include "engine/2d/SpriteCommon.h"
+#include "engine/base/DirectXCommon.h"
 #include "engine/utils/RenderStats.h"
-#include "Engine/Math/Matrix4x4.h"
-#include "Engine/Graphics/SrvManager.h"
-#include "Engine/Graphics/TextureManager.h"
+#include "engine/math/Matrix4x4.h"
+#include "engine/graphics/SrvManager.h"
+#include "engine/graphics/TextureManager.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/base/WindowProc.h"
 
+namespace KazumimiEngine {
 
 using namespace MatrixMath;
 
 
-std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 position, const Vector4& color, Vector2 anchorpoint) {
 	// コマンドリストが必要なら取得（TextureManagerの仕様による）
 	auto commandList = DirectXCommon::GetInstance()->GetCommandList();
 
@@ -32,7 +33,7 @@ std::unique_ptr<Sprite> Sprite::Create(const std::string& textureName, Vector2 p
 	return Create(data.srvIndex, position, color, anchorpoint);
 }
 // 静的生成関数
-std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, Vector4 color, Vector2 anchorpoint) {
+std::unique_ptr<Sprite> Sprite::Create(uint32_t textureIndex, Vector2 position, const Vector4& color, Vector2 anchorpoint) {
 	// 1. インスタンス生成
 	std::unique_ptr<Sprite> sprite = std::make_unique<Sprite>();
 	if (sprite == nullptr) {
@@ -104,12 +105,12 @@ void Sprite::Initialize(){
 void Sprite::Update(){
 
 	// 位置、回転、スケールからワールド行列を作る
-	transform.translate = { position_.x, position_.y, 0.0f };
-	transform.rotate = { 0.0f, 0.0f, rotation_ };
-	transform.scale = { 1.0f, 1.0f, 1.0f };
+	transform_.translate = { position_.x, position_.y, 0.0f };
+	transform_.rotate = { 0.0f, 0.0f, rotation_ };
+	transform_.scale = { 1.0f, 1.0f, 1.0f };
 
 	// ワールド行列を作る
-	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
 
 	// 画面の幅と高さを取得
@@ -120,8 +121,8 @@ void Sprite::Update(){
 	Matrix4x4 projectionMatrix = Orthographic(0.0f, 0.0f, screenW, screenH, 0.0f, 100.0f);
 	Matrix4x4 viewProjection = Multiply(viewMatrix, projectionMatrix);
 	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjection);
-	transformationMatirxData_->WVP = worldViewProjectionMatrix;
-	transformationMatirxData_->World = worldMatrix;
+	transformationMatrixData_->WVP = worldViewProjectionMatrix;
+	transformationMatrixData_->World = worldMatrix;
 
 
 
@@ -238,9 +239,10 @@ void Sprite::CreateMaterialBuffer(){
 	// SpriteはLightingしないのでfalseを設定する
 	materialData_->enableLighting = false;
 	// UVTransformはSpriteでは使うので設定しておく。今回は単位行列を設定しておく
-	materialData_->uvTransfrom = MakeIdentity4x4();
+	materialData_->uvTransform = MakeIdentity4x4();
 	// Shininessは使わないが一応0.0fを設定しておく
 	materialData_->shininess = 0.0f;
+	materialData_->reveal = kRevealOff; // 描き順のマスクは使わない
 
 
 }
@@ -250,11 +252,11 @@ void Sprite::CreateTransformationMatrixBuffer(){
 	transformationMatrixResource_ = spriteCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(TransformationMatrix));
 
 	// 書き込むためのアドレスを取得
-	transformationMatrixResource_->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatirxData_ ));
+	transformationMatrixResource_->Map(0, nullptr, reinterpret_cast< void** >( &transformationMatrixData_ ));
 	// 単位行列を書き込んでおく
-	transformationMatirxData_->WVP = MakeIdentity4x4();
-	transformationMatirxData_->World = MakeIdentity4x4();
-	transformationMatirxData_->WorldInverseTranspose = MakeIdentity4x4();
+	transformationMatrixData_->WVP = MakeIdentity4x4();
+	transformationMatrixData_->World = MakeIdentity4x4();
+	transformationMatrixData_->WorldInverseTranspose = MakeIdentity4x4();
 
 }
 // 頂点データの計算・転送
@@ -285,6 +287,18 @@ void Sprite::UpdateVertexData(){
 	float texBottom = (textureLeftTop_.y + textureSize_.y) / texHeight;
 
 
+	// 四すみを直接指定している時は、その位置をそのまま使う（台形など）
+	if ( useCorners_ ) {
+		const Vector2 order[4] = { corners_[0], corners_[2], corners_[1], corners_[3] }; // 左上・左下・右上・右下（頂点の並び）
+		const Vector2 uvs[4] = { { texLeft, texTop }, { texLeft, texBottom }, { texRight, texTop }, { texRight, texBottom } };
+		for ( int i = 0; i < 4; ++i ) {
+			vertexData_[i].position = { order[i].x, order[i].y, 0.0f, 1.0f };
+			vertexData_[i].texcoord = uvs[i];
+			vertexData_[i].normal = { 0.0f, 0.0f, -1.0f };
+		}
+		return;
+	}
+
 	// 0: 左上 (Top-Left)
 	vertexData_[0].position = { left, top, 0.0f, 1.0f }; // Yは上(top)
 	vertexData_[0].texcoord = { texLeft, texTop };            // UVは(0,0)
@@ -308,7 +322,31 @@ void Sprite::UpdateVertexData(){
 }
 
 
+// 四すみを直接指定する（台形など）
+void Sprite::SetCorners(const Vector2& topLeft, const Vector2& topRight, const Vector2& bottomLeft, const Vector2& bottomRight){
+	corners_[0] = topLeft;
+	corners_[1] = topRight;
+	corners_[2] = bottomLeft;
+	corners_[3] = bottomRight;
+	useCorners_ = true;
+	UpdateVertexData();
+}
+
+void Sprite::ClearCorners(){
+	useCorners_ = false;
+	UpdateVertexData();
+}
+
 // 切り抜きを指定する関数
+// 描き順のマスク：progress（0〜1）まで描いた所を出す。シェーダーは「描く順 >= しきい値」の所を出すので、しきい値は 1 - progress
+void Sprite::SetReveal(float progress) {
+	materialData_->reveal = 1.0f - std::clamp(progress, 0.0f, 1.0f);
+}
+
+void Sprite::ClearReveal() {
+	materialData_->reveal = kRevealOff;
+}
+
 void Sprite::SetTextureRect(float startX, float startY, float width, float height) {
 	// ピクセルとしてそのまま保存する！
 	textureLeftTop_ = { startX, startY };
@@ -316,3 +354,5 @@ void Sprite::SetTextureRect(float startX, float startY, float width, float heigh
 
 	UpdateVertexData();
 }
+
+} // namespace KazumimiEngine

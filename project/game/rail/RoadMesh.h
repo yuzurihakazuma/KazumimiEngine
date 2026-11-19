@@ -1,0 +1,117 @@
+#pragma once
+#include "engine/math/struct.h"
+#include "game/rail/road/RoadMeshBuilder.h"
+#include "game/rail/road/RoadRenderSlots.h"
+#include <array>
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class SplineRail;
+}
+struct RoadCut;
+struct RoadJunction;
+
+// =====================================================================
+//  RoadMesh：レールの下に敷く「クラフト風の道」の管理クラス（道システム設計書 §4-§5）。
+//   ・レール1本 = 1メッシュ（= 1ドローコール）。SplineRail::FrameCache の
+//     フレーム（位置+right/up/tangent）に12頂点の断面プロファイルを掃引する
+//   ・曲率適応サンプリング／内側折返しの溶接／坂UV切替（ヒステリシス＋二重リング）
+//   ・穴区間は面を張らず、切り口に暗色の奈落フタ。手前後 1m の上面は
+//     危険帯テクスチャ（赤ストライプ）に切り替える（仕様書_穴区間 §2）
+//   ・接続ノード（溶接コーナー/T字/十字）は任意角度の「ジャンクションパッチ」
+//     （上面扇+ベベル+壁+底）をその場で生成して繋ぐ（GUIDE_ジャンクション生成）。
+//     ゆるい2本溶接（150°以上）だけは掃引コネクタで連続的に繋ぐ
+//   ・接続ノードにはプラレール風の road_joint を自動配置（保存しない派生データ）
+//   ・roadMode=1（道なし）のレールはスキップし、接続相手からも除外する（§4）
+//   ・GPUバッファはレール毎の固定容量スロットを使い回す（編集中の作り直しゼロ）。
+//     simple=true の軽量ビルド（ドラッグ中用）はリング1m固定・交差点/キャップ省略
+//   ・動くレールへは「基準位置 + animOffset」で毎フレーム追従（再生成不要）
+//
+//  実体は road/ 以下のクラスに分けてあり、ここは「どの順で作って、どこへ出すか」だけを持つ：
+//    RoadJunctionDetector（検出＋t_cut）→ RoadJunctionPatchBuilder（パッチ）／
+//    RoadSweepBuilder（掃引）→ RoadRenderSlots（GPUスロット・追従・描画）
+// =====================================================================
+class RoadMesh {
+public:
+    // レールに沿って道を生成し直す（RailField::Sync の直後に呼ぶ）。
+    // simple=true はドラッグ中の軽量プレビュー（マウスアップ後に false で本生成する）
+    void Build(const std::vector<KazumimiEngine::SplineRail>& rails, KazumimiEngine::Camera* camera, bool simple = false);
+
+    // 毎フレーム：動くレールへの追従＋カメラ行列の焼き直し（Edit/Play共通で呼ぶ）
+    void Update(const std::vector<KazumimiEngine::SplineRail>& rails);
+
+    void Draw() const;
+    void Clear(){ slots_.Clear(); clothSlots_.Clear(); clothSlotOfRail_.clear(); }
+
+    // ===== 布ロード =====
+    // 布の展開（ステージ開始の演出）：origin（スタートのレール・距離）から道に沿って front(m) までだけ布を敷く。
+    //   front<0 は全部敷く（ふつう）。毎フレーム呼んでよい（変わったレールだけ作り直す）
+    void SetUnroll(int originRail, float originDist, float front);
+    // 全体をまとめて縮めて置く（ステージ選択の箱庭）。active=false で元のまま
+    void SetRoot(bool active, float scale, float yaw, const KazumimiEngine::Vector3& translate){
+        slots_.SetRoot(active, scale, yaw, translate);
+        clothSlots_.SetRoot(active, scale, yaw, translate);
+    }
+    // 布の見た目の再生成（展開率が変わったレールだけ）。Update の前に呼ぶ
+    void UpdateCloth(const std::vector<KazumimiEngine::SplineRail>& rails);
+
+    int  TileCount() const { return ( int ) slots_.TileCount(); }
+
+    // 直近 Build の総頂点数/三角形数（負荷確認用。パフォーマンスパネルに表示する）
+    int  VertexCount() const { return ( int ) slots_.VertexCount(); }
+    int  TriangleCount() const { return ( int ) slots_.TriangleCount(); }
+    bool IsVisible() const { return visible_; }
+    void SetVisible(bool v){ visible_ = v; } // デバッグUIから道のON/OFFを切り替える用
+
+    // ジョイント（road_joint）の表示：0=エディタのみ / 1=常に / 2=非表示
+    void SetJointVisible(int mode){ jointVisible_ = mode; }
+
+    // 穴の警告帯（赤ストライプ）を敷く長さ(m)。変更後は Build で反映
+    void  SetWarnLength(float m){ warnLength_ = m; }
+    float GetWarnLength() const{ return warnLength_; }
+    // 曲がり角の形：0=自動（角度で判定）/ 1=いつも丸広場（アーク）/ 2=丸なし（マイター）
+    void  SetCornerStyle(int style){ cornerStyle_ = style; }
+    int   GetCornerStyle() const{ return cornerStyle_; }
+
+    // 背面カリングの切替（true=両面描画・従来 / false=背面カリングでオーバードロー削減）。
+    // 既存スロットにも即時反映される（再生成不要）
+    void SetCullNone(bool cullNone){ slots_.SetCullNone(cullNone); }
+    bool IsCullNone() const{ return slots_.IsCullNone(); }
+
+private:
+    // ジャンクション（丸広場/溶接/T字/十字）の検出→パッチ・コネクタ生成→ジョイント配置。
+    // 各レールの「掃引しない区間」も cuts に決まる
+    void BuildJunctions(const std::vector<KazumimiEngine::SplineRail>& rails, std::vector<std::vector<RoadCut>>& cuts);
+
+    // ジャンクションのジョイント（road_joint）配置
+    void PlaceJoints(const std::vector<KazumimiEngine::SplineRail>& rails, const RoadJunction& junc);
+    void PlaceJointPiece(const std::vector<KazumimiEngine::SplineRail>& rails, int railIdx, const KazumimiEngine::Vector3& railPos, float yaw);
+
+    RoadRenderSlots slots_; // 掃引メッシュ/パッチ/ジョイントの GPU スロット
+
+    // --- 布ロード ---
+    void BuildCloth(const std::vector<KazumimiEngine::SplineRail>& rails, KazumimiEngine::Camera* camera);
+    void ComputePathDistances(const std::vector<KazumimiEngine::SplineRail>& rails);
+    // レールの敷く範囲（展開率から）。全部なら {0,len}
+    void ClothRanges(const std::vector<KazumimiEngine::SplineRail>& rails, int railIndex, std::vector<float>& out) const;
+    RoadRenderSlots clothSlots_;
+    std::vector<int>   clothSlotOfRail_;   // レール → 布のスロット（-1=布なし）
+    std::vector<float> clothLift_;         // レールごとの重なりの高さ（つなぎ目で隣と同じ高さにならないように）
+    std::vector<std::array<float, 2>> endExtensions_; // 坂の付け根の角：土台の端を先へ伸ばす長さ [始点側, 終点側]
+    std::vector<std::vector<float>> clothShown_; // 今のスロットの中身の範囲（変わった時だけ作り直す）
+    std::vector<float> pathFront_, pathBack_;    // 展開の起点から、各レールの始点・終点までの道のりの距離
+    int   unrollRail_ = -1;
+    float unrollDist_ = 0.0f;
+    float unrollFront_ = -1.0f;
+    bool  unrollDirty_ = false;
+
+    bool visible_ = true;
+    int  jointVisible_ = 1; // 0=エディタのみ / 1=常に / 2=非表示
+
+    float warnLength_ = 1.0f; // 穴の手前後に危険帯（赤ストライプ・上面のみ）を敷く長さ(m)
+    int   cornerStyle_ = 0;   // 曲がり角の形（0=自動/1=いつも丸広場/2=丸なし）
+
+    // 静的レールのジョイントをまとめるベイク先（Build 中だけ使い、最後に EmitMesh する）
+    RoadMeshBuilder bakeJoints_;
+};

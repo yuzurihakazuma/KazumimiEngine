@@ -1,4 +1,7 @@
 #pragma once
+
+namespace KazumimiEngine {
+
 enum class PipelineType{
 	Sprite, // スプライト用
 	Object3D, // 3Dオブジェクト用
@@ -9,4 +12,8 @@ enum class PipelineType{
 	SkinningObject3D, // スキニングアニメーション用
 	Skybox, // スカイボックス用
 	Object3D_Additive, // 3Dオブジェクト用（加算合成）
+	Object3D_WrapUV, // 3Dオブジェクト用（テクスチャを縦横ともリピート。タイル貼りのモデル用）
+	InstancedObject3D_WrapUV, // インスタンシング（テクスチャを縦横ともリピート。タイル貼りのモデル用）
 };
+
+} // namespace KazumimiEngine

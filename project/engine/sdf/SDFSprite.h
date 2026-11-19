@@ -5,6 +5,8 @@
 #include "engine/sdf/SDFAtlas.h"
 #include "engine/math/struct.h"   // Vector4
 
+namespace KazumimiEngine {
+
 // =====================================================================
 //  SDFSprite
 //   SDF スプライトアトラスの1画像を描画するアイテム。
@@ -43,6 +45,15 @@ public:
     Vector4& RefGlowColor() { return glowColor_; }
     float& RefEdgeBias() { return edgeBias_; } // 0.5標準。小さくすると太る/大きくすると痩せる
 
+    // --- 近接表示（看板用）：プレイヤーが近くにいる時だけ表示する ---
+    void SetProximity(bool enabled, float radius) { proximityEnabled_ = enabled; proximityRadius_ = radius; }
+    bool  IsProximityEnabled() const { return proximityEnabled_; }
+    float GetProximityRadius() const { return proximityRadius_; }
+    bool&  RefProximityEnabled() { return proximityEnabled_; } // ImGui編集用
+    float& RefProximityRadius() { return proximityRadius_; }   // ImGui編集用
+    // 表示アルファ（フェード用。SDFManager が毎フレーム距離から設定する）
+    void SetDrawAlpha(float a) { drawAlpha_ = a; }
+
     void Update(const SDFAtlas& atlas);
     void Draw(ID3D12GraphicsCommandList* commandList, const SDFAtlas& atlas);
 
@@ -61,6 +72,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> transformBuffer_;
     TransformCB* transformData_ = nullptr;
 
+    // SDF スプライトのシェーダーへ渡す定数バッファ（色・ふち・光り・しきい値）。GPU へ送る形
     struct ParamsCB {
         float baseColor[4];
         float outlineColor[4];
@@ -84,6 +96,11 @@ private:
     Vector3 worldPos3D_ = { 0.0f, 3.0f, 5.0f };
     float   worldScale3D_ = 5.0f;
     bool    prev3D_ = false; // モード切替検知（ジオメトリ再構築用）
+
+    // --- 近接表示 ---
+    bool  proximityEnabled_ = false; // true=プレイヤーが近くにいる時だけ表示
+    float proximityRadius_  = 8.0f;  // 表示距離 (m)。端の25%でフェード
+    float drawAlpha_ = 1.0f;         // フェード係数（SDFManager が設定）
     Vector4 color_ = { 1.0f, 1.0f, 1.0f, 1.0f };
     Vector4 outlineColor_ = { 0.0f, 0.0f, 0.0f, 1.0f };
     Vector4 glowColor_ = { 1.0f, 0.9f, 0.3f, 1.0f };
@@ -94,3 +111,5 @@ private:
     uint32_t indexCount_ = 0;
     bool dirty_ = true;
 };
+
+} // namespace KazumimiEngine

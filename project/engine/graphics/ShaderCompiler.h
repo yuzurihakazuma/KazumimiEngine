@@ -9,8 +9,11 @@
 // --- エンジン側のファイル ---
 #include "engine/utils/LogManager.h"
 
-// ライブラリリンク
 #pragma comment(lib,"dxcompiler.lib")
+
+namespace KazumimiEngine {
+
+// ライブラリリンク
 
 // シェーダーコンパイラー
 class ShaderCompiler{
@@ -49,3 +52,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

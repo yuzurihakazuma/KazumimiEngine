@@ -1,0 +1,119 @@
+#pragma once
+#include "engine/math/struct.h"
+#include "engine/math/MathUtil.h"
+#include "engine/utils/Level/LevelData.h" // LevelCameraZone
+#include <vector>
+
+namespace KazumimiEngine {
+class Camera;
+class SplineRail;
+}
+
+// =====================================================================
+//  PlayCameraController：プレイ中のカメラ制御。
+//   ・基本：プレイヤーを「向き(yaw)・距離・高さ」で追従（滑らかに寄る）。
+//     カメラの角度は追従の向き・距離・高さだけで決める（プレイヤーの方へ首を振らない＝歩くたびに画面が回らない）。
+//     高さは着地している所に合わせ、ジャンプでは上下しない（画面から上へ出そうな時と、下へ落ちた時だけ追う）
+//   ・向き切替トリガー(mode=1)：通過した瞬間に追従の向きが切り替わり、
+//     プレイヤーの周りを回り込んで新しい向きへ（180度なら正面へ回転）。次のトリガーまで維持
+//   ・固定カメラ(mode=0)：半径内にいる間だけ「アンカー+オフセット」に固定。離れると追従へ戻る
+//   ・レールごとのカメラ：カメラを決めたレールに乗った時、追従の向き・距離・高さ・画角がそのレールの値へ動く。
+//     決めていないレールに乗ると、いつもの追従へ戻る（ゾーンは、入った時にこれより優先して上書きする）
+//  シーンから分離した理由：カメラ演出はゲーム進行と独立した関心事で、他シーンでも再利用できる。
+// =====================================================================
+class PlayCameraController {
+public:
+    // マップのカメラゾーン設定を実行用へ変換して受け取る（ノード番号→レール上の距離）
+    void Sync(const std::vector<KazumimiEngine::LevelCameraZone>& zones, const std::vector<KazumimiEngine::SplineRail>& rails);
+
+    // マップのレールごとのカメラを受け取る（railLines と同じ並び）
+    void SyncRailCameras(const std::vector<KazumimiEngine::RailCamera>& cameras){ railCameras_ = cameras; lastRail_ = -1; }
+    // プレイヤーが今乗っているレール（Update の前に毎フレーム。乗り換えた時だけ、そのレールのカメラへ切り替える）。
+    //   ステージ開始の演技の間も呼ぶ（演技の終わりに戻る追従の位置 FollowTargetPosition が、始まりのレールのカメラになる）
+    //   progress＝そのレールの上の進み具合（0＝始め・1＝終わり）。「だんだん変える」レールのカメラが使う
+    void SetPlayerRail(int rail, float progress = 0.0f){ playerRail_ = rail; railProgress_ = progress; ApplyRailCamera(); }
+
+    // 追従の向き/距離/画角を初期状態へ戻す（プレイ開始時に呼ぶ。前回の向きを持ち越さない）
+    void Reset();
+
+    // 毎フレーム（Play中のみ）：追従＋ゾーン切替でカメラを動かす。
+    //   debugCamActive=true（デバッグカメラ操作中）は何もしない。
+    //   grounded=プレイヤーが着地しているか（カメラの高さは着地した所で決める）
+    void Update(KazumimiEngine::Camera* camera, const KazumimiEngine::Vector3& playerPos, bool grounded, const std::vector<KazumimiEngine::SplineRail>& rails,
+                bool debugCamActive, float dt);
+
+    // ゾーンの可視化（DebugDraw に積む。編集中も見えるよう毎フレーム呼んでよい）
+    void DrawZoneMarkers(const std::vector<KazumimiEngine::SplineRail>& rails) const;
+
+    // デバッグUI（追従ON/OFF・オフセット。呼び出し側のウィンドウ内に描く）
+    void DrawDebugUI();
+
+    int ZoneCount() const { return ( int ) zones_.size(); }
+
+    // カメラ反転：追従の向きに足す角度（表=0 / 裏=π。回る途中はその間）と、回る途中に距離を広げる倍率。
+    //   snap=true の間は補間せずにその位置へ置く（反転中はゲームの時間が止まっているため）
+    void SetFlip(float yawOffset, float distScale, bool snap){ flipYaw_ = yawOffset; flipDistScale_ = distScale; flipSnap_ = snap; }
+    float FlipYaw() const { return flipYaw_; }
+
+    // 今の追従の向き・距離・高さでの、カメラの目標位置（補間しない）。演出のカメラから戻る先に使う
+    KazumimiEngine::Vector3 FollowTargetPosition(const KazumimiEngine::Vector3& playerPos) const;
+    // 追従カメラが見る点（プレイヤーの足元から少し上）。カメラの角度はこの点を見る向きで固定
+    static constexpr float kLookHeight = 1.0f;
+
+private:
+    // 追従のON/OFFと基準（yaw0/距離/高さの初期値になる）
+    bool    followCam_ = true;
+    KazumimiEngine::Vector3 followOffset_ { 0.0f, 3.5f, -10.0f };
+
+    // 追従カメラの「向き」の状態。向き切替トリガーで Tgt が変わり Cur が滑らかに追いつく
+    float camYawCur_ = 0.0f,   camYawTgt_ = 0.0f;   // カメラの向き(rad)。0=後ろから
+    float camDistCur_ = 10.0f, camDistTgt_ = 10.0f; // プレイヤーからの距離
+    float camHgtCur_ = 3.5f,   camHgtTgt_ = 3.5f;   // プレイヤーからの高さ
+    float camFovCur_ = 0.78f,  camFovTgt_ = 0.78f;  // 視野角(rad)
+
+    // カメラが追う高さ（着地している所）。ジャンプ中はそのまま（上へ出そう・下へ落ちた時だけ追う）
+    bool  heightReady_ = false;
+    float groundY_ = 0.0f;    // 最後に着地した所の高さ
+    float focusY_  = 0.0f;    // カメラが今追っている高さ（groundY_ へ滑らかに寄る）
+    float upMargin_   = 3.0f; // ジャンプでこれより上へ行ったら、カメラも上へ追う(m)
+    float downMargin_ = 1.5f; // 空中でこれより下へ行ったら、カメラも下へ追う(m)（段差を降りた時。穴へ落ちた時は追わない）
+    float holeDepth_  = 4.0f; // 着地した所よりこれ以上下へ落ちたら、穴に落ちたとみなして追うのをやめる(m)
+    // 追う高さ（ジャンプは無視・着地・はみ出し）を更新する
+    float UpdateFocusHeight(const KazumimiEngine::Vector3& playerPos, bool grounded, float dt);
+
+    // 実行用カメラゾーン（Sync 時にノード番号→レール上の距離へ変換して保持）
+    struct Zone {
+        int   rail = 0; float dist = 0.0f; float radius = 4.0f;
+        int   mode = 1;                          // 0=固定カメラ / 1=向き切替
+        KazumimiEngine::Vector3 offset { 0.0f, 3.0f, -6.0f };    // mode0: アンカーからのカメラ位置
+        float yawRad = KazumimiEngine::Math::kPi; float camDist = 10.0f; float camHeight = 3.5f; // mode1
+        bool  revert = false;                    // mode1: 半径から出たら通常の向きへ戻る
+        bool  freeze = false;                    // mode1: 回転が終わるまで時間を止める
+        float fovRad = 0.785f;
+    };
+    std::vector<Zone> zones_;
+
+    // 回転フリーズ：向き切替（freeze指定）の回転が終わるまで時間を止める。
+    //   時間停止中も dt=0 になるため、回転の補間はリアル時間(1/60)で進める。
+    bool freezingRotation_ = false;
+
+    // 今「入っている」扱いのゾーン番号（-1=なし）。
+    //   入り=半径ちょうど / 出=半径×1.25 のヒステリシス付き。境界に立った時に
+    //   入退場が毎フレーム入れ替わってカメラが震えるのを防ぐ。切替の適用は入った瞬間だけ。
+    int lastZone_ = -1;
+
+    float flipYaw_ = 0.0f;       // カメラ反転の角度（追従の向きに足す）
+    float flipDistScale_ = 1.0f; // 回る途中の距離の倍率
+    bool  flipSnap_ = false;     // 補間せずに置く
+
+    // 追従の目標を通常（followOffset_ 基準）へ戻す（Cur は補間で滑らかに追いつく）
+    void SetDefaultTargets();
+
+    // レールごとのカメラ：乗り換えた時だけ目標を切り替える（最初の 1 回は補間せずに置く）
+    void ApplyRailCamera();
+    std::vector<KazumimiEngine::RailCamera> railCameras_;
+    int  playerRail_ = -1;       // 今乗っているレール（-1＝空中など）
+    float railProgress_ = 0.0f;  // そのレールの上の進み具合（0〜1）
+    int  lastRail_ = -1;         // 前に切り替えを決めたレール（-1＝まだ。次は補間せずに置く）
+    bool railCameraActive_ = false; // 今、レールのカメラの値を使っている
+};

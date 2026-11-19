@@ -1,15 +1,19 @@
 #pragma once
 #include "engine/graphics/RenderTexture.h"
+#include "engine/base/Singleton.h"
 #include <memory>
 #include <d3d12.h>
 #include <wrl.h>
 #include <string>
 
+namespace KazumimiEngine {
+
 class DirectXCommon;
 class SrvManager;
 
 // Bloom（光の溢れ）エフェクト専用クラス
-class Bloom {
+class Bloom : public Singleton<Bloom> {
+	friend class Singleton<Bloom>; // 土台（Singleton）だけが作れる
 public:
 	// シェーダーに送る設定データ
 	struct BloomData {
@@ -17,10 +21,6 @@ public:
 		float padding[3];
 	};
 
-	static Bloom* GetInstance() {
-		static Bloom instance;
-		return &instance;
-	}
 
 
 	// ブラー用の設定データ構造体
@@ -57,10 +57,11 @@ public:
 	// すべての処理が終わった「最終結果」のSRVを取得
 	uint32_t GetCombineSrvIndex() const { return combineTexture_->GetSrvIndex(); }
 
-	// 合成結果のレンダーテクスチャ本体（SDF等のオーバーレイ焼き込みに使う）
+	// 合成結果のレンダーテクスチャ本体（SDF の文字/画像を焼き込む先として使う）
 	RenderTexture* GetCombineTexture() const { return combineTexture_.get(); }
 
 	void SetTargetEmissivePower(float* emissivePower){ targetEmissivePower_ = emissivePower; }
+	float* GetTargetEmissivePower() const { return targetEmissivePower_; }
 
 	void DrawDebugUI();
 public:
@@ -112,3 +113,5 @@ private:
 	float* targetEmissivePower_ = nullptr; // 初期値はNULL
 
 };
+
+} // namespace KazumimiEngine

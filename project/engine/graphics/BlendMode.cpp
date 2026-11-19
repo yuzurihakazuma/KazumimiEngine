@@ -1,5 +1,7 @@
 #include "BlendMode.h"
 
+namespace KazumimiEngine {
+
 D3D12_BLEND_DESC GetBlendDesc(BlendMode blendMode){
 	// 共通設定（デフォルトは全要素書き込み、ブレンド有効）
 	D3D12_BLEND_DESC blendDesc = {};
@@ -55,3 +57,5 @@ D3D12_BLEND_DESC GetBlendDesc(BlendMode blendMode){
 
 	return blendDesc;
 }
+
+} // namespace KazumimiEngine

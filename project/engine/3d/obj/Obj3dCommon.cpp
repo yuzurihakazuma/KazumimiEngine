@@ -1,4 +1,5 @@
 #include "Obj3dCommon.h"
+#include "engine/utils/JsonFile.h"
 
 // --- 標準ライブラリ ---
 #include <cassert>
@@ -13,8 +14,9 @@
 #include "engine/math/VectorMath.h"
 #include "engine/graphics/ResourceFactory.h"
 
-#include <fstream>
 #include "externals/nlohmann/json.hpp"
+
+namespace KazumimiEngine {
 
 using namespace VectorMath;
 using namespace MatrixMath;
@@ -72,16 +74,13 @@ void Obj3dCommon::SaveLighting(const std::string& path) const{
 		{ "intensity", S.intensity }, { "distance", S.distance }, { "decay", S.decay },
 		{ "cosAngle", S.cosAngle }, { "cosFalloffStart", S.cosFalloffStart },
 	};
-	std::ofstream f(path);
-	if ( f ) { f << j.dump(4); }
+	JsonFile::Save(path, j, 4);
 }
 
 void Obj3dCommon::LoadLighting(const std::string& path){
 	if ( !directionalLightData_ || !pointLightData_ || !spotLightData_ ) return;
-	std::ifstream f(path);
-	if ( !f ) return;
 	json j;
-	f >> j;
+	if ( !JsonFile::Load(path, j) ) return;
 
 	directionalLightData_->activeCount = j.value("activeCount", 1);
 	if ( j.contains("directional") && j["directional"].is_array() ) {
@@ -212,6 +211,7 @@ void Obj3dCommon::Initialize(DirectXCommon* dxCommon){
 		// 最初のライトだけ強度を1、それ以外は0にしておく
 		directionalLightData_->lights[i].intensity = ( i == 0 ) ? 1.0f : 0.0f;
 	}
+	
 
 	// 点光源のバッファ作成
 	pointLightResource_ = dxCommon_->GetResourceFactory()->CreateBufferResource(sizeof(PointLight));
@@ -254,3 +254,5 @@ void Obj3dCommon::Finalize(){
 	pointLightResource_.Reset();
 	spotLightResource_.Reset();
 }
+
+} // namespace KazumimiEngine

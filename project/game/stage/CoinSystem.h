@@ -1,0 +1,45 @@
+#pragma once
+#include <vector>
+#include <memory>
+#include "engine/math/struct.h"
+#include "engine/utils/Level/LevelData.h" // CoinData
+
+namespace KazumimiEngine {
+class Obj3d;
+class SplineRail;
+}
+
+// =====================================================================
+//  CoinSystem（収集物）
+//   エディタで配置したコイン（レール上の距離＋高さ）を実体化し、
+//   プレイ中に触れると取得する。エディット中も常に見える（配置確認のため）。
+//   Play開始のたびに取得状態はリセットされる
+// =====================================================================
+class CoinSystem {
+public:
+    // エディタのコイン配置とレールから実体を作り直す（レール編集のたびに呼ぶ）
+    void Sync(const std::vector<KazumimiEngine::CoinData>& coinDatas, const std::vector<KazumimiEngine::SplineRail>& rails);
+    void ResetPlay();                                            // Play開始時：全コイン復活
+    void Update(const KazumimiEngine::Vector3& playerPos, bool playMode, float dt);
+    void Draw() const;
+    int CollectedCount() const{ return collected_; }
+    int TotalCount() const{ return ( int ) coins_.size(); }
+    // ？ブロック等から出たボーナスコイン（配置コインの総数には含まれない）
+    void AddBonus(int count){ collected_ += count; }
+    // 当たり判定を表示（エディタの「当たり判定を表示」）：コインの球と、コインを取る恐竜の体の筒
+    void DrawHitShapes(const KazumimiEngine::Vector4& color) const;
+    static void DrawPickupBody(const KazumimiEngine::Vector3& foot, const KazumimiEngine::Vector4& color);
+
+private:
+    // コイン 1 枚（位置・見た目・取ったかどうか）
+    struct Coin {
+        KazumimiEngine::Vector3 pos {};
+        std::unique_ptr<KazumimiEngine::Obj3d> obj;
+        bool taken = false;
+    };
+    KazumimiEngine::Vector3 CurrentPos(const Coin& coin) const;
+    static bool Touches(const KazumimiEngine::Vector3& foot, const KazumimiEngine::Vector3& center);
+    std::vector<Coin> coins_;
+    int   collected_ = 0;
+    float spinT_ = 0.0f; // 全コイン共通の回転タイマー
+};

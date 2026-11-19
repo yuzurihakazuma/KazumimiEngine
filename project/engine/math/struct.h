@@ -1,5 +1,7 @@
 #pragma once
 
+namespace KazumimiEngine {
+
 // -------------------------------------------------
 // 構造体の定義 (データ型のみ)
 // -------------------------------------------------
@@ -99,3 +101,22 @@ inline constexpr Vector2& operator+=(Vector2& lhs, const Vector2& rhs) noexcept 
 inline constexpr Vector2 operator+(Vector2 lhs, const Vector2& rhs) noexcept {
 	return lhs += rhs;
 }
+inline constexpr Vector2 operator-(const Vector2& v1, const Vector2& v2) noexcept {
+	return { v1.x - v2.x, v1.y - v2.y };
+}
+inline constexpr Vector2 operator*(const Vector2& v, float s) noexcept {
+	return { v.x * s, v.y * s };
+}
+
+// --- Vector4 の演算子オーバーロード（色の補間などに使う）---
+inline constexpr Vector4 operator+(const Vector4& v1, const Vector4& v2) noexcept {
+	return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w };
+}
+inline constexpr Vector4 operator-(const Vector4& v1, const Vector4& v2) noexcept {
+	return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w };
+}
+inline constexpr Vector4 operator*(const Vector4& v, float s) noexcept {
+	return { v.x * s, v.y * s, v.z * s, v.w * s };
+}
+
+} // namespace KazumimiEngine

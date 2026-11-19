@@ -3,6 +3,8 @@
 #include <string>
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 // --------------------------------------------------
 // 1つのキーフレーム（ある瞬間の座標・回転・スケール）
 // --------------------------------------------------
@@ -44,3 +46,5 @@ public:
     void LoadFromJson(const std::string& filepath);
 
 };
+
+} // namespace KazumimiEngine

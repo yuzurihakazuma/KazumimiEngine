@@ -1,0 +1,155 @@
+#pragma once
+
+#include "engine/math/struct.h"
+#include <vector>
+#include <functional>
+#include <memory>
+#include <d3d12.h>
+
+class Player;
+class EnemyManager;
+class EggSystem;
+class HitFeel;
+class Enemy;
+namespace KazumimiEngine {
+class Camera;
+class Model;
+class Obj3d;
+class Sprite;
+}
+
+// =====================================================================
+//  SwallowAbility：ヨッシーの「舌で捕まえて食べる／産む／吐き出す」アクション。
+//   ・E      … 舌を正面へ伸ばす（Shooting→Retractingの3段動作）。
+//              届く範囲に敵がいれば捕まえて食べる／いなければ空振りで引っ込む。
+//              「どこでも」出せる演出なので、敵の有無に関わらず必ず舌は伸びる。
+//              Idle中は「今Eを押したら捕まえられる敵」を脈動リングで常時プレビュー表示する
+//              （DebugDrawのワイヤーフレーム。食える判定の分かりづらさ対策）。
+//              移動はロックしない：走りながらでも出せる（口の位置は毎フレーム追従）。
+//              空振り中の狙い方向も毎フレーム player の向き(yaw)から取り直すため、
+//              ジャンプで上下してもねじれず一直線のまま／振り向けば舌も一緒に振り向く。
+//              （敵を捕まえた場合はホーミングが優先＝プレイヤーの向き変更では逸れない）
+//   ・左Ctrl … しゃがんでお腹の敵を1匹「卵」として後ろに産む
+//   ・F      … お腹の敵を1匹、向いている方向へ吐き出す（敵にぶつけて倒せる）
+//
+//  以前は E を押した瞬間に敵がその場で縮んで一瞬でお腹へ吸い込まれていたが、
+//  「動作」として見せられるように、舌を実際に伸ばして掴み、引き込む区間を挟む
+//  ステートマシンに変更した：
+//    Idle → Shooting（舌が狙い位置へ一直線に伸びる。約0.12秒。
+//                     敵を捕まえた場合はその位置へホーミング）
+//         → Retracting（捕まえた場合：Enemy::StartSwallow に処理を渡し、舌は
+//           口↔敵の間を見た目だけ追従＝既存の縮小しながら吸い込まれる演出と
+//           同じ0.35秒。空振りの場合：短い引っ込みだけで終わる）
+//         → Idle
+//  舌はワールド座標へ直接焼く動的メッシュ（薄い十字リボン）。実体を持つのは
+//  Shooting/Retracting 中だけで、Idle では空メッシュにして描画コストを0にする。
+//
+//  捕獲した敵は、舌の先にくっついたまま口へ引き込まれ、縮みながら溶けて消える（Enemy::TickSwallow）。
+//  お腹に入って少しすると、自動で卵を産む（その前に F を押せば吐き出せる）。
+//
+//  シーンから分離した理由：入力→対象選択→開始通知だけの独立したアクションで、
+//  他シーンでも同じ組み合わせで再利用できる。
+// =====================================================================
+class SwallowAbility {
+public:
+    SwallowAbility();
+    ~SwallowAbility(); // unique_ptr<Model>/<Obj3d> のため cpp 側で定義
+
+    // 毎フレーム（Play中のみ）呼ぶ。dt はクールタイム・舌アニメの経過用
+    void Update(Player& player, EnemyManager& enemies, EggSystem& eggs, HitFeel& hitFeel,
+               KazumimiEngine::Camera* camera, float dt);
+
+    // 舌の描画（Shooting/Retracting中だけ描く。不透明パスで他のObj3dと一緒に呼ぶ）
+    void Draw() const;
+    // ベロの印（食べられる敵の頭の上でぴょこぴょこ）のスプライトを作る（シーンの初期化で）
+    void InitializeMark();
+    // ベロの印を描く（SpriteCommon::PreDraw の後）
+    void DrawSprite();
+    // 壁（ブロック）の判定：from→to の間に壁があれば true と当たった所。ベロは壁を通り抜けない
+    using WallQuery = std::function<bool(const KazumimiEngine::Vector3& from, const KazumimiEngine::Vector3& to, KazumimiEngine::Vector3& outHit)>;
+    void SetWallQuery(WallQuery query){ wallQuery_ = std::move(query); }
+    // 調べる時の球（DebugDraw）を出すか（エディタの「当たり判定を表示」）
+    void SetDebugVisible(bool visible){ debugVisible_ = visible; }
+
+    // モード切替時などに強制的にIdleへ戻す（対象への参照も破棄する）。
+    //   敵がマップ再同期で作り直される瞬間（Edit→Play）に必ず呼ぶこと
+    //   （呼ばないと Shooting 中の target_ がダングリングポインタになる）
+    void Reset();
+
+    // ノードエディタの「→ ゲーム値」用（舌の届く距離・再使用間隔を外から調整できる）
+    float* SwallowReachPtr(){ return &swallowReach_; }
+    float* SwallowCooldownPtr(){ return &swallowCooldown_; }
+
+private:
+public:
+    // ベロ動作中か（プレイヤーモデルの TongueOut アニメ切り替えに使う）
+    bool IsTongueActive() const{ return state_ != State::Idle; }
+    // 戻し中か（捕獲成立→アニメを収納パートへ飛ばす判定に使う）
+    bool IsRetracting() const{ return state_ == State::Retracting; }
+    // 今フレームのベロの実距離(m)。モデルの Tongue ボーンの伸びをこれに合わせると貫通しない
+    float GetTongueLength() const{ return tongueLength_; }
+    // 食べられない物にぶつかって、波打っている間か（その間は曲がるベロの絵を描くので、骨のベロは口の中へ隠す）
+    bool IsTongueLimp() const{ return limp_; }
+    // ベロの先（ワールド）。見た目のベロの骨をここへ向ける
+    const KazumimiEngine::Vector3& GetTongueTip() const{ return tongueTip_; }
+    // ベロの形（見た目と同じ）。player.gltf の TongueOut で伸びきった時の、付け根の位置と伸びる向き（足元・向きからの相対）
+    static constexpr float kTongueRootForward = 0.37f; // 付け根：足元から前へ(m)
+    static constexpr float kTongueRootHeight  = 0.84f; // 付け根：足元から上へ(m)
+    static constexpr float kTongueSpeed       = 13.0f;  // ベロの先が伸びる速さ(m/秒)。1.76m を約 0.12 秒
+    static constexpr float kTongueHoldTime    = 0.06f;  // 何にも当たらず伸びきった時、戻し始めるまで止まる秒
+    // 食べられない物（壁・ブロック）にぶつかった時：ベロが上下に波打つ（何にも当たらない時は、しならない）
+    static constexpr float kLimpHangTime      = 0.2f;   // ぶつかってから戻し始めるまでの秒（波打つ所を見せる）
+    static constexpr float kWaveAmplitude     = 0.17f;  // 波の高さ(m)
+    static constexpr float kWaveCount         = 1.6f;   // ベロの長さの中に入る波の数
+    static constexpr float kWaveSpeed         = 5.0f;   // 波が走る速さ（1 秒に何山ぶん進むか）
+    static constexpr float kWaveDecay         = 3.5f;   // 波がおさまる速さ（大きいほど早い）
+    static constexpr int   kLimpSegments      = 20;     // 波打つベロの折れ線の区切りの数（なめらかな波に見える数）
+    static constexpr int   kLimpRing          = 10;     // しなったベロの絵（筒）の断面の点の数
+    static constexpr float kTongueModelHalfWide = 0.080f; // モデルのベロの断面：横の半分(m)（平たい楕円）
+    static constexpr float kTongueModelHalfThin = 0.041f; // モデルのベロの断面：厚さの半分(m)
+    static constexpr float kTongueRestLength  = 0.27f; // Tongue の骨のスケールが 1 の時の長さ(m)（口の中にしまってある長さ）
+    static constexpr float kTongueHalfWidth   = 0.09f; // ベロの太さの半分(m)
+
+    // 新規アクションの禁止（卵の構え中など）。ベロ(E)と産卵(左Ctrl)の発動を止める
+    void SetActionBlocked(bool blocked){ actionBlocked_ = blocked; }
+
+private:
+    enum class State { Idle, Shooting, Retracting };
+    State state_ = State::Idle;
+
+    float   tongueLength_ = 0.0f; // 今フレームのベロの実距離(m)
+    bool    actionBlocked_ = false; // true=ベロ/産卵の新規発動を禁止（卵の構え中）
+    Enemy*  target_ = nullptr; // Shooting中のみ有効（Retracting中は保持しない＝ダングリング回避）
+    float   phaseT_ = 0.0f;    // 現在フェーズの経過秒
+    KazumimiEngine::Vector3 grabPos_  { 0.0f, 0.0f, 0.0f }; // 捕獲時：掴んだ瞬間の敵位置（Retractingの起点）
+    float   retractDuration_ = 0.0f;        // Retracting の秒数（捕獲=0.35秒固定 / 空振り=短め）
+    bool    retractCaught_   = false;       // Retracting が捕獲後か空振りかの区別
+    float   missLength_      = 0.0f;        // 空振りで戻し始めた時のベロの長さ
+    float   shootLength_     = 0.0f;        // 伸ばしている間の今の長さ
+    float   holdT_           = 0.0f;        // 何にも当たらず伸びきってからの秒
+    bool    limp_            = false;       // 食べられない物にぶつかって、波打っている
+    float   limpT_           = 0.0f;        // 波打ち始めてからの秒
+    std::vector<KazumimiEngine::Vector3> curve_;            // 波打つベロの形（付け根 → 先の折れ線）
+    KazumimiEngine::Vector3 limpSide_ { 1.0f, 0.0f, 0.0f }; // 波打つ面に垂直な横の向き
+    void BuildLimpCurve(const KazumimiEngine::Vector3& root, const KazumimiEngine::Vector3& dir, float length, float floorY);
+    KazumimiEngine::Vector3 aimDir_ { 0.0f, 0.0f, 1.0f };   // ベロを伸ばす向き（いつも今の正面。敵の方へは向けない）
+    KazumimiEngine::Vector3 tongueTip_ { 0.0f, 0.0f, 0.0f }; // 今のベロの先
+    int     lastBelly_       = 0;           // 前のフレームのお腹の数（増えた＝食べた）
+    float   autoLayTimer_    = -1.0f;       // 食べてから自動で産むまでの残り秒（-1＝待っていない）
+    float   highlightPulseT_ = 0.0f;        // 「捕まえられる」プレビューリングの脈動タイマー
+
+    bool  debugVisible_ = false;
+    WallQuery wallQuery_;
+    bool  markVisible_ = false;
+    std::unique_ptr<KazumimiEngine::Sprite> markSprite_;
+    float swallowReach_    = 1.76f; // ベロの長さ（付け根から先まで, m）。最初の見た目（TongueOut のアニメが伸びきった長さ）と同じ。
+                                    //   resources/nodes/graph01.json のノード（→「飲み込みの届く距離」）が起動時に上書きする
+    float swallowCooldown_ = 0.35f; // 飲み込み成功後の再使用間隔 (秒)。連打での連発を防ぐ
+    float cooldownTimer_   = 0.0f;  // 残りクールタイム
+
+    // 舌の見た目を口(mouth)〜先端(tip)の十字リボンとして書き直す（無ければ初回に確保）
+    void UpdateTongueMesh(const KazumimiEngine::Vector3& mouth, const KazumimiEngine::Vector3& tip, KazumimiEngine::Camera* camera);
+
+    std::unique_ptr<KazumimiEngine::Model> tongueModel_;
+    std::unique_ptr<KazumimiEngine::Obj3d> tongueObj_;
+};

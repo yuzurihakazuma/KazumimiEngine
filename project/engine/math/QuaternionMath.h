@@ -1,6 +1,8 @@
 #pragma once
 #include "struct.h" // 構造体の定義
 
+namespace KazumimiEngine {
+
 namespace QuaternionMath{
 
 	// 便利関数：クランプ
@@ -36,3 +38,5 @@ namespace QuaternionMath{
 	// Quaternionから回転行列(Matrix4x4)を作る
 	Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion);
 }
+
+} // namespace KazumimiEngine

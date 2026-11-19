@@ -1,0 +1,114 @@
+#include "game/egg/Egg.h"
+#include "engine/3d/obj/Obj3d.h"
+#include <algorithm>
+#include <cmath>
+
+using namespace KazumimiEngine;
+
+namespace {
+    // ここより下へ落ちた卵は割る（どこにも当たらず奈落へ落ちた時の後始末）
+    const float kEggKillY = -30.0f;
+}
+
+Egg::Egg(const Vector3& birthPos) : pos_(birthPos), prevPos_(birthPos), target_(birthPos) {}
+Egg::~Egg() = default; // unique_ptr<Obj3d> のため cpp 側で定義
+
+void Egg::AttachVisual(std::unique_ptr<Obj3d> obj, const Vector3& baseScale){
+    obj_ = std::move(obj);
+    baseScale_ = baseScale;
+}
+
+void Egg::Update(float dt){
+    switch ( state_ ) {
+    case EggState::Held: {
+        // 生まれた所(プレイヤー付近)から目標スロットへ滑らかに寄る＝「生まれて後ろに並ぶ＆追従」。
+        //   状態を分けず、毎フレーム目標へイージングで近づくだけ（生まれた直後も移動中も同じ処理）。
+        float easeFactor = ( std::min )( 8.0f * dt, 1.0f ); // ()でwindows.hのminマクロ展開を防ぐ
+        pos_.x += ( target_.x - pos_.x ) * easeFactor;
+        pos_.y += ( target_.y - pos_.y ) * easeFactor;
+        pos_.z += ( target_.z - pos_.z ) * easeFactor;
+        break;
+    }
+    case EggState::Flying:
+        if ( hitObstacle_ ) { // 壁/地面に当たって止まっている → 割れる
+            Break();
+            break;
+        }
+        prevPos_ = pos_;
+        {   // 飛んでいる向きを覚えておく（壁で止まると速さは 0 になるので、その前に）
+            const float speed = std::sqrt(vel_.x * vel_.x + vel_.y * vel_.y + vel_.z * vel_.z);
+            if ( speed > 1e-4f ) { flightDir_ = { vel_.x / speed, vel_.y / speed, vel_.z / speed }; }
+        }
+        pos_.x += vel_.x * dt;
+        pos_.y += vel_.y * dt;
+        pos_.z += vel_.z * dt;
+        flyTimer_ -= dt;
+        // 壁・ブロック・道との当たりは EggSystem が「動いた区間」で判定する。
+        // ここは何にも当たらなかった時の後始末だけ（時間切れ／奈落へ落ちた）
+        if ( flyTimer_ <= 0.0f || pos_.y < kEggKillY ) {
+            Break();
+        }
+        break;
+
+    case EggState::Broken:
+        if ( brokenTimer_ > 0.0f ) { brokenTimer_ -= dt; }
+        break;
+    }
+
+    // --- 見た目の更新 ---
+    if ( bornTimer_ > 0.0f ) { bornTimer_ -= dt; if ( bornTimer_ < 0.0f ) bornTimer_ = 0.0f; }
+    // 産卵演出（SDF）中は回転を止めておく：SDF卵は回っていないので、
+    // 交代の瞬間に斑点の向きが飛ばないよう「同じ向き(回転0)」から回り始める
+    if ( !visualHidden_ && !spinPaused_ ) { spinAngle_ += dt * 3.0f; }
+
+    if ( obj_ ) {
+        // 生まれた直後は小さく→通常サイズへ膨らむ（ポンッと出る演出）
+        float born = 1.0f - ( bornTimer_ / 0.25f ); // 0→1
+        float growScale = 0.3f + 0.7f * std::clamp(born, 0.0f, 1.0f);
+        obj_->SetTranslation(pos_);
+        obj_->SetScale({ baseScale_.x * growScale, baseScale_.y * growScale, baseScale_.z * growScale });
+        obj_->SetRotation({ 0.0f, spinAngle_, 0.0f });
+        obj_->Update();
+    }
+}
+
+void Egg::Draw() const{
+    // 割れたら本体は描かない（殻のかけらに入れ替わる）。
+    //   前は割れた後も 0.3 秒、丸ごとの卵がその場に浮いたまま回っていて、かけらが飛んだ後にぱっと消えていた
+    if ( obj_ && state_ != EggState::Broken && !visualHidden_ ) { obj_->Draw(); }
+}
+
+// 壁や地面に当たった位置で止める（見た目もその場へ。割れるのは次の判定）
+void Egg::StopAtObstacle(const Vector3& hitPos){
+    pos_ = hitPos;
+    vel_ = { 0.0f, 0.0f, 0.0f };
+    hitObstacle_ = true;
+    if ( obj_ ) {
+        obj_->SetTranslation(pos_);
+        obj_->Update();
+    }
+}
+
+// Held → Flying：指定方向へ初速を与える。
+void Egg::Redirect(const Vector3& dir, float speed, float flyTime){
+    if ( state_ != EggState::Flying ) return;
+    vel_      = { dir.x * speed, dir.y * speed, dir.z * speed };
+    flyTimer_ = flyTime;
+}
+
+void Egg::Throw(const Vector3& dir, float speed){
+    if ( state_ != EggState::Held ) return;
+    prevPos_ = pos_;
+    hitObstacle_ = false;
+    vel_      = { dir.x * speed, dir.y * speed, dir.z * speed };
+    flyTimer_ = 1.5f;
+    state_    = EggState::Flying;
+}
+
+// → Broken：割れて、少ししてから消える。
+void Egg::Break(){
+    if ( state_ == EggState::Broken ) return;
+    state_       = EggState::Broken;
+    brokenTimer_ = 0.3f;
+    justBroke_   = true; // 割れた瞬間（EggSystem が拾って星を弾けさせる）
+}

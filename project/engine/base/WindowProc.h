@@ -1,13 +1,21 @@
 #pragma once
 // --- 標準ライブラリ ---
 #include <wtypes.h>
+#include "engine/base/Singleton.h"
 #include <cstdint>
 #include <string>
 #include <vector>
-class WindowProc{
+
+namespace KazumimiEngine {
+
+// =====================================================================
+//  WindowProc：ゲームのウィンドウ。
+//   作成・メッセージの処理・大きさの変更・フルスクリーンの切り替え・ドロップされたファイルの受け取りを受け持つ
+// =====================================================================
+class WindowProc : public Singleton<WindowProc> {
+	friend class Singleton<WindowProc>; // 土台（Singleton）だけが作れる
 public:
 
-	static WindowProc* GetInstance();
 
 	/// <summary>
    /// ウィンドウの初期化
@@ -30,6 +38,14 @@ public:
 
 	/// <summary> ウィンドウサイズ変更フラグのクリア </summary>
 	void ClearResizeFlag(){ isResized_ = false; }
+
+	/// <summary>
+	/// フルスクリーン ⇔ ウィンドウ の切り替え（F11 キーでも切り替わる）。
+	/// 枠なしのウィンドウを画面いっぱいに広げる方式（ボーダーレス）なので、
+	/// 他のウィンドウへの切り替え（Alt+Tab）でも画面が乱れない。サイズ変更は通常のリサイズ処理に任せる
+	/// </summary>
+	void ToggleFullscreen();
+	bool IsFullscreen() const{ return isFullscreen_; }
 
 	/// <summary>
 	/// エクスプローラーからD&Dされたファイルのパス一覧を取り出す（取り出すと空になる）
@@ -60,8 +76,6 @@ private:
 	// コンストラクタを private にして外部からの生成を禁止
 	WindowProc() = default;
 	~WindowProc() = default;
-	WindowProc(const WindowProc&) = delete;
-	WindowProc& operator=(const WindowProc&) = delete;
 
 private:
 	// -------------------- ウィンドウ生成処理 --------------------
@@ -94,6 +108,11 @@ private:
 	static inline int32_t kClientHeight_ = kDefaultClientHeight;     // 現在のクライアント縦幅
 
 	HWND hwnd_ = nullptr;          // ウィンドウハンドル
+
+	// フルスクリーン切り替え用（戻す時のためにウィンドウの位置・大きさと枠の種類を覚えておく）
+	bool isFullscreen_ = false;
+	RECT windowedRect_ = {};
+	LONG windowedStyle_ = 0;
 	static inline bool isClosed_ = false;  // ウィンドウが閉じられたかどうか
 	static inline bool isResized_ = false; // ウィンドウサイズが変更されたかどうか
 
@@ -101,3 +120,4 @@ private:
 	static inline std::vector<std::string> droppedFiles_;
 };
 
+} // namespace KazumimiEngine

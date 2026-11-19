@@ -1,25 +1,26 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <d3d12.h>
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <string>
 #include <vector>
+#include <source_location>
 
 // --- エンジン側のファイル ---
 #include "engine/graphics/PipelineType.h"
 #include "engine/graphics/BlendMode.h"
+
+namespace KazumimiEngine {
 
 class DirectXCommon;
 
 enum class PostEffectType;
 
 // パイプラインマネージャー
-class PipelineManager{
+class PipelineManager : public Singleton<PipelineManager> {
+	friend class Singleton<PipelineManager>; // 土台（Singleton）だけが作れる
 public:
-	static PipelineManager* GetInstance(){
-		static PipelineManager instance;
-		return &instance;
-	}
 
 	void Finalize();
 
@@ -40,6 +41,9 @@ public:
 
 	// Computeパイプラインをセット
 	void SetGPUParticleComputePipeline(ID3D12GraphicsCommandList* commandList);
+
+	// GPUパーティクルのEmit（発生）用Computeパイプラインをセット（FreeListから空きを取り出して書き込む）
+	void SetGPUParticleEmitPipeline(ID3D12GraphicsCommandList* commandList);
 	// Draw用パイプラインをセット
 	void SetGPUParticleDrawPipeline(ID3D12GraphicsCommandList* commandList);
 
@@ -71,6 +75,8 @@ private:
 
 	// GPUパーティクル用の初期化関数
 	void CreateGPUParticleComputeRootSignature();
+	void CreateGPUParticleEmitRootSignature();
+	void CreateGPUParticleEmitPipeline();
 	
 	// GPUパーティクル用の初期化関数（Computeシェーダー用）
 	void CreateGPUParticleComputePipeline();
@@ -92,7 +98,8 @@ private:
 		D3D12_CULL_MODE cullMode,     // カリングモード (None, Backなど)
 		bool isDepthWrite,            // 深度を書き込むか (Spriteはfalse, 3Dはtrue)
 		const std::vector<DXGI_FORMAT>& rtvFormats,
-		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState // 結果を入れる変数
+		Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState, // 結果を入れる変数
+		const std::source_location& where = std::source_location::current() // 呼び出し元（リークレポート用の名前）
 	);
 
 
@@ -109,10 +116,16 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DRootSignature_; // ルートシグネチャ
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineState_; // カリングあり用
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DPipelineStateNone_; // カリングなし用
+	// テクスチャを縦横ともリピートする版（サンプラーだけが違う。Object3D_WrapUV）
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> object3DWrapRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> object3DWrapPipelineState_;
 
 	// インスタンシング専用の変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancedObject3DRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancedObject3DPipelineState_;
+	// テクスチャを縦横ともリピートする版（サンプラーだけが違う。InstancedObject3D_WrapUV）
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> instancedObject3DWrapRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> instancedObject3DWrapPipelineState_;
 
 	// パーティクル用変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> particleRootSignature_;
@@ -127,11 +140,13 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> skinningObject3DPipelineState_;
 
 	// ポストエフェクトの種類ごとのパイプラインステートを格納する配列
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineStates_[14];
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> postEffectPipelineStates_[18];
 
 	// GPUパーティクルのComputeシェーダー用の変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> gpuParticleComputeRootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState>  gpuParticleComputePipelineState_;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> gpuParticleEmitRootSignature_;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState>  gpuParticleEmitPipelineState_;
 
 	// GPUパーティクルのDrawシェーダー用の変数
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> gpuParticleDrawRootSignature_;
@@ -145,3 +160,4 @@ private:
 
 };
 
+} // namespace KazumimiEngine

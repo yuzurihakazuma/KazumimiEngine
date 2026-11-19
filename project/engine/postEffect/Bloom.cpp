@@ -1,4 +1,5 @@
 #include "Bloom.h"
+#include "engine/utils/JsonFile.h"
 #include "engine/base/DirectXCommon.h"
 #include "engine/graphics/SrvManager.h"
 #include "engine/graphics/PipelineManager.h"
@@ -6,11 +7,13 @@
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
-#include <RootSignatureBuilder.h>
-#include <GraphicsPipelineBuilder.h>
+#include "engine/graphics/RootSignatureBuilder.h"
+#include "engine/graphics/GraphicsPipelineBuilder.h"
 
 #include "externals/nlohmann/json.hpp"
-#include <fstream>
+
+namespace KazumimiEngine {
+
 using json = nlohmann::json;
 
 // 初期化
@@ -229,18 +232,12 @@ void Bloom::Save(const std::string& filePath){
 	j["isEnabled"] = isEnabled_;
 	j["threshold"] = bloomData_->threshold;
 
-	std::ofstream file(filePath);
-	if ( file.is_open() ) {
-		file << j.dump(4);
-		file.close();
-	}
+	JsonFile::Save(filePath, j, 4);
 }
 
 void Bloom::Load(const std::string& filePath){
-	std::ifstream file(filePath);
-	if ( file.is_open() ) {
-		json j;
-		file >> j;
+	json j;
+	if ( JsonFile::Load(filePath, j) ) {
 		isEnabled_ = j.value("isEnabled", true);
 		bloomData_->threshold = j.value("threshold", 1.0f);
 	}
@@ -266,3 +263,5 @@ void Bloom::Finalize(){
 	combineRootSignature_.Reset();
 	combinePipelineState_.Reset();
 }
+
+} // namespace KazumimiEngine

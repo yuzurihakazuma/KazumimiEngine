@@ -1,4 +1,16 @@
 #pragma once
+#include <d3d12.h>
+#include "engine/base/Singleton.h"
+#include <wrl.h>
+#include <vector>
+#include "engine/math/struct.h"
+#include "engine/collision/Collider.h" // AABB
+
+namespace KazumimiEngine {
+
+class DirectXCommon;
+class Camera;
+
 // =====================================================================
 //  DebugDraw : ワイヤーフレームのデバッグ描画（線/箱/球/グリッド）
 //   毎フレーム Line/Box/Sphere/Grid で線を積み、Render(camera) で一括描画→クリア。
@@ -10,18 +22,9 @@
 //     ... シーンのDraw末尾で:
 //     DebugDraw::GetInstance()->Render(camera);
 // =====================================================================
-#include <d3d12.h>
-#include <wrl.h>
-#include <vector>
-#include "engine/math/struct.h"
-#include "engine/collision/Collider.h" // AABB
-
-class DirectXCommon;
-class Camera;
-
-class DebugDraw{
+class DebugDraw : public Singleton<DebugDraw> {
+	friend class Singleton<DebugDraw>; // 土台（Singleton）だけが作れる
 public:
-    static DebugDraw* GetInstance();
 
     void Initialize(DirectXCommon* dxCommon);
     void Finalize();
@@ -39,9 +42,8 @@ public:
 private:
     DebugDraw() = default;
     ~DebugDraw() = default;
-    DebugDraw(const DebugDraw&) = delete;
-    DebugDraw& operator=(const DebugDraw&) = delete;
 
+    // デバッグ線の頂点 1 つ（位置と色）。GPU へ送る形
     struct LineVertex{
         Vector3 pos;
         Vector4 color;
@@ -64,3 +66,5 @@ private:
     std::vector<LineVertex> vertices_;
     static const uint32_t kMaxVertices = 200000; // 線10万本ぶん
 };
+
+} // namespace KazumimiEngine

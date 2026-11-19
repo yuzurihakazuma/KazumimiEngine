@@ -6,10 +6,11 @@
 // --- エンジン側のファイル ---
 #include "engine/base/TimeManager.h"
 
-AudioManager* AudioManager::GetInstance(){
-    static AudioManager instance;
-    return &instance;
-}
+namespace KazumimiEngine {
+
+// Media Foundation の「最初の音声ストリーム」（負の列挙の値を、引数の型 DWORD にしておく）
+static const DWORD kFirstAudioStream = static_cast<DWORD>( MF_SOURCE_READER_FIRST_AUDIO_STREAM );
+
 
 void AudioManager::Initialize(){
     HRESULT result;
@@ -242,13 +243,13 @@ SoundData AudioManager::LoadMP3Internal(const std::string& filename) {
     assert(SUCCEEDED(hr));
     hr = pPartialType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
     hr = pPartialType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-    hr = pReader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, pPartialType);
+    hr = pReader->SetCurrentMediaType(kFirstAudioStream, nullptr, pPartialType);
     assert(SUCCEEDED(hr));
     pPartialType->Release();
 
     // 4. 変換後のメディアタイプ（WAVEFORMATEX）を取得
     IMFMediaType* pUncompressedAudioType = nullptr;
-    hr = pReader->GetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, &pUncompressedAudioType);
+    hr = pReader->GetCurrentMediaType(kFirstAudioStream, &pUncompressedAudioType);
     assert(SUCCEEDED(hr));
 
     WAVEFORMATEX* pWavFormat = nullptr;
@@ -265,7 +266,7 @@ SoundData AudioManager::LoadMP3Internal(const std::string& filename) {
     IMFSample* pSample = nullptr;
     DWORD dwFlags = 0;
     while (true) {
-        hr = pReader->ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0, nullptr, &dwFlags, nullptr, &pSample);
+        hr = pReader->ReadSample(kFirstAudioStream, 0, nullptr, &dwFlags, nullptr, &pSample);
         assert(SUCCEEDED(hr));
 
         if (dwFlags & MF_SOURCE_READERF_ENDOFSTREAM) {
@@ -345,3 +346,5 @@ SoundData AudioManager::LoadWaveInternal(const std::string& filename){
 
     return soundData;
 }
+
+} // namespace KazumimiEngine

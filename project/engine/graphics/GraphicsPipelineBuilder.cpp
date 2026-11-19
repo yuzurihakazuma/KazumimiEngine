@@ -1,5 +1,8 @@
 #include "GraphicsPipelineBuilder.h"
+#include "engine/graphics/D3DDebugName.h"
 #include <cassert>
+
+namespace KazumimiEngine {
 
 GraphicsPipelineBuilder::GraphicsPipelineBuilder(){
 	//  よく使う標準設定をあらかじめ入れる
@@ -73,13 +76,15 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDepthStencil(bool isDepthEn
 	return *this;
 }
 
-void GraphicsPipelineBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState){
-	HRESULT hr = device->CreateGraphicsPipelineState(&psoDesc_, IID_PPV_ARGS(&outPipelineState));
+void GraphicsPipelineBuilder::Build(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12PipelineState>& outPipelineState,
+	const std::source_location& where){
+	[[maybe_unused]] HRESULT hr = device->CreateGraphicsPipelineState(&psoDesc_, IID_PPV_ARGS(&outPipelineState));
 	assert(SUCCEEDED(hr));
+	SetD3DDebugName(outPipelineState.Get(), L"PSO", where);
 }
 
 // PipelineManager から移動してきた BlendMode 取得関数
-D3D12_BLEND_DESC GraphicsPipelineBuilder::GetBlendDesc(BlendMode blendMode){
+D3D12_BLEND_DESC GraphicsPipelineBuilder::GetBlendDesc([[maybe_unused]] BlendMode blendMode){
 	D3D12_BLEND_DESC blendDesc {};
 	// ... (今まで PipelineManager に書いていた中身をそのまま移す) ...
 	// ※とりあえず最初は kNormal だけでも大丈夫です
@@ -98,3 +103,5 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetRenderTargets(const std::ve
 	}
 	return *this;
 }
+
+} // namespace KazumimiEngine

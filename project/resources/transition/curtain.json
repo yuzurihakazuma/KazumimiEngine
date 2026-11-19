@@ -1,0 +1,51 @@
+{
+  "to": "TITLE",
+  "parts": [
+    {
+      "name": "幕を閉じる",
+      "type": "curtain",
+      "event": "start",
+      "delay": 0.0,
+      "duration": 0.7,
+      "params": { "open": false, "emit": "curtainClosed" }
+    },
+    {
+      "name": "幕の音（閉じる）",
+      "type": "sound",
+      "event": "start",
+      "delay": 0.0,
+      "duration": 0.0,
+      "params": { "sound": "resources/kamishibai/se_whoosh.wav", "volume": 0.8 }
+    },
+    {
+      "name": "次のシーンを読む",
+      "type": "loadScene",
+      "event": "curtainClosed",
+      "delay": 0.1,
+      "duration": 0.0
+    },
+    {
+      "name": "幕を開ける",
+      "type": "curtain",
+      "event": "loaded",
+      "delay": 0.3,
+      "duration": 0.8,
+      "params": { "open": true }
+    },
+    {
+      "name": "幕の音（開く）",
+      "type": "sound",
+      "event": "loaded",
+      "delay": 0.3,
+      "duration": 0.0,
+      "params": { "sound": "resources/kamishibai/se_whoosh.wav", "volume": 0.8 }
+    },
+    {
+      "name": "おわり",
+      "type": "end",
+      "event": "loaded",
+      "delay": 1.15,
+      "duration": 0.0
+    }
+  ]
+}

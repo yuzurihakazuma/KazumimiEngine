@@ -1,19 +1,26 @@
 #pragma once
 // --- 標準・外部ライブラリ ---
 #include <wrl.h>
+#include "engine/base/Singleton.h"
 #include <d3d12.h>
 #include <cstdint>
 
 // --- エンジン側のファイル ---
 #include "engine/math/struct.h"
 
+namespace KazumimiEngine {
+
 using Microsoft::WRL::ComPtr;
 
 
-class ResourceFactory{
+// =====================================================================
+//  ResourceFactory：GPU のリソース（頂点や定数のバッファ・描き込み先のテクスチャ・コンピュート用のバッファ）を作る窓口。
+//   作り方（ヒープの種類・はじめの状態）をここに集めて、使う側は「大きさ」などを渡すだけにする
+// =====================================================================
+class ResourceFactory : public Singleton<ResourceFactory> {
+	friend class Singleton<ResourceFactory>; // 土台（Singleton）だけが作れる
 public:
 
-    static ResourceFactory* GetInstance();
 
     // -------------------- リソース生成 --------------------
 
@@ -49,8 +56,6 @@ private:
     // コンストラクタを private に
     ResourceFactory() = default;
     ~ResourceFactory() = default;
-    ResourceFactory(const ResourceFactory&) = delete;
-    ResourceFactory& operator=(const ResourceFactory&) = delete;
 private:
 
     // -------------------- 内部リソース --------------------
@@ -58,3 +63,4 @@ private:
     ComPtr<ID3D12Device> device_ = nullptr;  // バッファ作成に使用する D3D12 デバイス
 };
 
+} // namespace KazumimiEngine

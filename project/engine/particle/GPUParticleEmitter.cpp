@@ -1,11 +1,13 @@
 
 #include "GPUParticleEmitter.h"
+#include "engine/utils/JsonFile.h"
 #include "GPUParticleManager.h"
 
 // nlohmann/json でJSON読み書き
 #include "externals/nlohmann/json.hpp"
-#include <fstream>
 #include <random>
+
+namespace KazumimiEngine {
 
 using json = nlohmann::json;
 
@@ -101,21 +103,15 @@ void GPUParticleEmitter::SaveToFile(const std::string& filePath){
     j["gravityY"] = data_.gravityY;
     j["burstCount"] = data_.burstCount;
 
-    std::ofstream file(filePath);
-    if ( file.is_open() ) {
-        file << j.dump(4); // 4スペースでインデントして見やすく保存
-    }
+    JsonFile::Save(filePath, j, 4); // 4スペースでインデントして見やすく保存
 }
 
 // -------------------------------------------------------
 // JSONから読み込み
 // -------------------------------------------------------
 void GPUParticleEmitter::LoadFromFile(const std::string& filePath){
-    std::ifstream file(filePath);
-    if ( !file.is_open() ) { return; } // ファイルがなければ何もしない
-
     json j;
-    file >> j;
+    if ( !JsonFile::Load(filePath, j) ) { return; } // ファイルがなければ何もしない
 
     data_.name = j.value("name", "emitter");
     data_.emitRate = j.value("emitRate", 10.0f);
@@ -143,3 +139,5 @@ void GPUParticleEmitter::LoadFromFile(const std::string& filePath){
         data_.endColor = { j["endColor"][0], j["endColor"][1], j["endColor"][2], j["endColor"][3] };
     }
 }
+
+} // namespace KazumimiEngine

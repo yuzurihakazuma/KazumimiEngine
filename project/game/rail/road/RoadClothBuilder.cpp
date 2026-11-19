@@ -1,0 +1,283 @@
+#include "game/rail/road/RoadClothBuilder.h"
+#include "engine/math/MathUtil.h"
+
+#include "game/rail/road/RoadMeshBuilder.h"
+#include "engine/math/VectorMath.h"
+#include "engine/rail/SplineRail.h"
+
+#include <algorithm>
+#include <cmath>
+
+using namespace KazumimiEngine;
+
+using namespace VectorMath;
+
+namespace {
+    constexpr float kPi = Math::kPi;
+    constexpr float kStep = 0.15f;        // リングの間隔(m)
+    constexpr float kSkirtOut = 0.012f;   // すそが端より外へ出る量(m)
+    constexpr float kGroundDepth = 0.075f; // 布のみ：すそを地面の中へ入れる深さ（背景の地面はレール面の 6cm 下）
+    constexpr int   kCapSegments = 14;    // 丸い端の分割数（半円）
+
+    // 断面の1点（レールの横方向 lat・レール面からの高さ h・テクスチャの v）
+    struct Section { float lat, h, v; };
+
+    // レール上の1リング（位置・向き・柄の u）
+    //   noSkirt＝すそを出さない（つながった相手の布へ重ねた所。相手のすそと同じ所に 2 枚目のすそが並ぶと、下の色が筋になって見える）
+    struct Ring { Vector3 pos, right, up, tangent; float u; bool noSkirt = false; };
+
+    Ring RingAt(const SplineRail& rail, float s){
+        const SplineRail::RailFrame f = rail.GetFrameAtDistance(s);
+        return { f.position, f.right, f.up, f.tangent, s * RoadClothBuilder::kUvPerMeter };
+    }
+    Vector3 At(const Ring& ring, float lat, float h){
+        return Add(ring.pos, Add(Multiply(ring.right, lat), Multiply(ring.up, h)));
+    }
+}
+
+RoadClothBuilder::EndInfo RoadClothBuilder::EndOf(const std::vector<SplineRail>& rails, int railIndex, bool front){
+    const SplineRail& rail = rails[railIndex];
+    EndInfo info { false, ( rail.Config().endPlaza & ( front ? 1 : 2 ) ) != 0, false };
+    if ( rail.Links().isLoop ) { info.connected = true; return info; }
+    const int partner = front ? rail.Links().frontConnIndex : rail.Links().backConnIndex;
+    if ( partner >= 0 ) {
+        info.connected = true;
+        // 曲がり角か：この道がつなぎ目へ入る向きと、相手がつなぎ目から出ていく向き
+        const SplineRail& other = rails[partner];
+        if ( partner < ( int ) rails.size() && other.Nodes().size() >= 2 && other.GetLength() > 0.0f && rail.GetLength() > 0.0f ) {
+            const Vector3 in = front ? Multiply(rail.GetTangentByDistance(0.0f), -1.0f) : rail.GetTangentByDistance(rail.GetLength());
+            const bool toFront = front ? rail.Links().frontConnToFront : rail.Links().backConnToFront;
+            const Vector3 outDir = toFront ? other.GetTangentByDistance(0.0f) : Multiply(other.GetTangentByDistance(other.GetLength()), -1.0f);
+            // 水平の向きで見る（30°）。坂の折れ目（平ら → 坂、坂 → ゆるい坂）は角ではない
+            //   （前は立体の角度で見ていたので、坂の折れ目も角になり、布が水平に突き出して坂の下へ棚のように出ていた）
+            const Vector3 inFlat { in.x, 0.0f, in.z }, outFlat { outDir.x, 0.0f, outDir.z };
+            if ( Length(inFlat) > 0.2f && Length(outFlat) > 0.2f ) {
+                info.corner = Dot(Normalize(inFlat), Normalize(outFlat)) < 0.866f;
+            } else {
+                info.corner = Dot(Normalize(in), Normalize(outDir)) < 0.866f;
+            }
+            if ( !info.corner ) { info.partner = partner; info.partnerFront = toFront; }
+        }
+        return info;
+    }
+    // T字：端がほかのレールの本体に載っている（RailConnections が載せてある）
+    const Vector3 end = rail.GetFrameAtDistance(front ? 0.0f : rail.GetLength()).position;
+    for ( int j = 0; j < ( int ) rails.size(); ++j ) {
+        if ( j == railIndex || rails[j].Nodes().size() < 2 || rails[j].GetLength() <= 0.0f ) continue;
+        const float s = rails[j].GetClosestDistance(end);
+        const Vector3 p = rails[j].GetFrameAtDistance(s).position;
+        if ( Length({ p.x - end.x, p.y - end.y, p.z - end.z }) < 0.05f ) { info.connected = true; break; }
+    }
+    return info;
+}
+
+void RoadClothBuilder::Build(const std::vector<SplineRail>& rails, int railIndex, const std::vector<Range>& visible,
+                             float extraLift, RoadMeshBuilder& out) const{
+    const SplineRail& rail = rails[railIndex];
+    const float length = rail.GetLength();
+    if ( length <= 0.0f || rail.Nodes().size() < 2 ) return;
+    const RailSkin& skin = rail.Config().skin;
+    const float hw = ( std::max )( skin.width * 0.5f, 0.2f );
+    const float hem = ( std::min )( 0.12f, hw * 0.3f );
+    const float lift = skin.lift + extraLift;
+    const float depth = ( skin.style == RailSkin::ClothOnBase ) ? 0.0f : kGroundDepth;
+    const Section section[6] = {
+        { -hw - kSkirtOut, -depth,             0.0f },
+        { -hw,             lift + skin.curl,   0.035f },
+        { -hw + hem,       lift,               0.10f },
+        {  hw - hem,       lift,               0.90f },
+        {  hw,             lift + skin.curl,   0.965f },
+        {  hw + kSkirtOut, -depth,             1.0f },
+    };
+
+    // 敷く範囲から穴の区間を抜く
+    std::vector<Range> spans;
+    const auto holes = rail.GetHoleIntervals();
+    for ( Range r : visible ) {
+        r.s0 = std::clamp(r.s0, 0.0f, length);
+        r.s1 = std::clamp(r.s1, 0.0f, length);
+        std::vector<Range> pieces { r };
+        for ( const auto& hole : holes ) {
+            std::vector<Range> next;
+            for ( const Range& p : pieces ) {
+                if ( hole.d1 <= p.s0 || hole.d0 >= p.s1 ) { next.push_back(p); continue; }
+                if ( hole.d0 > p.s0 ) next.push_back({ p.s0, hole.d0 });
+                if ( hole.d1 < p.s1 ) next.push_back({ hole.d1, p.s1 });
+            }
+            pieces = next;
+        }
+        for ( const Range& p : pieces ) { if ( p.s1 - p.s0 > 0.02f ) spans.push_back(p); }
+    }
+    if ( spans.empty() ) return;
+
+    const EndInfo frontEnd = EndOf(rails, railIndex, true);
+    const EndInfo backEnd = EndOf(rails, railIndex, false);
+    const float fullEps = 1e-3f;
+
+    auto vertexNormal = [&](const Ring& ring, int k) -> Vector3 {
+        if ( k == 2 || k == 3 ) return ring.up;
+        const float side = ( k < 3 ) ? -1.0f : 1.0f;
+        return Normalize(Add(ring.up, Multiply(ring.right, side * ( ( k == 0 || k == 5 ) ? 2.0f : 0.6f ))));
+    };
+    auto emitRing = [&](const Ring& ring){
+        for ( int k = 0; k < 6; ++k ) {
+            // すそを出さない輪：すその点を、めくれの端の点に重ねる
+            const int shape = !ring.noSkirt ? k : ( k == 0 ? 1 : ( k == 5 ? 4 : k ) );
+            out.AddVertex(At(ring, section[shape].lat, section[shape].h), vertexNormal(ring, k), ring.u, section[k].v);
+        }
+    };
+
+    // 丸い端・丸広場：中心から外へ（内側のステッチ・めくれ・すそ）。arcFrom〜arcTo はラジアン（out 向きが 0）
+    auto emitDisc = [&](const Ring& ring, const Vector3& outDir, float radius, float hemWidth, float arcFrom, float arcTo,
+                        float discLift){
+        const int segments = ( int ) std::ceil(kCapSegments * ( arcTo - arcFrom ) / kPi);
+        const Section polar[4] = { { 0.0f, discLift, 0.5f }, { radius - hemWidth, discLift, 0.10f },
+                                   { radius, discLift + skin.curl, 0.035f }, { radius + kSkirtOut, -depth, 0.0f } };
+        uint32_t prev[4] {};
+        for ( int i = 0; i <= segments; ++i ) {
+            const float theta = arcFrom + ( arcTo - arcFrom ) * ( float ) i / segments;
+            const Vector3 dir = Add(Multiply(outDir, std::cos(theta)), Multiply(ring.right, std::sin(theta)));
+            const float u = ring.u + theta * radius * kUvPerMeter;
+            uint32_t now[4];
+            for ( int k = 0; k < 4; ++k ) {
+                const Vector3 pos = Add(Add(ring.pos, Multiply(dir, polar[k].lat)), Multiply(ring.up, polar[k].h));
+                const Vector3 normal = ( k < 2 ) ? ring.up : Normalize(Add(ring.up, Multiply(dir, k == 3 ? 2.0f : 0.6f)));
+                now[k] = out.AddVertex(pos, normal, u, polar[k].v);
+            }
+            if ( i > 0 ) {
+                out.AddTriangle(prev[0], prev[1], now[1]);
+                for ( int k = 1; k < 3; ++k ) {
+                    out.AddTriangle(prev[k], prev[k + 1], now[k + 1]);
+                    out.AddTriangle(prev[k], now[k + 1], now[k]);
+                }
+            }
+            for ( int k = 0; k < 4; ++k ) prev[k] = now[k];
+        }
+    };
+
+    for ( const Range& span : spans ) {
+        const bool atFront = span.s0 <= fullEps;
+        const bool atBack = span.s1 >= length - fullEps;
+        // つながっている端は、端の向きへ半幅ぶん伸ばして相手の布と重ねる
+        const float extendFront = ( atFront && frontEnd.connected ) ? hw : 0.0f;
+        const float extendBack = ( atBack && backEnd.connected ) ? hw : 0.0f;
+
+        // 伸ばした先の輪。曲がり角では水平に伸ばす（坂の途中で曲がる角で、斜め下・斜め上へ突き出さない。角は四角く埋まる）
+        auto extendedRing = [&](const Ring& endRing, float sign, float amount, bool corner){
+            Ring r = endRing;
+            Vector3 dir = r.tangent;
+            if ( corner ) {
+                const Vector3 flat { r.tangent.x, 0.0f, r.tangent.z };
+                if ( Length(flat) > 0.2f ) {
+                    dir = Normalize(flat);
+                    const Vector3 worldUp { 0.0f, 1.0f, 0.0f };
+                    Vector3 right = Normalize(Cross(worldUp, dir));
+                    if ( Dot(right, r.right) < 0.0f ) { right = Multiply(right, -1.0f); }
+                    r.up = worldUp;
+                    r.right = right;
+                    r.tangent = dir;
+                }
+            }
+            r.pos = Add(r.pos, Multiply(dir, sign * amount));
+            r.u += sign * amount * kUvPerMeter;
+            return r;
+        };
+
+        // 角でないつなぎ目：相手のレールの形のとおりに重ねる（つなぎ目に近い順に outRings へ）。
+        //   まっすぐ伸ばすと、相手が曲がっている所（坂の付け根など）で、相手の道から浮いたり、下へ突き抜けたりする
+        auto overlapRings = [&](const Ring& endRing, float sign, float amount, const EndInfo& info, std::vector<Ring>& outRings){
+            const SplineRail& other = rails[info.partner];
+            const float otherLength = other.GetLength();
+            // 輪は、相手の布の輪と同じ所に置く（相手の布と同じ面を、重なりの高さの差だけ離れてなぞる）。
+            //   別の所に置くと、曲がっている所で 2 枚の布が 2〜3mm 食い違い、下の布が三角に突き抜けて見える
+            float spanStart = 0.0f, spanEnd = otherLength; // 相手の布の、つなぎ目側の 1 枚（穴で切れる所まで）
+            for ( const auto& hole : other.GetHoleIntervals() ) {
+                if ( info.partnerFront ) { spanEnd = ( std::min )( spanEnd, ( std::max )( hole.d0, 0.0f ) ); }
+                else { spanStart = ( std::max )( spanStart, ( std::min )( hole.d1, otherLength ) ); }
+            }
+            const float spanLength = spanEnd - spanStart;
+            float step = kStep;
+            int maxSteps = 1;
+            if ( spanLength > 0.02f ) {
+                maxSteps = ( std::max )( 1, ( int ) std::ceil(spanLength / ( std::max )( kStep, otherLength / 600.0f )) );
+                step = spanLength / ( float ) maxSteps;
+            }
+            const int steps = std::clamp(( int ) std::lround(amount / step), 1, maxSteps);
+            for ( int i = 1; i <= steps; ++i ) {
+                const float d = step * ( float ) i;
+                const SplineRail::RailFrame f = other.GetFrameAtDistance(info.partnerFront ? d : otherLength - d);
+                // 相手のレールが逆向きに進む時は、横と進む向きを裏返す（上はそのまま）
+                const float flip = ( Dot(f.right, endRing.right) >= 0.0f ) ? 1.0f : -1.0f;
+                outRings.push_back({ f.position, Multiply(f.right, flip), f.up, Multiply(f.tangent, flip),
+                                     endRing.u + sign * d * kUvPerMeter, true });
+            }
+        };
+
+        std::vector<Ring> rings;
+        if ( extendFront > 0.0f ) {
+            if ( frontEnd.partner >= 0 ) {
+                std::vector<Ring> overlap;
+                overlapRings(RingAt(rail, span.s0), -1.0f, extendFront, frontEnd, overlap);
+                rings.insert(rings.end(), overlap.rbegin(), overlap.rend()); // 遠い方から
+            } else {
+                rings.push_back(extendedRing(RingAt(rail, span.s0), -1.0f, extendFront, frontEnd.corner));
+            }
+        }
+        const size_t firstOwn = rings.size(); // このレールの最初の輪
+        const float spanLength = span.s1 - span.s0;
+        const int count = ( std::max )( 1, ( int ) std::ceil(spanLength / ( std::max )( kStep, length / 600.0f )) );
+        for ( int i = 0; i <= count; ++i ) {
+            rings.push_back(RingAt(rail, span.s0 + spanLength * ( float ) i / count));
+        }
+        const size_t lastOwn = rings.size() - 1; // このレールの最後の輪
+        if ( extendBack > 0.0f ) {
+            if ( backEnd.partner >= 0 ) {
+                overlapRings(RingAt(rail, span.s1), 1.0f, extendBack, backEnd, rings);
+            } else {
+                rings.push_back(extendedRing(RingAt(rail, span.s1), 1.0f, extendBack, backEnd.corner));
+            }
+        }
+
+        const uint32_t base = out.VertexCount();
+        for ( const Ring& ring : rings ) { emitRing(ring); }
+        for ( size_t i = 0; i + 1 < rings.size(); ++i ) {
+            const uint32_t a = base + ( uint32_t ) i * 6, b = a + 6;
+            for ( int k = 0; k < 5; ++k ) {
+                out.AddTriangle(a + k, b + k, b + k + 1);
+                out.AddTriangle(a + k, b + k + 1, a + k + 1);
+            }
+        }
+
+        // 端の形
+        auto finishEnd = [&](bool isFront){
+            const bool atRailEnd = isFront ? atFront : atBack;
+            const EndInfo& info = isFront ? frontEnd : backEnd;
+            const Ring& ring = isFront ? rings[firstOwn] : rings[lastOwn];
+            const Vector3 outDir = Multiply(ring.tangent, isFront ? -1.0f : 1.0f);
+            if ( atRailEnd && info.plaza ) {
+                const float radius = ( std::max )( hw * 1.6f, 1.3f );
+                emitDisc(ring, outDir, radius, hem, -kPi, kPi, lift + 0.002f);
+                return;
+            }
+            if ( atRailEnd && info.connected ) return; // 伸ばして相手と重ねた
+            if ( atRailEnd ) {
+                emitDisc(ring, outDir, hw, hem, -kPi * 0.5f, kPi * 0.5f, lift); // 丸い端
+                return;
+            }
+            // 穴・展開の途中で切れる所：平らな切り口
+            const uint32_t first = base + ( isFront ? 0u : ( uint32_t ) ( rings.size() - 1 ) * 6 );
+            const uint32_t cap = out.VertexCount();
+            for ( int k = 0; k < 6; ++k ) {
+                const Ring& edgeRing = isFront ? rings.front() : rings.back();
+                out.AddVertex(At(edgeRing, section[k].lat, section[k].h), outDir, edgeRing.u, section[k].v);
+            }
+            ( void ) first;
+            out.AddTriangle(cap + 0, cap + 1, cap + 2);
+            out.AddTriangle(cap + 0, cap + 2, cap + 3);
+            out.AddTriangle(cap + 0, cap + 3, cap + 5);
+            out.AddTriangle(cap + 3, cap + 4, cap + 5);
+        };
+        finishEnd(true);
+        finishEnd(false);
+    }
+}

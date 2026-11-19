@@ -15,9 +15,11 @@
 #include "engine/utils/RenderStats.h"
 #include "engine/graphics/ResourceFactory.h"
 #include "engine/graphics/SrvManager.h"
-#include "Animation.h" 
+#include "engine/3d/animation/Animation.h" 
 #include "engine/math/QuaternionMath.h"
 #include "engine/graphics/PipelineManager.h"
+
+namespace KazumimiEngine {
 
 using namespace MatrixMath;
 
@@ -100,14 +102,13 @@ void Obj3d::Initialize(Model* model){
 void Obj3d::Update(){
 
 	// Transform変数から行列計算用の構造体へコピー
-	transform.translate = translate_;
-	transform.rotate = rotation_;
-	transform.scale = scale_;
+	transform_.translate = translate_;
+	transform_.rotate = rotation_;
+	transform_.scale = scale_;
 
-	auto dxCommon = obj3dCommon_->GetDxCommon();
 
 	// ワールド行列の計算 (SRT)
-	Matrix4x4 worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+	Matrix4x4 worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 	if ( currentAnimation_ && !currentAnimation_->nodeAnimations.empty() ) {
 		// 1. 時間を進める（デルタタイム基準。ポーズ中(timeScale=0)は止まる）
 		animationTime_ += Time::GetInstance()->GetDeltaTime();
@@ -143,24 +144,24 @@ void Obj3d::Update(){
 		// =======================================================
 		// アニメーションが無い場合は、今まで通りの変形を使う
 		// =======================================================
-		transform.translate = translate_;
-		transform.rotate = rotation_;
-		transform.scale = scale_;
+		transform_.translate = translate_;
+		transform_.rotate = rotation_;
+		transform_.scale = scale_;
 		if ( isBillboard_ && camera_ ) {
 			// 全方位ビルボード
-			Matrix4x4 scaleMat = MakeScale(transform.scale);
-			Matrix4x4 billboardMat = MakeBillboardMatrix(camera_->GetWorldPosition(), transform.translate);
-			Matrix4x4 transMat = MakeTranslate(transform.translate);
+			Matrix4x4 scaleMat = MakeScale(transform_.scale);
+			Matrix4x4 billboardMat = MakeBillboardMatrix(camera_->GetWorldPosition(), transform_.translate);
+			Matrix4x4 transMat = MakeTranslate(transform_.translate);
 			worldMatrix = Multiply(Multiply(scaleMat, billboardMat), transMat);
 		} else if ( isBillboardY_ && camera_ ) {
 			// Y軸ビルボード
-			Matrix4x4 scaleMat = MakeScale(transform.scale);
-			Matrix4x4 billboardMat = MakeBillboardYMatrix(camera_->GetWorldPosition(), transform.translate);
-			Matrix4x4 transMat = MakeTranslate(transform.translate);
+			Matrix4x4 scaleMat = MakeScale(transform_.scale);
+			Matrix4x4 billboardMat = MakeBillboardYMatrix(camera_->GetWorldPosition(), transform_.translate);
+			Matrix4x4 transMat = MakeTranslate(transform_.translate);
 			worldMatrix = Multiply(Multiply(scaleMat, billboardMat), transMat);
 		} else {
 			// 通常の計算
-			worldMatrix = MakeAffine(transform.scale, transform.rotate, transform.translate);
+			worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 		}
 	}
 
@@ -204,7 +205,12 @@ void Obj3d::Draw(){
 		obj3dCommon_->GetDxCommon()->GetCommandList();
 	assert(commandList != nullptr);
 
-	PipelineManager::GetInstance()->SetPipeline(commandList, pipelineType_);
+	// タイル貼りのモデル（UV が 0〜1 を超えて繰り返す）は、テクスチャを縦もリピートするパイプラインで描く
+	PipelineType pipelineType = pipelineType_;
+	if ( pipelineType == PipelineType::Object3D && model_ && model_->UsesTiledUV() ) {
+		pipelineType = PipelineType::Object3D_WrapUV;
+	}
+	PipelineManager::GetInstance()->SetPipeline(commandList, pipelineType);
 
 	// ノードエディタ製の専用PSOがあれば差し替える
 	// （ルートシグネチャはObject3D互換なのでバインドはそのまま使える）
@@ -243,9 +249,32 @@ void Obj3d::Draw(){
 	// 3. モデルの描画処理を呼び出す 
 	// (ここで頂点、インデックス、マテリアル、テクスチャの設定とDrawCallが行われる)
 	if ( model_ ) {
-		model_->Draw();
+		model_->Draw(1, PrepareMaterialOverride());
 	}
 }
+
+void Obj3d::SetMaterialOverride(bool enabled, float brighten, float emissive){
+	materialOverrideOn_ = enabled;
+	materialBrighten_ = brighten;
+	materialEmissive_ = emissive;
+	if ( enabled && !materialOverrideResource_ ) {
+		materialOverrideResource_ = obj3dCommon_->GetDxCommon()->GetResourceFactory()->CreateBufferResource(sizeof(Model::Material));
+		materialOverrideResource_->Map(0, nullptr, &materialOverrideData_);
+	}
+}
+
+// 描く直前：モデルのマテリアルを写して、この物の分だけ変える（GPU が読むのはこのフレームのコマンドが流れた時）
+D3D12_GPU_VIRTUAL_ADDRESS Obj3d::PrepareMaterialOverride(){
+	if ( !materialOverrideOn_ || !materialOverrideData_ || !model_ || !model_->GetMaterial() ) { return 0; }
+	Model::Material material = *model_->GetMaterial();
+	material.color.x *= materialBrighten_;
+	material.color.y *= materialBrighten_;
+	material.color.z *= materialBrighten_;
+	material.emissive = materialEmissive_;
+	*static_cast< Model::Material* >( materialOverrideData_ ) = material;
+	return materialOverrideResource_->GetGPUVirtualAddress();
+}
+
 
 void Obj3d::SetDissolveThreshold(float threshold) {
 	if (dissolveData_) {
@@ -261,3 +290,5 @@ void Obj3d::PlayAnimation(Animation* animation){
 	currentAnimation_ = animation;
 	animationTime_ = 0.0f; // 再生時間をリセット
 }
+
+} // namespace KazumimiEngine

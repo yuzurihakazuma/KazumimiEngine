@@ -1,7 +1,9 @@
 #include "SceneFactory.h"
 #include "TitleScene.h"
 #include "GamePlayScene.h"
-#include "AnimationEditorScene.h"
+#include "StageSelectScene.h"
+
+using namespace KazumimiEngine;
 // シーン生成
 std::unique_ptr<IScene> SceneFactory::CreateScene(const std::string& sceneName) {
 
@@ -9,11 +11,11 @@ std::unique_ptr<IScene> SceneFactory::CreateScene(const std::string& sceneName) 
     if (sceneName == "TITLE") {
         return std::make_unique<TitleScene>(); // TitleSceneクラスのインスタンスを生成
     }
+    else if (sceneName == "STAGESELECT") {
+        return std::make_unique<StageSelectScene>(); // StageSelectSceneクラスのインスタンスを生成
+    }
     else if (sceneName == "GAMEPLAY") {
         return std::make_unique<GamePlayScene>(); // GamePlaySceneクラスのインスタンスを生成
-    }
-	else if (sceneName == "ANIMATION_EDITOR") { // AnimationEditorSceneクラスのインスタンスを生成
-        return std::make_unique<AnimationEditorScene>();
     }
     return nullptr;
 }

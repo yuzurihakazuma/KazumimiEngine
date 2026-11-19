@@ -1,9 +1,9 @@
 #include <Windows.h>
 #include "Game.h"
-#include "CrashDumper.h"
-#include <engine/scene/SceneManager.h>
-#include "ResourceLeakChecker.h"
-#include "TitleScene.h"
+#include "engine/utils/CrashDumper.h"
+#include "engine/utils/ResourceLeakChecker.h"
+
+using namespace KazumimiEngine;
 
 // Windowsアプリでのエントリーポイント
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int){

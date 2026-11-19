@@ -1,9 +1,15 @@
 #pragma once
 // --- 標準ライブラリ ---
 #include <string>
+#include "engine/base/Singleton.h"
 #include <fstream>
+
+namespace KazumimiEngine {
+
 namespace logs{
-	class LogManager{
+	// ログの出力（出力ウィンドウとログファイル）と、文字コードの変換（string ⇔ wstring）
+	class LogManager : public Singleton<LogManager> {
+		friend class Singleton<LogManager>; // 土台（Singleton）だけが作れる
 	public:
 
 		// -------------------- 文字列変換 --------------------
@@ -50,10 +56,6 @@ namespace logs{
 		/// <summary>
 		/// シングルトンとして LogManager のインスタンスを取得
 		/// </summary>
-		static LogManager* GetInstance(){
-			static LogManager instance;
-			return &instance;
-		}
 
 	private:
 
@@ -65,3 +67,4 @@ namespace logs{
 
 }// namespace logs
 
+} // namespace KazumimiEngine

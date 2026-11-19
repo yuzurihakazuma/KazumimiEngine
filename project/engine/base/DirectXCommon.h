@@ -1,35 +1,41 @@
 #pragma once
 // --- 標準ライブラリ・外部ライブラリ ---
 #include <windows.h>
+#include "engine/base/Singleton.h"
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxcapi.h>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 
 // --- エンジン側のファイル ---
 #include "engine/utils/LogManager.h"
 #include "engine/graphics/ShaderCompiler.h"
 
-// ライブラリのリンク
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib, "winmm.lib")
+
+namespace KazumimiEngine {
+
+// ライブラリのリンク
 
 // --- 前方宣言 ---
 class WindowProc;
 class ResourceFactory;
 class SrvManager;
 
-class DirectXCommon{
+// =====================================================================
+//  DirectXCommon：DirectX12 の土台。
+//   デバイス・コマンドリスト・スワップチェーン・深度バッファを作り、
+//   1 フレームの描画の始めと終わり（PreDraw / PostDraw）と、60fps への固定を受け持つ
+// =====================================================================
+class DirectXCommon : public Singleton<DirectXCommon> {
+	friend class Singleton<DirectXCommon>; // 土台（Singleton）だけが作れる
 public:
-	// シングルトンインスタンス取得
-	static DirectXCommon* GetInstance(){
-		static DirectXCommon instance;
-		return &instance;
-	}
 
 	/// <summary>初期化
 	void Initialize(WindowProc* windowProc);
@@ -67,6 +73,10 @@ public:
 
 	// <summary>SRVヒープ
 	ID3D12DescriptorHeap* GetSrvHeap() const{ return srvDescriptorHeap_.Get(); }
+	// RenderTexture 用の RTV の番号を配る・返す（0 と 1 はバックバッファ。返された番号は使い回す）
+	uint32_t AllocateRtvIndex();
+	void FreeRtvIndex(uint32_t index);
+	uint32_t GetUsedRtvCount() const{ return nextRtvIndex_ - ( uint32_t ) freeRtvIndices_.size(); }
 	// <summary>RTVヒープ
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(uint32_t index) const{
 		// RTVヒープの先頭ハンドルを取得
@@ -87,6 +97,11 @@ public:
 
 	/// <summary>コマンドキューのゲッター
 	ID3D12CommandQueue* GetCommandQueue() const{ return commandQueue_.Get(); }
+	// フレームの最後（ImGui まで描き終わり、バックバッファを PRESENT へ戻す前）に呼ぶ。
+	//   引数はコマンドリストと、これから出すバックバッファ（RENDER_TARGET 状態）。撮影（ScreenCapture）が写し取りを積む
+	void SetFrameEndHook(std::function<void(ID3D12GraphicsCommandList*, ID3D12Resource*)> hook){ frameEndHook_ = std::move(hook); }
+	// 今描いているバックバッファ
+	ID3D12Resource* GetCurrentBackBuffer() const{ return backBuffers_[swapChain_->GetCurrentBackBufferIndex()].Get(); }
 
 	// ログマネージャーのゲッター
 	logs::LogManager& GetLogManager(){ return logManager_; }
@@ -198,6 +213,9 @@ private:
 
 	// -------------------- ディスクリプタヒープ --------------------
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_;   // RTV用のヒープ
+	static constexpr uint32_t kRtvCount = 50;                          // RTV の数（rtvDescriptorHeap_ の大きさ）
+	uint32_t nextRtvIndex_ = kBackBufferCount;                         // 次に配る RTV の番号（バックバッファの後から）
+	std::vector<uint32_t> freeRtvIndices_;                             // 返された RTV の番号
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_;   // SRV用のヒープ（ディスクリプタの数は128）
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_;   // DSV用のヒープ（ディスクリプタの数は1）
 
@@ -212,7 +230,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_;  // ステンシルリソース
 
 	// -------------------- その他リソース --------------------
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource; // 汎用リソース（用途によって変更可）
 
 	// -------------------- システム関連 --------------------
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_; // フェンス
@@ -230,6 +247,7 @@ private:
 
 	void InitializeFixFPS(); // FPS固定の初期化
 	void UpdateFixFPS();     // FPS固定の更新
+	std::function<void(ID3D12GraphicsCommandList*, ID3D12Resource*)> frameEndHook_;
 
 	std::chrono::steady_clock::time_point reference_; // 前フレーム時間
 
@@ -244,7 +262,6 @@ private:
 private:
 	DirectXCommon() = default;
 	~DirectXCommon() = default;
-	DirectXCommon(const DirectXCommon&) = delete;
-	DirectXCommon& operator=(const DirectXCommon&) = delete;
 };
 
+} // namespace KazumimiEngine
