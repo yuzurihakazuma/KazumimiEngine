@@ -27,8 +27,11 @@ public:
     // スクリーン配置（2D）に戻す
     void SetScreenMode();
     bool Is3D() const { return use3D_; }
-    Vector3& RefWorldPos() { return worldPos3D_; }   // ImGui編集用
-    float& RefWorldScale() { return worldScale3D_; } // ImGui編集用
+    const Vector3& GetWorldPos() const { return worldPos3D_; }
+    float GetWorldScale() const { return worldScale3D_; }
+    // 3D の位置・大きさだけを変える（2D / 3D の切り替えはしない。調整ウィンドウ用。変えた後は MarkDirty）
+    void SetWorldPos(const Vector3& worldPos) { worldPos3D_ = worldPos; }
+    void SetWorldScale(float worldScale) { worldScale3D_ = worldScale; }
     void SetColor(const Vector4& color) { color_ = color; }
     void SetOutline(float width, const Vector4& color) { outlineWidth_ = width; outlineColor_ = color; }
     void SetGlow(float width, const Vector4& color) { glowWidth_ = width; glowColor_ = color; }
@@ -37,20 +40,19 @@ public:
     const std::string& GetSpriteName() const { return spriteName_; }
     float GetX() const { return posX_; }
     float GetY() const { return posY_; }
-    float& RefScale() { return scale_; }                 // ImGui編集用
-    Vector4& RefColor() { return color_; }
-    float& RefOutlineWidth() { return outlineWidth_; }
-    Vector4& RefOutlineColor() { return outlineColor_; }
-    float& RefGlowWidth() { return glowWidth_; }
-    Vector4& RefGlowColor() { return glowColor_; }
-    float& RefEdgeBias() { return edgeBias_; } // 0.5標準。小さくすると太る/大きくすると痩せる
+    float GetScale() const { return scale_; }
+    const Vector4& GetColor() const { return color_; }
+    float GetOutlineWidth() const { return outlineWidth_; }
+    const Vector4& GetOutlineColor() const { return outlineColor_; }
+    float GetGlowWidth() const { return glowWidth_; }
+    const Vector4& GetGlowColor() const { return glowColor_; }
+    float GetEdgeBias() const { return edgeBias_; } // 0.5標準。小さくすると太る/大きくすると痩せる
+    void  SetEdgeBias(float edgeBias) { edgeBias_ = edgeBias; }
 
     // --- 近接表示（看板用）：プレイヤーが近くにいる時だけ表示する ---
     void SetProximity(bool enabled, float radius) { proximityEnabled_ = enabled; proximityRadius_ = radius; }
     bool  IsProximityEnabled() const { return proximityEnabled_; }
     float GetProximityRadius() const { return proximityRadius_; }
-    bool&  RefProximityEnabled() { return proximityEnabled_; } // ImGui編集用
-    float& RefProximityRadius() { return proximityRadius_; }   // ImGui編集用
     // 表示アルファ（フェード用。SDFManager が毎フレーム距離から設定する）
     void SetDrawAlpha(float a) { drawAlpha_ = a; }
 

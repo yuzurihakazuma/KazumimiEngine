@@ -28,7 +28,7 @@ void GPUParticleEditor::ScanFiles(){
 // プリセット適用（よく使う見た目を1クリックで設定）
 void GPUParticleEditor::ApplyPreset(int index){
 	if ( !emitter_ ) return;
-	GPUParticleEmitterData& d = emitter_->GetData();
+	GPUParticleEmitterData d = emitter_->GetData(); // 写しを直して、最後に書き戻す
 	switch ( index ) {
 	case 0: // 炎：上昇・短寿命・赤→黄
 		d.name = "fire";
@@ -81,6 +81,7 @@ void GPUParticleEditor::ApplyPreset(int index){
 		d.gravityY = 0.0f;
 		break;
 	}
+	emitter_->UpdateData(d);
 }
 
 // 編集対象のエミッターをセット（GamePlaySceneから渡してもらう）
@@ -123,9 +124,6 @@ void GPUParticleEditor::DrawDebugUI(){
         ImGui::End();
         return;
     }
-
-    // エミッターのデータを直接参照して編集する
-    GPUParticleEmitterData& d = emitter_->GetData();
 
     // =========================================================
     // ファイル操作
@@ -174,6 +172,10 @@ void GPUParticleEditor::DrawDebugUI(){
     if ( ImGui::Button("魔法") ) { ApplyPreset(4); }
 
     ImGui::Separator();
+
+    // ここから下は、エミッターのデータの写しを直して、最後に書き戻す
+    //   （読み込み・プリセットはエミッターの中身を入れ替えるので、その後で写しを取る）
+    GPUParticleEmitterData d = emitter_->GetData();
 
     // =========================================================
     // 基本設定
@@ -258,6 +260,7 @@ void GPUParticleEditor::DrawDebugUI(){
 
     // ボタンを押した瞬間だけ一気に発生
     if ( ImGui::Button("バースト発生！") ) {
+        emitter_->UpdateData(d); // ここまでの調整を入れてから出す
         emitter_->Burst();
     }
 
@@ -313,6 +316,7 @@ void GPUParticleEditor::DrawDebugUI(){
     ImGui::ProgressBar(fillRate, ImVec2(-1.0f, 0.0f), barLabel);
     ImGui::PopStyleColor();
 
+    emitter_->UpdateData(d);
     ImGui::End();
 
 #endif

@@ -13,6 +13,8 @@ class SplineRail;
 }
 class BlockSystem;
 class EnemyBehavior;
+class EnemyHit;
+struct EnemyHitContext;
 
 // 敵の種類（エディタから選択可能）。保存データは int なので既存の並びは変えないこと
 enum class EnemyType{
@@ -95,6 +97,8 @@ public:
     // --- 状態 ---
     bool IsAlive() const{ return alive_ && !swallowing_; } // 吸い込み中は踏み・ロック対象外
     void Defeat();                     // 踏まれた・卵や吐き出しが当たった：その場で溶けて消える（溶け終わるまで描く）
+    // 何かが当たった：結果は「当たった物の種類 × 敵の種類」で決まる（EnemyHit の説明を参照）
+    void ReceiveHit(const EnemyHit& hit, EnemyHitContext& context);
 
     // --- 飲み込み（ヨッシー）：その場から縮みながらプレイヤーへ吸い込まれる ---
     void StartSwallow();                                  // 吸い込み開始
@@ -114,7 +118,7 @@ public:
     const KazumimiEngine::Vector3& GetPosition() const{ return position_; }
     // 体を包む球の半径（演出の大きさ・ロックオンリング用。当たり判定は下のカプセルを使う）
     float     GetRadius() const{ return radius_; }
-    KazumimiEngine::Collider* GetCollider(){ return &collider_; }
+    const KazumimiEngine::Collider& GetCollider() const{ return collider_; }
     EnemyType GetType() const{ return type_; }
     int       GetRailIndex() const{ return railIndex_; }
     float     GetDistance() const{ return distance_; }

@@ -17,14 +17,15 @@ using namespace railstrip;
 
 // 途中の操作（塗り・ドラッグ）を全部やめる。レールや道具を切り替えた時に呼ぶ
 void StripCanvas::CancelInteractions(){
-    blockTool_.Cancel();
-    enemyTool_.Cancel();
-    coinTool_.Cancel();
+    for ( IStripTool* tool : Tools() ) { tool->Cancel(); }
     panning_ = false;
 }
 
 bool StripCanvas::IsInteracting() const{
-    return blockTool_.IsBusy() || enemyTool_.IsBusy() || coinTool_.IsBusy();
+    for ( const IStripTool* tool : Tools() ) {
+        if ( tool->IsBusy() ) { return true; }
+    }
+    return false;
 }
 
 // ----------------------------------------------------------------
@@ -162,17 +163,9 @@ StripCanvas::RailRequest StripCanvas::Draw(const StripContext& context, StripSta
     //   前のレールへブロックや敵が置かれてしまわないように）
     const bool toolHovered = hovered && !links.overLabel;
     if ( context.editable ) {
-        switch ( state.tool ) {
-        case StripTool::Block:
-            blockTool_.Update(context, state, layout, toolHovered);
-            break;
-        case StripTool::Enemy:
-            if ( enemyTool_.Update(context, state, layout, toolHovered) ) { CancelInteractions(); }
-            break;
-        case StripTool::Coin:
-            coinTool_.Update(context, state, layout, toolHovered);
-            break;
-        }
+        // 選んでいる道具を動かす（道具の種類では分岐しない。true が返ったら、途中の操作を全部やめる）
+        IStripTool* tool = Tools()[static_cast<size_t>( state.tool )];
+        if ( tool->Update(context, state, layout, toolHovered) ) { CancelInteractions(); }
     }
     enemyTool_.DrawContextMenu(context, state);
     StripRenderer::DrawLevelLabels(layout);

@@ -20,11 +20,25 @@ struct TransformKeyframe {
 // --------------------------------------------------
 class CustomAnimationTrack {
 public:
-    std::string objectName;                     // 動かす対象の名前（識別用）
-    std::vector<TransformKeyframe> keyframes;   // 記録したキーフレームの配列
-    float duration = 0.0f;                      // アニメーションの総時間（最後のキーフレームの時間）
+    // --- 読む ---
+    const std::string& ObjectName() const { return objectName_; }
+    const std::vector<TransformKeyframe>& Keyframes() const { return keyframes_; }
+    float Duration() const { return duration_; }
 
-public:
+    // --- キーフレームの操作（エディタ用）---
+    // 1 つを書き換える（並べ替えはしない。時間を変えた後は SortKeyframes を呼ぶ）
+    void SetKeyframe(size_t index, const TransformKeyframe& key) { if ( index < keyframes_.size() ) { keyframes_[index] = key; } }
+    // 時間順に並べ直して、総時間を最後のキーフレームに合わせる
+    void SortKeyframes();
+    // 1 つ消して、総時間を最後のキーフレームに合わせる（無くなったら 0）
+    void RemoveKeyframe(size_t index);
+    // 全部消す（総時間も 0）
+    void Clear() { keyframes_.clear(); duration_ = 0.0f; }
+    // 全体の速さを変える（すべての時間と総時間に factor を掛ける）
+    void ScaleTime(float factor);
+    // 総時間を time まで延ばす（短くはしない）
+    void ExtendDuration(float time) { if ( duration_ < time ) { duration_ = time; } }
+
     /// <summary>
     /// 現在の状態をキーフレームとして記録する
     /// </summary>
@@ -45,6 +59,10 @@ public:
     // JSON ファイルから読み込み
     void LoadFromJson(const std::string& filepath);
 
+private:
+    std::string objectName_;                     // 動かす対象の名前（識別用）
+    std::vector<TransformKeyframe> keyframes_;   // 記録したキーフレームの配列（時間順）
+    float duration_ = 0.0f;                      // アニメーションの総時間（最後のキーフレームの時間）
 };
 
 } // namespace KazumimiEngine

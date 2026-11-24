@@ -96,30 +96,32 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
     for ( size_t i = 0; i < lines.size(); ++i ) {
         SplineRail rail;
         for ( const json& point : lines[i] ) {
-            if ( point.is_array() && point.size() >= 3 ) { rail.EditNodes().push_back({ point[0].get<float>(), point[1].get<float>(), point[2].get<float>() }); }
+            if ( point.is_array() && point.size() >= 3 ) { rail.AddNode({ point[0].get<float>(), point[1].get<float>(), point[2].get<float>() }); }
         }
-        rail.EditConfig().lineMode = At<int>(level, "railLineModes", i, 0);
+        rail.SetLineMode(At<int>(level, "railLineModes", i, 0));
         rail.BuildDistanceTable();
-        rail.EditConfig().visible = At<int>(level, "railVisible", i, 1) != 0;
-        rail.EditConfig().groundType = static_cast<SplineRail::GroundType>( At<int>(level, "railGroundTypes", i, 0) );
-        rail.EditConfig().roadMode = At<int>(level, "railRoadModes", i, 0);
-        rail.EditConfig().endPlaza = At<int>(level, "railEndPlazas", i, 0);
-        rail.EditConfig().nodeHole = At<std::vector<int>>(level, "railNodeHoles", i, {});
+        rail.SetVisible(At<int>(level, "railVisible", i, 1) != 0);
+        rail.SetGroundType(static_cast<SplineRail::GroundType>( At<int>(level, "railGroundTypes", i, 0) ));
+        rail.SetRoadMode(At<int>(level, "railRoadModes", i, 0));
+        rail.SetEndPlaza(At<int>(level, "railEndPlazas", i, 0));
+        rail.SetNodeHole(At<std::vector<int>>(level, "railNodeHoles", i, {}));
         const int type = At<int>(level, "railTypes", i, -1);
-        if ( type == 0 )      { rail.EditConfig().type = SplineRail::RailType::Horizontal; }
-        else if ( type == 1 ) { rail.EditConfig().type = SplineRail::RailType::Vertical; }
+        if ( type == 0 )      { rail.SetType(SplineRail::RailType::Horizontal); }
+        else if ( type == 1 ) { rail.SetType(SplineRail::RailType::Vertical); }
         else if ( rail.Nodes().size() >= 2 ) { rail.AutoDetectType(); }
         if ( level.contains("railSkins") && i < level["railSkins"].size() ) {
             const json& skin = level["railSkins"][i];
-            rail.EditConfig().skin.style = skin.value("style", rail.Config().skin.style);
-            rail.EditConfig().skin.width = skin.value("width", rail.Config().skin.width);
-            rail.EditConfig().skin.lift = skin.value("lift", rail.Config().skin.lift);
-            rail.EditConfig().skin.curl = skin.value("curl", rail.Config().skin.curl);
-            rail.EditConfig().skin.stitch = skin.value("stitch", rail.Config().skin.stitch);
-            rail.EditConfig().skin.layer = skin.value("layer", rail.Config().skin.layer);
+            RailSkin look = rail.Config().skin;
+            look.style = skin.value("style", look.style);
+            look.width = skin.value("width", look.width);
+            look.lift = skin.value("lift", look.lift);
+            look.curl = skin.value("curl", look.curl);
+            look.stitch = skin.value("stitch", look.stitch);
+            look.layer = skin.value("layer", look.layer);
             if ( skin.contains("color") && skin["color"].size() >= 3 ) {
-                rail.EditConfig().skin.color = { skin["color"][0].get<float>(), skin["color"][1].get<float>(), skin["color"][2].get<float>() };
+                look.color = { skin["color"][0].get<float>(), skin["color"][1].get<float>(), skin["color"][2].get<float>() };
             }
+            rail.SetSkin(look);
         }
         full.push_back(std::move(rail));
     }
@@ -245,15 +247,15 @@ bool StageDiorama::Build(const std::string& stage, const Vector3& top, float wid
         auto flush = [&](bool toEnd){
             if ( run.size() >= 2 ) {
                 SplineRail piece;
-                piece.EditNodes() = run;
-                piece.EditConfig().lineMode = 1; // 細かく区切ったので直線でつなぐ
+                piece.SetNodes(run);
+                piece.SetLineMode(1); // 細かく区切ったので直線でつなぐ
                 piece.BuildDistanceTable();
-                piece.EditConfig().visible = true;
-                piece.EditConfig().groundType = rail.Config().groundType;
-                piece.EditConfig().roadMode = rail.Config().roadMode;
-                piece.EditConfig().skin = rail.Config().skin;
-                piece.EditConfig().endPlaza = ( fromStart ? ( rail.Config().endPlaza & 1 ) : 0 ) | ( toEnd ? ( rail.Config().endPlaza & 2 ) : 0 );
-                if ( std::find(holes.begin(), holes.end(), 1) != holes.end() ) { piece.EditConfig().nodeHole = holes; }
+                piece.SetVisible(true);
+                piece.SetGroundType(rail.Config().groundType);
+                piece.SetRoadMode(rail.Config().roadMode);
+                piece.SetSkin(rail.Config().skin);
+                piece.SetEndPlaza(( fromStart ? ( rail.Config().endPlaza & 1 ) : 0 ) | ( toEnd ? ( rail.Config().endPlaza & 2 ) : 0 ));
+                if ( std::find(holes.begin(), holes.end(), 1) != holes.end() ) { piece.SetNodeHole(holes); }
                 piece.AutoDetectType();
                 rails_.push_back(std::move(piece));
             }
@@ -470,10 +472,10 @@ void StageDiorama::ApplyRoot(){
 void StageDiorama::BuildTrain(float cx, float cz, float halfWidth, float halfDepth, float height, Camera* camera){
     const float radius = ( std::min )( halfWidth, halfDepth ) * 0.45f;
     SplineRail center;
-    center.EditNodes() = RoundedLoop(cx, cz, halfWidth, halfDepth, radius, height + kTrackLift, 0.5f);
+    center.SetNodes(RoundedLoop(cx, cz, halfWidth, halfDepth, radius, height + kTrackLift, 0.5f));
     // 台座が回る向きと同じ向きに走らせる（逆向きだと、回るのと打ち消し合って止まって見える）
-    std::reverse(center.EditNodes().begin(), center.EditNodes().end());
-    center.EditConfig().lineMode = 1;
+    center.ReverseNodes();
+    center.SetLineMode(1);
     center.BuildDistanceTable();
     // 枕木
     for ( float d = 0.0f; d < center.GetLength(); d += kSleeperStep ) {
@@ -490,16 +492,18 @@ void StageDiorama::BuildTrain(float cx, float cz, float halfWidth, float halfDep
     trackRails_.clear();
     for ( float side : { -kTrackGauge, kTrackGauge } ) {
         SplineRail rail;
-        rail.EditNodes() = RoundedLoop(cx, cz, halfWidth + side, halfDepth + side, radius + side, height + kTrackLift, 0.5f);
-        rail.EditConfig().lineMode = 1;
+        rail.SetNodes(RoundedLoop(cx, cz, halfWidth + side, halfDepth + side, radius + side, height + kTrackLift, 0.5f));
+        rail.SetLineMode(1);
         rail.BuildDistanceTable();
         rail.AutoDetectType();
-        rail.EditConfig().skin.style = RailSkin::Cloth;
-        rail.EditConfig().skin.width = 0.32f;
-        rail.EditConfig().skin.lift = 0.01f;
-        rail.EditConfig().skin.curl = 0.0f;
-        rail.EditConfig().skin.stitch = 0;
-        rail.EditConfig().skin.color = { 0.62f, 0.62f, 0.66f };
+        RailSkin cloth = rail.Config().skin;
+        cloth.style = RailSkin::Cloth;
+        cloth.width = 0.32f;
+        cloth.lift = 0.01f;
+        cloth.curl = 0.0f;
+        cloth.stitch = 0;
+        cloth.color = { 0.62f, 0.62f, 0.66f };
+        rail.SetSkin(cloth);
         trackRails_.push_back(std::move(rail));
     }
     RailConnections::Build(trackRails_);

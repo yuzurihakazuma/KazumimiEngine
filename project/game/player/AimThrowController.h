@@ -55,8 +55,8 @@ public:
     float GetAimYaw() const{ return aimYaw_; }
 
     // ノードエディタの「→ ゲーム値」用（投げ初速を外から調整できる）
-    float* ThrowSpeedNormalPtr(){ return &throwSpeedNormal_; }
-    float* ThrowSpeedLockPtr(){ return &throwSpeedLock_; }
+    void SetThrowSpeedNormal(float speed){ throwSpeedNormal_ = speed; }
+    void SetThrowSpeedLock(float speed){ throwSpeedLock_ = speed; }
 
 private:
     // 構えのステート（Idle=通常 / Aiming=構え中）

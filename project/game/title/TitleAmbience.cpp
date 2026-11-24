@@ -123,6 +123,67 @@ void TitleAmbience::CreateWaves(Camera* camera){
     }
 }
 
+// =====================================================================
+//  物の種類ごとのゆれ方。
+//   TitleAmbience は、物の種類を見て分岐しない（Mover が持つ SwayStyle の仮想関数を呼ぶだけ）
+// =====================================================================
+class TitleAmbience::SwayStyle {
+public:
+    virtual ~SwayStyle() = default;
+    // 風でゆれる角度(rad)を返す。置き場所そのものを動かす物（雲）は position を書き換える。
+    //   time＝経過秒、travel＝風が横へ伝わる遅れ、gust＝風のむら（0.1〜1）、placed＝置いた位置
+    virtual float Sway(float time, float travel, float gust, const Vector3& placed, Vector3& position) const = 0;
+    // 恐竜に押されて倒れるか（草・花）
+    virtual bool BendsAwayFromDino() const { return false; }
+};
+
+// ゆれ方ごとのクラスの入れ物
+struct TitleAmbience::SwayStyles {
+    // マップの type 名 → ゆれ方（動かさない物は nullptr）
+    static const SwayStyle* For(const std::string& type);
+
+    // 草・花・木：根元を軸に、風で左右へゆれる
+    class Plant final : public SwayStyle {
+    public:
+        Plant(float angle, float speed, bool variesWithDepth, bool bends)
+            : angle_(angle), speed_(speed), variesWithDepth_(variesWithDepth), bends_(bends) {}
+        float Sway(float time, float travel, float gust, const Vector3& placed, Vector3& /*position*/) const override {
+            return angle_ * gust * std::sin(time * speed_ - travel + ( variesWithDepth_ ? placed.z : 0.0f ));
+        }
+        bool BendsAwayFromDino() const override { return bends_; }
+
+    private:
+        float angle_;           // ゆれる角度(rad)
+        float speed_;           // ゆれる速さ
+        bool  variesWithDepth_; // 奥行きでゆれをずらすか（草・花）
+        bool  bends_;           // 恐竜に押されて倒れるか
+    };
+
+    // 雲：糸で吊られている。ゆっくり左右へ流れて、少し遅れて傾く
+    class Cloud final : public SwayStyle {
+    public:
+        float Sway(float time, float /*travel*/, float /*gust*/, const Vector3& placed, Vector3& position) const override {
+            position.x += kCloudDrift * std::sin(time * 0.22f + placed.z);
+            return kCloudSwing * std::sin(time * 0.22f + placed.z + 1.2f);
+        }
+    };
+};
+
+const TitleAmbience::SwayStyle* TitleAmbience::SwayStyles::For(const std::string& type){
+    static const Plant grass  { kGrassSway,  2.3f, true,  true };
+    static const Plant flower { kFlowerSway, 1.7f, true,  true };
+    static const Plant tree   { kTreeSway,   0.9f, false, false }; // 木は重いので少しだけ。押されない
+    static const Cloud cloud {};
+    // type 名の頭と、ゆれ方の対応
+    static const struct { const char* prefix; const SwayStyle* style; } kTable[] = {
+        { "grass_tuft", &grass }, { "flower_", &flower }, { "tree_", &tree }, { "cloud_", &cloud },
+    };
+    for ( const auto& row : kTable ) {
+        if ( StartsWith(type, row.prefix) ) { return row.style; }
+    }
+    return nullptr;
+}
+
 // マップの配置物の中から、草・花・木・雲を探す（type 名＝モデル名で見分ける）
 void TitleAmbience::BindMapObjects(){
     movers_.clear();
@@ -133,11 +194,8 @@ void TitleAmbience::BindMapObjects(){
         const std::string& type = objects[i].type;
         Mover mover;
         mover.index = i;
-        if ( StartsWith(type, "grass_tuft") )       { mover.kind = Kind::Grass; }
-        else if ( StartsWith(type, "flower_") )     { mover.kind = Kind::Flower; }
-        else if ( StartsWith(type, "tree_") )       { mover.kind = Kind::Tree; }
-        else if ( StartsWith(type, "cloud_") )      { mover.kind = Kind::Cloud; }
-        else { continue; }
+        mover.style = SwayStyles::For(type);
+        if ( !mover.style ) { continue; } // 動かさない物
         movers_.push_back(mover);
     }
     boundObjectCount_ = ( int ) objects.size();
@@ -173,27 +231,11 @@ void TitleAmbience::UpdateMapObjects(float deltaTime, const Vector3& dinoPositio
         // 風：左から右へ伝わる波。強くなったり弱くなったりする（そよ風の「むら」）
         const float travel = placed.translation.x * kWindTravel;
         const float gust = 0.55f + 0.45f * std::sin(time_ * 0.35f - travel * 0.4f);
-        float sway = 0.0f;
-        switch ( mover.kind ) {
-        case Kind::Grass:
-            sway = kGrassSway * gust * std::sin(time_ * 2.3f - travel + placed.translation.z);
-            break;
-        case Kind::Flower:
-            sway = kFlowerSway * gust * std::sin(time_ * 1.7f - travel + placed.translation.z);
-            break;
-        case Kind::Tree:
-            sway = kTreeSway * gust * std::sin(time_ * 0.9f - travel);
-            break;
-        case Kind::Cloud:
-            // 雲は糸で吊られている：ゆっくり左右へ流れて、少し遅れて傾く
-            position.x += kCloudDrift * std::sin(time_ * 0.22f + placed.translation.z);
-            sway = kCloudSwing * std::sin(time_ * 0.22f + placed.translation.z + 1.2f);
-            break;
-        }
+        float sway = mover.style->Sway(time_, travel, gust, placed.translation, position); // ゆれ方は SwayStyle の派生が決める
         sway *= windStrength_;
 
         // 恐竜への反応：草と花は、恐竜から離れる向きへ押されて倒れ、ばねで揺れながら戻る
-        if ( mover.kind == Kind::Grass || mover.kind == Kind::Flower ) {
+        if ( mover.style->BendsAwayFromDino() ) {
             const float dx = placed.translation.x - dinoPosition.x;
             const float dz = placed.translation.z - dinoPosition.z;
             const float distance = std::sqrt(dx * dx + dz * dz);

@@ -1,4 +1,5 @@
 #pragma once
+#include "game/editor/strip/IStripTool.h"
 #include "game/editor/strip/StripContext.h"
 #include "game/editor/strip/StripLayout.h"
 #include "game/editor/strip/StripState.h"
@@ -11,18 +12,18 @@
 //   このパネルの中で敵の選択を変えた時は StripState::lastSelectedEnemy も合わせて更新する
 //   （「外から選ばれた」と取り違えてレールを開き直さないように）
 // =====================================================================
-class StripEnemyTool {
+class StripEnemyTool final : public IStripTool {
 public:
     // 戻り値 true = ドラッグ中の敵が消えていた等で、途中の操作を全部やめる必要がある
-    bool Update(const StripContext& context, StripState& state, const StripLayout& layout, bool hovered);
+    bool Update(const StripContext& context, StripState& state, const StripLayout& layout, bool hovered) override;
     // 右クリックメニュー（開いていなければ何もしない）
     void DrawContextMenu(const StripContext& context, StripState& state);
     // 展開図の上での Ctrl+Z / Ctrl+Y を敵の履歴へ回す（マウスが展開図の上にある間、毎フレーム呼ぶ）。
     //   戻り値 true = 戻す/やり直しをした（途中の操作を全部やめる必要がある）
     bool HandleUndoKeys(const StripContext& context);
 
-    void Cancel();
-    bool IsBusy() const { return drag_ != Drag::None; }
+    void Cancel() override;
+    bool IsBusy() const override { return drag_ != Drag::None; }
 
 private:
     enum class Drag { None, Move, RangeMin, RangeMax };

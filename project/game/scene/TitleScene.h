@@ -79,15 +79,17 @@ private:
 	void SkipIntro();           // 登場を飛ばしてメニューへ
 	void EnterMenu();
 	void ReleasePlayer();       // 決定の動きで止めていた移動と向きを元に戻す
+	void OnLogoLanded();        // ロゴが刺さった瞬間：音・メニューを出す・紙くず
+	void OnTongueHit();         // ベロが的に届いた瞬間：的を揺らす・音・紙くず
 
-	void UpdateIntro();
+	// 進行の段階ごとの状態クラス（中身は cpp。段階を足す時は、派生を 1 つ足して Phases::Of の表に 1 行足す）
+	class PhaseState;
+	struct Phases;
+	void ChangePhase(Phase next){ phase_ = next; } // 次の段階へ（状態クラスが呼ぶ）
 	// 道順（角の並び）の次の角へ向かう入力を作る（登場と、メニューの端から裏を回る時の自動操縦）
 	PlayerInput::AutoPilot SteerAutoPilot(const KazumimiEngine::Vector3* waypoints, int waypointCount);
 	int  PickMenuTarget(int selected, float screenSide); // A/D の行き先を決めて道順を作る（-1=左 / +1=右）。決めた的を返す
 	void BuildMenuRoute(int item, float direction); // 今いる所から的の正面までの道順（direction +1=A の向き / -1=D の向き。端から先は奥を回る）
-	void UpdateMenu();
-	void UpdateAim();
-	void UpdateTongue();
 	void UpdateEgg(float deltaTime);
 	void UpdateIrisOut(float deltaTime);
 	void UpdateTexts(float deltaTime);

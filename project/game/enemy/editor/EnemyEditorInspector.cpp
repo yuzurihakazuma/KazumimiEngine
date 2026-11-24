@@ -54,7 +54,7 @@ void EnemyEditorInspector::DrawNothingSelected(EnemySpawnModel& model){
 void EnemyEditorInspector::DrawSelected(EnemySpawnModel& model, const std::vector<SplineRail>& splineRails,
                                         int pickRail, float pickDist, bool hasPick){
     const int index = model.SelectedEntry();
-    EnemySpawnData& spawn = model.MutableDatas()[index];
+    EnemySpawnData spawn = model.Datas()[index]; // 写しを各欄で直して、欄のまとまりごとに書き戻す
     ImGui::PushID(index);
 
     char title[128];
@@ -70,6 +70,7 @@ void EnemyEditorInspector::DrawSelected(EnemySpawnModel& model, const std::vecto
     }
 
     DrawBasicSection(model, spawn);
+    model.SetEntry(index, spawn); // 「場所」の欄は model の中の敵を動かすので、その前に書き戻す
 
     // レールの長さは「場所」を描く前の値で以降の欄も揃える（この描画中にレールを選び直しても同じ）
     const bool validRail = ( spawn.railIndex >= 0 && spawn.railIndex < ( int ) splineRails.size() );
@@ -79,9 +80,11 @@ void EnemyEditorInspector::DrawSelected(EnemySpawnModel& model, const std::vecto
     }
 
     DrawPlaceSection(model, index, splineRails, railLength, validRail, pickRail, pickDist, hasPick);
+    spawn = model.Datas()[index]; // 動かした後の中身に合わせる
     DrawMotionSection(model, spawn, railLength);
     DrawBodySection(model, spawn);
     DrawTypeSection(model, spawn);
+    model.SetEntry(index, spawn);
     DrawCopyMotionSection(model, index);
 
     ImGui::Spacing();
@@ -91,7 +94,7 @@ void EnemyEditorInspector::DrawSelected(EnemySpawnModel& model, const std::vecto
 
     ImGui::PopID();
 
-    // 配列を書き換える操作は、spawn の参照を使い終わってから行う
+    // 配列を書き換える操作は、欄を全部描き終わってから行う
     if ( action == EntryAction::Duplicate ) {
         model.DuplicateEntry(index, splineRails);
     } else if ( action == EntryAction::Delete ) {
@@ -260,31 +263,31 @@ void EnemyEditorInspector::DrawTypeSection(EnemySpawnModel& model, EnemySpawnDat
 // ================= まとめて反映 =================
 void EnemyEditorInspector::DrawCopyMotionSection(EnemySpawnModel& model, int index){
     ImGui::SeparatorText("この動きを他の敵にも");
-    std::vector<EnemySpawnData>& spawns = model.MutableDatas();
-    const EnemySpawnData& spawn = spawns[index];
+    const std::vector<EnemySpawnData>& spawns = model.Datas();
+    const EnemySpawnData spawn = spawns[index];
     // 場所・名前・種類は写さない（動き・高さ・大きさだけ）
-    auto copyMotionTo = [&](EnemySpawnData& target){
-        float keepMin = target.patrolMin, keepMax = target.patrolMax;
+    auto copyMotionTo = [&](int targetIndex){
+        const EnemySpawnData& target = spawns[targetIndex];
         EnemySpawnData copied = spawn;
         copied.type      = target.type;
         copied.railIndex = target.railIndex;
         copied.distance  = target.distance;
         copied.name      = target.name;
-        copied.patrolMin = keepMin; // 行動範囲は場所に紐づくので相手のものを残す
-        copied.patrolMax = keepMax;
-        target = copied;
+        copied.patrolMin = target.patrolMin; // 行動範囲は場所に紐づくので相手のものを残す
+        copied.patrolMax = target.patrolMax;
+        model.SetEntry(targetIndex, copied);
     };
     float halfWidth = ( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x ) * 0.5f;
     if ( ImGui::Button("同じ種類の全員へ", ImVec2(halfWidth, 0.0f)) ) {
         for ( int i = 0; i < ( int ) spawns.size(); ++i ) {
-            if ( i != index && spawns[i].type == spawn.type ) { copyMotionTo(spawns[i]); }
+            if ( i != index && spawns[i].type == spawn.type ) { copyMotionTo(i); }
         }
         model.MarkChanged();
     }
     ImGui::SameLine();
     if ( ImGui::Button("同じレールの全員へ", ImVec2(halfWidth, 0.0f)) ) {
         for ( int i = 0; i < ( int ) spawns.size(); ++i ) {
-            if ( i != index && spawns[i].railIndex == spawn.railIndex ) { copyMotionTo(spawns[i]); }
+            if ( i != index && spawns[i].railIndex == spawn.railIndex ) { copyMotionTo(i); }
         }
         model.MarkChanged();
     }

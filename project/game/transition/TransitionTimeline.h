@@ -42,8 +42,9 @@ public:
 	void Update(float deltaTime);
 
 	float GetTime() const{ return time_; }
-	std::vector<Part>& Parts(){ return parts_; }
 	const std::vector<Part>& Parts() const{ return parts_; }
+	// 部品 1 つを書き換える（調整ウィンドウ用）
+	void SetPart(size_t index, const Part& part){ if ( index < parts_.size() ) { parts_[index] = part; } }
 
 private:
 	std::vector<Part> parts_;

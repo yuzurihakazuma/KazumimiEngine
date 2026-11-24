@@ -160,9 +160,15 @@ private:
     };
     std::vector<TrailPuff> puffs_;
 
-    // パフ用 Obj3d のプール（モデル名ごと）。粒1個ごとの生成/破棄は
-    // GPUリソース確保を伴い、敵を倒した瞬間などの一斉発生でカクつく原因になる
-    std::unordered_map<std::string, std::vector<std::unique_ptr<KazumimiEngine::Obj3d>>> puffPool_;
+    // 見た目（Obj3d）のプール（モデル名ごと。オブジェクトプール）。けむりの粒・殻の欠片・卵・吐き出す敵ボールで使う。
+    //   1 個ごとの生成/破棄は GPU リソースの確保を伴い、敵を倒した瞬間などの一斉発生でカクつく原因になるので、
+    //   使い終わった物は捨てずにここへ返して、次に出す時に使い回す
+    std::unordered_map<std::string, std::vector<std::unique_ptr<KazumimiEngine::Obj3d>>> visualPool_;
+    static constexpr size_t kPoolLimit = 32; // モデルごとに取っておく数の上限
+    // プールから 1 個出す（空なら作る。モデルが未登録なら nullptr）
+    std::unique_ptr<KazumimiEngine::Obj3d> AcquireVisual(const std::string& modelName);
+    // 使い終わった 1 個をプールへ返す（上限を超える分は捨てる）
+    void ReleaseVisual(const std::string& modelName, std::unique_ptr<KazumimiEngine::Obj3d> visual);
     float trailTimer_ = 0.0f; // 一定間隔でトレイルを出すためのタイマー
 
     // --- 吐き出し弾（飲んだ敵をそのまま前方へ発射。モンスターボール柄の球）---
@@ -180,9 +186,9 @@ private:
     std::vector<SpitBall> spits_;
 
 public:
-    // パフ用 Obj3d の事前生成（シーンロード時に呼ぶ）。初回バーストで一斉に Create すると
+    // 見た目（Obj3d）の事前生成（シーンロード時に呼ぶ）。初回バーストで一斉に Create すると
     //   その瞬間だけ固まるので、ここでプールに count 個積んでおく（プールはモード切替でも生き続ける）
-    void PrewarmPuffPool(const std::string& modelName, int count);
+    void PrewarmVisualPool(const std::string& modelName, int count);
 
     // パフを1個出す（pos=位置, vel=初速, color=色, scale=大きさ, life=寿命秒, modelName=見た目）。
     //   modelName="fxSphere"（白い専用の粒。敵の"sphere"とは別物）の時だけ color でタイントする。

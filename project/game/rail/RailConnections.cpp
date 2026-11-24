@@ -17,13 +17,13 @@ namespace {
     // フェーズ0：ループ（円状レール）の検出。front と back が近ければ閉じたレール
     void DetectLoops(std::vector<SplineRail>& rails){
         for ( auto& rail : rails ) {
-            rail.EditLinks().isLoop = false;
+            rail.SetIsLoop(false);
             if ( rail.Nodes().size() < 3 ) continue;
             if ( VectorMath::Distance(rail.Nodes().front(), rail.Nodes().back()) >= kConnThreshold ) continue;
             Vector3 mid = MidPoint(rail.Nodes().front(), rail.Nodes().back());
-            rail.EditNodes().front() = mid;
-            rail.EditNodes().back()  = mid;
-            rail.EditLinks().isLoop = true;
+            rail.SetFrontNode(mid);
+            rail.SetBackNode(mid);
+            rail.SetIsLoop(true);
             rail.BuildDistanceTable();
         }
     }
@@ -43,13 +43,13 @@ namespace {
 
                 float ff = VectorMath::Distance(iFront, jFront);
                 float fb = VectorMath::Distance(iFront, jBack);
-                if ( ff < bestFront ) { bestFront = ff; rails[i].EditLinks().frontConnIndex = j; rails[i].EditLinks().frontConnToFront = true; }
-                if ( fb < bestFront ) { bestFront = fb; rails[i].EditLinks().frontConnIndex = j; rails[i].EditLinks().frontConnToFront = false; }
+                if ( ff < bestFront ) { bestFront = ff; rails[i].SetFrontConnIndex(j); rails[i].SetFrontConnToFront(true); }
+                if ( fb < bestFront ) { bestFront = fb; rails[i].SetFrontConnIndex(j); rails[i].SetFrontConnToFront(false); }
 
                 float bf = VectorMath::Distance(iBack, jFront);
                 float bb = VectorMath::Distance(iBack, jBack);
-                if ( bf < bestBack ) { bestBack = bf; rails[i].EditLinks().backConnIndex = j; rails[i].EditLinks().backConnToFront = true; }
-                if ( bb < bestBack ) { bestBack = bb; rails[i].EditLinks().backConnIndex = j; rails[i].EditLinks().backConnToFront = false; }
+                if ( bf < bestBack ) { bestBack = bf; rails[i].SetBackConnIndex(j); rails[i].SetBackConnToFront(true); }
+                if ( bb < bestBack ) { bestBack = bb; rails[i].SetBackConnIndex(j); rails[i].SetBackConnToFront(false); }
             }
         }
     }
@@ -70,18 +70,19 @@ namespace {
                 const int  j       = isFront ? rails[i].Links().frontConnIndex   : rails[i].Links().backConnIndex;
                 const bool toFront = isFront ? rails[i].Links().frontConnToFront : rails[i].Links().backConnToFront;
                 if ( j < 0 || j == i ) continue;
-                auto& nodes = rails[j].EditNodes();
+                const auto& nodes = rails[j].Nodes();
                 const size_t n = nodes.size();
                 if ( n < 3 ) continue;
                 const Vector3& tip = isFront ? rails[i].Nodes().front() : rails[i].Nodes().back();
-                Vector3& jEnd = toFront ? nodes.front() : nodes.back();
+                const Vector3& jEnd = toFront ? nodes.front() : nodes.back();
                 const Vector3& second = toFront ? nodes[1] : nodes[n - 2];
                 const Vector3& third = toFront ? nodes[2] : nodes[n - 3];
                 if ( VectorMath::Distance(tip, second) + 1e-4f >= VectorMath::Distance(tip, jEnd) ) continue;
                 const float len = VectorMath::Distance(second, third);
                 if ( len < 1e-4f ) continue;
                 const Vector3 dir { ( second.x - third.x ) / len, ( second.y - third.y ) / len, ( second.z - third.z ) / len };
-                jEnd = { second.x + dir.x * kKeep, second.y + dir.y * kKeep, second.z + dir.z * kKeep };
+                const Vector3 pulled { second.x + dir.x * kKeep, second.y + dir.y * kKeep, second.z + dir.z * kKeep };
+                if ( toFront ) { rails[j].SetFrontNode(pulled); } else { rails[j].SetBackNode(pulled); }
                 moved = true;
             }
         }
@@ -120,12 +121,10 @@ namespace {
                     const bool toFront = isFront ? rails[i].Links().frontConnToFront : rails[i].Links().backConnToFront;
                     if ( j < 0 || !orig[j].valid ) continue;
                     if ( mutual(i, isFront, j, toFront) != wantMutual ) continue;
-                    Vector3& node = isFront ? rails[i].EditNodes().front() : rails[i].EditNodes().back();
-                    if ( wantMutual ) {
-                        node = MidPoint(isFront ? orig[i].front : orig[i].back, toFront ? orig[j].front : orig[j].back);
-                    } else {
-                        node = toFront ? rails[j].Nodes().front() : rails[j].Nodes().back();
-                    }
+                    const Vector3 node = wantMutual
+                        ? MidPoint(isFront ? orig[i].front : orig[i].back, toFront ? orig[j].front : orig[j].back)
+                        : ( toFront ? rails[j].Nodes().front() : rails[j].Nodes().back() );
+                    if ( isFront ) { rails[i].SetFrontNode(node); } else { rails[i].SetBackNode(node); }
                     moved = true;
                 }
             }
@@ -142,7 +141,7 @@ namespace {
     //   わざと曲げた角（折れ線の向きが 45° 以上違う）と、直線でつなぐレールは、そのまま角にする。入れたら true
     bool SmoothWeldedEnds(std::vector<SplineRail>& rails){
         constexpr float kCornerCos = 0.7071f; // 45°。これ以上曲がっていたら角（乗り換えデバッガの「角」と同じ）
-        for ( auto& rail : rails ) { rail.EditLinks().hasFrontTangent = false; rail.EditLinks().hasBackTangent = false; }
+        for ( auto& rail : rails ) { rail.SetHasFrontTangent(false); rail.SetHasBackTangent(false); }
         bool changed = false;
         for ( int i = 0; i < ( int ) rails.size(); ++i ) {
             SplineRail& a = rails[i];
@@ -180,10 +179,10 @@ namespace {
                 // それぞれのレールの「始点→終点」の向きに直して渡す（終点側でつながる a は同じ向き、始点側なら逆。b はその反対）
                 const float signA = aFront ? -1.0f : 1.0f;
                 const float signB = bFront ? 1.0f : -1.0f;
-                ( aFront ? a.EditLinks().hasFrontTangent : a.EditLinks().hasBackTangent ) = true;
-                ( aFront ? a.EditLinks().frontTangent : a.EditLinks().backTangent ) = { through.x * signA, through.y * signA, through.z * signA };
-                ( bFront ? b.EditLinks().hasFrontTangent : b.EditLinks().hasBackTangent ) = true;
-                ( bFront ? b.EditLinks().frontTangent : b.EditLinks().backTangent ) = { through.x * signB, through.y * signB, through.z * signB };
+                const Vector3 tangentA { through.x * signA, through.y * signA, through.z * signA };
+                const Vector3 tangentB { through.x * signB, through.y * signB, through.z * signB };
+                if ( aFront ) { a.SetHasFrontTangent(true); a.SetFrontTangent(tangentA); } else { a.SetHasBackTangent(true); a.SetBackTangent(tangentA); }
+                if ( bFront ) { b.SetHasFrontTangent(true); b.SetFrontTangent(tangentB); } else { b.SetHasBackTangent(true); b.SetBackTangent(tangentB); }
                 changed = true;
             }
         }
@@ -202,7 +201,7 @@ namespace {
             for ( int end = 0; end < 2; ++end ) {
                 const bool isFront = ( end == 0 );
                 if ( ( isFront ? rj.Links().frontConnIndex : rj.Links().backConnIndex ) >= 0 ) continue; // 端どうしでつながっている
-                Vector3& node = isFront ? rj.EditNodes().front() : rj.EditNodes().back();
+                const Vector3 node = isFront ? rj.Nodes().front() : rj.Nodes().back();
                 for ( int i = 0; i < ( int ) rails.size(); ++i ) {
                     if ( i == j ) continue;
                     const SplineRail& ri = rails[i];
@@ -214,7 +213,7 @@ namespace {
                     const Vector3 cp = ri.GetPositionByDistance(cd);
                     const float gap = VectorMath::Distance(cp, node);
                     if ( gap > kConnThreshold || gap < 1e-4f ) continue;
-                    node = cp;
+                    if ( isFront ) { rj.SetFrontNode(cp); } else { rj.SetBackNode(cp); }
                     moved = true;
                     break;
                 }
@@ -263,7 +262,7 @@ namespace {
                     bp.targetRail = j;
                     bp.targetDist = e.isFront ? 0.0f : rj.GetLength();
                     bp.zSign      = ( cross >= 0.0f ) ? +1 : -1;
-                    ri.EditLinks().branchPoints.push_back(bp);
+                    ri.AddBranchPoint(bp);
                     break; // この端は登録済み。他のレールへの多重登録はしない
                 }
             }
@@ -274,14 +273,14 @@ namespace {
 void RailConnections::Build(std::vector<SplineRail>& rails){
     bool hadGhost = false;
     for ( auto& rail : rails ) {
-        rail.EditLinks().frontConnIndex = -1;
-        rail.EditLinks().backConnIndex  = -1;
-        rail.EditLinks().branchPoints.clear();
+        rail.SetFrontConnIndex(-1);
+        rail.SetBackConnIndex(-1);
+        rail.ClearBranchPoints();
         hadGhost = hadGhost || rail.Links().hasFrontTangent || rail.Links().hasBackTangent;
-        rail.EditLinks().hasFrontTangent = false;
-        rail.EditLinks().hasBackTangent  = false;
+        rail.SetHasFrontTangent(false);
+        rail.SetHasBackTangent(false);
     }
-    if ( hadGhost ) { for ( auto& rail : rails ) { rail.BuildDistanceTable(); } } // 作り直し：前のつなぎ目の曲がりを消してから測る
+    if ( hadGhost ) { for ( auto& rail : rails ) { rail.RebuildIfDirty(); } } // 作り直し：前のつなぎ目の曲がりを消してから測る（曲がりを消したレールだけ）
     DetectLoops(rails);
     FindEndConnections(rails);
     const bool trimmed = TrimStubEnds(rails);
@@ -289,11 +288,12 @@ void RailConnections::Build(std::vector<SplineRail>& rails){
     const bool welded = WeldEnds(rails);
     // つなぎ目の向きをなめらかにつなぐ（溶接で点が動いた後に。曲線が変わるので距離の表も作り直す）
     const bool smoothed = SmoothWeldedEnds(rails);
+    // 点や向きが変わったレールだけ作り直す（変わっていないレールの表は、作り直しても同じ物になる）
     if ( welded || trimmed || smoothed ) {
-        for ( auto& rail : rails ) { rail.BuildDistanceTable(); }
+        for ( auto& rail : rails ) { rail.RebuildIfDirty(); }
     }
     if ( SnapEndsToBodies(rails) ) {
-        for ( auto& rail : rails ) { rail.BuildDistanceTable(); }
+        for ( auto& rail : rails ) { rail.RebuildIfDirty(); }
     }
     FindBranchPoints(rails);
 }

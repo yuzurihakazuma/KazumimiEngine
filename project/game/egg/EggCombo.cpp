@@ -53,16 +53,172 @@ namespace {
 EggCombo::EggCombo() = default;
 EggCombo::~EggCombo() = default;
 
-EggCombo::Kind EggCombo::KindOf(const std::string& model, bool& outTarget){
-    outTarget = true;
-    if ( model == "combo_target" ) { return Kind::Bullseye; }
-    if ( model.rfind("tree_", 0) == 0 ) { return Kind::Tree; }
-    if ( model == "fence_sticks" ) { return Kind::Fence; }
-    if ( model.rfind("paper_rock_", 0) == 0 ) { return Kind::Rock; }
-    if ( model == "sign_arrow" ) { return Kind::Sign; }
-    if ( model.rfind("flower_", 0) == 0 ) { return Kind::Flower; }
-    outTarget = false;
-    return Kind::Tree;
+// =====================================================================
+//  的の種類ごとのふるまい（はじけた時の粒の色・飛ぶ時の回り方・どこを狙うか）。
+//   EggCombo は、的の種類を見て分岐しない（Target が持つ TargetStyle の仮想関数を呼ぶだけ）
+// =====================================================================
+class EggCombo::TargetStyle {
+public:
+    virtual ~TargetStyle() = default;
+    // はじけた時の粒の色 2 つ（既定＝葉っぱの緑）
+    virtual void ChipColors(Vector4& a, Vector4& b) const { a = { 0.35f, 0.75f, 0.30f, 1.0f }; b = { 0.22f, 0.58f, 0.22f, 1.0f }; }
+    // 飛ぶ時の回り方（side＝飛ぶ向きの左右。±1）
+    virtual Vector3 Spin(float side) const = 0;
+    // 次の的が無い時の飛び方を変える（既定＝変えない）。outDir＝はじけた向き
+    virtual void AdjustLooseVelocity(Vector3& /*velocity*/, const Vector3& /*outDir*/) const {}
+    // 当たりの中心の高さ（箱の高さに対する割合）と、当たりの半径（箱の大きい辺に対する割合）
+    virtual float AimHeight() const { return 0.5f; }
+    virtual float AimRadius() const { return 0.45f; }
+    // かくれ花が隠れている事があるか（木）
+    virtual bool CanHideFlower() const { return false; }
+    // コンボの的（連鎖の始まりにすると、コンボ花の記録が付く）か
+    virtual bool IsBullseye() const { return false; }
+};
+
+// 的の種類ごとのクラスの入れ物
+struct EggCombo::TargetStyles {
+    // 背景のモデル名 → 的のふるまい（的にならない物は nullptr）
+    static const TargetStyle* For(const std::string& model);
+
+    // 木：葉の所を狙う。くるくる回りながら山なりに飛ぶ
+    class Tree final : public TargetStyle {
+    public:
+        Vector3 Spin(float side) const override { return { 0.0f, 3.0f * side, 7.0f * side }; }
+        float AimHeight() const override { return 0.62f; }
+        float AimRadius() const override { return 0.32f; }
+        bool  CanHideFlower() const override { return true; }
+    };
+
+    // 柵：横に倒れながら弾かれる（粒は木くず）
+    class Fence final : public TargetStyle {
+    public:
+        void ChipColors(Vector4& a, Vector4& b) const override { a = { 0.78f, 0.56f, 0.32f, 1.0f }; b = { 0.58f, 0.40f, 0.22f, 1.0f }; }
+        Vector3 Spin(float side) const override { return { 0.0f, 1.5f * side, 9.0f * side }; }
+    };
+
+    // 岩：低く跳ねて転がる（粒は紙のかけら）
+    class Rock final : public TargetStyle {
+    public:
+        void ChipColors(Vector4& a, Vector4& b) const override { a = { 0.88f, 0.86f, 0.80f, 1.0f }; b = { 0.65f, 0.63f, 0.60f, 1.0f }; }
+        Vector3 Spin(float /*side*/) const override { return { 12.0f, 0.0f, 0.0f }; }
+        void AdjustLooseVelocity(Vector3& velocity, const Vector3& outDir) const override { velocity = Add(Multiply(5.0f, outDir), { 0.0f, 3.5f, 0.0f }); }
+    };
+
+    // 看板：たてに回って飛ぶ（粒は木くず）
+    class Sign final : public TargetStyle {
+    public:
+        void ChipColors(Vector4& a, Vector4& b) const override { a = { 0.78f, 0.56f, 0.32f, 1.0f }; b = { 0.58f, 0.40f, 0.22f, 1.0f }; }
+        Vector3 Spin(float /*side*/) const override { return { 14.0f, 0.0f, 0.0f }; }
+    };
+
+    // 花：ぽんと上に跳ねる（粒は花びら）
+    class Flower final : public TargetStyle {
+    public:
+        void ChipColors(Vector4& a, Vector4& b) const override { a = { 1.00f, 0.55f, 0.72f, 1.0f }; b = { 1.00f, 0.75f, 0.30f, 1.0f }; }
+        Vector3 Spin(float /*side*/) const override { return { 0.0f, 8.0f, 0.0f }; }
+        void AdjustLooseVelocity(Vector3& velocity, const Vector3& outDir) const override { velocity = Add(Multiply(1.0f, outDir), { 0.0f, 8.0f, 0.0f }); }
+    };
+
+    // コンボの的：くるくる回って飛ぶ
+    class Bullseye final : public TargetStyle {
+    public:
+        Vector3 Spin(float side) const override { return { 0.0f, 16.0f * side, 0.0f }; }
+        bool IsBullseye() const override { return true; }
+    };
+};
+
+const EggCombo::TargetStyle* EggCombo::TargetStyles::For(const std::string& model){
+    static const Tree tree {};
+    static const Fence fence {};
+    static const Rock rock {};
+    static const Sign sign {};
+    static const Flower flower {};
+    static const Bullseye bullseye {};
+    if ( model == "combo_target" ) { return &bullseye; }
+    if ( model.rfind("tree_", 0) == 0 ) { return &tree; }
+    if ( model == "fence_sticks" ) { return &fence; }
+    if ( model.rfind("paper_rock_", 0) == 0 ) { return &rock; }
+    if ( model == "sign_arrow" ) { return &sign; }
+    if ( model.rfind("flower_", 0) == 0 ) { return &flower; }
+    return nullptr;
+}
+
+// =====================================================================
+//  的の状態ごとのクラス。
+//   立っている → （卵やはじけた物が当たる）→ 飛んでいる → （溶け切る）→ 消えている → 生え戻り中 → 立っている。
+//   消えてから生え戻るまでの進み（次の状態へ進むか）は、各状態が決める
+// =====================================================================
+class EggCombo::TargetState {
+public:
+    virtual ~TargetState() = default;
+    // 当てられるか（立っている時だけ）
+    virtual bool CanBeHit() const { return false; }
+    // 毎フレーム。index＝的の番号
+    virtual void Update(EggCombo& /*combo*/, int /*index*/, Target& /*target*/, float /*dt*/) const {}
+};
+
+// 的の状態クラスの入れ物（EggCombo の中の物に触れるよう、EggCombo の中に置く）
+struct EggCombo::TargetStates {
+    // State の番号と同じ並びの表
+    static const TargetState& Of(State state);
+
+    // 立っている（当てられる）
+    class Idle final : public TargetState {
+    public:
+        bool CanBeHit() const override { return true; }
+    };
+
+    // はじけて飛んでいる（動きは、飛んでいる物の一覧の方で進める）
+    class Flying final : public TargetState {};
+
+    // 消えている：数秒たったら、元の場所にぽんと出る
+    class Gone final : public TargetState {
+    public:
+        void Update(EggCombo& combo, int index, Target& target, float dt) const override {
+            target.timer -= dt;
+            if ( target.timer > 0.0f ) { return; }
+            target.proxy = combo.AcquireProxy(index);
+            if ( target.proxy < 0 ) {
+                // 代役が足りない：生える動きは出さずに、そのまま戻す
+                combo.backdrop_->SetComboHidden(target.item, false);
+                target.state = State::Idle;
+                return;
+            }
+            target.state = State::Regrowing;
+            target.timer = 0.0f;
+            combo.SpawnChips(target, { target.mid.x, target.mid.y - target.halfHeight, target.mid.z }, 6);
+        }
+    };
+
+    // 生え戻り中：0 → 1.15 → 1（ぽんと生える）。生え切ったら、立っている状態へ
+    class Regrowing final : public TargetState {
+    public:
+        void Update(EggCombo& combo, int /*index*/, Target& target, float dt) const override {
+            target.timer += dt;
+            const float t = target.timer / kRegrowTime;
+            if ( t >= 1.0f ) {
+                combo.ReleaseProxy(target.proxy, true);
+                target.proxy = -1;
+                target.state = State::Idle;
+                return;
+            }
+            // 根元から伸びるように、回る中心を下げる
+            const float grow = t < 0.7f ? 1.15f * std::sin(t / 0.7f * kPi * 0.5f) : 1.15f - 0.15f * ( t - 0.7f ) / 0.3f;
+            const BackdropItem& item = combo.backdrop_->Items()[target.item];
+            const Vector3 base { target.mid.x, target.mid.y - target.halfHeight, target.mid.z };
+            combo.PlaceProxy(target.proxy, target, { base.x, base.y + target.halfHeight * grow, base.z },
+                             Math::ToRadians(item.rot), ( std::max )( grow, 0.01f ));
+        }
+    };
+};
+
+const EggCombo::TargetState& EggCombo::TargetStates::Of(State state){
+    static const Idle idle {};
+    static const Flying flying {};
+    static const Gone gone {};
+    static const Regrowing regrowing {};
+    static const TargetState* const kTable[] = { &idle, &flying, &gone, &regrowing };
+    return *kTable[static_cast<size_t>( state )];
 }
 
 // 背景の中から的になる物を集める（木は葉の所を狙う。一部の木にかくれ花）
@@ -75,25 +231,23 @@ void EggCombo::BuildTargets(){
     builtFor_ = items.size();
     for ( int i = 0; i < ( int ) items.size(); ++i ) {
         if ( items[i].removed ) { continue; }
-        bool isTarget = false;
-        const Kind kind = KindOf(items[i].model, isTarget);
-        if ( !isTarget ) { continue; }
+        const TargetStyle* style = TargetStyles::For(items[i].model);
+        if ( !style ) { continue; } // 的にならない物
         Vector3 lo, hi;
         if ( !backdrop_->WorldBounds(i, lo, hi) ) { continue; }
         Target target;
         target.item = i;
-        target.kind = kind;
+        target.style = style;
         const Vector3 size = Subtract(hi, lo);
-        const bool tree = kind == Kind::Tree;
-        target.center = { ( lo.x + hi.x ) * 0.5f, lo.y + size.y * ( tree ? 0.62f : 0.5f ), ( lo.z + hi.z ) * 0.5f };
+        target.center = { ( lo.x + hi.x ) * 0.5f, lo.y + size.y * style->AimHeight(), ( lo.z + hi.z ) * 0.5f };
         target.mid = { ( lo.x + hi.x ) * 0.5f, ( lo.y + hi.y ) * 0.5f, ( lo.z + hi.z ) * 0.5f };
         target.halfHeight = size.y * 0.5f;
-        target.radius = std::clamp(( std::max )( size.x, size.y ) * ( tree ? 0.32f : 0.45f ), 0.5f, 2.0f);
+        target.radius = std::clamp(( std::max )( size.x, size.y ) * style->AimRadius(), 0.5f, 2.0f);
         // かくれ花：木の5本に1本くらい（置いた位置から決まる＝毎回同じ木。tools/hud/find_hidden_flowers.py でも同じ計算）
         const uint32_t h = Hash(( uint32_t ) ( std::lround(items[i].pos.x * 10.0f) * 73856093 ) ^ ( uint32_t ) ( std::lround(items[i].pos.z * 10.0f) * 19349663 ));
-        target.flower = tree && ( h % 5u ) == 0u;
+        target.flower = style->CanHideFlower() && ( h % 5u ) == 0u;
         if ( target.flower ) { ++flowersTotal_; }
-        if ( kind == Kind::Bullseye ) { ++comboFlowerTotal_; }
+        if ( style->IsBullseye() ) { ++comboFlowerTotal_; }
         targets_.push_back(target);
     }
 }
@@ -156,7 +310,7 @@ void EggCombo::PlaceProxy(int proxy, const Target& target, const Vector3& center
 // ===== 光る =====
 void EggCombo::ReleaseHighlight(){
     if ( highlightProxy_ >= 0 ) {
-        const bool idle = highlightTarget_ >= 0 && highlightTarget_ < ( int ) targets_.size() && targets_[highlightTarget_].state == State::Idle;
+        const bool idle = highlightTarget_ >= 0 && highlightTarget_ < ( int ) targets_.size() && TargetStates::Of(targets_[highlightTarget_].state).CanBeHit();
         ReleaseProxy(highlightProxy_, idle);
     }
     highlightProxy_ = -1;
@@ -164,7 +318,7 @@ void EggCombo::ReleaseHighlight(){
 }
 
 void EggCombo::SetAimHighlight(int target){
-    if ( target >= 0 && ( target >= ( int ) targets_.size() || targets_[target].state != State::Idle ) ) { target = -1; }
+    if ( target >= 0 && ( target >= ( int ) targets_.size() || !TargetStates::Of(targets_[target].state).CanBeHit() ) ) { target = -1; }
     if ( target == highlightTarget_ ) { return; }
     ReleaseHighlight();
     if ( target < 0 ) { return; }
@@ -206,7 +360,7 @@ bool EggCombo::PickForAim(const Camera& camera, float cursorX, float cursorY, fl
     float bestDepth = 1e9f;
     for ( int k = 0; k < ( int ) targets_.size(); ++k ) {
         const Target& target = targets_[k];
-        if ( target.state != State::Idle ) { continue; } // 飛んでいる・まだ生え戻っていない
+        if ( !TargetStates::Of(target.state).CanBeHit() ) { continue; } // 飛んでいる・まだ生え戻っていない
         // 反転で隠している物は狙わない（光っている自分自身の代役は除く）
         if ( k != highlightTarget_ && backdrop_->IsRuntimeHidden(target.item) ) { continue; }
         const Vector3 toTarget = Subtract(target.center, playerPos);
@@ -302,7 +456,7 @@ int EggCombo::PickNext(int from, const Vector3& outDir, const std::vector<int>& 
         if ( k == from || std::find(visited.begin(), visited.end(), k) != visited.end() ) { continue; }
         const Target& target = targets_[k];
         if ( live ) {
-            if ( target.state != State::Idle ) { continue; }
+            if ( !TargetStates::Of(target.state).CanBeHit() ) { continue; }
             if ( backdrop_->IsRuntimeHidden(target.item) && k != highlightTarget_ ) { continue; }
         }
         const Vector3 to = Subtract(target.center, fromPos);
@@ -381,13 +535,8 @@ void EggCombo::DrawPreview(const std::vector<int>& items, const Camera& camera){
 
 // 種類ごとの粒（木＝葉っぱ / 柵・看板＝木くず / 岩＝紙のかけら / 花＝花びら）
 void EggCombo::SpawnChips(const Target& target, const Vector3& at, int count){
-    Vector4 a { 0.35f, 0.75f, 0.30f, 1.0f }, b { 0.22f, 0.58f, 0.22f, 1.0f };
-    switch ( target.kind ) {
-    case Kind::Fence: case Kind::Sign: a = { 0.78f, 0.56f, 0.32f, 1.0f }; b = { 0.58f, 0.40f, 0.22f, 1.0f }; break;
-    case Kind::Rock:   a = { 0.88f, 0.86f, 0.80f, 1.0f }; b = { 0.65f, 0.63f, 0.60f, 1.0f }; break;
-    case Kind::Flower: a = { 1.00f, 0.55f, 0.72f, 1.0f }; b = { 1.00f, 0.75f, 0.30f, 1.0f }; break;
-    default: break;
-    }
+    Vector4 a {}, b {};
+    target.style->ChipColors(a, b); // 粒の色は TargetStyle の派生が決める
     uint32_t seed = ( uint32_t ) target.item * 7919u + ( uint32_t ) count;
     for ( int i = 0; i < count; ++i ) {
         const float angle = ( float ) i / count * 2.0f * kPi + Rand01(seed) * 0.5f;
@@ -400,7 +549,7 @@ void EggCombo::SpawnChips(const Target& target, const Vector3& at, int count){
 // 物がはじける：根元から外れて、次の物へ（無ければ奥と上へ）回りながら飛ぶ
 void EggCombo::Burst(int targetIndex, int chainIndex, const Vector3& at, const Vector3& outDir){
     Target& target = targets_[targetIndex];
-    if ( target.state != State::Idle ) { return; }
+    if ( !TargetStates::Of(target.state).CanBeHit() ) { return; }
     Chain& chain = chains_[chainIndex];
     chain.count++;
     chain.visited.push_back(targetIndex);
@@ -476,17 +625,9 @@ void EggCombo::Burst(int targetIndex, int chainIndex, const Vector3& at, const V
         flyer.aim = -1;
         flyer.dissolveAt = 0.35f;
     }
-    // 種類ごとの飛び方（回り方）
-    switch ( target.kind ) {
-    case Kind::Tree:   flyer.spin = { 0.0f, 3.0f * side, 7.0f * side }; break;                 // くるくる回りながら山なり
-    case Kind::Fence:  flyer.spin = { 0.0f, 1.5f * side, 9.0f * side }; break;                 // 横に倒れながら弾かれる
-    case Kind::Rock:   flyer.spin = { 12.0f, 0.0f, 0.0f };                                     // 低く跳ねて転がる
-                       if ( next < 0 ) { flyer.vel = Add(Multiply(5.0f, outDir), { 0.0f, 3.5f, 0.0f }); } break;
-    case Kind::Sign:   flyer.spin = { 14.0f, 0.0f, 0.0f }; break;                               // たてに回って飛ぶ
-    case Kind::Bullseye: flyer.spin = { 0.0f, 16.0f * side, 0.0f }; break;                        // 的：くるくる回って飛ぶ
-    case Kind::Flower: flyer.spin = { 0.0f, 8.0f, 0.0f };                                     // ぽんと上に跳ねる
-                       if ( next < 0 ) { flyer.vel = Add(Multiply(1.0f, outDir), { 0.0f, 8.0f, 0.0f }); } break;
-    }
+    // 種類ごとの飛び方（回り方。次の的が無い時の飛び方を変える種類もある）
+    flyer.spin = target.style->Spin(side);
+    if ( next < 0 ) { target.style->AdjustLooseVelocity(flyer.vel, outDir); }
     flyer.spin = Multiply(0.45f + 0.55f * momentum, flyer.spin);
     flyers_.push_back(flyer);
 }
@@ -507,7 +648,7 @@ void EggCombo::Update(const Vector3& playerPos, const Camera* camera, float dt){
         if ( !eggs_->Contains(shot.egg) || !shot.egg->IsFlying() ) { it = shots_.erase(it); continue; }
         Vector3 at;
         const Target& target = targets_[shot.target];
-        if ( target.state == State::Idle
+        if ( TargetStates::Of(target.state).CanBeHit()
             && EntryPoint(shot.egg->GetPrevPosition(), shot.egg->GetPosition(), target.center, target.radius, at) ) {
             const Vector3 eggDir = Subtract(shot.egg->GetPosition(), shot.egg->GetPrevPosition());
             const Vector3 outDir = BounceDir(target.center, at, eggDir);
@@ -530,7 +671,7 @@ void EggCombo::Update(const Vector3& playerPos, const Camera* camera, float dt){
         if ( flyer.aim >= 0 ) {
             Vector3 at;
             const Target& aim = targets_[flyer.aim];
-            if ( aim.state == State::Idle && EntryPoint(flyer.prev, flyer.pos, aim.center, aim.radius + 0.3f, at) ) {
+            if ( TargetStates::Of(aim.state).CanBeHit() && EntryPoint(flyer.prev, flyer.pos, aim.center, aim.radius + 0.3f, at) ) {
                 const int aimIndex = flyer.aim;
                 const int chainIndex = flyer.chain;
                 const Vector3 outDir = BounceDir(aim.center, targets_[flyer.target].center, flyer.vel); // 前の物の真ん中 → この物の真ん中
@@ -538,7 +679,7 @@ void EggCombo::Update(const Vector3& playerPos, const Camera* camera, float dt){
                 flyer.dissolveAt = flyer.t;
                 flyer.vel = { -flyer.vel.x * 0.25f, 2.0f, -flyer.vel.z * 0.25f }; // ぶつかって少し跳ね返り、落ちながら溶ける
                 Burst(aimIndex, chainIndex, at, outDir); // flyers_ に足すので、この後は flyers_[i] で触る
-            } else if ( flyer.t > flyer.flightTime + 0.25f || aim.state != State::Idle ) {
+            } else if ( flyer.t > flyer.flightTime + 0.25f || !TargetStates::Of(aim.state).CanBeHit() ) {
                 flyer.aim = -1;
                 flyer.dissolveAt = flyer.t;
             }
@@ -565,31 +706,7 @@ void EggCombo::Update(const Vector3& playerPos, const Camera* camera, float dt){
     // 生え戻る：数秒たったら、元の場所にぽんと出る
     for ( int k = 0; k < ( int ) targets_.size(); ++k ) {
         Target& target = targets_[k];
-        if ( target.state == State::Gone ) {
-            target.timer -= dt;
-            if ( target.timer <= 0.0f ) {
-                target.proxy = AcquireProxy(k);
-                if ( target.proxy < 0 ) { backdrop_->SetComboHidden(target.item, false); target.state = State::Idle; continue; }
-                target.state = State::Regrowing;
-                target.timer = 0.0f;
-                SpawnChips(target, { target.mid.x, target.mid.y - target.halfHeight, target.mid.z }, 6);
-            }
-        } else if ( target.state == State::Regrowing ) {
-            target.timer += dt;
-            const float t = target.timer / kRegrowTime;
-            if ( t >= 1.0f ) {
-                ReleaseProxy(target.proxy, true);
-                target.proxy = -1;
-                target.state = State::Idle;
-                continue;
-            }
-            // 0 → 1.15 → 1（ぽんと生える）。根元から伸びるように、回る中心を下げる
-            const float grow = t < 0.7f ? 1.15f * std::sin(t / 0.7f * kPi * 0.5f) : 1.15f - 0.15f * ( t - 0.7f ) / 0.3f;
-            const BackdropItem& item = backdrop_->Items()[target.item];
-            const Vector3 base { target.mid.x, target.mid.y - target.halfHeight, target.mid.z };
-            PlaceProxy(target.proxy, target, { base.x, base.y + target.halfHeight * grow, base.z },
-                       Math::ToRadians(item.rot), ( std::max )( grow, 0.01f ));
-        }
+        TargetStates::Of(target.state).Update(*this, k, target, dt); // 消えている・生え戻り中の進みは、状態が決める
     }
 
     // 光っている物：明るく、ゆっくり脈打って光る。ロックした瞬間は一度だけぽんと大きく
@@ -636,7 +753,7 @@ void EggCombo::Finale(const Chain& chain, const Vector3& at){
         const float a = ( float ) i / 18.0f * 2.0f * kPi;
         eggs_->SpawnPuff(at, { std::cos(a) * 4.0f, 3.0f + ( i % 3 ) * 1.2f, std::sin(a) * 4.0f }, { 1.0f, 0.85f, 0.25f, 1.0f }, 0.28f, 1.0f);
     }
-    if ( chain.start < 0 || chain.start >= ( int ) targets_.size() || targets_[chain.start].kind != Kind::Bullseye ) { return; }
+    if ( chain.start < 0 || chain.start >= ( int ) targets_.size() || !targets_[chain.start].style->IsBullseye() ) { return; }
     const BackdropItem& bullseye = backdrop_->Items()[targets_[chain.start].item];
     const std::string spot = std::to_string(std::lround(bullseye.pos.x * 10.0f)) + "," + std::to_string(std::lround(bullseye.pos.z * 10.0f));
     if ( !StageRecords::GetInstance()->FindComboFlower(stage_, spot) ) { return; } // もう見つけた

@@ -123,7 +123,7 @@ void StripBlockTool::ApplyBlockStroke(const StripContext& context, const StripSt
 // =====================================================================
 //  道具：ブロック
 // =====================================================================
-void StripBlockTool::Update(const StripContext& context, const StripState& state, const StripLayout& layout, bool hovered){
+bool StripBlockTool::Update(const StripContext& context, StripState& state, const StripLayout& layout, bool hovered){
 #ifdef USE_IMGUI
     ImGuiIO& io = ImGui::GetIO();
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -158,7 +158,7 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
     //  何もしていない時：指している場所の予告と、操作の始まり
     // =============================================================
     if ( stroke_ == StrokeKind::None ) {
-        if ( !cellValid ) return;
+        if ( !cellValid ) return false;
         const auto& blocks = railEditor->GetBlocks();
         const int under = FindBlockAt(context, state, mouseDist, level);
         // ブロックの「本体」を指しているか。ゆるい斜面は見た目が2mあるが、場所を取るのは中央の1mだけで、
@@ -207,7 +207,7 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
         // 操作の始まり：押した瞬間に何をするかを決める（優先は Alt ＞ Ctrl ＞ Shift ＞ なし）
         const bool leftClicked  = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
         const bool rightClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Right);
-        if ( !leftClicked && !rightClicked ) return;
+        if ( !leftClicked && !rightClicked ) return false;
         strokeButton_ = leftClicked ? 0 : 1;
 
         if ( leftClicked && io.KeyAlt ) {
@@ -249,7 +249,7 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
             strokeLastDist_  = cellDist;
             strokeLastLevel_ = level;
         }
-        return;
+        return false;
     }
 
     // マウスが展開図の外へ出ても、端のマスに寄せて続ける
@@ -268,7 +268,7 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
             && blocks[moveIndex_].type == moveOrig_.type;
         if ( !stillSame ) {
             Cancel();
-            return;
+            return false;
         }
         if ( ImGui::IsMouseDown(ImGuiMouseButton_Left) ) {
             if ( ImGui::IsMouseDragging(ImGuiMouseButton_Left, 3.0f) ) { moveDragged_ = true; }
@@ -298,7 +298,7 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
             }
             Cancel();
         }
-        return;
+        return false;
     }
 
     // =============================================================
@@ -356,4 +356,5 @@ void StripBlockTool::Update(const StripContext& context, const StripState& state
 #else
     ( void ) context; ( void ) state; ( void ) layout; ( void ) hovered;
 #endif
+    return false; // この道具は、途中の操作を全部やめさせる事は無い
 }

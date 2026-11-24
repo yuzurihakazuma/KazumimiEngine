@@ -39,7 +39,7 @@ public:
     // Game View ハイライト用：一覧でホバー中/選択中のエントリ番号（-1=なし）
     int GetHoveredEntry() const { return list_.HoveredEntry(); }
     int GetSelectedEntry() const { return model_.SelectedEntry(); }
-    // Game View 直接ドラッグ用：選択の同期と、MutableSpawnDatas 直編集後の確定通知
+    // Game View 直接ドラッグ用：選択の同期と、SetSpawnData で書き換えた後の確定通知
     void SetSelectedEntry(int i) { model_.SelectAndScroll(i); }
     void MarkChanged() { model_.MarkChanged(); }
 
@@ -85,9 +85,9 @@ public:
     // 配置情報の取得
     const std::vector<EnemySpawnData>& GetSpawnDatas() const { return model_.Datas(); }
 
-    // レール編集時の「距離の張り直し」用に直接書き換えるアクセサ。
+    // 1 体ぶんを書き換える（レール編集時の「距離の張り直し」・配置ビューのドラッグ用）。
     //   SetSpawnDatas と違い選択状態や changed_ フラグを触らない（UI の選択が飛ばない）。
-    std::vector<EnemySpawnData>& MutableSpawnDatas() { return model_.MutableDatas(); }
+    void SetSpawnData(int index, const EnemySpawnData& spawn) { model_.SetEntry(index, spawn); }
 
     // 配置情報の差し替え（マップ読込時に外部データで上書きする）
     void SetSpawnDatas(const std::vector<EnemySpawnData>& datas);

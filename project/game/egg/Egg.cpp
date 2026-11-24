@@ -18,6 +18,10 @@ void Egg::AttachVisual(std::unique_ptr<Obj3d> obj, const Vector3& baseScale){
     baseScale_ = baseScale;
 }
 
+std::unique_ptr<Obj3d> Egg::DetachVisual(){
+    return std::move(obj_);
+}
+
 void Egg::Update(float dt){
     switch ( state_ ) {
     case EggState::Held: {

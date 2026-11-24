@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <functional>
+#include <utility>
 
 namespace KazumimiEngine {
 
@@ -32,10 +34,10 @@ public:
 
     // --- ゲーム値の登録（シーンから受け取る）---
     //   「→ ゲーム値」ノードのターゲット一覧になる。プレイヤー速度・卵の投げ初速など、
-    //   ゲーム側の float 変数を登録すると、ノードから直接動かせる。
-    //   ※ポインタは所有しない。シーン終了時に必ず ClearGameValues() を呼ぶこと（ダングリング防止）。
-    void RegisterGameValue(const std::string& label, float* target, float minV, float maxV) {
-        gameValues_.push_back({ label, target, minV, maxV });
+    //   ゲーム側の「値を入れる関数」を登録すると、ノードからその値を動かせる（ゲームの変数そのものは渡さない）。
+    //   ※関数の中でシーンの物を触るので、シーン終了時に必ず ClearGameValues() を呼ぶこと。
+    void RegisterGameValue(const std::string& label, std::function<void(float)> apply, float minV, float maxV) {
+        gameValues_.push_back({ label, std::move(apply), minV, maxV });
     }
     void ClearGameValues() { gameValues_.clear(); }
 
@@ -95,6 +97,11 @@ private:
         int toSlot = 0;   // 入力スロット番号 (0 or 1)
     };
 
+    // ノードの種類ごとのふるまい（名前・ピンの数・計算・ゲームへの反映・HLSL の式・ノードの中の欄）。
+    //   中身は cpp。種類を足す時は、Kinds に NodeKind の派生を 1 つ足して Kinds::Of の表に 1 行足す
+    class NodeKind;
+    struct Kinds;
+
     // --- グラフ操作 ---
     int  AddNode(NodeType type, float x, float y);
     void RemoveNode(int nodeId);
@@ -146,7 +153,7 @@ private:
     // 「→ ゲーム値」ノードのターゲット一覧（シーンが登録。所有しない）
     struct GameValue {
         std::string label;   // 表示名（例:「プレイヤー移動速度」）
-        float* target = nullptr;
+        std::function<void(float)> apply; // 値を入れる関数
         float  minV = 0.0f, maxV = 1.0f; // 反映時のクランプ範囲
     };
     std::vector<GameValue> gameValues_;

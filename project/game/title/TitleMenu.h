@@ -40,7 +40,9 @@ public:
     // 倒れている角度と向き（紙芝居遷移の退場。向きは真後ろ=0、右奥が正）
     void SetFall(int item, float angle, float direction){ targets_[item].fallAngle = angle; targets_[item].fallDirection = direction; }
 
-    KazumimiEngine::Vector3& RefPosition(int item){ return targets_[item].position; } // 立てる位置（調整ウィンドウ用）
+    // 立てる位置（書き換えは調整ウィンドウ用）
+    const KazumimiEngine::Vector3& Position(int item) const{ return targets_[item].position; }
+    void SetPosition(int item, const KazumimiEngine::Vector3& position){ targets_[item].position = position; }
 
 private:
     // メニューの的 1 つ（見た目・位置・出てくるまでの待ちと、出てからの時間）

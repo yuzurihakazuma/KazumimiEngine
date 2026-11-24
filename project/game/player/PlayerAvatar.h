@@ -46,7 +46,8 @@ public:
     void Draw(bool playing, const Player* player);
 
     // 足元と道の上面を合わせる補正（デバッグUIのスライダー用）
-    float* ModelYOffsetPtr() { return &modelYOffset_; }
+    float ModelYOffset() const { return modelYOffset_; }
+    void  SetModelYOffset(float offset) { modelYOffset_ = offset; }
 
     // ステージ開始演出のクリップ（IntroWave / IntroPush / IntroJump）。指定している間は、状態（空中・歩き・待機）から
     //   選ぶより先にこれを1回だけ再生し、最後の形で止まる。同じクリップでも頭から流し直す

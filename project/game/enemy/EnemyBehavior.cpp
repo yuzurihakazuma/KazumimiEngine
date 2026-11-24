@@ -1,5 +1,6 @@
 #include "game/enemy/EnemyBehavior.h"
 #include "game/enemy/Enemy.h"
+#include "game/combat/EnemyHit.h"
 
 #include "engine/3d/obj/SkinnedObj3d.h"
 
@@ -24,6 +25,7 @@ namespace {
             model.SetClip(walk ? "Walk" : "Idle", true);
             return false;
         }
+        void ReceiveHit(const EnemyHit& hit, Enemy& enemy, EnemyHitContext& context) const override{ hit.OnWalker(enemy, context); }
     };
 
     // 植物「カミバナ」：プレイヤーが近づくと噛みつく（終わったら Idle へ戻る）。近くでは体も向ける
@@ -54,6 +56,8 @@ namespace {
             return false;
         }
 
+        void ReceiveHit(const EnemyHit& hit, Enemy& enemy, EnemyHitContext& context) const override{ hit.OnBiter(enemy, context); }
+
     private:
         float biteTimer_ = 0.0f; // 噛みつきの残り時間（0＝Idle 中）
     };
@@ -64,6 +68,7 @@ namespace {
         const char* StartClip(bool /*patrols*/) const override{ return "Fly"; }
         void OnReapplied(SkinnedObj3d& model) override{ model.SetClip("Fly", true); }
         bool Update(SkinnedObj3d& /*model*/, const Frame& /*frame*/, float& /*outYaw*/) override{ return false; }
+        void ReceiveHit(const EnemyHit& hit, Enemy& enemy, EnemyHitContext& context) const override{ hit.OnFlyer(enemy, context); }
     };
 }
 

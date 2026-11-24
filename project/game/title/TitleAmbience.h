@@ -34,10 +34,14 @@ public:
     void Draw(); // 紙の波（草・花などはマップの物なのでエディタ側が描く）
 
     // インスペクターから切り替える
-    bool& RefWindEnabled(){ return windEnabled_; }
-    bool& RefWavesEnabled(){ return wavesEnabled_; }
-    bool& RefMoveWhileEditing(){ return moveWhileEditing_; }
-    float& RefWindStrength(){ return windStrength_; }
+    bool  IsWindEnabled() const{ return windEnabled_; }
+    void  SetWindEnabled(bool enabled){ windEnabled_ = enabled; }
+    bool  IsWavesEnabled() const{ return wavesEnabled_; }
+    void  SetWavesEnabled(bool enabled){ wavesEnabled_ = enabled; }
+    bool  MovesWhileEditing() const{ return moveWhileEditing_; }
+    void  SetMoveWhileEditing(bool enabled){ moveWhileEditing_ = enabled; }
+    float WindStrength() const{ return windStrength_; }
+    void  SetWindStrength(float strength){ windStrength_ = strength; }
 
     // --- 倒す（紙芝居遷移の退場）---
     // マップに置いた段ボール（地面と空以外）と紙の波を、origin から近い順に奥へ倒し始める
@@ -47,12 +51,13 @@ public:
     int  ConsumeLandings();  // 前回から地面に着いた物の数（パタンの音用）
 
 private:
-    // 動かす物の種類（マップの type 名から決める）
-    enum class Kind { Grass, Flower, Tree, Cloud };
+    // 物の種類ごとのゆれ方（草・花・木・雲）。中身は cpp。マップの type 名から決める
+    class SwayStyle;
+    struct SwayStyles;
     // 動かす配置物 1 つ（草・花・木・雲）。恐竜に押された角度と、ゆれの状態
     struct Mover {
         int   index = 0;       // マップの配置物の番号
-        Kind  kind = Kind::Grass;
+        const SwayStyle* style = nullptr; // ゆれ方（持たない。SwayStyles の中の物）
         float bend = 0.0f;     // 恐竜に押されて倒れている角度
         float bendSpeed = 0.0f;
     };

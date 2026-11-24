@@ -85,8 +85,247 @@ namespace {
 	}
 }
 
-KamishibaiTransition::KamishibaiTransition() = default;
+// =====================================================================
+//  部品の種類ごとの動き。
+//   遷移の定義（JSON）の "type" の名前ごとに 1 クラス。KamishibaiTransition は、部品の種類を見て分岐しない
+//   （名前から PartAction を引いて Apply を呼ぶだけ）。t＝遷移の本体（見た目の値を書き込む先）
+// =====================================================================
+class KamishibaiTransition::PartAction {
+public:
+	using Part = TransitionTimeline::Part;
+	virtual ~PartAction() = default;
+	// 定義を読んだ時に 1 回（音の先読みなど）
+	virtual void Preload(const Part& /*part*/) const {}
+	// 始まった部品に毎フレーム。part.progress（0〜1）から見た目を決める
+	virtual void Apply(KamishibaiTransition& t, const Part& part) const = 0;
+};
+
+// シーンの退場：今のシーンに退場の動き（段ボールが倒れる）を頼み、終わったら出来事を知らせる。
+//   長さは待つ上限（シーンが終わったと言わなくても、ここで次へ進む）
+class KamishibaiTransition::SceneExitAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		IScene* scene = SceneManager::GetInstance()->GetCurrentScene();
+		if ( part.justStarted && scene ) { scene->BeginExitEffect(); }
+		if ( !t.exitFired_ && ( part.finished || !scene || scene->IsExitEffectDone() ) ) {
+			t.exitFired_ = true;
+			t.timeline_.Fire(part.params.value("emit", std::string("exited")));
+		}
+	}
+};
+
+// 絵の引き抜き：始まった瞬間の画面を写し取って絵にし、紙芝居の枠と扉をその後ろに出す
+class KamishibaiTransition::PicturePullAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		if ( part.justStarted ) {
+			t.captureRequested_ = true;
+			t.pictureVisible_ = true;
+			t.stageVisible_ = true;
+		}
+		// 一瞬こらえて（EaseInBack で逆へ少し戻る）から、横へ吹き飛ぶ
+		const float p = part.progress;
+		const float direction = part.params.value("direction", -1.0f);
+		const float rotate = Math::ToRadians(part.params.value("rotate", 14.0f));
+		t.pictureOffset_ = direction * 1.35f * Easing::EaseInBack(p);
+		t.pictureAngle_ = direction * rotate * Easing::EaseInQuad(p);
+		t.pictureLift_ = -0.06f * Easing::EaseInQuad(p);
+		if ( part.finished ) { t.pictureVisible_ = false; }
+	}
+};
+
+// 効果音：始まった瞬間に鳴らす（音は、定義を読んだ時に先に読んでおく）
+class KamishibaiTransition::SoundAction final : public PartAction {
+public:
+	void Preload(const Part& part) const override {
+		AudioManager::GetInstance()->LoadWave(part.params.value("sound", std::string()));
+	}
+	void Apply(KamishibaiTransition& /*t*/, const Part& part) const override {
+		if ( !part.justStarted ) { return; }
+		const std::string sound = part.params.value("sound", std::string());
+		if ( !sound.empty() ) { AudioManager::GetInstance()->PlayWave(sound, false, part.params.value("volume", 1.0f)); }
+	}
+};
+
+// 次のシーンの読み込み：扉が閉じて画面が隠れている間に、次のシーンへ切り替える
+class KamishibaiTransition::LoadSceneAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		if ( part.justStarted && !t.sceneRequested_ ) {
+			SceneManager::GetInstance()->ChangeScene(t.playTo_);
+			t.sceneRequested_ = true;
+		}
+	}
+};
+
+// 「はじまり、はじまり」：ポンッと出て、最後に消える
+class KamishibaiTransition::BannerAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		if ( part.finished ) { t.bannerAlpha_ = 0.0f; return; }
+		const float pop = part.params.value("pop", 0.3f);
+		const float fade = part.params.value("fade", 0.3f);
+		const float time = part.elapsed;
+		t.bannerScale_ = Easing::EaseOutBack(time / ( std::max )( pop, 0.01f ));
+		const float fadeOut = Easing::Clamp01(( time - ( part.duration - fade ) ) / ( std::max )( fade, 0.01f ));
+		t.bannerAlpha_ = Easing::Clamp01(time / 0.08f) * ( 1.0f - fadeOut );
+	}
+};
+
+// 卵：扉の真ん中へ、下から山なりに飛んでくる。当たったら出来事を知らせる
+class KamishibaiTransition::EggThrowAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		const float p = part.progress;
+		if ( !part.finished ) {
+			t.eggVisible_ = true;
+			t.eggAlpha_ = 1.0f;
+			const float fromX = 0.5f + part.params.value("fromX", -0.12f);
+			t.eggX_ = Math::Lerp(fromX, 0.5f, p);
+			t.eggY_ = Math::Lerp(1.15f, 0.5f, p) - part.params.value("arc", 0.3f) * 4.0f * p * ( 1.0f - p );
+			t.eggAngle_ = p * 3.0f * kPi;
+		}
+		if ( part.justFinished ) {
+			t.timeline_.Fire(part.params.value("emit", std::string("doorHit")));
+			t.eggFallTime_ = 0.0f;
+			t.eggX_ = 0.5f;
+			t.eggY_ = 0.5f;
+		}
+	}
+};
+
+// 扉：開く時はバンッと勢いよく（行き過ぎて戻る）、閉じる時は加速して閉じる
+class KamishibaiTransition::DoorsAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		const bool open = part.params.value("open", true);
+		t.doorOpen_ = open ? Easing::EaseOutBack(part.progress) : 1.0f - Easing::EaseInCubic(part.progress);
+	}
+};
+
+// 赤い幕：閉じる時は左右からすべって来て、真ん中で少し揺れて合わさる。
+//   開く時は左右へ引かれ、最後に上の幕板も上がっていく
+class KamishibaiTransition::CurtainAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		const float p = part.progress;
+		const bool open = part.params.value("open", false);
+		if ( open ) {
+			t.curtainClose_ = 1.0f - Easing::EaseInOutCubic(p);
+			t.valanceDrop_ = 1.0f - Easing::EaseInCubic(Easing::Clamp01(( p - 0.55f ) / 0.45f));
+		} else {
+			t.curtainClose_ = Easing::EaseOutBack(p);
+			t.valanceDrop_ = Easing::EaseOutCubic(Easing::Clamp01(p * 2.0f));
+		}
+		// 閉じ切った（開き切った）ことを知らせる。幕で隠れてからシーンを切り替えるのに使う
+		if ( part.justFinished && part.params.contains("emit") ) { t.timeline_.Fire(part.params.value("emit", std::string())); }
+	}
+};
+
+// 枠をくぐる：枠が大きくなって画面の外へ出ていく
+class KamishibaiTransition::FrameZoomAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		const float p = part.progress;
+		t.frameZoom_ = 1.0f + ( part.params.value("scale", 2.6f) - 1.0f ) * Easing::EaseInCubic(p);
+		t.frameAlpha_ = 1.0f - Easing::Clamp01(( p - 0.65f ) / 0.35f);
+	}
+};
+
+// ステージ開始カードの部品の動き（台紙・星・名前の帯・ステージ名・キャラ）
+class KamishibaiTransition::IntroElementAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		t.stageIntro_.Animate(part.params.value("id", std::string()), part.params.value("motion", std::string()), part.progress, part.elapsed);
+	}
+};
+
+// 台紙ごと後ろへ倒れる（その奥に次のシーン）
+class KamishibaiTransition::IntroFallAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override { t.stageIntro_.SetFall(part.progress); }
+};
+
+// はさみで下の折り目の線を切り、上の部分は上へ・下の帯は下へ分かれる（その間から次のシーン）
+class KamishibaiTransition::IntroCutAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		const float cutTime = part.params.value("cutTime", 0.4f);
+		t.stageIntro_.SetCut(part.elapsed, cutTime, part.duration - cutTime, part.params.value("lift", 1.25f), part.params.value("drop", 0.5f));
+	}
+};
+
+// 台紙ごと画面の上へ引き抜く（その下に次のシーン）
+class KamishibaiTransition::IntroLiftAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override { t.stageIntro_.SetLift(part.progress); }
+};
+
+// 上下の黒い帯（入る / 出る）
+class KamishibaiTransition::LetterboxAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		t.stageIntro_.SetBars(part.params.value("in", true) ? part.progress : 1.0f - part.progress);
+	}
+};
+
+// シーンへ合図を送る（プレイヤーの振り向き・アクション・カメラの戻りなど）
+class KamishibaiTransition::SceneCueAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& /*t*/, const Part& part) const override {
+		if ( !part.justStarted ) { return; }
+		if ( IScene* scene = SceneManager::GetInstance()->GetCurrentScene() ) { scene->OnTransitionCue(part.params.value("cue", std::string())); }
+	}
+};
+
+// 「読み込み完了」と「最短表示時間の経過」がそろったら、次へ進む合図を出す
+class KamishibaiTransition::WaitAllAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		bool ready = t.timeline_.GetTime() >= part.params.value("minTime", 0.0f);
+		for ( const json& event : part.params.value("events", json::array()) ) {
+			if ( event.is_string() && !t.timeline_.HasFired(event.get<std::string>()) ) { ready = false; }
+		}
+		if ( ready ) { t.timeline_.Fire(part.params.value("emit", std::string("ready"))); }
+	}
+};
+
+// おわり：遷移を終える（この後の部品は動かさない）
+class KamishibaiTransition::EndAction final : public PartAction {
+public:
+	void Apply(KamishibaiTransition& t, const Part& part) const override {
+		if ( part.justStarted ) { t.Finish(); }
+	}
+};
+
+KamishibaiTransition::KamishibaiTransition(){ RegisterActions(); }
 KamishibaiTransition::~KamishibaiTransition() = default;
+
+// 定義（JSON）の "type" の名前と、その動きのクラスの対応
+void KamishibaiTransition::RegisterActions(){
+	actions_["sceneExit"]    = std::make_unique<SceneExitAction>();
+	actions_["picturePull"]  = std::make_unique<PicturePullAction>();
+	actions_["sound"]        = std::make_unique<SoundAction>();
+	actions_["loadScene"]    = std::make_unique<LoadSceneAction>();
+	actions_["banner"]       = std::make_unique<BannerAction>();
+	actions_["eggThrow"]     = std::make_unique<EggThrowAction>();
+	actions_["doors"]        = std::make_unique<DoorsAction>();
+	actions_["curtain"]      = std::make_unique<CurtainAction>();
+	actions_["frameZoom"]    = std::make_unique<FrameZoomAction>();
+	actions_["introElement"] = std::make_unique<IntroElementAction>();
+	actions_["introFall"]    = std::make_unique<IntroFallAction>();
+	actions_["introCut"]     = std::make_unique<IntroCutAction>();
+	actions_["introLift"]    = std::make_unique<IntroLiftAction>();
+	actions_["letterbox"]    = std::make_unique<LetterboxAction>();
+	actions_["sceneCue"]     = std::make_unique<SceneCueAction>();
+	actions_["waitAll"]      = std::make_unique<WaitAllAction>();
+	actions_["end"]          = std::make_unique<EndAction>();
+}
+
+const KamishibaiTransition::PartAction* KamishibaiTransition::FindAction(const std::string& type) const{
+	const auto found = actions_.find(type);
+	return found == actions_.end() ? nullptr : found->second.get();
+}
 
 void KamishibaiTransition::Load(){
 	if ( loaded_ ) { return; }
@@ -141,7 +380,7 @@ bool KamishibaiTransition::LoadDefinition(const std::string& definitionName){
 	definitionName_ = definitionName;
 	// 定義に書いた音は先に読んでおく
 	for ( const TransitionTimeline::Part& part : timeline_.Parts() ) {
-		if ( part.type == "sound" ) { AudioManager::GetInstance()->LoadWave(part.params.value("sound", std::string())); }
+		if ( const PartAction* action = FindAction(part.type) ) { action->Preload(part); }
 	}
 	return !timeline_.Parts().empty();
 }
@@ -232,119 +471,13 @@ void KamishibaiTransition::Update(float deltaTime){
 }
 
 void KamishibaiTransition::ApplyParts(float step){
-	for ( TransitionTimeline::Part& part : timeline_.Parts() ) {
+	// 始まっている部品を、種類ごとのクラスに任せる（ここでは種類を見て分岐しない）
+	for ( const TransitionTimeline::Part& part : timeline_.Parts() ) {
 		if ( !part.started ) { continue; }
-		const float p = part.progress;
-		const json& params = part.params;
-
-		if ( part.type == "sceneExit" ) {
-			// シーンの退場：今のシーンに退場の動き（段ボールが倒れる）を頼み、終わったら出来事を知らせる。
-			//   長さは待つ上限（シーンが終わったと言わなくても、ここで次へ進む）
-			IScene* scene = SceneManager::GetInstance()->GetCurrentScene();
-			if ( part.justStarted && scene ) { scene->BeginExitEffect(); }
-			if ( !exitFired_ && ( part.finished || !scene || scene->IsExitEffectDone() ) ) {
-				exitFired_ = true;
-				timeline_.Fire(params.value("emit", std::string("exited")));
-			}
-		} else if ( part.type == "picturePull" ) {
-			// 絵の引き抜き：始まった瞬間の画面を写し取って絵にし、紙芝居の枠と扉をその後ろに出す
-			if ( part.justStarted ) {
-				captureRequested_ = true;
-				pictureVisible_ = true;
-				stageVisible_ = true;
-			}
-			// 一瞬こらえて（EaseInBack で逆へ少し戻る）から、横へ吹き飛ぶ
-			const float direction = params.value("direction", -1.0f);
-			const float rotate = Math::ToRadians(params.value("rotate", 14.0f));
-			pictureOffset_ = direction * 1.35f * Easing::EaseInBack(p);
-			pictureAngle_ = direction * rotate * Easing::EaseInQuad(p);
-			pictureLift_ = -0.06f * Easing::EaseInQuad(p);
-			if ( part.finished ) { pictureVisible_ = false; }
-		} else if ( part.type == "sound" ) {
-			if ( part.justStarted ) {
-				const std::string sound = params.value("sound", std::string());
-				if ( !sound.empty() ) { AudioManager::GetInstance()->PlayWave(sound, false, params.value("volume", 1.0f)); }
-			}
-		} else if ( part.type == "loadScene" ) {
-			// 扉が閉じて画面が隠れている間に、次のシーンへ切り替える
-			if ( part.justStarted && !sceneRequested_ ) {
-				SceneManager::GetInstance()->ChangeScene(playTo_);
-				sceneRequested_ = true;
-			}
-		} else if ( part.type == "banner" ) {
-			// 「はじまり、はじまり」：ポンッと出て、最後に消える
-			if ( part.finished ) { bannerAlpha_ = 0.0f; continue; }
-			const float pop = params.value("pop", 0.3f);
-			const float fade = params.value("fade", 0.3f);
-			const float t = part.elapsed;
-			bannerScale_ = Easing::EaseOutBack(t / ( std::max )( pop, 0.01f ));
-			const float fadeOut = Easing::Clamp01(( t - ( part.duration - fade ) ) / ( std::max )( fade, 0.01f ));
-			bannerAlpha_ = Easing::Clamp01(t / 0.08f) * ( 1.0f - fadeOut );
-		} else if ( part.type == "eggThrow" ) {
-			// 扉の真ん中へ、下から山なりに卵が飛んでくる。当たったら出来事を知らせる
-			if ( !part.finished ) {
-				eggVisible_ = true;
-				eggAlpha_ = 1.0f;
-				const float fromX = 0.5f + params.value("fromX", -0.12f);
-				eggX_ = Math::Lerp(fromX, 0.5f, p);
-				eggY_ = Math::Lerp(1.15f, 0.5f, p) - params.value("arc", 0.3f) * 4.0f * p * ( 1.0f - p );
-				eggAngle_ = p * 3.0f * kPi;
-			}
-			if ( part.justFinished ) {
-				timeline_.Fire(params.value("emit", std::string("doorHit")));
-				eggFallTime_ = 0.0f;
-				eggX_ = 0.5f;
-				eggY_ = 0.5f;
-			}
-		} else if ( part.type == "doors" ) {
-			// 扉：開く時はバンッと勢いよく（行き過ぎて戻る）、閉じる時は加速して閉じる
-			const bool open = params.value("open", true);
-			doorOpen_ = open ? Easing::EaseOutBack(p) : 1.0f - Easing::EaseInCubic(p);
-		} else if ( part.type == "curtain" ) {
-			// 赤い幕：閉じる時は左右からすべって来て、真ん中で少し揺れて合わさる。
-			//   開く時は左右へ引かれ、最後に上の幕板も上がっていく
-			const bool open = params.value("open", false);
-			if ( open ) {
-				curtainClose_ = 1.0f - Easing::EaseInOutCubic(p);
-				valanceDrop_ = 1.0f - Easing::EaseInCubic(Easing::Clamp01(( p - 0.55f ) / 0.45f));
-			} else {
-				curtainClose_ = Easing::EaseOutBack(p);
-				valanceDrop_ = Easing::EaseOutCubic(Easing::Clamp01(p * 2.0f));
-			}
-			// 閉じ切った（開き切った）ことを知らせる。幕で隠れてからシーンを切り替えるのに使う
-			if ( part.justFinished && params.contains("emit") ) { timeline_.Fire(params.value("emit", std::string())); }
-		} else if ( part.type == "frameZoom" ) {
-			// 枠をくぐる：枠が大きくなって画面の外へ出ていく
-			frameZoom_ = 1.0f + ( params.value("scale", 2.6f) - 1.0f ) * Easing::EaseInCubic(p);
-			frameAlpha_ = 1.0f - Easing::Clamp01(( p - 0.65f ) / 0.35f);
-		} else if ( part.type == "introElement" ) {
-			// ステージ開始カードの部品の動き（台紙・星・名前の帯・ステージ名・キャラ）
-			stageIntro_.Animate(params.value("id", std::string()), params.value("motion", std::string()), p, part.elapsed);
-		} else if ( part.type == "introFall" ) {
-			stageIntro_.SetFall(p); // 台紙ごと後ろへ倒れる（その奥に次のシーン）
-		} else if ( part.type == "introCut" ) {
-			// はさみで下の折り目の線を切り、上の部分は上へ・下の帯は下へ分かれる（その間から次のシーン）
-			const float cutTime = params.value("cutTime", 0.4f);
-			stageIntro_.SetCut(part.elapsed, cutTime, part.duration - cutTime, params.value("lift", 1.25f), params.value("drop", 0.5f));
-		} else if ( part.type == "introLift" ) {
-			stageIntro_.SetLift(p); // 台紙ごと画面の上へ引き抜く（その下に次のシーン）
-		} else if ( part.type == "letterbox" ) {
-			stageIntro_.SetBars(params.value("in", true) ? p : 1.0f - p);
-		} else if ( part.type == "sceneCue" ) {
-			// シーンへ合図を送る（プレイヤーの振り向き・アクション・カメラの戻りなど）
-			if ( part.justStarted ) {
-				if ( IScene* scene = SceneManager::GetInstance()->GetCurrentScene() ) { scene->OnTransitionCue(params.value("cue", std::string())); }
-			}
-		} else if ( part.type == "waitAll" ) {
-			// 「読み込み完了」と「最短表示時間の経過」がそろったら、次へ進む合図を出す
-			bool ready = timeline_.GetTime() >= params.value("minTime", 0.0f);
-			for ( const json& event : params.value("events", json::array()) ) {
-				if ( event.is_string() && !timeline_.HasFired(event.get<std::string>()) ) { ready = false; }
-			}
-			if ( ready ) { timeline_.Fire(params.value("emit", std::string("ready"))); }
-		} else if ( part.type == "end" ) {
-			if ( part.justStarted ) { Finish(); return; }
-		}
+		const PartAction* action = FindAction(part.type);
+		if ( !action ) { continue; } // 知らない種類の部品は何もしない
+		action->Apply(*this, part);
+		if ( !active_ ) { return; } // 「おわり」の部品で終わった：残りの部品は動かさない
 	}
 
 	// 扉に当たった卵は、はね返って下へ落ちていく
@@ -508,9 +641,9 @@ void KamishibaiTransition::DrawDebugUI(){
 
 	ImGui::Separator();
 	ImGui::TextDisabled("きっかけ：start / loaded（次のシーンを読み終えた）/ 卵の emit（doorHit）");
-	int index = 0;
-	for ( TransitionTimeline::Part& part : timeline_.Parts() ) {
-		ImGui::PushID(index++);
+	for ( size_t index = 0; index < timeline_.Parts().size(); ++index ) {
+		TransitionTimeline::Part part = timeline_.Parts()[index]; // 写しを直して、下で書き戻す
+		ImGui::PushID(static_cast<int>( index ));
 		const char* state = !part.started ? "　" : ( part.finished ? "済" : "▶" );
 		if ( ImGui::TreeNode("part", "%s %s  [%s]  %s +%.2f秒 / %.2f秒", state, part.name.c_str(), part.type.c_str(),
 		                     part.event.c_str(), part.delay, part.duration) ) {
@@ -538,6 +671,7 @@ void KamishibaiTransition::DrawDebugUI(){
 					if ( ImGui::InputText(item.key().c_str(), buffer, sizeof(buffer)) ) { *item = std::string(buffer); }
 				}
 			}
+			timeline_.SetPart(index, part);
 			ImGui::TreePop();
 		}
 		ImGui::PopID();

@@ -121,7 +121,14 @@ void SplineRail::AutoDetectType(){
 }
 
 // ① レールの長さを計測してテーブルを作る
+bool SplineRail::RebuildIfDirty(){
+    if ( !tableDirty_ ) { return false; }
+    BuildDistanceTable();
+    return true;
+}
+
 void SplineRail::BuildDistanceTable(){
+    tableDirty_ = false; // 今の形で作る
     distanceTable_.clear();
     tTable_.clear();
     totalLength_ = 0.0f;

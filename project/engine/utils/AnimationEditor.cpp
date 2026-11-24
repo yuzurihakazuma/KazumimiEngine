@@ -25,16 +25,16 @@ void AnimationEditor::Update() {
     CustomAnimationTrack& track = animTracks_[target->GetName()];
 
     // 再生中かつキーフレームが存在する場合のみ時間を進めるボタン
-    if (isAnimPlaying_ && track.duration > 0.0f) {
+    if (isAnimPlaying_ && track.Duration() > 0.0f) {
         animCurrentTime_ += Time::kFixedDeltaTime * playbackSpeed_;
 
         // 末尾に達したらループ or 停止
-        if (animCurrentTime_ > track.duration) {
+        if (animCurrentTime_ > track.Duration()) {
             if (isLoop_) {
                 animCurrentTime_ = 0.0f;
             }
             else {
-                animCurrentTime_ = track.duration;
+                animCurrentTime_ = track.Duration();
                 isAnimPlaying_ = false;
             }
         }
@@ -93,10 +93,10 @@ void AnimationEditor::DrawDebugUI() {
 			currentFrame_ = 0;
 			isAnimPlaying_ = false;
 			// トランスフォームを先頭のキーフレームに合わせる
-            if (!track.keyframes.empty()){
-                target->SetTranslation(track.keyframes.front().position);
-                target->SetRotation(track.keyframes.front().rotation);
-				target->SetScale(track.keyframes.front().scale);
+            if (!track.Keyframes().empty()){
+                target->SetTranslation(track.Keyframes().front().position);
+                target->SetRotation(track.Keyframes().front().rotation);
+				target->SetScale(track.Keyframes().front().scale);
 
             }
 
@@ -108,19 +108,19 @@ void AnimationEditor::DrawDebugUI() {
         if (ImGui::Button("◀")) {
 			float best = -1.0f;
 			int bestIndex = -1;
-            for (int i = 0; i < (int)track.keyframes.size();i++) {
-                float time = track.keyframes[i].time;
+            for (int i = 0; i < (int)track.Keyframes().size();i++) {
+                float time = track.Keyframes()[i].time;
                 if (time< animCurrentTime_ -0.001f && time > best){
 					best = time; bestIndex = i;
                 }
             }
             if (bestIndex>=0) {
 				selectedKeyframeIndex_ = bestIndex;
-				animCurrentTime_ = track.keyframes[bestIndex].time;
+				animCurrentTime_ = track.Keyframes()[bestIndex].time;
 				currentFrame_ = (int)(animCurrentTime_ * fps_);
-				target->SetTranslation(track.keyframes[bestIndex].position);
-				target->SetRotation(track.keyframes[bestIndex].rotation);
-				target->SetScale(track.keyframes[bestIndex].scale);
+				target->SetTranslation(track.Keyframes()[bestIndex].position);
+				target->SetRotation(track.Keyframes()[bestIndex].rotation);
+				target->SetScale(track.Keyframes()[bestIndex].scale);
                 
             }
         }
@@ -128,49 +128,46 @@ void AnimationEditor::DrawDebugUI() {
         if (ImGui::Button("▶|")) {
             float best = -1.0f;
             int bestIndex = -1;
-            for (int i = 0; i < (int)track.keyframes.size(); i++) {
-                float time = track.keyframes[i].time;
+            for (int i = 0; i < (int)track.Keyframes().size(); i++) {
+                float time = track.Keyframes()[i].time;
                 if (time > animCurrentTime_ + 0.001f && (best < 0.0f || time < best)) {
                     best = time; bestIndex = i;
                 }
             }
             if (bestIndex >= 0) {
                 selectedKeyframeIndex_ = bestIndex;
-                animCurrentTime_ = track.keyframes[bestIndex].time;
+                animCurrentTime_ = track.Keyframes()[bestIndex].time;
                 currentFrame_ = (int)(animCurrentTime_ * fps_);
-                target->SetTranslation(track.keyframes[bestIndex].position);
-                target->SetRotation(track.keyframes[bestIndex].rotation);
-                target->SetScale(track.keyframes[bestIndex].scale);
+                target->SetTranslation(track.Keyframes()[bestIndex].position);
+                target->SetRotation(track.Keyframes()[bestIndex].rotation);
+                target->SetScale(track.Keyframes()[bestIndex].scale);
             }
         }
 
-        if (selectedKeyframeIndex_>=0 && selectedKeyframeIndex_<(int)track.keyframes.size()){
+        if (selectedKeyframeIndex_>=0 && selectedKeyframeIndex_<(int)track.Keyframes().size()){
             if (ImGui::Button("キーフレーム更新")) {
-				auto& kf = track.keyframes[selectedKeyframeIndex_];
+				TransformKeyframe kf = track.Keyframes()[selectedKeyframeIndex_];
 				kf.position = target->GetTranslation();
 				kf.rotation = target->GetRotation();
 				kf.scale = target->GetScale();
+				track.SetKeyframe(selectedKeyframeIndex_, kf);
 
             }
 
         }
         ImGui::SameLine();
-        if (selectedKeyframeIndex_ >= 0 && selectedKeyframeIndex_ < (int)track.keyframes.size()) {
+        if (selectedKeyframeIndex_ >= 0 && selectedKeyframeIndex_ < (int)track.Keyframes().size()) {
             if (ImGui::Button("コピー")) {
                 copiedKeyframeIndex_ = selectedKeyframeIndex_;
             }
         }
         ImGui::SameLine();
-        if (copiedKeyframeIndex_ >= 0 && copiedKeyframeIndex_ < (int)track.keyframes.size()) {
+        if (copiedKeyframeIndex_ >= 0 && copiedKeyframeIndex_ < (int)track.Keyframes().size()) {
             if (ImGui::Button("ペースト")) {
-                auto kf = track.keyframes[copiedKeyframeIndex_]; // コピー
+                auto kf = track.Keyframes()[copiedKeyframeIndex_]; // コピー
                 kf.time = animCurrentTime_; // 現在時刻に配置
                 track.AddKeyframe(kf.time, kf.position, kf.rotation, kf.scale);
-                std::sort(track.keyframes.begin(), track.keyframes.end(),
-                    [](const TransformKeyframe& a, const TransformKeyframe& b) {
-                        return a.time < b.time;
-                    });
-                if (!track.keyframes.empty()) track.duration = track.keyframes.back().time;
+                track.SortKeyframes(); // 時間順に並べ直す（総時間も合わせる）
             }
         }
 
@@ -205,11 +202,11 @@ void AnimationEditor::DrawDebugUI() {
         ImGui::Checkbox("スナップ", &snapToFrame_);
         if (ImGui::Button("キーフレーム追加")) {
             track.AddKeyframe(animCurrentTime_, pos, rot, scale);
-            if (track.duration < animCurrentTime_) track.duration = animCurrentTime_;
-            if (!track.keyframes.empty())
-                selectedKeyframeIndex_ = (int)track.keyframes.size() - 1;
+            track.ExtendDuration(animCurrentTime_);
+            if (!track.Keyframes().empty())
+                selectedKeyframeIndex_ = (int)track.Keyframes().size() - 1;
             // タイムラインが短い場合は自動延長
-            float minDuration = track.duration + 1.0f;
+            float minDuration = track.Duration() + 1.0f;
             if (timelineDuration_ < minDuration) timelineDuration_ = minDuration;
         }
 
@@ -264,17 +261,17 @@ void AnimationEditor::DrawDebugUI() {
         if (ImGui::IsItemActivated()) {
             float mx = ImGui::GetIO().MousePos.x;
             draggingKeyframe_ = -1;
-            for (int i = 0; i < (int)track.keyframes.size(); i++) {
-                float kx = barPos.x + (track.keyframes[i].time / timelineDuration_) * barWidth;
+            for (int i = 0; i < (int)track.Keyframes().size(); i++) {
+                float kx = barPos.x + (track.Keyframes()[i].time / timelineDuration_) * barWidth;
                 if (mx >= kx - 10.0f && mx <= kx + 10.0f) {
                     // キーフレームの近くをクリック → そのキーフレームをドラッグ対象に
                     draggingKeyframe_ = i;
                     selectedKeyframeIndex_ = i;
-                    animCurrentTime_ = track.keyframes[i].time;
+                    animCurrentTime_ = track.Keyframes()[i].time;
                     currentFrame_ = (int)(animCurrentTime_ * fps_);
-                    target->SetTranslation(track.keyframes[i].position);
-                    target->SetRotation(track.keyframes[i].rotation);
-                    target->SetScale(track.keyframes[i].scale);
+                    target->SetTranslation(track.Keyframes()[i].position);
+                    target->SetRotation(track.Keyframes()[i].rotation);
+                    target->SetScale(track.Keyframes()[i].scale);
                     break;
                 }
             }
@@ -286,22 +283,18 @@ void AnimationEditor::DrawDebugUI() {
             float ratio = (mx - barPos.x) / barWidth;
             ratio = (ratio < 0.0f) ? 0.0f : (ratio > 1.0f) ? 1.0f : ratio;
 
-            if (draggingKeyframe_ >= 0 && draggingKeyframe_ < (int)track.keyframes.size()) {
+            if (draggingKeyframe_ >= 0 && draggingKeyframe_ < (int)track.Keyframes().size()) {
                 // キーフレームの時間を移動
-                track.keyframes[draggingKeyframe_].time = ratio * timelineDuration_;
+                TransformKeyframe dragged = track.Keyframes()[draggingKeyframe_];
+                dragged.time = ratio * timelineDuration_;
 				// スナップ有効ならフレーム単位に丸める
                 if (snapToFrame_) {
                     float frameTime = 1.0f / fps_;
-                    track.keyframes[draggingKeyframe_].time =
-                        roundf(track.keyframes[draggingKeyframe_].time / frameTime) * frameTime;
+                    dragged.time = roundf(dragged.time / frameTime) * frameTime;
                 }
+                track.SetKeyframe(draggingKeyframe_, dragged);
                 // 移動後は時間順にソート
-                std::sort(track.keyframes.begin(), track.keyframes.end(),
-                    [](const TransformKeyframe& a, const TransformKeyframe& b) {
-                        return a.time < b.time;
-                    });
-                if (!track.keyframes.empty())
-                    track.duration = track.keyframes.back().time;
+                track.SortKeyframes(); // 時間順に並べ直す（総時間も合わせる）
             }
             else {
                 // 赤い線（現在時刻）をシーク
@@ -316,8 +309,8 @@ void AnimationEditor::DrawDebugUI() {
         }
 
         // キーフレームの◆を描画
-        for (int i = 0; i < (int)track.keyframes.size(); i++) {
-            float t = track.keyframes[i].time / timelineDuration_;
+        for (int i = 0; i < (int)track.Keyframes().size(); i++) {
+            float t = track.Keyframes()[i].time / timelineDuration_;
             float x = barPos.x + t * barWidth;
             float y = barPos.y + barHeight * 0.5f;
             // 選択中: 黄色 / 通常: 水色
@@ -340,11 +333,11 @@ void AnimationEditor::DrawDebugUI() {
             IM_COL32(255, 50, 50, 255), 2.0f);
 
 
-        if (!track.keyframes.empty()) {
+        if (!track.Keyframes().empty()) {
             int prevKf = -1, nextKf = -1;
-            for (int i = 0; i < (int)track.keyframes.size(); i++) {
-                if (track.keyframes[i].time <= animCurrentTime_) prevKf = i;
-                if (track.keyframes[i].time > animCurrentTime_ && nextKf < 0) nextKf = i;
+            for (int i = 0; i < (int)track.Keyframes().size(); i++) {
+                if (track.Keyframes()[i].time <= animCurrentTime_) prevKf = i;
+                if (track.Keyframes()[i].time > animCurrentTime_ && nextKf < 0) nextKf = i;
             }
             if (prevKf >= 0 && nextKf >= 0)
                 ImGui::Text("補間中: KF[%d] → KF[%d]", prevKf, nextKf);
@@ -361,7 +354,7 @@ void AnimationEditor::DrawDebugUI() {
         //     - 行をクリックで選択・モデルに反映
         //     - Xボタンで削除
         // -----------------------------------------------
-        ImGui::Text("キーフレーム数: %zu", track.keyframes.size());
+        ImGui::Text("キーフレーム数: %zu", track.Keyframes().size());
         int deleteIndex = -1; // EndTable後に削除するため記録
 
         if (ImGui::BeginTable("kf_table", 4,
@@ -374,8 +367,8 @@ void AnimationEditor::DrawDebugUI() {
             ImGui::TableSetupColumn("削除");
             ImGui::TableHeadersRow();
 
-            for (int i = 0; i < (int)track.keyframes.size(); i++) {
-                auto& kf = track.keyframes[i];
+            for (int i = 0; i < (int)track.Keyframes().size(); i++) {
+                const auto& kf = track.Keyframes()[i];
                 ImGui::TableNextRow();
 
                 // フレーム列（SpanAllColumnsなし → Delボタンが正常に反応する）
@@ -411,10 +404,8 @@ void AnimationEditor::DrawDebugUI() {
 
         // テーブル終了後に安全に削除
         if (deleteIndex >= 0) {
-            track.keyframes.erase(track.keyframes.begin() + deleteIndex);
-            track.duration = track.keyframes.empty()
-                ? 0.0f : track.keyframes.back().time;
-            if (selectedKeyframeIndex_ >= (int)track.keyframes.size())
+            track.RemoveKeyframe(deleteIndex);
+            if (selectedKeyframeIndex_ >= (int)track.Keyframes().size())
                 selectedKeyframeIndex_ = -1;
         }
 
@@ -425,9 +416,9 @@ void AnimationEditor::DrawDebugUI() {
         //     - 編集した値はモデルに即反映される
         // -----------------------------------------------
         if (selectedKeyframeIndex_ >= 0 &&
-            selectedKeyframeIndex_ < (int)track.keyframes.size()) {
+            selectedKeyframeIndex_ < (int)track.Keyframes().size()) {
 
-            auto& kf = track.keyframes[selectedKeyframeIndex_];
+            TransformKeyframe kf = track.Keyframes()[selectedKeyframeIndex_]; // 写しを直して、変えた時に書き戻す
             ImGui::Text("キーフレーム編集 [%d]", selectedKeyframeIndex_);
 
             // フレーム番号で時間を指定
@@ -438,13 +429,10 @@ void AnimationEditor::DrawDebugUI() {
                 }
 				// 入力されたフレーム番号から時間を逆算して更新
 				kf.time = kfFrame / (float)fps_;
+                track.SetKeyframe(selectedKeyframeIndex_, kf);
 
-                std::sort(track.keyframes.begin(), track.keyframes.end(),
-                    [](const TransformKeyframe& a, const TransformKeyframe& b) {
-                        return a.time < b.time;
-					});
-                if (!track.keyframes.empty()){
-                    track.duration = track.keyframes.back().time;
+                track.SortKeyframes(); // 時間順に並べ直す（総時間も合わせる）
+                if (!track.Keyframes().empty()){
 					selectedKeyframeIndex_ = -1; // フレーム番号変更で順序が変わる可能性があるため選択解除
                 }
 
@@ -453,6 +441,7 @@ void AnimationEditor::DrawDebugUI() {
                 if (ImGui::DragFloat3("位置##kf", &kf.position.x, 0.1f))  target->SetTranslation(kf.position);
                 if (ImGui::DragFloat3("回転##kf", &kf.rotation.x, 0.05f)) target->SetRotation(kf.rotation);
                 if (ImGui::DragFloat3("スケール##kf", &kf.scale.x, 0.05f)) target->SetScale(kf.scale);
+                track.SetKeyframe(selectedKeyframeIndex_, kf);
             }
         }
 
@@ -566,7 +555,7 @@ void AnimationEditor::DrawDebugUI() {
             currentFrame_ = 0;
             isAnimPlaying_ = false;
             selectedKeyframeIndex_ = -1;
-            float minDuration = track.duration + 1.0f;
+            float minDuration = track.Duration() + 1.0f;
             timelineDuration_ = (5.0f > minDuration) ? 5.0f : minDuration;
         }
 		ImGui::SameLine();
@@ -579,8 +568,7 @@ void AnimationEditor::DrawDebugUI() {
         if (ImGui::BeginPopupModal("クリア確認", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("全キーフレームを削除しますか？");
             if (ImGui::Button("はい")) {
-                track.keyframes.clear();
-                track.duration = 0.0f;
+                track.Clear();
                 animCurrentTime_ = 0.0f;
                 currentFrame_ = 0;
                 isAnimPlaying_ = false;
@@ -592,15 +580,13 @@ void AnimationEditor::DrawDebugUI() {
             ImGui::EndPopup();
         }
         if (ImGui::Button("x2速")) {
-            for (auto& kf : track.keyframes) kf.time *= 0.5f;
-            track.duration *= 0.5f;
+            track.ScaleTime(0.5f);
             animCurrentTime_ = 0.0f;
         }
         ImGui::SameLine();
         if (ImGui::Button("x0.5速")) {
-            for (auto& kf : track.keyframes) kf.time *= 2.0f;
-            track.duration *= 2.0f;
-            float minDuration = track.duration + 1.0f;
+            track.ScaleTime(2.0f);
+            float minDuration = track.Duration() + 1.0f;
             if (timelineDuration_ < minDuration) timelineDuration_ = minDuration;
             animCurrentTime_ = 0.0f;
         }

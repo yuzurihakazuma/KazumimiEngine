@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <functional>
 #include "engine/base/Singleton.h"
 #include <vector>
 #include "engine/math/struct.h" // Vector3
@@ -71,9 +72,9 @@ public:
     LevelEditor* GetLevelEditor(){ return levelEditor_.get(); }
 
     // --- ノードエディタへの「ゲーム値」登録（シーンから転送）---
-    //   プレイヤー速度・卵の投げ初速などの float を登録すると「→ ゲーム値」ノードで動かせる。
-    //   ポインタは所有しないため、シーン終了時に必ず ClearNodeGameValues() を呼ぶこと。
-    void RegisterNodeGameValue(const std::string& label, float* target, float minV, float maxV);
+    //   プレイヤー速度・卵の投げ初速などの「値を入れる関数」を登録すると「→ ゲーム値」ノードで動かせる。
+    //   関数の中でシーンの物を触るので、シーン終了時に必ず ClearNodeGameValues() を呼ぶこと。
+    void RegisterNodeGameValue(const std::string& label, std::function<void(float)> apply, float minV, float maxV);
     void ClearNodeGameValues();
 
     // エディタがアクティブかどうか

@@ -41,7 +41,6 @@ public:
     int SpawnedCount() const{ return spawnedCount_; }
 
     // 各システム（踏みつけ・飲み込み・ロックオン・卵命中）が走査に使う
-    std::vector<std::unique_ptr<Enemy>>& GetEnemies(){ return enemies_; }
     const std::vector<std::unique_ptr<Enemy>>& GetEnemies() const{ return enemies_; }
 
 private:

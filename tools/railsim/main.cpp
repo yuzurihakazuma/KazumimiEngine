@@ -49,30 +49,35 @@ static bool LoadRails(const char* path, std::vector<SplineRail>& rails){
         in >> word >> nodeCount >> lineMode >> e.type >> e.visible >> e.roadMode >> e.endPlaza >> e.ground;
         in >> word >> e.skin.style >> e.skin.width >> e.skin.lift >> e.skin.curl >> e.skin.layer;
         SplineRail rail;
-        in >> word >> rail.EditMotion().motionAmp.x >> rail.EditMotion().motionAmp.y >> rail.EditMotion().motionAmp.z >> rail.EditMotion().motionType >> rail.EditMotion().guideRail;
-        for ( int k = 0; k < nodeCount; ++k ) { Vector3 p; in >> p.x >> p.y >> p.z; rail.EditNodes().push_back(p); }
+        Vector3 motionAmp;
+        int motionType = 0, guideRail = -1;
+        in >> word >> motionAmp.x >> motionAmp.y >> motionAmp.z >> motionType >> guideRail;
+        rail.SetMotionAmp(motionAmp);
+        rail.SetMotionType(motionType);
+        rail.SetGuideRail(guideRail);
+        for ( int k = 0; k < nodeCount; ++k ) { Vector3 p; in >> p.x >> p.y >> p.z; rail.AddNode(p); }
         int holeCount = 0;
         in >> word >> holeCount;
         e.holes.resize(holeCount);
         for ( int k = 0; k < holeCount; ++k ) { in >> e.holes[k]; }
-        rail.EditConfig().lineMode = lineMode;
+        rail.SetLineMode(lineMode);
         rail.BuildDistanceTable();
         rails.push_back(rail);
     }
     for ( int i = 0; i < count; ++i ) {
-        if ( extras[i].type == 0 ) rails[i].EditConfig().type = SplineRail::RailType::Horizontal;
-        else if ( extras[i].type == 1 ) rails[i].EditConfig().type = SplineRail::RailType::Vertical;
+        if ( extras[i].type == 0 ) rails[i].SetType(SplineRail::RailType::Horizontal);
+        else if ( extras[i].type == 1 ) rails[i].SetType(SplineRail::RailType::Vertical);
         else rails[i].AutoDetectType();
     }
     RailConnections::Build(rails);
     for ( int i = 0; i < count; ++i ) {
         SplineRail& rail = rails[i];
-        rail.EditConfig().groundType = ( SplineRail::GroundType ) extras[i].ground;
-        rail.EditConfig().nodeHole = extras[i].holes;
-        rail.EditConfig().visible = extras[i].visible != 0;
-        rail.EditConfig().roadMode = extras[i].roadMode;
-        rail.EditConfig().endPlaza = extras[i].endPlaza;
-        rail.EditConfig().skin = extras[i].skin;
+        rail.SetGroundType(( SplineRail::GroundType ) extras[i].ground);
+        rail.SetNodeHole(extras[i].holes);
+        rail.SetVisible(extras[i].visible != 0);
+        rail.SetRoadMode(extras[i].roadMode);
+        rail.SetEndPlaza(extras[i].endPlaza);
+        rail.SetSkin(extras[i].skin);
     }
     return true;
 }
@@ -243,7 +248,7 @@ static void Walk(std::vector<SplineRail>& rails, int rail, float dist, const std
 //   boardKind：駅 A の道を台車の 2m 手前で止め、そこから台車までを渡し板（4 番）にする（1＝ぱたん / 2＝ころころ。台本の E:1＝卵が当たる）
 static void Train(const std::string& script, int boardKind){
     const bool withBoard = boardKind != 0;
-    auto line = [](std::initializer_list<Vector3> points){ SplineRail rail; rail.EditNodes() = points; rail.BuildDistanceTable(); return rail; };
+    auto line = [](std::initializer_list<Vector3> points){ SplineRail rail; rail.SetNodes(points); rail.BuildDistanceTable(); return rail; };
     std::vector<SplineRail> rails;
     if ( withBoard ) { rails.push_back(line({ { 4.0f, 1.0f, -6.0f }, { 4.0f, 1.0f, -4.0f }, { 4.0f, 1.0f, -2.0f } })); } // 0：駅 A の道（板の手前まで）
     else             { rails.push_back(line({ { 4.0f, 1.0f, -6.0f }, { 4.0f, 1.0f, -3.0f }, { 4.0f, 1.0f, 0.0f } })); }  // 0：駅 A の道
@@ -251,19 +256,19 @@ static void Train(const std::string& script, int boardKind){
     rails.push_back(line({ { 0.0f, 1.0f, 0.0f }, { 20.0f, 1.0f, 0.0f }, { 40.0f, 1.0f, 0.0f } }));       // 2：線路
     rails.push_back(line({ { 33.3f, 1.0f, 0.0f }, { 33.3f, 1.0f, 3.0f }, { 33.3f, 1.0f, 6.0f } }));      // 3：駅 B の道
     rails.push_back(line({ { 4.0f, 1.0f, -2.0f }, { 4.0f, 1.0f, -1.0f }, { 4.0f, 1.0f, 0.0f } }));       // 4：渡し板（withBoard の時だけ使う）
-    rails[0].EditConfig().type = rails[3].EditConfig().type = rails[4].EditConfig().type = SplineRail::RailType::Vertical;
-    if ( withBoard ) { rails[4].EditBoard().boardKind = boardKind; rails[4].EditBoard().boardTrain = boardKind == 1 ? 1 : -1; } else { rails[4].EditNodes().clear(); rails[4].BuildDistanceTable(); }
-    rails[1].EditConfig().type = rails[2].EditConfig().type = SplineRail::RailType::Horizontal;
+    for ( int vertical : { 0, 3, 4 } ) { rails[vertical].SetType(SplineRail::RailType::Vertical); }
+    if ( withBoard ) { rails[4].SetBoardKind(boardKind); rails[4].SetBoardTrain(boardKind == 1 ? 1 : -1); } else { rails[4].ClearNodes(); rails[4].BuildDistanceTable(); }
+    for ( int horizontal : { 1, 2 } ) { rails[horizontal].SetType(SplineRail::RailType::Horizontal); }
     SplineRail& car = rails[1];
-    car.EditMotion().motionType = 3; car.EditMotion().guideRail = 2; car.EditMotion().motionPeriod = 3.0f;
-    car.EditTrain().train = 1; car.EditTrain().trainDepart = 0.5f; car.EditTrain().trainReturn = 2.0f; car.EditTrain().trainEngine = 1; car.EditTrain().trainSpeed = 12.0f;
-    car.EditMotion().animPivot = car.GetPositionByDistance(car.GetLength() * 0.5f);
-    car.EditMotion().restYaw = std::atan2(1.0f, 0.0f);
-    rails[2].EditConfig().visible = 0; rails[2].EditConfig().roadMode = 1;
-    rails[2].EditTrain().isTrack = true;
+    car.SetMotionType(3); car.SetGuideRail(2); car.SetMotionPeriod(3.0f);
+    car.SetTrain(1); car.SetTrainDepart(0.5f); car.SetTrainReturn(2.0f); car.SetTrainEngine(1); car.SetTrainSpeed(12.0f);
+    car.SetAnimPivot(car.GetPositionByDistance(car.GetLength() * 0.5f));
+    car.SetRestYaw(std::atan2(1.0f, 0.0f));
+    rails[2].SetVisible(0); rails[2].SetRoadMode(1);
+    rails[2].SetIsTrack(true);
     RailMotion::SetupTrain(car, rails);
     RailMotion::SetupBoard(rails[4], rails);
-    car.EditConfig().roadMode = 1;
+    car.SetRoadMode(1);
     RailConnections::Build(rails);
     RailMotion::SetupRollBoard(rails[4]);
     RailMotion::Reset(rails);
@@ -296,7 +301,7 @@ static void Train(const std::string& script, int boardKind){
             PlayerInput::AutoPilot now = pilot;
             if ( i == 0 ) { now.switchX = ( int ) pilot.moveX; now.switchZ = ( int ) pilot.moveZ; }
             if ( keys == "J" ) { now.jumpPressed = ( i == 0 ); now.jumpHeld = ( i < 10 ); }
-            if ( keys == "E" && i == 0 ) { rails[4].EditBoard().boardTriggered = true; } // 卵が巻いたマットに当たった
+            if ( keys == "E" && i == 0 ) { rails[4].SetBoardTriggered(true); } // 卵が巻いたマットに当たった
             const int riding = player.IsGrounded() ? player.GetCurrentRail() : -1;
             RailMotion::Advance(rails, dt, riding, player.GetCurrentRail());
             player.SetAutoPilot(true, now);

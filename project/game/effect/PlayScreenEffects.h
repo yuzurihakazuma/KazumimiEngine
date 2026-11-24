@@ -35,6 +35,9 @@ public:
 
 private:
     enum class IrisPhase { None, Closing, Hold, Opening };
+    // アイリスの段階ごとの状態クラス（中身は cpp）
+    class IrisState;
+    struct Irises;
     IrisPhase irisPhase_ = IrisPhase::None;
     float irisTimer_ = 0.0f;
     float tiltScale_ = 1.0f;   // 画面の上下のぼかしの強さ（1＝いつもの強さ・0＝ぼかさない）

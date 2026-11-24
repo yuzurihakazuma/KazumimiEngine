@@ -1,5 +1,6 @@
 #include "Enemy.h"
 #include "game/enemy/EnemyBehavior.h"
+#include "game/combat/EnemyHit.h"
 #include "engine/base/TimeManager.h"
 #include "engine/math/MathUtil.h"
 
@@ -325,6 +326,12 @@ void Enemy::ApplyLook(float squash, float melt){
         obj_->SetDissolveThreshold(threshold);
         obj_->Update();
     }
+}
+
+// 何かが当たった：自分の種類のふるまいへ回す（ふるまいが、当たった物の「この種類の敵に当たった時」を呼ぶ）
+void Enemy::ReceiveHit(const EnemyHit& hit, EnemyHitContext& context){
+    if ( behavior_ ) { behavior_->ReceiveHit(hit, *this, context); }
+    else             { hit.OnWalker(*this, context); } // ふるまいを作る前：いちばん基本の敵として扱う
 }
 
 void Enemy::Defeat(){

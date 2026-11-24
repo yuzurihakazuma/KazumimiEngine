@@ -31,8 +31,8 @@ public:
 	// 実行
 	void Run();
 
-protected:
-	bool endRequest_ = false;
+private:
+	bool endRequest_ = false; // ウィンドウを閉じる要求が来た
 };
 
 } // namespace KazumimiEngine

@@ -75,7 +75,7 @@ bool StripEnemyTool::Update(const StripContext& context, StripState& state, cons
     const auto& rails = *context.rails;
     const int currentRail = state.currentRail;
     const SplineRail& rail = rails[currentRail];
-    auto& spawns = enemyEditor->MutableSpawnDatas();
+    const auto& spawns = enemyEditor->GetSpawnDatas();
 
     const float mouseDist   = layout.XToDist(io.MousePos.x);
     const float mouseHeight = layout.YToHeight(io.MousePos.y);
@@ -90,12 +90,13 @@ bool StripEnemyTool::Update(const StripContext& context, StripState& state, cons
             return true; // ドラッグ中に消された等（途中の操作は呼び出し側で全部やめる）
         }
         if ( ImGui::IsMouseDown(ImGuiMouseButton_Left) ) {
-            EnemySpawnData& spawn = spawns[dragIndex_];
+            EnemySpawnData spawn = spawns[dragIndex_]; // 写しを直して、下で書き戻す
             const EnemySpawnData before = spawn;
             if ( drag_ == Drag::Move ) {
                 // ただのクリック（3px未満）では動かさない＝選んだだけで位置がずれない
                 if ( ImGui::IsMouseDragging(ImGuiMouseButton_Left, 3.0f) ) {
                     enemyEditor->MoveEntry(dragIndex_, currentRail, snappedDist, rails); // 範囲つきは範囲ごと動く
+                    spawn = spawns[dragIndex_]; // 動かした後の中身に合わせる
                     // フワリン：上下に動かすと浮く高さが変わる（少し動かしただけでは変えない）
                     if ( spawn.type == EnemyType::Air ) {
                         if ( std::abs(io.MousePos.y - grabMouseY_) > layout.cellPx * 0.4f ) { hoverAdjust_ = true; }
@@ -130,6 +131,7 @@ bool StripEnemyTool::Update(const StripContext& context, StripState& state, cons
                 }
             }
             if ( !( spawn == before ) ) {
+                enemyEditor->SetSpawnData(dragIndex_, spawn);
                 enemyEditor->MarkChanged(); // Game View の敵もその場で動く（実体は使い回すので軽い）
             }
             ImGui::SetMouseCursor(drag_ == Drag::Move ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_ResizeEW);
@@ -271,7 +273,7 @@ void StripEnemyTool::DrawContextMenu(const StripContext& context, StripState& st
 #ifdef USE_IMGUI
     if ( !ImGui::BeginPopup("##stripEnemyMenu") ) return;
     EnemyEditor* enemyEditor = context.enemyEditor;
-    auto& spawns = enemyEditor->MutableSpawnDatas();
+    const auto& spawns = enemyEditor->GetSpawnDatas();
     if ( !context.editable || contextEnemy_ < 0 || contextEnemy_ >= ( int ) spawns.size() ) {
         ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -289,9 +291,10 @@ void StripEnemyTool::DrawContextMenu(const StripContext& context, StripState& st
     }
     ImGui::Separator();
     {
-        EnemySpawnData& spawn = spawns[index];
+        EnemySpawnData spawn = spawns[index]; // 写しを直して、変えた時に書き戻す
         if ( ImGui::MenuItem("巡回する（往復）", nullptr, spawn.patrol) ) {
             spawn.patrol = !spawn.patrol;
+            enemyEditor->SetSpawnData(index, spawn);
             enemyEditor->MarkChanged();
         }
         const bool moves = ( spawn.patrol || spawn.chaseRange > 0.0f );
@@ -305,6 +308,7 @@ void StripEnemyTool::DrawContextMenu(const StripContext& context, StripState& st
                 spawn.patrolMin = std::clamp(spawn.distance - 3.0f, 0.0f, railLength);
                 spawn.patrolMax = std::clamp(spawn.distance + 3.0f, spawn.patrolMin, railLength);
             }
+            enemyEditor->SetSpawnData(index, spawn);
             enemyEditor->MarkChanged();
         }
     }

@@ -301,7 +301,7 @@ void SDFManager::DrawItems(ID3D12GraphicsCommandList* commandList) {
         SDFAtlas* atlas = FindAtlas(t.atlasName);
         if ( !atlas || !atlas->IsFont() ) continue;
         float alpha = proximityAlpha(t.text->Is3D(), t.text->IsProximityEnabled(),
-                                     t.text->GetProximityRadius(), t.text->RefWorldPos());
+                                     t.text->GetProximityRadius(), t.text->GetWorldPos());
         if ( alpha <= 0.0f ) continue; // 完全に見えないアイテムは描かない
         t.text->SetDrawAlpha(alpha);
         if ( !textBound ) {
@@ -320,7 +320,7 @@ void SDFManager::DrawItems(ID3D12GraphicsCommandList* commandList) {
         SDFAtlas* atlas = FindAtlas(s.atlasName);
         if ( !atlas || atlas->IsFont() ) continue;
         float alpha = proximityAlpha(s.sprite->Is3D(), s.sprite->IsProximityEnabled(),
-                                     s.sprite->GetProximityRadius(), s.sprite->RefWorldPos());
+                                     s.sprite->GetProximityRadius(), s.sprite->GetWorldPos());
         if ( alpha <= 0.0f ) continue;
         s.sprite->SetDrawAlpha(alpha);
         if ( !spriteBound ) {
@@ -369,46 +369,46 @@ void SDFManager::SaveScene() const {
     j["texts"] = json::array();
     for ( const auto& t : texts_ ) {
         const SDFText& x = *t.text;
-        Vector4 c = const_cast<SDFText&>( x ).RefColor();
-        Vector4 oc = const_cast<SDFText&>( x ).RefOutlineColor();
-        Vector3 wp = const_cast<SDFText&>( x ).RefWorldPos();
+        Vector4 c = x.GetColor();
+        Vector4 oc = x.GetOutlineColor();
+        Vector3 wp = x.GetWorldPos();
         j["texts"].push_back({
             { "atlas", t.atlasName },
             { "text", x.GetText() },
             { "x", x.GetX() }, { "y", x.GetY() },
             { "size", x.GetFontSize() },
             { "color", { c.x, c.y, c.z, c.w } },
-            { "outlineWidth", const_cast<SDFText&>( x ).RefOutlineWidth() },
+            { "outlineWidth", x.GetOutlineWidth() },
             { "outlineColor", { oc.x, oc.y, oc.z, oc.w } },
-            { "thickness", const_cast<SDFText&>( x ).RefThickness() },
+            { "thickness", x.GetThickness() },
             { "use3D", x.Is3D() },
             { "worldPos", { wp.x, wp.y, wp.z } },
-            { "worldScale", const_cast<SDFText&>( x ).RefWorldScale() },
+            { "worldScale", x.GetWorldScale() },
             { "proximity", x.IsProximityEnabled() },
             { "proximityRadius", x.GetProximityRadius() },
         });
     }
     j["sprites"] = json::array();
     for ( const auto& s : sprites_ ) {
-        SDFSprite& x = *s.sprite;
-        Vector4 c = x.RefColor();
-        Vector4 oc = x.RefOutlineColor();
-        Vector4 gc = x.RefGlowColor();
-        Vector3 wp = x.RefWorldPos();
+        const SDFSprite& x = *s.sprite;
+        Vector4 c = x.GetColor();
+        Vector4 oc = x.GetOutlineColor();
+        Vector4 gc = x.GetGlowColor();
+        Vector3 wp = x.GetWorldPos();
         j["sprites"].push_back({
             { "atlas", s.atlasName },
             { "sprite", x.GetSpriteName() },
             { "x", x.GetX() }, { "y", x.GetY() },
-            { "scale", x.RefScale() },
+            { "scale", x.GetScale() },
             { "color", { c.x, c.y, c.z, c.w } },
-            { "outlineWidth", x.RefOutlineWidth() },
+            { "outlineWidth", x.GetOutlineWidth() },
             { "outlineColor", { oc.x, oc.y, oc.z, oc.w } },
-            { "glowWidth", x.RefGlowWidth() },
+            { "glowWidth", x.GetGlowWidth() },
             { "glowColor", { gc.x, gc.y, gc.z, gc.w } },
             { "use3D", x.Is3D() },
             { "worldPos", { wp.x, wp.y, wp.z } },
-            { "worldScale", x.RefWorldScale() },
-            { "edgeBias", x.RefEdgeBias() },
+            { "worldScale", x.GetWorldScale() },
+            { "edgeBias", x.GetEdgeBias() },
             { "proximity", x.IsProximityEnabled() },
             { "proximityRadius", x.GetProximityRadius() },
         });
@@ -488,7 +488,7 @@ void SDFManager::LoadScene() {
                 { js["worldPos"][0], js["worldPos"][1], js["worldPos"][2] },
                 js.value("worldScale", 5.0f));
         }
-        item.sprite->RefEdgeBias() = js.value("edgeBias", 0.5f);
+        item.sprite->SetEdgeBias(js.value("edgeBias", 0.5f));
         item.sprite->SetProximity(js.value("proximity", false), js.value("proximityRadius", 8.0f));
         sprites_.push_back(std::move(item));
     }
@@ -620,17 +620,22 @@ void SDFManager::DrawDebugUI() {
                 // 2D / 3D 切り替え（3D=ワールド空間に看板として置く）
                 bool is3D = item.text->Is3D();
                 if ( ImGui::Checkbox("3Dで表示（ワールドに看板として置く）", &is3D) ) {
-                    if ( is3D ) { item.text->SetTransform3D(item.text->RefWorldPos(), item.text->RefWorldScale()); }
+                    if ( is3D ) { item.text->SetTransform3D(item.text->GetWorldPos(), item.text->GetWorldScale()); }
                     else        { item.text->SetScreenMode(); }
                 }
                 if ( is3D ) {
-                    ImGui::DragFloat3("ワールド位置", &item.text->RefWorldPos().x, 0.1f);
-                    ImGui::DragFloat("1行の高さ (m)", &item.text->RefWorldScale(), 0.05f, 0.05f, 20.0f);
+                    Vector3 worldPos = item.text->GetWorldPos();
+                    if ( ImGui::DragFloat3("ワールド位置", &worldPos.x, 0.1f) ) { item.text->SetWorldPos(worldPos); }
+                    float worldScale = item.text->GetWorldScale();
+                    if ( ImGui::DragFloat("1行の高さ (m)", &worldScale, 0.05f, 0.05f, 20.0f) ) { item.text->SetWorldScale(worldScale); }
                     // 近接表示：プレイ中、プレイヤーが近くに来た時だけフェードインする
-                    ImGui::Checkbox("近づいた時だけ表示", &item.text->RefProximityEnabled());
-                    if ( item.text->RefProximityEnabled() ) {
-                        ImGui::DragFloat("表示距離 (m)", &item.text->RefProximityRadius(), 0.1f, 0.5f, 100.0f);
+                    bool proximity = item.text->IsProximityEnabled();
+                    float proximityRadius = item.text->GetProximityRadius();
+                    bool proximityChanged = ImGui::Checkbox("近づいた時だけ表示", &proximity);
+                    if ( proximity ) {
+                        proximityChanged |= ImGui::DragFloat("表示距離 (m)", &proximityRadius, 0.1f, 0.5f, 100.0f);
                     }
+                    if ( proximityChanged ) { item.text->SetProximity(proximity, proximityRadius); }
                 } else {
                     float pos[2] = { item.text->GetX(), item.text->GetY() };
                     if ( ImGui::DragFloat2("位置", pos, 1.0f) ) { item.text->SetPosition(pos[0], pos[1]); }
@@ -638,10 +643,14 @@ void SDFManager::DrawDebugUI() {
                 float size = item.text->GetFontSize();
                 if ( ImGui::DragFloat("サイズ", &size, 1.0f, 4.0f, 512.0f) ) { item.text->SetFontSize(size); }
                 // 色・フチ・太さ
-                ImGui::ColorEdit4("文字色", &item.text->RefColor().x);
-                ImGui::SliderFloat("太さ (+太字/-細字)", &item.text->RefThickness(), -0.15f, 0.2f);
-                ImGui::SliderFloat("フチ太さ", &item.text->RefOutlineWidth(), 0.0f, 0.4f);
-                ImGui::ColorEdit4("フチ色", &item.text->RefOutlineColor().x);
+                Vector4 textColor = item.text->GetColor();
+                if ( ImGui::ColorEdit4("文字色", &textColor.x) ) { item.text->SetColor(textColor); }
+                float thickness = item.text->GetThickness();
+                if ( ImGui::SliderFloat("太さ (+太字/-細字)", &thickness, -0.15f, 0.2f) ) { item.text->SetThickness(thickness); }
+                float textOutlineWidth = item.text->GetOutlineWidth();
+                if ( ImGui::SliderFloat("フチ太さ", &textOutlineWidth, 0.0f, 0.4f) ) { item.text->SetOutlineWidth(textOutlineWidth); }
+                Vector4 textOutlineColor = item.text->GetOutlineColor();
+                if ( ImGui::ColorEdit4("フチ色", &textOutlineColor.x) ) { item.text->SetOutlineColor(textOutlineColor); }
 
                 if ( ImGui::Button("削除") ) { deleteIndex = i; }
                 ImGui::TreePop();
@@ -725,36 +734,51 @@ void SDFManager::DrawDebugUI() {
                 bool is3D = item.sprite->Is3D();
                 if ( ImGui::Checkbox("3Dで表示（ワールドに板として置く）", &is3D) ) {
                     if ( is3D ) {
-                        item.sprite->SetTransform3D(item.sprite->RefWorldPos(), item.sprite->RefWorldScale());
+                        item.sprite->SetTransform3D(item.sprite->GetWorldPos(), item.sprite->GetWorldScale());
                     } else {
                         item.sprite->SetScreenMode();
                     }
                 }
                 if ( is3D ) {
-                    if ( ImGui::DragFloat3("ワールド位置", &item.sprite->RefWorldPos().x, 0.1f) ) {
+                    Vector3 worldPos = item.sprite->GetWorldPos();
+                    if ( ImGui::DragFloat3("ワールド位置", &worldPos.x, 0.1f) ) {
+                        item.sprite->SetWorldPos(worldPos);
                         item.sprite->MarkDirty();
                     }
-                    if ( ImGui::DragFloat("大きさ (高さ)", &item.sprite->RefWorldScale(), 0.1f, 0.1f, 100.0f) ) {
+                    float worldScale = item.sprite->GetWorldScale();
+                    if ( ImGui::DragFloat("大きさ (高さ)", &worldScale, 0.1f, 0.1f, 100.0f) ) {
+                        item.sprite->SetWorldScale(worldScale);
                         item.sprite->MarkDirty();
                     }
                     // 近接表示：プレイ中、プレイヤーが近くに来た時だけフェードインする
-                    ImGui::Checkbox("近づいた時だけ表示", &item.sprite->RefProximityEnabled());
-                    if ( item.sprite->RefProximityEnabled() ) {
-                        ImGui::DragFloat("表示距離 (m)", &item.sprite->RefProximityRadius(), 0.1f, 0.5f, 100.0f);
+                    bool proximity = item.sprite->IsProximityEnabled();
+                    float proximityRadius = item.sprite->GetProximityRadius();
+                    bool proximityChanged = ImGui::Checkbox("近づいた時だけ表示", &proximity);
+                    if ( proximity ) {
+                        proximityChanged |= ImGui::DragFloat("表示距離 (m)", &proximityRadius, 0.1f, 0.5f, 100.0f);
                     }
+                    if ( proximityChanged ) { item.sprite->SetProximity(proximity, proximityRadius); }
                 } else {
                     float pos[2] = { item.sprite->GetX(), item.sprite->GetY() };
                     if ( ImGui::DragFloat2("位置", pos, 1.0f) ) { item.sprite->SetPosition(pos[0], pos[1]); }
-                    float scale = item.sprite->RefScale();
+                    float scale = item.sprite->GetScale();
                     if ( ImGui::DragFloat("スケール", &scale, 0.01f, 0.05f, 20.0f) ) { item.sprite->SetScale(scale); }
                 }
                 // ティント・太さ・フチ・グロー
-                ImGui::ColorEdit4("ティント", &item.sprite->RefColor().x);
-                ImGui::SliderFloat("太さ調整 (小=太る/大=痩せる)", &item.sprite->RefEdgeBias(), 0.30f, 0.70f);
-                ImGui::SliderFloat("フチ太さ", &item.sprite->RefOutlineWidth(), 0.0f, 0.4f);
-                ImGui::ColorEdit4("フチ色", &item.sprite->RefOutlineColor().x);
-                ImGui::SliderFloat("グロー幅", &item.sprite->RefGlowWidth(), 0.0f, 0.5f);
-                ImGui::ColorEdit4("グロー色", &item.sprite->RefGlowColor().x);
+                Vector4 tint = item.sprite->GetColor();
+                if ( ImGui::ColorEdit4("ティント", &tint.x) ) { item.sprite->SetColor(tint); }
+                float edgeBias = item.sprite->GetEdgeBias();
+                if ( ImGui::SliderFloat("太さ調整 (小=太る/大=痩せる)", &edgeBias, 0.30f, 0.70f) ) { item.sprite->SetEdgeBias(edgeBias); }
+                float spriteOutlineWidth = item.sprite->GetOutlineWidth();
+                Vector4 spriteOutlineColor = item.sprite->GetOutlineColor();
+                bool outlineChanged = ImGui::SliderFloat("フチ太さ", &spriteOutlineWidth, 0.0f, 0.4f);
+                outlineChanged |= ImGui::ColorEdit4("フチ色", &spriteOutlineColor.x);
+                if ( outlineChanged ) { item.sprite->SetOutline(spriteOutlineWidth, spriteOutlineColor); }
+                float glowWidth = item.sprite->GetGlowWidth();
+                Vector4 glowColor = item.sprite->GetGlowColor();
+                bool glowChanged = ImGui::SliderFloat("グロー幅", &glowWidth, 0.0f, 0.5f);
+                glowChanged |= ImGui::ColorEdit4("グロー色", &glowColor.x);
+                if ( glowChanged ) { item.sprite->SetGlow(glowWidth, glowColor); }
 
                 if ( ImGui::Button("削除") ) { deleteIndex = i; }
                 ImGui::TreePop();

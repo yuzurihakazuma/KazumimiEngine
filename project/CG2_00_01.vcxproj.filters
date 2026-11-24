@@ -441,6 +441,9 @@
     <ClCompile Include="game\combat\CombatSystem.cpp">
       <Filter>game\combat</Filter>
     </ClCompile>
+    <ClCompile Include="game\combat\EnemyHit.cpp">
+      <Filter>game\combat</Filter>
+    </ClCompile>
     <ClCompile Include="game\combat\HitFeel.cpp">
       <Filter>game\combat</Filter>
     </ClCompile>
@@ -448,6 +451,9 @@
       <Filter>game\demo</Filter>
     </ClCompile>
     <ClCompile Include="game\editor\BackdropEditTool.cpp">
+      <Filter>game\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="game\editor\BackdropHistory.cpp">
       <Filter>game\editor</Filter>
     </ClCompile>
     <ClCompile Include="game\editor\BlockDragTool.cpp">
@@ -1085,6 +1091,9 @@
     <ClInclude Include="game\combat\CombatSystem.h">
       <Filter>game\combat</Filter>
     </ClInclude>
+    <ClInclude Include="game\combat\EnemyHit.h">
+      <Filter>game\combat</Filter>
+    </ClInclude>
     <ClInclude Include="game\combat\HitFeel.h">
       <Filter>game\combat</Filter>
     </ClInclude>
@@ -1092,6 +1101,9 @@
       <Filter>game\demo</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\BackdropEditTool.h">
+      <Filter>game\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\editor\BackdropHistory.h">
       <Filter>game\editor</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\BlockDragTool.h">
@@ -1132,6 +1144,9 @@
     </ClInclude>
     <ClInclude Include="game\editor\SceneEditContext.h">
       <Filter>game\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="game\editor\strip\IStripTool.h">
+      <Filter>game\editor\strip</Filter>
     </ClInclude>
     <ClInclude Include="game\editor\strip\StripBlockTool.h">
       <Filter>game\editor\strip</Filter>

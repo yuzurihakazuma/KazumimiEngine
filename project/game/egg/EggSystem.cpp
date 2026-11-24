@@ -15,6 +15,9 @@ using namespace KazumimiEngine;
 EggSystem::~EggSystem() = default; // unique_ptr<Obj3d> のため cpp 側で定義
 
 namespace {
+    // プールで使い回す見た目のモデル名
+    constexpr const char* kEggModel  = "egg";    // 卵
+    constexpr const char* kSpitModel = "sphere"; // 吐き出す敵ボール
     // -1.0〜1.0 の簡易乱数（トレイルのばらつき用）
     float Rand11(){ return ( ( float ) std::rand() / RAND_MAX ) * 2.0f - 1.0f; }
 
@@ -50,17 +53,32 @@ namespace {
     const float kHistoryTime   = 1.2f;  // 恐竜の足の高さを覚えておく秒
 }
 
-void EggSystem::Initialize(){
-    eggs_.clear();
-    // 表示中パフの Obj3d はプールへ返してから消す。捨てるとモード切替のたびに
-    // プールが痩せていき、いずれ初回バーストのカクつきが再発してしまう
-    for ( auto& puff : puffs_ ) {
-        if ( puff.obj ) {
-            auto& pool = puffPool_[puff.model];
-            if ( pool.size() < 32 ) { pool.push_back(std::move(puff.obj)); }
-        }
+// プールから見た目を 1 個出す（空なら作る）
+std::unique_ptr<Obj3d> EggSystem::AcquireVisual(const std::string& modelName){
+    auto found = visualPool_.find(modelName);
+    if ( found != visualPool_.end() && !found->second.empty() ) {
+        std::unique_ptr<Obj3d> visual = std::move(found->second.back());
+        found->second.pop_back();
+        return visual;
     }
+    return Obj3d::Create(modelName); // 既定カメラが自動バインド
+}
+
+// 使い終わった見た目をプールへ返す
+void EggSystem::ReleaseVisual(const std::string& modelName, std::unique_ptr<Obj3d> visual){
+    if ( !visual ) { return; }
+    auto& pool = visualPool_[modelName];
+    if ( pool.size() < kPoolLimit ) { pool.push_back(std::move(visual)); }
+}
+
+void EggSystem::Initialize(){
+    // 表示中の見た目（卵・けむりの粒・吐き出した敵ボール）はプールへ返してから消す。捨てるとモード切替のたびに
+    // プールが痩せていき、いずれ初回バーストのカクつきが再発してしまう
+    for ( auto& egg : eggs_ ) { ReleaseVisual(kEggModel, egg->DetachVisual()); }
+    eggs_.clear();
+    for ( auto& puff : puffs_ ) { ReleaseVisual(puff.model, std::move(puff.obj)); }
     puffs_.clear();
+    for ( auto& spit : spits_ ) { ReleaseVisual(kSpitModel, std::move(spit.obj)); }
     spits_.clear();
     stomach_    = 0;
     trailTimer_ = 0.0f;
@@ -104,8 +122,8 @@ void EggSystem::WarmupBirthFx(){
 }
 
 // パフ用 Obj3d の事前生成：ロード時にプールへ積んでおく（初回バーストの固まり対策）
-void EggSystem::PrewarmPuffPool(const std::string& modelName, int count){
-    auto& pool = puffPool_[modelName];
+void EggSystem::PrewarmVisualPool(const std::string& modelName, int count){
+    auto& pool = visualPool_[modelName];
     while ( ( int ) pool.size() < count ) {
         auto obj = Obj3d::Create(modelName);
         if ( !obj ) break; // モデル未登録なら何もしない（SpawnPuff 側と同じ扱い）
@@ -119,13 +137,7 @@ void EggSystem::SpawnPuff(const Vector3& pos, const Vector3& vel, const Vector4&
     TrailPuff puff;
     // 同じモデルの使い終わった Obj3d があれば使い回す（Create はGPUリソース確保を伴い、
     // 敵撃破や卵割れの一斉バーストでその瞬間だけ重くなるため）
-    auto poolIt = puffPool_.find(modelName);
-    if ( poolIt != puffPool_.end() && !poolIt->second.empty() ) {
-        puff.obj = std::move(poolIt->second.back());
-        poolIt->second.pop_back();
-    } else {
-        puff.obj = Obj3d::Create(modelName); // 既定カメラが自動バインド
-    }
+    puff.obj = AcquireVisual(modelName);
     puff.model = modelName;
     if ( puff.obj ) {
         puff.obj->SetScale({ scale, scale, scale });
@@ -199,7 +211,7 @@ bool EggSystem::LayEgg(const Vector3& birthPos){
     //   ※以前は "sphere" を潰して代用していたが、"sphere" は敵とも共有しているモデルのため
     //   色を変えると敵まで一緒に染まってしまっていた。専用モデルにしたことでその干渉も無くなる。
     const Vector3 baseScale = { 0.7f, 0.7f, 0.7f }; // モデル自体が卵の形なので均等スケールでOK
-    if ( auto obj = Obj3d::Create("egg") ) { // 既定カメラが自動でバインドされる
+    if ( auto obj = AcquireVisual(kEggModel) ) { // プールから（実行中には作らない。消える時に返す）
         obj->SetScale(baseScale);
         egg->AttachVisual(std::move(obj), baseScale);
     }
@@ -484,6 +496,10 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
             spit.obj->Update();
         }
     }
+    // 消える敵ボールは、見た目をプールへ返してから消す
+    for ( auto& spit : spits_ ) {
+        if ( spit.dead ) { ReleaseVisual(kSpitModel, std::move(spit.obj)); }
+    }
     spits_.erase(std::remove_if(spits_.begin(), spits_.end(),
         [](const SpitBall& spit){ return spit.dead; }), spits_.end());
 
@@ -510,15 +526,15 @@ void EggSystem::Update(const Vector3& playerPos, const Vector3& facing, float dt
     }
     // 寿命切れのパフは Obj3d をプールへ返してから消す（次のバーストで使い回す）
     for ( auto& puff : puffs_ ) {
-        if ( puff.life <= 0.0f && puff.obj ) {
-            auto& pool = puffPool_[puff.model];
-            if ( pool.size() < 32 ) { pool.push_back(std::move(puff.obj)); }
-        }
+        if ( puff.life <= 0.0f ) { ReleaseVisual(puff.model, std::move(puff.obj)); }
     }
     puffs_.erase(std::remove_if(puffs_.begin(), puffs_.end(),
         [](const TrailPuff& puff){ return puff.life <= 0.0f; }), puffs_.end());
 
-    // 割れて消えてよくなった卵を後始末
+    // 割れて消えてよくなった卵を後始末（見た目はプールへ返す）
+    for ( auto& egg : eggs_ ) {
+        if ( egg->IsDead() ) { ReleaseVisual(kEggModel, egg->DetachVisual()); }
+    }
     eggs_.erase(
         std::remove_if(eggs_.begin(), eggs_.end(),
             [](const std::unique_ptr<Egg>& egg){ return egg->IsDead(); }),
@@ -639,7 +655,7 @@ bool EggSystem::SpitOut(const Vector3& from, const Vector3& dir, float speed){
     --stomach_;
 
     SpitBall ball;
-    ball.obj = Obj3d::Create("sphere"); // 敵と同じモンスターボール柄＝「飲んだ敵」がそのまま出てくる
+    ball.obj = AcquireVisual(kSpitModel); // 敵と同じモンスターボール柄＝「飲んだ敵」がそのまま出てくる（プールから）
     ball.pos = from;
     ball.prevPos = from;
     // 少し上向きに発射→軽い放物線を描く。dir が坂に沿って上/下を向いていれば、その分も足す

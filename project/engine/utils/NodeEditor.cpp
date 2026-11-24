@@ -34,6 +34,533 @@ namespace {
     }
 }
 
+// =====================================================================
+//  ノードの種類ごとのふるまい。
+//   NodeEditor は、ノードの種類を見て分岐しない（Kinds::Of(種類) で NodeKind を引いて、仮想関数を呼ぶだけ）。
+//   種類を足す時は、Kinds に派生クラスを 1 つ足して Kinds::Of の表に 1 行足す
+// =====================================================================
+class NodeEditor::NodeKind {
+public:
+    // タイトルの色（0〜255）
+    struct Color { int r, g, b; };
+#ifdef USE_IMGUI
+    // ノードの中の欄を描く時の置き場所
+    struct BodyLayout {
+        ImDrawList* drawList;
+        ImVec2 topLeft;     // ノードの左上
+        ImVec2 bottomRight; // ノードの右下
+        float  widgetY;     // 入力ピンの段の下（欄を置き始める高さ）
+    };
+#endif
+
+    virtual ~NodeKind() = default;
+
+    virtual const char* Name() const = 0;        // パレットとタイトルに出す名前
+    virtual const char* Description() const = 0; // マウスを乗せた時の説明
+    virtual int   InputCount() const { return 0; }
+    virtual bool  HasOutput() const { return true; }
+    virtual bool  IsApply() const { return false; }           // 入力の値をゲームへ反映するノードか
+    virtual bool  NeedsObjectTarget() const { return false; } // 配置オブジェクトを選ぶ適用ノードか
+    virtual bool  IsShader() const { return false; }          // シェーダー（マテリアル）系か
+    virtual bool  HasConstInputs() const { return false; }    // つないでいない入力に数値を直接入れられるか
+    virtual float BodyRows() const { return 0.0f; }           // ノードの中の欄に使う段の数
+    virtual Color TitleColor() const { return { 215, 75, 75 }; } // 既定＝適用ノードの赤
+    // 作った時の初期値
+    virtual void  InitNode(Node& /*node*/) const {}
+    // 値を出す（既定＝入力 0 をそのまま流す）
+    virtual float Evaluate(const NodeEditor& editor, const Node& node, int depth) const { return editor.EvaluateInput(node.id, 0, depth); }
+    // 適用ノード：値をゲームへ反映する
+    virtual void  Apply(NodeEditor& /*editor*/, const Node& /*node*/, float /*value*/) const {}
+    // HLSL の式（既定＝白。シェーダーの式に CPU のノードが混ざった時）
+    virtual std::string ShaderExpr(const NodeEditor& /*editor*/, const Node& /*node*/, int /*depth*/) const { return "float4(1.0f, 1.0f, 1.0f, 1.0f)"; }
+#ifdef USE_IMGUI
+    // ノードの中の欄（既定＝今の値をタイトルの横に小さく出す）
+    virtual void DrawBody(NodeEditor& editor, Node& node, const BodyLayout& layout) const {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.2f", editor.Evaluate(node.id, 0));
+        layout.drawList->AddText(ImVec2(layout.bottomRight.x - 46, layout.topLeft.y + 5), IM_COL32(255, 255, 255, 180), buf);
+    }
+
+protected:
+    // 配置オブジェクトを選ぶコンボ（選んだ番号を node.target へ）
+    static void DrawObjectCombo(const char* id, Node& node, float x, float y) {
+        LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
+        ImGui::SetCursorScreenPos(ImVec2(x, y));
+        ImGui::SetNextItemWidth(kNodeWidth - 16);
+        std::string current = levelEditor ? levelEditor->GetObjectLabel(node.target) : "(なし)";
+        if ( ImGui::BeginCombo(id, current.c_str()) ) {
+            int count = levelEditor ? levelEditor->GetObjectCount() : 0;
+            if ( count == 0 ) { ImGui::TextDisabled("(配置オブジェクトなし)"); }
+            for ( int i = 0; i < count; ++i ) {
+                if ( ImGui::Selectable(levelEditor->GetObjectLabel(i).c_str(), node.target == i) ) {
+                    node.target = i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+    }
+#endif
+};
+
+// ノードの種類ごとのクラスの入れ物（NodeEditor の中の物に触れるよう、NodeEditor の中に置く）
+struct NodeEditor::Kinds {
+    // 種類 → ふるまい（知らない番号は Unknown）
+    static const NodeKind& Of(NodeType type);
+
+    // ---------------- 入力（値を作る） ----------------
+    class Value final : public NodeKind {
+    public:
+        const char* Name() const override { return "数値"; }
+        const char* Description() const override { return "固定の数値を出す"; }
+        float BodyRows() const override { return 1.0f; }
+        Color TitleColor() const override { return { 70, 120, 200 }; }
+        void  InitNode(Node& node) const override { node.value = 1.0f; }
+        float Evaluate(const NodeEditor& /*editor*/, const Node& node, int /*depth*/) const override { return node.value; }
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& /*editor*/, Node& node, const BodyLayout& layout) const override {
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.topLeft.y + kTitleH + 4));
+            ImGui::SetNextItemWidth(kNodeWidth - 16);
+            ImGui::DragFloat("##v", &node.value, 0.1f);
+        }
+#endif
+    };
+
+    // ノード「時間」：起動からの経過時間（秒）を出す
+    class Time final : public NodeKind {
+    public:
+        const char* Name() const override { return "時間"; }
+        const char* Description() const override { return "起動からの経過時間（秒）を出す"; }
+        Color TitleColor() const override { return { 90, 150, 220 }; }
+        float Evaluate(const NodeEditor& /*editor*/, const Node& /*node*/, int /*depth*/) const override { return KazumimiEngine::Time::GetInstance()->GetTotalTime(); }
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& editor, Node& node, const BodyLayout& layout) const override {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.1f s", editor.Evaluate(node.id, 0));
+            layout.drawList->AddText(ImVec2(layout.bottomRight.x - 58, layout.topLeft.y + 5), IM_COL32(255, 255, 255, 180), buf);
+        }
+#endif
+    };
+
+    // ノード「サイン波」：sin波で揺れる値を出す（速さ×振幅）
+    class SinTime final : public NodeKind {
+    public:
+        const char* Name() const override { return "サイン波"; }
+        const char* Description() const override { return "sin波で揺れる値を出す（速さ×振幅）"; }
+        float BodyRows() const override { return 2.0f; }
+        Color TitleColor() const override { return { 170, 110, 200 }; }
+        void  InitNode(Node& node) const override { node.value = 1.0f; node.param = 1.0f; }
+        float Evaluate(const NodeEditor& /*editor*/, const Node& node, int /*depth*/) const override {
+            return std::sin(KazumimiEngine::Time::GetInstance()->GetTotalTime() * node.value) * node.param;
+        }
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& /*editor*/, Node& node, const BodyLayout& layout) const override {
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.widgetY));
+            ImGui::SetNextItemWidth(kNodeWidth - 16);
+            ImGui::DragFloat("##spd", &node.value, 0.1f, 0.0f, 20.0f, "速さ %.1f");
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.widgetY + kRowH));
+            ImGui::SetNextItemWidth(kNodeWidth - 16);
+            ImGui::DragFloat("##amp", &node.param, 0.1f, 0.0f, 100.0f, "振幅 %.1f");
+        }
+#endif
+    };
+
+    // ---------------- 計算 ----------------
+    class Add final : public NodeKind {
+    public:
+        const char* Name() const override { return "加算 (A+B)"; }
+        const char* Description() const override { return "AとBを足す"; }
+        int   InputCount() const override { return 2; }
+        bool  HasConstInputs() const override { return true; }
+        Color TitleColor() const override { return { 70, 170, 90 }; }
+        float Evaluate(const NodeEditor& editor, const Node& node, int depth) const override {
+            return editor.EvaluateInput(node.id, 0, depth) + editor.EvaluateInput(node.id, 1, depth);
+        }
+    };
+
+    // ノード「乗算 (A×B)」：AとBを掛ける
+    class Multiply final : public NodeKind {
+    public:
+        const char* Name() const override { return "乗算 (A×B)"; }
+        const char* Description() const override { return "AとBを掛ける"; }
+        int   InputCount() const override { return 2; }
+        bool  HasConstInputs() const override { return true; }
+        Color TitleColor() const override { return { 60, 160, 150 }; }
+        float Evaluate(const NodeEditor& editor, const Node& node, int depth) const override {
+            return editor.EvaluateInput(node.id, 0, depth) * editor.EvaluateInput(node.id, 1, depth);
+        }
+    };
+
+    // ---------------- 表示 ----------------
+    class Result final : public NodeKind {
+    public:
+        const char* Name() const override { return "出力"; }
+        const char* Description() const override { return "値を表示する（確認用）"; }
+        int   InputCount() const override { return 1; }
+        bool  HasOutput() const override { return false; }
+        float BodyRows() const override { return 1.0f; }
+        Color TitleColor() const override { return { 200, 120, 60 }; }
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& editor, Node& node, const BodyLayout& layout) const override {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "= %.3f", editor.Evaluate(node.id, 0));
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.widgetY));
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "%s", buf);
+        }
+#endif
+    };
+
+    // ---------------- 適用（ゲームに作用する）----------------
+    // 適用ノードの共通部分：入力 1 つ・出力なし・「適用中 / 未接続」の表示
+    class ApplyBase : public NodeKind {
+    public:
+        int   InputCount() const override { return 1; }
+        bool  HasOutput() const override { return false; }
+        bool  IsApply() const override { return true; }
+        float BodyRows() const override { return 1.0f; }
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& editor, Node& node, const BodyLayout& layout) const final {
+            // 対象を選ぶ欄（ある種類だけ）→ 状態表示（接続＋実行中なら緑、未接続なら灰色）
+            const float statusY = DrawTarget(editor, node, layout);
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, statusY));
+            if ( editor.HasInputLink(node.id, 0) ) {
+                const float v = editor.Evaluate(node.id, 0);
+                char buf[32];
+                snprintf(buf, sizeof(buf), "適用中 %.2f", v);
+                if ( editor.runGraph_ ) ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "%s", buf);
+                else                    ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.4f, 1.0f), "停止中 %.2f", v);
+            } else {
+                ImGui::TextDisabled("未接続");
+            }
+        }
+
+    protected:
+        // 対象を選ぶ欄を描いて、その下の高さを返す（既定＝欄なし）
+        virtual float DrawTarget(NodeEditor& /*editor*/, Node& /*node*/, const BodyLayout& layout) const { return layout.widgetY; }
+#endif
+    };
+
+    // ノード「→ ライト強度」：繋いだ値を平行光源の強度に反映（0〜10）
+    class LightIntensity final : public ApplyBase {
+    public:
+        const char* Name() const override { return "→ ライト強度"; }
+        const char* Description() const override { return "繋いだ値を平行光源の強度に反映（0〜10）"; }
+        void Apply(NodeEditor& /*editor*/, const Node& /*node*/, float value) const override {
+            auto* lightData = Obj3dCommon::GetInstance()->GetLightData();
+            if ( lightData ) { lightData->lights[0].intensity = ClampF(value, 0.0f, 10.0f); }
+        }
+    };
+
+    // ノード「→ 発生レート」：繋いだ値をパーティクル発生レートに反映（0〜200）
+    class ParticleRate final : public ApplyBase {
+    public:
+        const char* Name() const override { return "→ 発生レート"; }
+        const char* Description() const override { return "繋いだ値をパーティクル発生レートに反映（0〜200）"; }
+        void Apply(NodeEditor& editor, const Node& /*node*/, float value) const override {
+            if ( editor.emitter_ ) { editor.emitter_->SetEmitRate(ClampF(value, 0.0f, 200.0f)); }
+        }
+    };
+
+    // ノード「→ 重力」：繋いだ値をパーティクル重力Yに反映（-10〜10）
+    class ParticleGravity final : public ApplyBase {
+    public:
+        const char* Name() const override { return "→ 重力"; }
+        const char* Description() const override { return "繋いだ値をパーティクル重力Yに反映（-10〜10）"; }
+        void Apply(NodeEditor& editor, const Node& /*node*/, float value) const override {
+            if ( editor.emitter_ ) { editor.emitter_->SetGravityY(ClampF(value, -10.0f, 10.0f)); }
+        }
+    };
+
+    // ノード「→ タイムスケール」：繋いだ値をタイムスケールに反映（0〜2）
+    class TimeScale final : public ApplyBase {
+    public:
+        const char* Name() const override { return "→ タイムスケール"; }
+        const char* Description() const override { return "繋いだ値をタイムスケールに反映（0〜2）"; }
+        void Apply(NodeEditor& /*editor*/, const Node& /*node*/, float value) const override {
+            KazumimiEngine::Time::GetInstance()->SetTimeScale(ClampF(value, 0.0f, 2.0f));
+        }
+    };
+
+    // 配置オブジェクトに作用する適用ノードの共通部分：ノードの中でオブジェクトを選ぶ
+    class ObjectApplyBase : public ApplyBase {
+    public:
+        bool  NeedsObjectTarget() const override { return true; }
+        float BodyRows() const override { return 2.0f; } // ターゲット選択コンボの分
+#ifdef USE_IMGUI
+    protected:
+        float DrawTarget(NodeEditor& /*editor*/, Node& node, const BodyLayout& layout) const override {
+            DrawObjectCombo("##target", node, layout.topLeft.x + 8, layout.widgetY);
+            return layout.widgetY + kRowH;
+        }
+#endif
+    };
+
+    // ノード「→ 位置Y」：選んだ配置オブジェクトのY座標に反映（上下に動かせる）
+    class ObjPosY final : public ObjectApplyBase {
+    public:
+        const char* Name() const override { return "→ 位置Y"; }
+        const char* Description() const override { return "選んだ配置オブジェクトのY座標に反映（上下に動かせる）"; }
+        void Apply(NodeEditor& /*editor*/, const Node& node, float value) const override {
+            if ( LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor() ) { levelEditor->SetObjectPosY(node.target, ClampF(value, -100.0f, 100.0f)); }
+        }
+    };
+
+    // ノード「→ 回転Y」：選んだ配置オブジェクトのY回転に反映（回せる）
+    class ObjRotY final : public ObjectApplyBase {
+    public:
+        const char* Name() const override { return "→ 回転Y"; }
+        const char* Description() const override { return "選んだ配置オブジェクトのY回転に反映（回せる）"; }
+        void Apply(NodeEditor& /*editor*/, const Node& node, float value) const override {
+            if ( LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor() ) { levelEditor->SetObjectRotY(node.target, value); }
+        }
+    };
+
+    // ノード「→ 大きさ」：選んだ配置オブジェクトの大きさに反映
+    class ObjScale final : public ObjectApplyBase {
+    public:
+        const char* Name() const override { return "→ 大きさ"; }
+        const char* Description() const override { return "選んだ配置オブジェクトの大きさに反映"; }
+        void Apply(NodeEditor& /*editor*/, const Node& node, float value) const override {
+            if ( LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor() ) { levelEditor->SetObjectScale(node.target, ClampF(value, 0.05f, 20.0f)); }
+        }
+    };
+
+    // ノード「→ シェーダーパラメータ」：シェーダーの『パラメータ』ノードを外から動かす（0〜1）
+    class ObjParam final : public ObjectApplyBase {
+    public:
+        const char* Name() const override { return "→ シェーダーパラメータ"; }
+        const char* Description() const override { return "シェーダーの『パラメータ』ノードを外から動かす（0〜1）"; }
+        void Apply(NodeEditor& /*editor*/, const Node& node, float value) const override {
+            if ( LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor() ) { levelEditor->SetObjectShaderParam(node.target, ClampF(value, 0.0f, 1.0f)); }
+        }
+    };
+
+    // シーンが登録したゲーム値（プレイヤー速度・卵の投げ初速など）に反映する
+    class GameParam final : public ApplyBase {
+    public:
+        const char* Name() const override { return "→ ゲーム値"; }
+        const char* Description() const override { return "繋いだ値をゲームの変数に反映（プレイヤー速度・卵の投げ初速など。ノード内で対象を選ぶ）"; }
+        void Apply(NodeEditor& editor, const Node& node, float value) const override {
+            if ( node.target >= 0 && node.target < ( int ) editor.gameValues_.size() ) {
+                const GameValue& gameValue = editor.gameValues_[node.target];
+                if ( gameValue.apply ) { gameValue.apply(ClampF(value, gameValue.minV, gameValue.maxV)); }
+            }
+        }
+#ifdef USE_IMGUI
+    protected:
+        float DrawTarget(NodeEditor& editor, Node& node, const BodyLayout& layout) const override {
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.widgetY));
+            ImGui::SetNextItemWidth(kNodeWidth - 16);
+            const char* current = ( node.target >= 0 && node.target < ( int ) editor.gameValues_.size() )
+                ? editor.gameValues_[node.target].label.c_str() : "(なし)";
+            if ( ImGui::BeginCombo("##gtarget", current) ) {
+                if ( editor.gameValues_.empty() ) { ImGui::TextDisabled("(ゲーム値が未登録です)"); }
+                for ( int i = 0; i < ( int ) editor.gameValues_.size(); ++i ) {
+                    if ( ImGui::Selectable(editor.gameValues_[i].label.c_str(), node.target == i) ) {
+                        node.target = i;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            return layout.widgetY + kRowH;
+        }
+#endif
+    };
+
+    // ---------------- シェーダー（マテリアルグラフ）----------------
+    // シェーダー系の共通部分：タイトルは青緑
+    class ShaderBase : public NodeKind {
+    public:
+        bool  IsShader() const override { return true; }
+        Color TitleColor() const override { return { 50, 140, 155 }; }
+    };
+
+    // ノード「テクスチャ色」：モデルのテクスチャの色
+    class ShaderTexture final : public ShaderBase {
+    public:
+        const char* Name() const override { return "テクスチャ色"; }
+        const char* Description() const override { return "モデルのテクスチャの色"; }
+        std::string ShaderExpr(const NodeEditor& /*editor*/, const Node& /*node*/, int /*depth*/) const override { return "texColor"; }
+    };
+
+    // ノード「UV座標」：UV座標を色として出す（デバッグ用）
+    class ShaderUV final : public ShaderBase {
+    public:
+        const char* Name() const override { return "UV座標"; }
+        const char* Description() const override { return "UV座標を色として出す（デバッグ用）"; }
+        std::string ShaderExpr(const NodeEditor& /*editor*/, const Node& /*node*/, int /*depth*/) const override {
+            return "float4(input.texcoord.x, input.texcoord.y, 0.0f, 1.0f)";
+        }
+    };
+
+    // ノード「定数色」：好きな色（RGBA）
+    class ShaderColor final : public ShaderBase {
+    public:
+        const char* Name() const override { return "定数色"; }
+        const char* Description() const override { return "好きな色（RGBA）"; }
+        float BodyRows() const override { return 1.0f; } // カラーピッカーの分
+        std::string ShaderExpr(const NodeEditor& /*editor*/, const Node& node, int /*depth*/) const override {
+            char buf[160];
+            snprintf(buf, sizeof(buf), "float4(%.4ff, %.4ff, %.4ff, %.4ff)", node.color[0], node.color[1], node.color[2], node.color[3]);
+            return buf;
+        }
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& /*editor*/, Node& node, const BodyLayout& layout) const override {
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.topLeft.y + kTitleH + 4));
+            ImGui::SetNextItemWidth(kNodeWidth - 16);
+            ImGui::ColorEdit4("##col", node.color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        }
+#endif
+    };
+
+    // ノード「パラメータ」：「→ シェーダーパラメータ」で外から動かせる値（0〜1）
+    class ShaderParam final : public ShaderBase {
+    public:
+        const char* Name() const override { return "パラメータ"; }
+        const char* Description() const override { return "「→ シェーダーパラメータ」で外から動かせる値（0〜1）"; }
+        std::string ShaderExpr(const NodeEditor& /*editor*/, const Node& /*node*/, int /*depth*/) const override {
+            return "float4(gDissolve.threshold, gDissolve.threshold, gDissolve.threshold, 1.0f)";
+        }
+    };
+
+    // ノード「色乗算 (A×B)」：色を掛け合わせる（ティント等）
+    class ShaderMul final : public ShaderBase {
+    public:
+        const char* Name() const override { return "色乗算 (A×B)"; }
+        const char* Description() const override { return "色を掛け合わせる（ティント等）"; }
+        int  InputCount() const override { return 2; }
+        bool HasConstInputs() const override { return true; }
+        std::string ShaderExpr(const NodeEditor& editor, const Node& node, int depth) const override {
+            return "(" + editor.GenShaderInput(node.id, 0, depth) + " * " + editor.GenShaderInput(node.id, 1, depth) + ")";
+        }
+    };
+
+    // ノード「色加算 (A+B)」：色を足す（明るくする）
+    class ShaderAdd final : public ShaderBase {
+    public:
+        const char* Name() const override { return "色加算 (A+B)"; }
+        const char* Description() const override { return "色を足す（明るくする）"; }
+        int  InputCount() const override { return 2; }
+        bool HasConstInputs() const override { return true; }
+        std::string ShaderExpr(const NodeEditor& editor, const Node& node, int depth) const override {
+            return "(" + editor.GenShaderInput(node.id, 0, depth) + " + " + editor.GenShaderInput(node.id, 1, depth) + ")";
+        }
+    };
+
+    // ノード「ミックス」：AとBをTで混ぜる（T=0でA、T=1でB）
+    class ShaderMix final : public ShaderBase {
+    public:
+        const char* Name() const override { return "ミックス"; }
+        const char* Description() const override { return "AとBをTで混ぜる（T=0でA、T=1でB）"; }
+        int  InputCount() const override { return 3; }
+        bool HasConstInputs() const override { return true; }
+        std::string ShaderExpr(const NodeEditor& editor, const Node& node, int depth) const override {
+            return "lerp(" + editor.GenShaderInput(node.id, 0, depth) + ", "
+                           + editor.GenShaderInput(node.id, 1, depth) + ", ("
+                           + editor.GenShaderInput(node.id, 2, depth) + ").x)";
+        }
+    };
+
+    // ノード「グレースケール」：白黒にする
+    class ShaderGray final : public ShaderBase {
+    public:
+        const char* Name() const override { return "グレースケール"; }
+        const char* Description() const override { return "白黒にする"; }
+        int InputCount() const override { return 1; }
+        std::string ShaderExpr(const NodeEditor& editor, const Node& node, int depth) const override {
+            std::string a = editor.GenShaderInput(node.id, 0, depth);
+            return "float4(dot((" + a + ").rgb, float3(0.299f, 0.587f, 0.114f)).xxx, (" + a + ").a)";
+        }
+    };
+
+    // ノード「色反転」：色を反転する（ネガ）
+    class ShaderInvert final : public ShaderBase {
+    public:
+        const char* Name() const override { return "色反転"; }
+        const char* Description() const override { return "色を反転する（ネガ）"; }
+        int InputCount() const override { return 1; }
+        std::string ShaderExpr(const NodeEditor& editor, const Node& node, int depth) const override {
+            std::string a = editor.GenShaderInput(node.id, 0, depth);
+            return "float4(float3(1.0f, 1.0f, 1.0f) - (" + a + ").rgb, (" + a + ").a)";
+        }
+    };
+
+    // 最終色：つないだ色で HLSL を作り、選んだオブジェクトへ適用する
+    class ShaderOutput final : public ShaderBase {
+    public:
+        const char* Name() const override { return "最終色 (シェーダー)"; }
+        const char* Description() const override { return "ここに繋いだ色でHLSLを自動生成し、選んだオブジェクトに適用"; }
+        int   InputCount() const override { return 1; }
+        bool  HasOutput() const override { return false; }
+        float BodyRows() const override { return 2.0f; } // コンボ＋適用ボタンの分
+        Color TitleColor() const override { return { 230, 140, 40 }; } // シェーダー出力はオレンジ
+#ifdef USE_IMGUI
+        void DrawBody(NodeEditor& editor, Node& node, const BodyLayout& layout) const override {
+            DrawObjectCombo("##starget", node, layout.topLeft.x + 8, layout.widgetY);
+            ImGui::SetCursorScreenPos(ImVec2(layout.topLeft.x + 8, layout.widgetY + kRowH));
+            if ( ImGui::Button("適用", ImVec2(( kNodeWidth - 24 ) * 0.5f, 0)) ) {
+                editor.ApplyShaderToTarget(node);
+            }
+            ImGui::SameLine();
+            if ( ImGui::Button("解除", ImVec2(( kNodeWidth - 24 ) * 0.5f, 0)) ) {
+                LevelEditor* levelEditor = EditorManager::GetInstance()->GetLevelEditor();
+                if ( Obj3d* obj = levelEditor ? levelEditor->GetObject3d(node.target) : nullptr ) {
+                    obj->SetCustomPipeline(nullptr);
+                    editor.status_ = "シェーダーを解除しました";
+                }
+            }
+        }
+#endif
+    };
+
+    // 保存データに知らない番号が入っていた時
+    class Unknown final : public NodeKind {
+    public:
+        const char* Name() const override { return "?"; }
+        const char* Description() const override { return ""; }
+    };
+};
+
+// NodeType の番号と同じ並びの表（保存データは番号で持つので、並びは変えない）
+const NodeEditor::NodeKind& NodeEditor::Kinds::Of(NodeType type) {
+    static const Value value {};
+    static const Time time {};
+    static const SinTime sinTime {};
+    static const Add add {};
+    static const Multiply multiply {};
+    static const Result result {};
+    static const LightIntensity lightIntensity {};
+    static const ParticleRate particleRate {};
+    static const ParticleGravity particleGravity {};
+    static const TimeScale timeScale {};
+    static const ObjPosY objPosY {};
+    static const ObjRotY objRotY {};
+    static const ObjScale objScale {};
+    static const ObjParam objParam {};
+    static const ShaderTexture shaderTexture {};
+    static const ShaderUV shaderUV {};
+    static const ShaderColor shaderColor {};
+    static const ShaderParam shaderParam {};
+    static const ShaderMul shaderMul {};
+    static const ShaderAdd shaderAdd {};
+    static const ShaderMix shaderMix {};
+    static const ShaderGray shaderGray {};
+    static const ShaderInvert shaderInvert {};
+    static const ShaderOutput shaderOutput {};
+    static const GameParam gameParam {};
+    static const Unknown unknown {};
+    static const NodeKind* const kTable[] = {
+        &value, &time, &sinTime, &add, &multiply, &result,
+        &lightIntensity, &particleRate, &particleGravity, &timeScale,
+        &objPosY, &objRotY, &objScale, &objParam,
+        &shaderTexture, &shaderUV, &shaderColor, &shaderParam, &shaderMul, &shaderAdd,
+        &shaderMix, &shaderGray, &shaderInvert, &shaderOutput,
+        &gameParam,
+    };
+    const int index = static_cast<int>( type );
+    if ( index < 0 || index >= static_cast<int>( sizeof(kTable) / sizeof(kTable[0]) ) ) { return unknown; }
+    return *kTable[index];
+}
+
 void NodeEditor::Initialize() {
     // 前回保存したグラフがあれば自動で復元する
     if ( std::filesystem::exists(fileBuf_) ) {
@@ -75,51 +602,7 @@ void NodeEditor::Update() {
         if ( !HasInputLink(n.id, 0) ) continue; // 未接続なら何もしない（誤作動防止）
 
         float v = EvaluateInput(n.id, 0, 0);
-        switch ( n.type ) {
-        case NodeType::LightIntensity: {
-            auto* lightData = Obj3dCommon::GetInstance()->GetLightData();
-            if ( lightData ) { lightData->lights[0].intensity = ClampF(v, 0.0f, 10.0f); }
-            break;
-        }
-        case NodeType::ParticleRate:
-            if ( emitter_ ) { emitter_->GetData().emitRate = ClampF(v, 0.0f, 200.0f); }
-            break;
-        case NodeType::ParticleGravity:
-            if ( emitter_ ) { emitter_->GetData().gravityY = ClampF(v, -10.0f, 10.0f); }
-            break;
-        case NodeType::TimeScale:
-            Time::GetInstance()->SetTimeScale(ClampF(v, 0.0f, 2.0f));
-            break;
-        case NodeType::ObjPosY: {
-            LevelEditor* le = EditorManager::GetInstance()->GetLevelEditor();
-            if ( le ) { le->SetObjectPosY(n.target, ClampF(v, -100.0f, 100.0f)); }
-            break;
-        }
-        case NodeType::ObjRotY: {
-            LevelEditor* le = EditorManager::GetInstance()->GetLevelEditor();
-            if ( le ) { le->SetObjectRotY(n.target, v); }
-            break;
-        }
-        case NodeType::ObjScale: {
-            LevelEditor* le = EditorManager::GetInstance()->GetLevelEditor();
-            if ( le ) { le->SetObjectScale(n.target, ClampF(v, 0.05f, 20.0f)); }
-            break;
-        }
-        case NodeType::ObjParam: {
-            LevelEditor* le = EditorManager::GetInstance()->GetLevelEditor();
-            if ( le ) { le->SetObjectShaderParam(n.target, ClampF(v, 0.0f, 1.0f)); }
-            break;
-        }
-        case NodeType::GameParam: {
-            // シーンが登録したゲーム値（プレイヤー速度・卵の投げ初速など）に反映
-            if ( n.target >= 0 && n.target < ( int ) gameValues_.size() ) {
-                const GameValue& gv = gameValues_[n.target];
-                if ( gv.target ) { *gv.target = ClampF(v, gv.minV, gv.maxV); }
-            }
-            break;
-        }
-        default: break;
-        }
+        Kinds::Of(n.type).Apply(*this, n, v); // 種類ごとの反映は NodeKind の派生が決める
     }
 }
 
@@ -128,8 +611,7 @@ int NodeEditor::AddNode(NodeType type, float x, float y) {
     n.id = nextId_++;
     n.type = type;
     n.posX = x; n.posY = y;
-    if ( type == NodeType::Value )   n.value = 1.0f;
-    if ( type == NodeType::SinTime ) { n.value = 1.0f; n.param = 1.0f; }
+    Kinds::Of(type).InitNode(n);
     nodes_.push_back(n);
     return n.id;
 }
@@ -156,115 +638,13 @@ bool NodeEditor::HasInputLink(int nodeId, int slot) const {
     return false;
 }
 
-const char* NodeEditor::TypeName(NodeType t) const {
-    switch ( t ) {
-    case NodeType::Value:           return "数値";
-    case NodeType::Time:            return "時間";
-    case NodeType::SinTime:         return "サイン波";
-    case NodeType::Add:             return "加算 (A+B)";
-    case NodeType::Multiply:        return "乗算 (A×B)";
-    case NodeType::Result:          return "出力";
-    case NodeType::LightIntensity:  return "→ ライト強度";
-    case NodeType::ParticleRate:    return "→ 発生レート";
-    case NodeType::ParticleGravity: return "→ 重力";
-    case NodeType::TimeScale:       return "→ タイムスケール";
-    case NodeType::ObjPosY:         return "→ 位置Y";
-    case NodeType::ObjRotY:         return "→ 回転Y";
-    case NodeType::ObjScale:        return "→ 大きさ";
-    case NodeType::ObjParam:        return "→ シェーダーパラメータ";
-    case NodeType::ShaderTexture:   return "テクスチャ色";
-    case NodeType::ShaderUV:        return "UV座標";
-    case NodeType::ShaderColor:     return "定数色";
-    case NodeType::ShaderParam:     return "パラメータ";
-    case NodeType::ShaderMul:       return "色乗算 (A×B)";
-    case NodeType::ShaderAdd:       return "色加算 (A+B)";
-    case NodeType::ShaderMix:       return "ミックス";
-    case NodeType::ShaderGray:      return "グレースケール";
-    case NodeType::ShaderInvert:    return "色反転";
-    case NodeType::ShaderOutput:    return "最終色 (シェーダー)";
-    case NodeType::GameParam:       return "→ ゲーム値";
-    }
-    return "?";
-}
-
-const char* NodeEditor::TypeDesc(NodeType t) const {
-    switch ( t ) {
-    case NodeType::Value:           return "固定の数値を出す";
-    case NodeType::Time:            return "起動からの経過時間（秒）を出す";
-    case NodeType::SinTime:         return "sin波で揺れる値を出す（速さ×振幅）";
-    case NodeType::Add:             return "AとBを足す";
-    case NodeType::Multiply:        return "AとBを掛ける";
-    case NodeType::Result:          return "値を表示する（確認用）";
-    case NodeType::LightIntensity:  return "繋いだ値を平行光源の強度に反映（0〜10）";
-    case NodeType::ParticleRate:    return "繋いだ値をパーティクル発生レートに反映（0〜200）";
-    case NodeType::ParticleGravity: return "繋いだ値をパーティクル重力Yに反映（-10〜10）";
-    case NodeType::TimeScale:       return "繋いだ値をタイムスケールに反映（0〜2）";
-    case NodeType::ObjPosY:         return "選んだ配置オブジェクトのY座標に反映（上下に動かせる）";
-    case NodeType::ObjRotY:         return "選んだ配置オブジェクトのY回転に反映（回せる）";
-    case NodeType::ObjScale:        return "選んだ配置オブジェクトの大きさに反映";
-    case NodeType::ObjParam:        return "シェーダーの『パラメータ』ノードを外から動かす（0〜1）";
-    case NodeType::ShaderTexture:   return "モデルのテクスチャの色";
-    case NodeType::ShaderUV:        return "UV座標を色として出す（デバッグ用）";
-    case NodeType::ShaderColor:     return "好きな色（RGBA）";
-    case NodeType::ShaderParam:     return "「→ シェーダーパラメータ」で外から動かせる値（0〜1）";
-    case NodeType::ShaderMul:       return "色を掛け合わせる（ティント等）";
-    case NodeType::ShaderAdd:       return "色を足す（明るくする）";
-    case NodeType::ShaderMix:       return "AとBをTで混ぜる（T=0でA、T=1でB）";
-    case NodeType::ShaderGray:      return "白黒にする";
-    case NodeType::ShaderInvert:    return "色を反転する（ネガ）";
-    case NodeType::ShaderOutput:    return "ここに繋いだ色でHLSLを自動生成し、選んだオブジェクトに適用";
-    case NodeType::GameParam:       return "繋いだ値をゲームの変数に反映（プレイヤー速度・卵の投げ初速など。ノード内で対象を選ぶ）";
-    }
-    return "";
-}
-
-int NodeEditor::InputCount(NodeType t) const {
-    switch ( t ) {
-    case NodeType::ShaderMix: return 3;
-    case NodeType::Add:
-    case NodeType::Multiply:
-    case NodeType::ShaderMul:
-    case NodeType::ShaderAdd: return 2;
-    case NodeType::Result:
-    case NodeType::LightIntensity:
-    case NodeType::ParticleRate:
-    case NodeType::ParticleGravity:
-    case NodeType::TimeScale:
-    case NodeType::ObjPosY:
-    case NodeType::ObjRotY:
-    case NodeType::ObjScale:
-    case NodeType::ObjParam:
-    case NodeType::GameParam:
-    case NodeType::ShaderGray:
-    case NodeType::ShaderInvert:
-    case NodeType::ShaderOutput: return 1;
-    default: return 0;
-    }
-}
-
-bool NodeEditor::HasOutput(NodeType t) const {
-    return !IsApplyNode(t) && t != NodeType::Result && t != NodeType::ShaderOutput;
-}
-
-bool NodeEditor::IsApplyNode(NodeType t) const {
-    return t == NodeType::LightIntensity || t == NodeType::ParticleRate
-        || t == NodeType::ParticleGravity || t == NodeType::TimeScale
-        || t == NodeType::GameParam
-        || IsObjApplyNode(t);
-}
-
-bool NodeEditor::IsObjApplyNode(NodeType t) const {
-    return t == NodeType::ObjPosY || t == NodeType::ObjRotY
-        || t == NodeType::ObjScale || t == NodeType::ObjParam;
-}
-
-bool NodeEditor::IsShaderNode(NodeType t) const {
-    return t == NodeType::ShaderTexture || t == NodeType::ShaderUV
-        || t == NodeType::ShaderColor || t == NodeType::ShaderParam
-        || t == NodeType::ShaderMul || t == NodeType::ShaderAdd
-        || t == NodeType::ShaderMix || t == NodeType::ShaderGray
-        || t == NodeType::ShaderInvert || t == NodeType::ShaderOutput;
-}
+const char* NodeEditor::TypeName(NodeType t) const { return Kinds::Of(t).Name(); }
+const char* NodeEditor::TypeDesc(NodeType t) const { return Kinds::Of(t).Description(); }
+int  NodeEditor::InputCount(NodeType t) const { return Kinds::Of(t).InputCount(); }
+bool NodeEditor::HasOutput(NodeType t) const { return Kinds::Of(t).HasOutput(); }
+bool NodeEditor::IsApplyNode(NodeType t) const { return Kinds::Of(t).IsApply(); }
+bool NodeEditor::IsObjApplyNode(NodeType t) const { return Kinds::Of(t).NeedsObjectTarget(); }
+bool NodeEditor::IsShaderNode(NodeType t) const { return Kinds::Of(t).IsShader(); }
 
 // 入力スロットへ繋がっている値を評価（未接続なら inConst の値＝直接入力した数値）
 float NodeEditor::EvaluateInput(int nodeId, int slot, int depth) const {
@@ -285,14 +665,7 @@ float NodeEditor::Evaluate(int nodeId, int depth) const {
     for ( const Node& n : nodes_ ) { if ( n.id == nodeId ) { node = &n; break; } }
     if ( !node ) return 0.0f;
 
-    switch ( node->type ) {
-    case NodeType::Value:    return node->value;
-    case NodeType::Time:     return Time::GetInstance()->GetTotalTime();
-    case NodeType::SinTime:  return std::sin(Time::GetInstance()->GetTotalTime() * node->value) * node->param;
-    case NodeType::Add:      return EvaluateInput(nodeId, 0, depth) + EvaluateInput(nodeId, 1, depth);
-    case NodeType::Multiply: return EvaluateInput(nodeId, 0, depth) * EvaluateInput(nodeId, 1, depth);
-    default:                 return EvaluateInput(nodeId, 0, depth); // 出力・適用ノードは入力そのまま
-    }
+    return Kinds::Of(node->type).Evaluate(*this, *node, depth);
 }
 
 void NodeEditor::Save(const std::string& path) const {
@@ -380,38 +753,7 @@ std::string NodeEditor::GenShaderExpr(int nodeId, int depth) const {
     for ( const Node& n : nodes_ ) { if ( n.id == nodeId ) { node = &n; break; } }
     if ( !node ) return "float4(0.0f, 0.0f, 0.0f, 1.0f)";
 
-    char buf[160];
-    switch ( node->type ) {
-    case NodeType::ShaderTexture:
-        return "texColor";
-    case NodeType::ShaderUV:
-        return "float4(input.texcoord.x, input.texcoord.y, 0.0f, 1.0f)";
-    case NodeType::ShaderColor:
-        snprintf(buf, sizeof(buf), "float4(%.4ff, %.4ff, %.4ff, %.4ff)",
-            node->color[0], node->color[1], node->color[2], node->color[3]);
-        return buf;
-    case NodeType::ShaderParam:
-        return "float4(gDissolve.threshold, gDissolve.threshold, gDissolve.threshold, 1.0f)";
-    case NodeType::ShaderMul:
-        return "(" + GenShaderInput(nodeId, 0, depth) + " * " + GenShaderInput(nodeId, 1, depth) + ")";
-    case NodeType::ShaderAdd:
-        return "(" + GenShaderInput(nodeId, 0, depth) + " + " + GenShaderInput(nodeId, 1, depth) + ")";
-    case NodeType::ShaderMix:
-        return "lerp(" + GenShaderInput(nodeId, 0, depth) + ", "
-                       + GenShaderInput(nodeId, 1, depth) + ", ("
-                       + GenShaderInput(nodeId, 2, depth) + ").x)";
-    case NodeType::ShaderGray: {
-        std::string a = GenShaderInput(nodeId, 0, depth);
-        return "float4(dot((" + a + ").rgb, float3(0.299f, 0.587f, 0.114f)).xxx, (" + a + ").a)";
-    }
-    case NodeType::ShaderInvert: {
-        std::string a = GenShaderInput(nodeId, 0, depth);
-        return "float4(float3(1.0f, 1.0f, 1.0f) - (" + a + ").rgb, (" + a + ").a)";
-    }
-    default:
-        // シェーダー式にCPUノードが混ざった場合は白（ドメイン違い）
-        return "float4(1.0f, 1.0f, 1.0f, 1.0f)";
-    }
+    return Kinds::Of(node->type).ShaderExpr(*this, *node, depth);
 }
 
 // 「最終色」ノードの適用：HLSL生成 → ファイル出力 → コンパイル → PSO → 対象オブジェクトへ
@@ -631,13 +973,7 @@ void NodeEditor::DrawDebugUI([[maybe_unused]] bool* openFlag) {
     // --- ピン位置計算のラムダ ---
     auto nodeHeight = [&](const Node& n) {
         int rows = ( std::max )( InputCount(n.type), 1 );
-        float extra = 0.0f;
-        if ( n.type == NodeType::Value )   extra = kRowH;
-        if ( n.type == NodeType::SinTime ) extra = kRowH * 2.0f;
-        if ( n.type == NodeType::Result || IsApplyNode(n.type) ) extra = kRowH;
-        if ( IsObjApplyNode(n.type) ) extra = kRowH * 2.0f;            // ターゲット選択コンボの分
-        if ( n.type == NodeType::ShaderColor )  extra = kRowH;         // カラーピッカーの分
-        if ( n.type == NodeType::ShaderOutput ) extra = kRowH * 2.0f;  // コンボ＋適用ボタンの分
+        const float extra = kRowH * Kinds::Of(n.type).BodyRows(); // 中の欄（数値・コンボ・ボタン）の分
         return kTitleH + rows * kRowH + extra + 8.0f;
     };
     auto inPinPos = [&](const Node& n, int slot) {
@@ -671,16 +1007,8 @@ void NodeEditor::DrawDebugUI([[maybe_unused]] bool* openFlag) {
         ImVec2 p1(p0.x + kNodeWidth, p0.y + h);
 
         // 種別ごとのタイトル色
-        ImU32 titleCol =
-            n.type == NodeType::Value        ? IM_COL32(70, 120, 200, 255) :
-            n.type == NodeType::Time         ? IM_COL32(90, 150, 220, 255) :
-            n.type == NodeType::SinTime      ? IM_COL32(170, 110, 200, 255) :
-            n.type == NodeType::Add          ? IM_COL32(70, 170, 90, 255) :
-            n.type == NodeType::Multiply     ? IM_COL32(60, 160, 150, 255) :
-            n.type == NodeType::Result       ? IM_COL32(200, 120, 60, 255) :
-            n.type == NodeType::ShaderOutput ? IM_COL32(230, 140, 40, 255) : // シェーダー出力はオレンジ
-            IsShaderNode(n.type)             ? IM_COL32(50, 140, 155, 255) : // シェーダー系は青緑
-                                               IM_COL32(215, 75, 75, 255);   // 適用ノードは赤
+        const NodeKind::Color titleColor = Kinds::Of(n.type).TitleColor();
+        ImU32 titleCol = IM_COL32(titleColor.r, titleColor.g, titleColor.b, 255);
 
         // 本体（先に敷いてドラッグ移動＆右クリック削除を受ける）
         //   ※AllowOverlap が無いと、後から出すノード内ウィジェット（数値入力等）や
@@ -780,9 +1108,7 @@ void NodeEditor::DrawDebugUI([[maybe_unused]] bool* openFlag) {
             dl->AddCircleFilled(pp, hov ? kPinR + 2.0f : kPinR, pinCol);
 
             // 演算系（加算/乗算/シェーダー演算）の未接続入力には数値を直接入力できる欄を出す
-            bool isMath = ( n.type == NodeType::Add || n.type == NodeType::Multiply
-                || n.type == NodeType::ShaderMul || n.type == NodeType::ShaderAdd
-                || n.type == NodeType::ShaderMix );
+            bool isMath = Kinds::Of(n.type).HasConstInputs();
             if ( isMath && !HasInputLink(n.id, s) && s < 3 ) {
                 ImGui::SetCursorScreenPos(ImVec2(pp.x + 12.0f, pp.y - 10.0f));
                 ImGui::SetNextItemWidth(kNodeWidth - 36.0f);
@@ -814,116 +1140,8 @@ void NodeEditor::DrawDebugUI([[maybe_unused]] bool* openFlag) {
         }
 
         // ノード内ウィジェット（値の編集・結果表示）
-        float widgetY = p0.y + kTitleH + kRowH * ( std::max )( InputCount(n.type), 1 );
-        if ( n.type == NodeType::ShaderColor ) {
-            // 定数色：カラーピッカー
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, p0.y + kTitleH + 4));
-            ImGui::SetNextItemWidth(kNodeWidth - 16);
-            ImGui::ColorEdit4("##col", n.color,
-                ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
-        } else if ( n.type == NodeType::ShaderOutput ) {
-            // 最終色：ターゲット選択＋適用/解除
-            LevelEditor* le = EditorManager::GetInstance()->GetLevelEditor();
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY));
-            ImGui::SetNextItemWidth(kNodeWidth - 16);
-            std::string current = le ? le->GetObjectLabel(n.target) : "(なし)";
-            if ( ImGui::BeginCombo("##starget", current.c_str()) ) {
-                int count = le ? le->GetObjectCount() : 0;
-                if ( count == 0 ) { ImGui::TextDisabled("(配置オブジェクトなし)"); }
-                for ( int i = 0; i < count; ++i ) {
-                    if ( ImGui::Selectable(le->GetObjectLabel(i).c_str(), n.target == i) ) {
-                        n.target = i;
-                    }
-                }
-                ImGui::EndCombo();
-            }
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY + kRowH));
-            if ( ImGui::Button("適用", ImVec2(( kNodeWidth - 24 ) * 0.5f, 0)) ) {
-                ApplyShaderToTarget(n);
-            }
-            ImGui::SameLine();
-            if ( ImGui::Button("解除", ImVec2(( kNodeWidth - 24 ) * 0.5f, 0)) ) {
-                if ( Obj3d* obj = le ? le->GetObject3d(n.target) : nullptr ) {
-                    obj->SetCustomPipeline(nullptr);
-                    status_ = "シェーダーを解除しました";
-                }
-            }
-        } else if ( n.type == NodeType::Value ) {
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, p0.y + kTitleH + 4));
-            ImGui::SetNextItemWidth(kNodeWidth - 16);
-            ImGui::DragFloat("##v", &n.value, 0.1f);
-        } else if ( n.type == NodeType::SinTime ) {
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY));
-            ImGui::SetNextItemWidth(kNodeWidth - 16);
-            ImGui::DragFloat("##spd", &n.value, 0.1f, 0.0f, 20.0f, "速さ %.1f");
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY + kRowH));
-            ImGui::SetNextItemWidth(kNodeWidth - 16);
-            ImGui::DragFloat("##amp", &n.param, 0.1f, 0.0f, 100.0f, "振幅 %.1f");
-        } else if ( n.type == NodeType::Result ) {
-            float v = Evaluate(n.id, 0);
-            char buf[32];
-            snprintf(buf, sizeof(buf), "= %.3f", v);
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY));
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "%s", buf);
-        } else if ( IsApplyNode(n.type) ) {
-            // Obj系はターゲット（配置オブジェクト）をコンボで選ぶ
-            if ( IsObjApplyNode(n.type) ) {
-                LevelEditor* le = EditorManager::GetInstance()->GetLevelEditor();
-                ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY));
-                ImGui::SetNextItemWidth(kNodeWidth - 16);
-                std::string current = le ? le->GetObjectLabel(n.target) : "(なし)";
-                if ( ImGui::BeginCombo("##target", current.c_str()) ) {
-                    int count = le ? le->GetObjectCount() : 0;
-                    if ( count == 0 ) { ImGui::TextDisabled("(配置オブジェクトなし)"); }
-                    for ( int i = 0; i < count; ++i ) {
-                        if ( ImGui::Selectable(le->GetObjectLabel(i).c_str(), n.target == i) ) {
-                            n.target = i;
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-                widgetY += kRowH;
-            }
-            // ゲーム値：シーンが登録した変数（プレイヤー速度・卵の投げ初速など）をコンボで選ぶ
-            if ( n.type == NodeType::GameParam ) {
-                ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY));
-                ImGui::SetNextItemWidth(kNodeWidth - 16);
-                const char* current = ( n.target >= 0 && n.target < ( int ) gameValues_.size() )
-                    ? gameValues_[n.target].label.c_str() : "(なし)";
-                if ( ImGui::BeginCombo("##gtarget", current) ) {
-                    if ( gameValues_.empty() ) { ImGui::TextDisabled("(ゲーム値が未登録です)"); }
-                    for ( int i = 0; i < ( int ) gameValues_.size(); ++i ) {
-                        if ( ImGui::Selectable(gameValues_[i].label.c_str(), n.target == i) ) {
-                            n.target = i;
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-                widgetY += kRowH;
-            }
-            // 状態表示（接続＋実行中なら緑、未接続なら灰色）
-            ImGui::SetCursorScreenPos(ImVec2(p0.x + 8, widgetY));
-            if ( HasInputLink(n.id, 0) ) {
-                float v = Evaluate(n.id, 0);
-                char buf[32];
-                snprintf(buf, sizeof(buf), "適用中 %.2f", v);
-                if ( runGraph_ ) ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "%s", buf);
-                else             ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.4f, 1.0f), "停止中 %.2f", v);
-            } else {
-                ImGui::TextDisabled("未接続");
-            }
-        } else if ( n.type == NodeType::Time ) {
-            float v = Evaluate(n.id, 0);
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.1f s", v);
-            dl->AddText(ImVec2(p1.x - 58, p0.y + 5), IM_COL32(255, 255, 255, 180), buf);
-        } else {
-            // 加算/乗算は現在値をタイトル横に小さく表示
-            float v = Evaluate(n.id, 0);
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.2f", v);
-            dl->AddText(ImVec2(p1.x - 46, p0.y + 5), IM_COL32(255, 255, 255, 180), buf);
-        }
+        const float widgetY = p0.y + kTitleH + kRowH * ( std::max )( InputCount(n.type), 1 );
+        Kinds::Of(n.type).DrawBody(*this, n, { dl, p0, p1, widgetY });
 
         ImGui::PopID();
     }

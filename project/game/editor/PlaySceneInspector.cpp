@@ -88,7 +88,8 @@ void PlaySceneInspector::DrawRoadSettings(const Targets& targets){
     }
     ImGui::Text("SDF溶け道: チェーン点 %d / 描画チャンク %d", targets.dissolveRoad->PieceCount(), targets.dissolveRoad->ActiveCount());
     ImGui::SetNextItemWidth(160.0f);
-    ImGui::SliderFloat("プレイヤーモデル高さ補正(m)", targets.avatar->ModelYOffsetPtr(), -0.6f, 0.6f, "%.2f");
+    float modelYOffset = targets.avatar->ModelYOffset();
+    if ( ImGui::SliderFloat("プレイヤーモデル高さ補正(m)", &modelYOffset, -0.6f, 0.6f, "%.2f") ) { targets.avatar->SetModelYOffset(modelYOffset); }
     if ( ImGui::IsItemHovered() ) ImGui::SetTooltip("プレイヤーの足元と道の上面が合うように調整（マイナスで下がる）");
     ImGui::Text("道メッシュ/ピース数: %d", roadMesh.TileCount());
     ImGui::Text("道の頂点数: %d / 三角形: %d", roadMesh.VertexCount(), roadMesh.TriangleCount());

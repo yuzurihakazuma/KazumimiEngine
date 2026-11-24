@@ -384,6 +384,8 @@ exit 0</Command>
     <ClCompile Include="game\rail\TrainVisuals.cpp" />
     <ClCompile Include="game\rail\ToyTrain.cpp" />
     <ClCompile Include="game\enemy\EnemyBehavior.cpp" />
+    <ClCompile Include="game\editor\BackdropHistory.cpp" />
+    <ClCompile Include="game\combat\EnemyHit.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine\particle\GPUParticleEmitterData.h" />
@@ -610,6 +612,9 @@ exit 0</Command>
     <ClInclude Include="game\rail\TrainVisuals.h" />
     <ClInclude Include="game\rail\ToyTrain.h" />
     <ClInclude Include="game\enemy\EnemyBehavior.h" />
+    <ClInclude Include="game\editor\strip\IStripTool.h" />
+    <ClInclude Include="game\editor\BackdropHistory.h" />
+    <ClInclude Include="game\combat\EnemyHit.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

@@ -16,7 +16,8 @@ void EnemySpawnModel::Clear(){
     changed_ = true;
 }
 
-void EnemySpawnModel::OnRestored(){
+void EnemySpawnModel::Restore(std::vector<EnemySpawnData> datas){
+    spawnDatas_ = std::move(datas);
     DropStaleSelection();
     changed_ = true;
 }

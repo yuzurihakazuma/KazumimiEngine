@@ -1,5 +1,6 @@
 #pragma once
 #include "engine/utils/Level/LevelData.h"
+#include "game/editor/strip/IStripTool.h"
 #include "game/editor/strip/StripContext.h"
 #include "game/editor/strip/StripLayout.h"
 #include "game/editor/strip/StripState.h"
@@ -11,17 +12,17 @@
 //   編集先は RailEditor のブロック（元に戻す はレールの履歴に入る）。
 //   置ける/置けないの判定（占有幅の重なり・ループのつなぎ目・半マスずらし）もここに持つ
 // =====================================================================
-class StripBlockTool {
+class StripBlockTool final : public IStripTool {
 public:
-    void Update(const StripContext& context, const StripState& state, const StripLayout& layout, bool hovered);
+    bool Update(const StripContext& context, StripState& state, const StripLayout& layout, bool hovered) override;
 
     // 途中の塗り・移動をやめる（何も適用しない）
-    void Cancel();
+    void Cancel() override;
     // Esc 用：「四角くまとめて」「移動」の途中ならやめる（ふつうの塗りは続ける）
     void CancelRectOrMove();
 
     // 何かを塗っている/動かしている途中か
-    bool IsBusy() const { return stroke_ != StrokeKind::None; }
+    bool IsBusy() const override { return stroke_ != StrokeKind::None; }
     // 移動中のブロック（実際に動かし始めた後だけ。-1=なし）。描画で元の場所を薄く残すのに使う
     int  MovingBlock() const { return ( stroke_ == StrokeKind::Move && moveDragged_ ) ? moveIndex_ : -1; }
 

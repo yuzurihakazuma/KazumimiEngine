@@ -62,8 +62,10 @@ public:
     // エディタへ戻った：演出をやめて、輪を閉じる
     void OnEditStart();
 
-    // 集計係（シーンが、プレイの出来事の知らせをここへつなぐ）
-    StageTally& Tally(){ return tally_; }
+    // プレイの出来事の知らせ（シーンがここへつなぐ。中の集計係へそのまま伝える）
+    void NoteCombo(int combo){ tally_.NoteCombo(combo); }
+    void NoteDamage(){ tally_.NoteDamage(); }
+    void NoteEnemyDefeated(){ tally_.NoteEnemyDefeated(); }
 
     // 演出中か（true の間、シーンはゲームの時間＝敵・動くレール・当たり判定を進めない）
     bool IsActive() const{ return active_; }

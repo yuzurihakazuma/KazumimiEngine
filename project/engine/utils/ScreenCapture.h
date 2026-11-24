@@ -119,6 +119,9 @@ private:
 
     // テイク
     enum class TakeState { Idle, RecordPending, Recording, PlayPending, Playing };
+    // テイクの状態ごとのクラス（中身は cpp）
+    class TakeMode;
+    struct TakeModes;
     void StartTakeRecord();
     void StopTakeRecord();
     void StartTakePlay(bool withRecording);

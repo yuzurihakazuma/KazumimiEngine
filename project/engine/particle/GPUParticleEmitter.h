@@ -26,7 +26,11 @@ public:
 	void SetData(const GPUParticleEmitterData& data);
 
 	// データの取得
-	GPUParticleEmitterData& GetData(){ return data_; }
+	const GPUParticleEmitterData& GetData() const{ return data_; }
+	// 調整中の書き戻し（SetData と違い、発生のタイマーは戻さない）
+	void UpdateData(const GPUParticleEmitterData& data){ data_ = data; }
+	void SetEmitRate(float emitRate){ data_.emitRate = emitRate; }
+	void SetGravityY(float gravityY){ data_.gravityY = gravityY; }
 
 
 

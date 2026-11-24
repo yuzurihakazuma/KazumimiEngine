@@ -5,6 +5,7 @@
 #include "game/enemy/EnemyManager.h"
 #include "game/egg/EggSystem.h"
 #include "game/combat/HitFeel.h"
+#include "game/combat/EnemyHit.h"
 #include "engine/audio/AudioManager.h"
 #include "engine/base/TimeManager.h"
 #include "engine/graphics/DebugDraw.h"
@@ -62,6 +63,8 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
     //   プレイヤーは「足元から高さ1m・半径0.35m」の縦の筒、敵は見た目の実寸の筒で判定する。
     //   （以前は足元を中心にした半径0.5mの球で、敵の頭より0.7m上でも踏めてしまっていた）
     Vector3 playerFoot = player.GetPosition(); // プレイヤーの位置＝足元
+    // 当たった結果（倒す・跳ね返る・エフェクト）は、ここでは決めない：当たった物（EnemyHit）と敵の種類が決める
+    EnemyHitContext hitContext { player, eggs, hitFeel, *this, camera };
     // 時間が止まっているフレーム（ヒットストップ・カメラの回り込み中）は、体どうしの接触を見ない。
     //   止まっていると足の高さが前のフレームと同じになり「落ちてきている」扱いになって、
     //   横からぶつかった直後のヒットストップ中に踏みつけが成立してしまう。前のフレームの足元も更新しない
@@ -88,7 +91,6 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
         float enemyTop    = enemy->GetBodyTopY();
         if ( playerFoot.y > enemyTop || playerFoot.y + kPlayerBodyHeight < enemyBottom ) continue;
 
-        Vector3 enemyPos = enemy->GetPosition();
         // 前のフレームの状態：頭より上にいたか／すでに体の中（横も重なり、頭より下）にいたか
         float prevDx = prevFoot.x - enemyFoot.x, prevDz = prevFoot.z - enemyFoot.z;
         const bool wasOverlapXZ = ( prevDx * prevDx + prevDz * prevDz <= reach * reach );
@@ -109,16 +111,9 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
         const bool stomp = !player.IsGrounded()
             && ( sweptFromAbove || ( onUpperHalf && ( descending || ( nearTop && !wasInside ) ) ) );
         if ( stomp ) {
-            enemy->Defeat();
-            player.Bounce();
-            hitFeel.Trigger(0.06f, 0.28f);      // 一瞬停止＋カメラ揺れ
-            hitFeel.TriggerImpactFx(enemyPos);  // 踏んだ点中心のポストエフェクト起動
-            SpawnStompEffect(enemyPos, camera, StompEffectType::Stomp); // 敵は Defeat でその場で溶けて消える
+            enemy->ReceiveHit(StompHit {}, hitContext); // 踏みつけ
         } else if ( contactKnockback_ && !player.IsInvincible() ) {
-            // 横や下からぶつかった：敵と反対側へ弾かれる（すり抜けない）。直後は少しの間だけ無敵
-            player.Knockback({ dx, 0.0f, dz });
-            hitFeel.Trigger(0.05f, 0.22f);
-            AudioManager::GetInstance()->PlayWave("resources/se/eggBreak.wav", false, 0.45f); // ぶつかった音（流用）
+            enemy->ReceiveHit(BodyHit({ dx, 0.0f, dz }), hitContext); // 横や下からぶつかった
         }
     }
 
@@ -127,11 +122,7 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
         for ( auto& enemy : enemies.GetEnemies() ) {
             if ( !enemy->IsAlive() ) continue;
             if ( enemy->HitsSweptSphere(ballFrom, ballTo, ballRadius) ) {
-                Vector3 enemyPos = enemy->GetPosition();
-                enemy->Defeat();              // 敵はその場で溶けて消える
-                hitFeel.Trigger(0.05f, 0.2f); // 命中の手応え
-                SpawnStompEffect(enemyPos, camera, StompEffectType::EggHit);
-                AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.7f);
+                enemy->ReceiveHit(SpitHit {}, hitContext);
                 return true; // 弾も消える
             }
         }
@@ -143,12 +134,7 @@ void CombatSystem::Update(Player& player, EnemyManager& enemies, EggSystem& eggs
         for ( auto& enemy : enemies.GetEnemies() ) {
             if ( !enemy->IsAlive() ) continue;
             if ( enemy->HitsSweptSphere(eggFrom, eggTo, eggRadius) ) {
-                Vector3 enemyPos = enemy->GetPosition();
-                enemy->Defeat();                    // 敵はその場で溶けて消える
-                hitFeel.Trigger(0.05f, 0.2f); // 命中の手応え
-                eggs.SpawnHitFx(enemyPos);          // 黄＆オレンジが鋭く飛び散る（踏みつけのリングとは別物）
-                SpawnStompEffect(enemyPos, camera, StompEffectType::EggHit); // 立体の着弾エフェクト
-                AudioManager::GetInstance()->PlayWave("resources/se/eggHit.wav", false, 0.7f); // 命中音
+                enemy->ReceiveHit(EggHit {}, hitContext);
                 return true; // 命中（殻の緑＋黄身は卵の割れ演出が別に出す）
             }
         }

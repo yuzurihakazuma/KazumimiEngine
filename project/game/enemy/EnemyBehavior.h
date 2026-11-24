@@ -5,6 +5,9 @@
 
 namespace KazumimiEngine { class SkinnedObj3d; }
 enum class EnemyType;
+class Enemy;
+class EnemyHit;
+struct EnemyHitContext;
 
 // =====================================================================
 //  EnemyBehavior：敵の種類ごとのふるまい（どのアニメーションを流すか・プレイヤーにどう反応するか）。
@@ -40,4 +43,6 @@ public:
     virtual void OnReapplied(KazumimiEngine::SkinnedObj3d& /*model*/) {}
     // 毎フレーム：クリップを切り替える。体の向きを自分で決めたい時は outYaw に入れて true を返す
     virtual bool Update(KazumimiEngine::SkinnedObj3d& model, const Frame& frame, float& outYaw) = 0;
+    // 何かが当たった：自分の種類に合う EnemyHit の関数を呼ぶ（ダブルディスパッチの 1 段目。結果は当たった物が決める）
+    virtual void ReceiveHit(const EnemyHit& hit, Enemy& enemy, EnemyHitContext& context) const = 0;
 };

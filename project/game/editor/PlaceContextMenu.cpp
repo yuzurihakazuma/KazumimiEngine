@@ -136,8 +136,9 @@ void PlaceContextMenu::DrawExistingItems(const SceneEditContext& context){
 			enemyIndex_ = -1;
 		}
 		if ( enemyIndex_ >= 0 && ImGui::MenuItem("敵の種類を切替（ドングリン→カミバナ→フワリン）") ) {
-			auto& spawnData = enemyEditor->MutableSpawnDatas()[enemyIndex_];
+			EnemySpawnData spawnData = enemyEditor->GetSpawnDatas()[enemyIndex_];
 			spawnData.type = ( EnemyType ) ( ( ( int ) spawnData.type + 1 ) % 3 ); // 3種を順番に切替
+			enemyEditor->SetSpawnData(enemyIndex_, spawnData);
 			enemyEditor->MarkChanged();
 		}
 	}

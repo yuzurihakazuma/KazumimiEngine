@@ -12,46 +12,58 @@ namespace KazumimiEngine {
 // --------------------------------------------------
 void CustomAnimationTrack::AddKeyframe(float time, const Vector3& pos, const Vector3& rot, const Vector3& scale) {
     TransformKeyframe key{ time, pos, rot, scale };
-    keyframes.push_back(key);
+    keyframes_.push_back(key);
 
-    // 時間順にソートする（小さい方が前）
-    std::sort(keyframes.begin(), keyframes.end(),
+    SortKeyframes(); // 時間順に並べ直して、総時間も合わせる
+}
+
+void CustomAnimationTrack::SortKeyframes() {
+    std::sort(keyframes_.begin(), keyframes_.end(),
         [](const TransformKeyframe& a, const TransformKeyframe& b) {
             return a.time < b.time;
         });
-
-    // duration（全長）を最新にする
-    if (!keyframes.empty()) {
-        duration = keyframes.back().time;
+    if (!keyframes_.empty()) {
+        duration_ = keyframes_.back().time;
     }
+}
+
+void CustomAnimationTrack::RemoveKeyframe(size_t index) {
+    if (index >= keyframes_.size()) return;
+    keyframes_.erase(keyframes_.begin() + static_cast<std::ptrdiff_t>(index));
+    duration_ = keyframes_.empty() ? 0.0f : keyframes_.back().time;
+}
+
+void CustomAnimationTrack::ScaleTime(float factor) {
+    for (auto& key : keyframes_) { key.time *= factor; }
+    duration_ *= factor;
 }
 
 // --------------------------------------------------
 // 指定された時間(currentTime)から、補間された座標・回転・スケールを計算する
 // --------------------------------------------------
 void CustomAnimationTrack::UpdateTransformAtTime(float currentTime, Vector3& outPos, Vector3& outRot, Vector3& outScale) const {
-    if (keyframes.empty()) return;
+    if (keyframes_.empty()) return;
 
     // キーフレームが1つしかない場合、または現在時間が最初のキーフレームより前の場合
-    if (keyframes.size() == 1 || currentTime <= keyframes.front().time) {
-        outPos = keyframes.front().position;
-        outRot = keyframes.front().rotation;
-        outScale = keyframes.front().scale;
+    if (keyframes_.size() == 1 || currentTime <= keyframes_.front().time) {
+        outPos = keyframes_.front().position;
+        outRot = keyframes_.front().rotation;
+        outScale = keyframes_.front().scale;
         return;
     }
 
     // 現在時間が最後のキーフレーム以降の場合
-    if (currentTime >= keyframes.back().time) {
-        outPos = keyframes.back().position;
-        outRot = keyframes.back().rotation;
-        outScale = keyframes.back().scale;
+    if (currentTime >= keyframes_.back().time) {
+        outPos = keyframes_.back().position;
+        outRot = keyframes_.back().rotation;
+        outScale = keyframes_.back().scale;
         return;
     }
 
     // どのキーフレームの間にあるかを探す
-    for (size_t i = 0; i < keyframes.size() - 1; ++i) {
-        const auto& keyA = keyframes[i];
-        const auto& keyB = keyframes[i + 1];
+    for (size_t i = 0; i < keyframes_.size() - 1; ++i) {
+        const auto& keyA = keyframes_[i];
+        const auto& keyB = keyframes_[i + 1];
 
         // 間の時間だったら補間を行う
         if (currentTime >= keyA.time && currentTime <= keyB.time) {
@@ -85,10 +97,10 @@ void CustomAnimationTrack::SaveToFile(const std::string& filepath) const {
     if (!file.is_open()) return;
 
     // 1行目に全体時間を書く
-    file << duration << "\n";
+    file << duration_ << "\n";
 
     // 2行目以降にキーフレームデータを書く
-    for (const auto& k : keyframes) {
+    for (const auto& k : keyframes_) {
         file << k.time << " "
              << k.position.x << " " << k.position.y << " " << k.position.z << " "
              << k.rotation.x << " " << k.rotation.y << " " << k.rotation.z << " "
@@ -104,10 +116,10 @@ void CustomAnimationTrack::LoadFromFile(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) return;
 
-    keyframes.clear();
+    keyframes_.clear();
     
     // 1行目から全体時間を読み込む
-    file >> duration;
+    file >> duration_;
 
     // 不要な改行を読み飛ばす
     std::string line;
@@ -124,7 +136,7 @@ void CustomAnimationTrack::LoadFromFile(const std::string& filepath) {
            >> k.rotation.x >> k.rotation.y >> k.rotation.z
            >> k.scale.x >> k.scale.y >> k.scale.z;
 
-        keyframes.push_back(k);
+        keyframes_.push_back(k);
     }
     file.close();
 }
@@ -134,11 +146,11 @@ void CustomAnimationTrack::LoadFromFile(const std::string& filepath) {
 // --------------------------------------------------
 void CustomAnimationTrack::SaveToJson(const std::string& filepath) const {
     nlohmann::json j;
-    j["objectName"] = objectName;
-    j["duration"] = duration;
+    j["objectName"] = objectName_;
+    j["duration"] = duration_;
 
     nlohmann::json keyframesJson = nlohmann::json::array();
-    for(const auto& k : keyframes) {
+    for(const auto& k : keyframes_) {
         nlohmann::json kfJson;
         kfJson["time"] = k.time;
         kfJson["position"] = {k.position.x, k.position.y, k.position.z};
@@ -158,10 +170,10 @@ void CustomAnimationTrack::LoadFromJson(const std::string& filepath) {
     nlohmann::json j;
     if ( !JsonFile::Load(filepath, j) ) return;
 
-    keyframes.clear();
+    keyframes_.clear();
 
-    if (j.contains("objectName")) objectName = j["objectName"];
-    if (j.contains("duration")) duration = j["duration"];
+    if (j.contains("objectName")) objectName_ = j["objectName"];
+    if (j.contains("duration")) duration_ = j["duration"];
 
     if (j.contains("keyframes") && j["keyframes"].is_array()) {
         for (const auto& kfJson : j["keyframes"]) {
@@ -176,7 +188,7 @@ void CustomAnimationTrack::LoadFromJson(const std::string& filepath) {
             k.scale.x = kfJson["scale"][0];
             k.scale.y = kfJson["scale"][1];
             k.scale.z = kfJson["scale"][2];
-            keyframes.push_back(k);
+            keyframes_.push_back(k);
         }
     }
 }

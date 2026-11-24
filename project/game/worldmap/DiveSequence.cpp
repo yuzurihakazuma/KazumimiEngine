@@ -40,23 +40,21 @@ void DiveSequence::SetTarget(const Vector3& target, float endScale){
 }
 
 void DiveSequence::Update(float deltaTime){
-    if ( active_ ) { time_ += deltaTime; }
+    if ( !active_ ) { return; }
+    time_ += deltaTime;
+    // 段の始まりを知らせる（1 回の飛び込みで 1 回ずつ）
+    if ( !jumpTaken_ && time_ >= timing_.crouch ) {
+        jumpTaken_ = true;
+        onJumped_.Emit();
+    }
+    if ( !landTaken_ && time_ >= LandTime() ) {
+        landTaken_ = true;
+        onLanded_.Emit();
+    }
 }
 
 float DiveSequence::EndTime() const{
     return LandTime() + ( std::max )( timing_.absorb, kIrisDelay + timing_.irisTime ) + timing_.irisHold;
-}
-
-bool DiveSequence::ConsumeJumped(){
-    if ( !active_ || time_ < timing_.crouch || jumpTaken_ ) { return false; }
-    jumpTaken_ = true;
-    return true;
-}
-
-bool DiveSequence::ConsumeLanded(){
-    if ( !active_ || time_ < LandTime() || landTaken_ ) { return false; }
-    landTaken_ = true;
-    return true;
 }
 
 DiveSequence::Pose DiveSequence::DinoPose() const{

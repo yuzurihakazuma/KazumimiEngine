@@ -74,12 +74,19 @@ private:
 	void BuildMap();
 	void ApplyLook();
 	void RestoreLook();
-	void UpdateWalk(float deltaTime);
+	// 進行の段階ごとの状態クラス（中身は cpp。段階を足す時は、派生を 1 つ足して Phases::Of の表に 1 行足す）
+	class PhaseState;
+	struct Phases;
+	void ChangePhase(Phase next){ phase_ = next; } // 次の段階へ（状態クラスが呼ぶ）
+	void WalkToTarget(float deltaTime);      // 行き先のマスへ歩く
 	void UpdateDive(float deltaTime);
+	void OnDiveJumped();                     // 飛び込み：跳んだ瞬間の音とけむり
+	void OnDiveLanded();                     // 飛び込み：箱庭に着いた瞬間の音・弾み・紙吹雪
+	StageDiorama* PreviewDiorama();          // プレビューしているマスの箱庭（無ければ nullptr）
 	void SetupProgress();                    // 行けるマスを決める。クリアして戻って来たなら、道が伸びる演出を用意する
 	int  CountReachable(const std::string& ignoreClear) const; // 行けるマスの数（ignoreClear のステージは、まだクリアしていない扱い）
 	float RoadFrontFor(int reachable) const; // そのマスの数まで行ける時に、布の道を敷く長さ(m)
-	void UpdateRoadOpen(float deltaTime);    // 布の道が転がって伸びる
+	bool UpdateRoadOpen(float deltaTime);    // 布の道が転がって伸びる（伸び切ったフレームに true）
 	void UpdateRoadCloth();                  // 布の道を、行ける所までに切る
 	void UpdateDino(float deltaTime);
 	void UpdateTexts();

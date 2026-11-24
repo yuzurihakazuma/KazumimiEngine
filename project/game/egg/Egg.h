@@ -23,6 +23,8 @@ public:
 
     // 実体（見た目のObj3d）を持たせる。baseScale=通常時の大きさ。
     void AttachVisual(std::unique_ptr<KazumimiEngine::Obj3d> obj, const KazumimiEngine::Vector3& baseScale);
+    // 実体を手放す（消える時に、持ち主がプールへ返す）
+    std::unique_ptr<KazumimiEngine::Obj3d> DetachVisual();
 
     void Update(float dt); // 状態に応じた更新＋見た目の更新
     void Draw() const;

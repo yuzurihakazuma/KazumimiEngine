@@ -96,7 +96,7 @@ public:
     const std::string& GetName() const override { return name_; }
     void SetName(const std::string& name) override { name_ = name; }
 
-	Skeleton& GetSkeleton(){ return skeleton_; }
+	const Skeleton& GetSkeleton() const{ return skeleton_; }
 
 	// アニメーションの再生速度（1=等速 / 0=停止）。
 	// プレイヤーの実際の移動速度に合わせて呼ぶと「歩いた時だけ歩きモーション」になる

@@ -14,14 +14,14 @@ class EnemySpawnModel {
 public:
     // --- 配置データ ---
     const std::vector<EnemySpawnData>& Datas() const { return spawnDatas_; }
-    // レール編集時の「距離の張り直し」や履歴からの書き戻し用。選択や changed_ は触らない
-    std::vector<EnemySpawnData>& MutableDatas() { return spawnDatas_; }
+    // 1 体ぶんを書き換える（設定欄・ドラッグ・レール編集時の「距離の張り直し」用）。選択や changed_ は触らない
+    void SetEntry(int index, const EnemySpawnData& spawn) { if ( IsValidIndex(index) ) { spawnDatas_[index] = spawn; } }
     int  Count() const { return ( int ) spawnDatas_.size(); }
     bool IsValidIndex(int index) const { return index >= 0 && index < Count(); }
 
     void Replace(const std::vector<EnemySpawnData>& datas); // 丸ごと差し替え（選択は外す）
     void Clear();                                           // 全削除（選択は外す）
-    void OnRestored(); // 元に戻す/やり直しで中身が入れ替わった後に呼ぶ（はみ出た選択を外して変更通知）
+    void Restore(std::vector<EnemySpawnData> datas); // 元に戻す/やり直しの中身を入れる（はみ出た選択を外して変更通知）
 
     // --- 選択（下の設定欄の編集対象）---
     int  SelectedEntry() const { return selectedEntry_; }

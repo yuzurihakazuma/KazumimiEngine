@@ -55,30 +55,88 @@ void PlayScreenEffects::StartMissIris(){
 	PostEffect::GetInstance()->SetEffectActive(PostEffectType::Grayscale, true);
 }
 
+// =====================================================================
+//  落下ミスのアイリスの、段階ごとの状態クラス（閉じる → 閉じたまま一呼吸 → 開く）。
+//   円の半径と、次の段階へ進むかを、各状態が決める
+// =====================================================================
+class PlayScreenEffects::IrisState {
+public:
+	virtual ~IrisState() = default;
+	virtual bool IsActive() const { return true; }
+	// このフレームの円の半径を返す（1.4＝全開）。時間が来たら次の段階へ進める
+	virtual float Step(PlayScreenEffects& /*effects*/, PostEffect& /*postEffect*/) const { return kOpenRadius; }
+
+protected:
+	static constexpr float kOpenRadius = 1.4f; // 全開
+	static constexpr float kCloseTime = 0.18f, kHoldTime = 0.12f, kOpenTime = 0.5f;
+};
+
+// 状態クラスの入れ物（PlayScreenEffects の中の物に触れるよう、PlayScreenEffects の中に置く）
+struct PlayScreenEffects::Irises {
+	// IrisPhase の番号と同じ並びの表
+	static const IrisState& Of(IrisPhase phase);
+
+	// 出していない
+	class None final : public IrisState {
+	public:
+		bool IsActive() const override { return false; }
+	};
+
+	// 閉じていく
+	class Closing final : public IrisState {
+	public:
+		float Step(PlayScreenEffects& effects, PostEffect& /*postEffect*/) const override {
+			if ( effects.irisTimer_ >= kCloseTime ) {
+				effects.irisPhase_ = IrisPhase::Hold;
+				effects.irisTimer_ = 0.0f;
+				return 0.0f;
+			}
+			return kOpenRadius * ( 1.0f - effects.irisTimer_ / kCloseTime );
+		}
+	};
+
+	// 閉じたまま一呼吸。開き始める瞬間に色を戻す（円の外から色付きの世界が現れる）
+	class Hold final : public IrisState {
+	public:
+		float Step(PlayScreenEffects& effects, PostEffect& postEffect) const override {
+			if ( effects.irisTimer_ >= kHoldTime ) {
+				effects.irisPhase_ = IrisPhase::Opening;
+				effects.irisTimer_ = 0.0f;
+				postEffect.SetEffectActive(PostEffectType::Grayscale, false);
+			}
+			return 0.0f;
+		}
+	};
+
+	// 開いていく（ゆっくり始まってすっと開く）。開き切ったら終わり
+	class Opening final : public IrisState {
+	public:
+		float Step(PlayScreenEffects& effects, PostEffect& postEffect) const override {
+			const float t = effects.irisTimer_ / kOpenTime;
+			if ( effects.irisTimer_ >= kOpenTime ) {
+				effects.irisPhase_ = IrisPhase::None;
+				postEffect.SetEffectActive(PostEffectType::IrisWipe, false);
+			}
+			return kOpenRadius * t * t;
+		}
+	};
+};
+
+const PlayScreenEffects::IrisState& PlayScreenEffects::Irises::Of(IrisPhase phase){
+	static const None none {};
+	static const Closing closing {};
+	static const Hold hold {};
+	static const Opening opening {};
+	static const IrisState* const kTable[] = { &none, &closing, &hold, &opening };
+	return *kTable[static_cast<size_t>( phase )];
+}
+
 void PlayScreenEffects::UpdateIris(const Vector3& focus, const Camera& camera){
-	if ( irisPhase_ == IrisPhase::None ) return;
+	const IrisState& state = Irises::Of(irisPhase_);
+	if ( !state.IsActive() ) return;
 	PostEffect* postEffect = PostEffect::GetInstance();
 	irisTimer_ += Time::kFixedDeltaTime;
-	const float kCloseTime = 0.18f, kHoldTime = 0.12f, kOpenTime = 0.5f;
-	float radius = 1.4f; // 全開
-	if ( irisPhase_ == IrisPhase::Closing ) {
-		radius = 1.4f * ( 1.0f - irisTimer_ / kCloseTime );
-		if ( irisTimer_ >= kCloseTime ) { irisPhase_ = IrisPhase::Hold; irisTimer_ = 0.0f; radius = 0.0f; }
-	} else if ( irisPhase_ == IrisPhase::Hold ) { // 閉じたまま一呼吸
-		radius = 0.0f;
-		if ( irisTimer_ >= kHoldTime ) {
-			irisPhase_ = IrisPhase::Opening; irisTimer_ = 0.0f;
-			// 開き始めた瞬間に色を戻す（円の外から色付きの世界が現れる）
-			postEffect->SetEffectActive(PostEffectType::Grayscale, false);
-		}
-	} else {
-		float t = irisTimer_ / kOpenTime;
-		radius = 1.4f * t * t; // ゆっくり始まってすっと開く
-		if ( irisTimer_ >= kOpenTime ) {
-			irisPhase_ = IrisPhase::None;
-			postEffect->SetEffectActive(PostEffectType::IrisWipe, false);
-		}
-	}
+	const float radius = state.Step(*this, *postEffect); // 半径と、次の段階へ進むかは、状態が決める
 	// 円の中心をスクリーンUVへ投影
 	float centerU = 0.5f, centerV = 0.5f;
 	Vector2 ndc;

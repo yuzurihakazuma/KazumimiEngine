@@ -1,4 +1,5 @@
 #pragma once
+#include "game/editor/BackdropHistory.h"
 #include "game/stage/StageBackdrop.h"
 
 #include <cstdint>
@@ -40,7 +41,7 @@ public:
 
     bool IsDirty() const { return dirty_; }
     // コンボの道を見せる（選んだ的から、卵が当たった時にはじける順。EggCombo::DrawPreview）
-    bool ShowComboPreview() const { return enabled_ && comboPreview_ && tool_ == Tool::Select; }
+    bool ShowComboPreview() const;
     const std::vector<int>& Selection() const { return selection_; }
     // 背景を編集しているか（Edit モード・パネル表示中・「背景を編集する」ON）。この間は Game View のクリックを背景に使う
     bool IsEditing(const SceneEditContext& context) const;
@@ -49,6 +50,13 @@ private:
     enum class Tool { Select, Place, Brush, Eraser, Ground };
     // 地面ブラシで塗る物
     enum class GroundPaint { Grass, Path, Dirt, Hole, Raise, Lower, PathLine };
+
+    // 道具ごとのふるまい（パネルの欄・Game View の操作）と、地面の塗り方ごとのふるまい（升目をどう変えるか・枠の色・パネルの欄）。
+    //   中身は cpp。足す時は、派生クラスを 1 つ足して Modes::Of / GroundBrushes::Of の表に 1 行足す
+    class ToolMode;
+    struct Modes;
+    class GroundBrush;
+    struct GroundBrushes;
 
     // --- 履歴 ---
     void PushUndo(StageBackdrop& backdrop);
@@ -62,7 +70,8 @@ private:
     void UpdateSelect(const SceneEditContext& context, int hover);
     void UpdatePlace(const SceneEditContext& context);
     void UpdateBrush(const SceneEditContext& context, bool erase);
-    void UpdateGround(const SceneEditContext& context);
+    void UpdateGround(const SceneEditContext& context);      // 地面の道具：塗り方（GroundBrush）へ任せる
+    void UpdateGroundCells(const SceneEditContext& context); // 升目を塗る塗り方の共通の操作
     void UpdatePathLine(const SceneEditContext& context);
     void BuildPath(StageBackdrop& backdrop);   // linePoints_ から、つながった道（帯と丸）を作る
     void ApplyGroundCell(StageBackdrop& backdrop, int column, int row);
@@ -120,7 +129,7 @@ private:
     float pathWidth_ = 1.4f;                    // 道の幅（m）
 
     std::vector<int> selection_;     // 選んでいる物（先頭＝ギズモの対象）
-    std::vector<std::vector<BackdropItem>> undo_, redo_;
+    BackdropHistory history_;        // 元に戻す・やり直す（操作 1 回ぶんのコマンドの並び）
     bool dirty_ = false;
     std::string status_;
 

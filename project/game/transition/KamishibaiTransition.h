@@ -68,6 +68,28 @@ private:
 	KamishibaiTransition();           // cpp 側で定義（前方宣言だけの型を unique_ptr で持つため）
 	~KamishibaiTransition() override;
 
+	// 部品の種類ごとの動き（中身は cpp。種類を足す時は、派生クラスを 1 つ足して RegisterActions に 1 行足す）
+	class PartAction;
+	class SceneExitAction;
+	class PicturePullAction;
+	class SoundAction;
+	class LoadSceneAction;
+	class BannerAction;
+	class EggThrowAction;
+	class DoorsAction;
+	class CurtainAction;
+	class FrameZoomAction;
+	class IntroElementAction;
+	class IntroFallAction;
+	class IntroCutAction;
+	class IntroLiftAction;
+	class LetterboxAction;
+	class SceneCueAction;
+	class WaitAllAction;
+	class EndAction;
+	void RegisterActions();
+	const PartAction* FindAction(const std::string& type) const; // 知らない種類なら nullptr
+
 	// definitionName の遷移で sceneName へ切り替える（遷移中は何もしない。定義が無ければそのまま切り替える）
 	static void ChangeSceneWith(const std::string& definitionName, const std::string& sceneName);
 	bool LoadDefinition(const std::string& definitionName);
@@ -82,6 +104,7 @@ private:
 	std::string toScene_ = "STAGESELECT"; // 定義の行き先（SceneFactory の名前。保存される）
 	std::string playTo_;                  // 今の再生で切り替える先（Play で行き先を渡した時はそれ）
 	TransitionTimeline timeline_;
+	std::unordered_map<std::string, std::unique_ptr<PartAction>> actions_; // 部品の種類の名前 → その動き
 
 	// --- 再生の状態 ---
 	bool  active_ = false;

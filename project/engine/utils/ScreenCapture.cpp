@@ -151,9 +151,112 @@ std::string ScreenCapture::TimeStamp(){
     return text;
 }
 
+// =====================================================================
+//  テイク（キー入力の記録と再生）の状態ごとのクラス。
+//   何もしていない → 記録の準備 → 記録中 ／ 再生の準備 → 再生中。次の状態へ進むかは、各状態が決める
+// =====================================================================
+class ScreenCapture::TakeMode {
+public:
+    virtual ~TakeMode() = default;
+    virtual bool IsIdle() const { return false; }
+    // 記録の側か（準備中も含む）／再生の側か（準備中も含む）
+    virtual bool IsRecordSide() const { return false; }
+    virtual bool IsPlaySide() const { return false; }
+    // 今まさにキーを覚えているか／差し替えているか
+    virtual bool IsCapturingKeys() const { return false; }
+    virtual bool IsReplayingKeys() const { return false; }
+    // フレームの頭で 1 回
+    virtual void Update(ScreenCapture& /*capture*/, Input& /*input*/) const {}
+};
+
+// テイクの状態クラスの入れ物（ScreenCapture の中の物に触れるよう、ScreenCapture の中に置く）
+struct ScreenCapture::TakeModes {
+    // TakeState の番号と同じ並びの表
+    static const TakeMode& Of(TakeState state);
+
+    // 何もしていない
+    class Idle final : public TakeMode {
+    public:
+        bool IsIdle() const override { return true; }
+    };
+
+    // 記録の準備：始める時の状態を作ってから、記録中へ（作れなければやめる）
+    class RecordPending final : public TakeMode {
+    public:
+        bool IsRecordSide() const override { return true; }
+        void Update(ScreenCapture& capture, Input& input) const override {
+            nlohmann::json start = nlohmann::json::object();
+            std::string error;
+            if ( capture.hooks_.capture && !capture.hooks_.capture(start, error) ) {
+                capture.status_ = "テイク：" + error;
+                capture.takeState_ = TakeState::Idle;
+                return;
+            }
+            capture.takeStart_ = start;
+            capture.takeScene_ = capture.hooks_.scene;
+            if ( capture.hooks_.apply ) { capture.hooks_.apply(capture.takeStart_); }
+            capture.takeFrames_.clear();
+            capture.takeState_ = TakeState::Recording;
+            capture.status_ = capture.hooks_.apply ? "テイクを記録中（始める時の状態へ戻した）" : "テイクを記録中（このシーンは始める時の状態へ戻せない）";
+            TakeModes::Of(capture.takeState_).Update(capture, input); // このフレームのキーから覚える
+        }
+    };
+
+    // 記録中：毎フレームのキーを覚える
+    class Recording final : public TakeMode {
+    public:
+        bool IsRecordSide() const override { return true; }
+        bool IsCapturingKeys() const override { return true; }
+        void Update(ScreenCapture& capture, Input& input) const override {
+            capture.takeFrames_.push_back(input.GetPressedKeysForTake());
+        }
+    };
+
+    // 再生の準備：始める時の状態へ戻して、再生中へ
+    class PlayPending final : public TakeMode {
+    public:
+        bool IsPlaySide() const override { return true; }
+        void Update(ScreenCapture& capture, Input& input) const override {
+            if ( capture.hooks_.apply ) { capture.hooks_.apply(capture.takeStart_); }
+            capture.playIndex_ = 0;
+            capture.takeState_ = TakeState::Playing;
+            if ( capture.playWithRecording_ ) {
+                capture.StartRecording(0);
+                capture.recordForTake_ = true;
+            }
+            capture.status_ = "テイクを再生中";
+            TakeModes::Of(capture.takeState_).Update(capture, input); // このフレームのキーから差し替える
+        }
+    };
+
+    // 再生中：記録したキーをフレームごとに差し替える。最後まで行ったら終わる
+    class Playing final : public TakeMode {
+    public:
+        bool IsPlaySide() const override { return true; }
+        bool IsReplayingKeys() const override { return true; }
+        void Update(ScreenCapture& capture, Input& input) const override {
+            if ( capture.playIndex_ < capture.takeFrames_.size() ) {
+                input.OverrideKeysForTake(capture.takeFrames_[capture.playIndex_++]);
+            } else {
+                capture.StopTakePlay();
+            }
+        }
+    };
+};
+
+const ScreenCapture::TakeMode& ScreenCapture::TakeModes::Of(TakeState state){
+    static const Idle idle {};
+    static const RecordPending recordPending {};
+    static const Recording recording {};
+    static const PlayPending playPending {};
+    static const Playing playing {};
+    static const TakeMode* const kTable[] = { &idle, &recordPending, &recording, &playPending, &playing };
+    return *kTable[static_cast<size_t>( state )];
+}
+
 // 固定コマ送り：録画中（設定が ON の時）と、テイクの記録・再生中（入力はフレーム単位なので、dt がずれると別の動きになる）
 void ScreenCapture::UpdateFixedStep(){
-    const bool fixed = ( recording_ && fixedStep_ && !recLight_ ) || takeState_ != TakeState::Idle;
+    const bool fixed = ( recording_ && fixedStep_ && !recLight_ ) || !TakeModes::Of(takeState_).IsIdle();
     Time::GetInstance()->SetFixedStep(fixed);
 }
 
@@ -184,44 +287,8 @@ void ScreenCapture::OnInputUpdated(){
         if ( countdown_ < 0.0f ) { StartRecording(useLimit_ ? limitSeconds_ * kFramesPerSecond : 0); }
     }
 
-    // テイクの記録：始める時の状態を作ってから、毎フレームのキーを覚える
-    if ( takeState_ == TakeState::RecordPending ) {
-        nlohmann::json start = nlohmann::json::object();
-        std::string error;
-        if ( hooks_.capture && !hooks_.capture(start, error) ) {
-            status_ = "テイク：" + error;
-            takeState_ = TakeState::Idle;
-        } else {
-            takeStart_ = start;
-            takeScene_ = hooks_.scene;
-            if ( hooks_.apply ) { hooks_.apply(takeStart_); }
-            takeFrames_.clear();
-            takeState_ = TakeState::Recording;
-            status_ = hooks_.apply ? "テイクを記録中（始める時の状態へ戻した）" : "テイクを記録中（このシーンは始める時の状態へ戻せない）";
-        }
-    }
-    if ( takeState_ == TakeState::Recording ) {
-        takeFrames_.push_back(input->GetPressedKeysForTake());
-    }
-
-    // テイクの再生：始める時の状態へ戻し、記録したキーをフレームごとに差し替える
-    if ( takeState_ == TakeState::PlayPending ) {
-        if ( hooks_.apply ) { hooks_.apply(takeStart_); }
-        playIndex_ = 0;
-        takeState_ = TakeState::Playing;
-        if ( playWithRecording_ ) {
-            StartRecording(0);
-            recordForTake_ = true;
-        }
-        status_ = "テイクを再生中";
-    }
-    if ( takeState_ == TakeState::Playing ) {
-        if ( playIndex_ < takeFrames_.size() ) {
-            input->OverrideKeysForTake(takeFrames_[playIndex_++]);
-        } else {
-            StopTakePlay();
-        }
-    }
+    // テイク：記録の準備・記録・再生の準備・再生は、状態クラスが進める
+    TakeModes::Of(takeState_).Update(*this, *input);
 
     UpdateFixedStep();
     frameDt_ = dt;
@@ -477,7 +544,7 @@ void ScreenCapture::StartRecording(int limitFrames){
     recTime_ = 0.0f;
     recAccum_ = 0.0f;
     // テイクの「再生しながら録画」は、いつも きれいに録る（同じ動きを 1 フレームずつ確実に残す）
-    recLight_ = recordLight_ && takeState_ != TakeState::Playing;
+    recLight_ = recordLight_ && !TakeModes::Of(takeState_).IsReplayingKeys();
     if ( recLight_ ) {
         OpenLightWriter();
         status_ = "録画中（ふつうの速さ）";
@@ -740,20 +807,20 @@ void ScreenCapture::RevealFile(const std::filesystem::path& file){
 //  テイク（キー入力の記録と再生）
 // =====================================================================
 void ScreenCapture::StartTakeRecord(){
-    if ( takeState_ != TakeState::Idle ) { return; }
+    if ( !TakeModes::Of(takeState_).IsIdle() ) { return; }
     takeState_ = TakeState::RecordPending; // 次のフレームの頭で、始める時の状態を作ってから記録を始める
     UpdateFixedStep();
 }
 
 void ScreenCapture::StopTakeRecord(){
-    if ( takeState_ != TakeState::Recording && takeState_ != TakeState::RecordPending ) { return; }
+    if ( !TakeModes::Of(takeState_).IsRecordSide() ) { return; }
     takeState_ = TakeState::Idle;
     status_ = "テイク：" + std::to_string(takeFrames_.size()) + " フレーム記録した（名前を付けて保存できる）";
     UpdateFixedStep();
 }
 
 void ScreenCapture::StartTakePlay(bool withRecording){
-    if ( takeState_ != TakeState::Idle || takeFrames_.empty() ) { return; }
+    if ( !TakeModes::Of(takeState_).IsIdle() || takeFrames_.empty() ) { return; }
     if ( !takeScene_.empty() && !hooks_.scene.empty() && takeScene_ != hooks_.scene ) {
         status_ = "テイクは「" + takeScene_ + "」で撮ったもの。今のシーンでは再生できない";
         return;
@@ -768,7 +835,7 @@ void ScreenCapture::StartTakePlay(bool withRecording){
 }
 
 void ScreenCapture::StopTakePlay(){
-    if ( takeState_ != TakeState::Playing && takeState_ != TakeState::PlayPending ) { return; }
+    if ( !TakeModes::Of(takeState_).IsPlaySide() ) { return; }
     takeState_ = TakeState::Idle;
     if ( recordForTake_ ) { StopRecording(); }
     else { status_ = "テイクの再生が終わった"; }
@@ -921,8 +988,8 @@ void ScreenCapture::DrawOverlay(){
             else { std::snprintf(text, sizeof(text), "REC  %.2f 秒（%d 枚・きれいに録る）  F9 で止める", recFrame_ / static_cast< float >( kFramesPerSecond ), recFrame_); }
             badge(IM_COL32(235, 40, 40, 255), text);
         }
-        if ( takeState_ == TakeState::Recording ) { badge(IM_COL32(255, 160, 30, 255), "テイク記録中  " + std::to_string(takeFrames_.size())); }
-        if ( takeState_ == TakeState::Playing ) {
+        if ( TakeModes::Of(takeState_).IsCapturingKeys() ) { badge(IM_COL32(255, 160, 30, 255), "テイク記録中  " + std::to_string(takeFrames_.size())); }
+        if ( TakeModes::Of(takeState_).IsReplayingKeys() ) {
             badge(IM_COL32(60, 200, 90, 255), "テイク再生中  " + std::to_string(playIndex_) + " / " + std::to_string(takeFrames_.size()));
         }
     }
@@ -1085,8 +1152,8 @@ void ScreenCapture::DrawPanel([[maybe_unused]] const char* windowTitle){
         } else {
             ImGui::TextDisabled("記録・再生の始めに、敵・コインなどを置き直し、記録を始めた場所から始める");
         }
-        const bool takeRecording = takeState_ == TakeState::Recording || takeState_ == TakeState::RecordPending;
-        const bool takePlaying = takeState_ == TakeState::Playing || takeState_ == TakeState::PlayPending;
+        const bool takeRecording = TakeModes::Of(takeState_).IsRecordSide();
+        const bool takePlaying = TakeModes::Of(takeState_).IsPlaySide();
         ImGui::BeginDisabled(takePlaying);
         if ( !takeRecording ) {
             if ( ImGui::Button("記録開始") ) { StartTakeRecord(); }

@@ -57,7 +57,9 @@
 using namespace KazumimiEngine;
 
 GamePlayScene::GamePlayScene(){
-	features_.railEditing  = true; // レール・道・敵の配置を編集する
+	Features features;
+	features.railEditing = true; // レール・道・敵の配置を編集する
+	UseFeatures(features);
 }
 GamePlayScene::~GamePlayScene() = default;
 
@@ -160,9 +162,9 @@ void GamePlayScene::SetupClear(){
 	// 提出用・プレイ会用：クリアしたステージに入り直したら、ゴールの手前から（clear.json の playSession）
 	retryNearGoal_ = clear_.Settings().playSession.retryNearGoal && StageRecords::GetInstance()->IsCleared(kStageName);
 	// 集計係は、出来事を受け取って数えるだけ（卵・体力・敵の処理と、クリア演出を直接つながない）
-	eggCombo_.OnComboChanged().Connect([this](int combo){ clear_.Tally().NoteCombo(combo); });
-	gameOver_.OnDamaged().Connect([this]{ clear_.Tally().NoteDamage(); });
-	enemyMgr_.OnEnemyDefeated().Connect([this]{ clear_.Tally().NoteEnemyDefeated(); });
+	eggCombo_.OnComboChanged().Connect([this](int combo){ clear_.NoteCombo(combo); });
+	gameOver_.OnDamaged().Connect([this]{ clear_.NoteDamage(); });
+	enemyMgr_.OnEnemyDefeated().Connect([this]{ clear_.NoteEnemyDefeated(); });
 }
 
 // ゴールの輪をくぐった瞬間：構えの途中・ベロを出している途中でも破綻しないよう、やめさせる
@@ -272,6 +274,27 @@ void GamePlayScene::DrawStartCue(){
 void GamePlayScene::SetupGameplay(){
 	player_ = std::make_unique<Player>();
 	player_->Initialize();
+	// プレイヤーからの知らせ（プレイヤーは、見た目・音・ブロックを知らない）
+	//   歩いて壁にぶつかった：顔がつぶれる動き・ぺたんの音・小さな手ごたえ
+	player_->OnWallBumped().Connect([this]{
+		avatar_.PlayWallBump();
+		AudioManager::GetInstance()->PlayWave("resources/kamishibai/se_patan.wav", false, 0.45f);
+		hitFeel_.Trigger(0.04f, 0.05f);
+	});
+	//   ジャンプ台で跳ねた：足元のばねを縮めてびよんと戻し、音を鳴らす
+	player_->OnSpringBounced().Connect([this](int rail, float distance, float footY){
+		blockSystem_.NotifySpringBounce(rail, distance, footY);
+		AudioManager::GetInstance()->PlayWave("resources/se/se_spring.wav", false, 0.6f);
+	});
+	//   ？ブロックからコインが出た：カウント加算＋金色の粒が飛び出す演出
+	blockSystem_.OnCoinBumped().Connect([this](const Vector3& coinPos){
+		coinSystem_.AddBonus(1);
+		for ( int i = 0; i < 6; ++i ) {
+			float angle = ( float ) i / 6.0f * Math::kTwoPi;
+			Vector3 vel = { std::cos(angle) * 1.5f, 3.5f + ( float ) ( i % 3 ) * 0.6f, std::sin(angle) * 1.5f };
+			eggSystem_.SpawnPuff(coinPos, vel, { 1.0f, 0.85f, 0.2f, 1.0f }, 0.12f, 0.5f, "fxSphere");
+		}
+	});
 	enemyEditor_ = std::make_unique<EnemyEditor>();
 	enemyEditor_->Initialize();
 
@@ -306,20 +329,22 @@ void GamePlayScene::SetupGameplay(){
 	// ロード中のいま全部作ってプールに積んでおく。パフの数は最悪フレーム
 	// （卵トレイル約13個借用中＋命中バースト8＋割れ演出6＋投げ煙6）を賄う量＝返却上限に合わせる
 	combat_.Prewarm(GetCamera(), 4);
-	eggSystem_.PrewarmPuffPool("fxSphere", 32);
-	eggSystem_.PrewarmPuffPool("eggShell", 28);
-	eggSystem_.PrewarmPuffPool("eggShellGreen", 12);
+	eggSystem_.PrewarmVisualPool("fxSphere", 32);
+	eggSystem_.PrewarmVisualPool("eggShell", 28);
+	eggSystem_.PrewarmVisualPool("eggShellGreen", 12);
+	eggSystem_.PrewarmVisualPool("egg", 8);    // 卵（持てる数＋割れて消えるまでの分）
+	eggSystem_.PrewarmVisualPool("sphere", 4); // 吐き出す敵ボール
 
 	// ノードエディタの「→ ゲーム値」に調整値を登録する（ノードからプレイ中の挙動をリアルタイムに動かせる）。
 	//   ※ポインタ登録なので、シーン終了時（Finalize）に必ず解除する
 	EditorManager* editorManager = EditorManager::GetInstance();
 	editorManager->ClearNodeGameValues(); // シーン再初期化時の二重登録防止
-	editorManager->RegisterNodeGameValue("プレイヤー移動速度",   player_->MoveSpeedPtr(),  0.5f, 20.0f);
-	editorManager->RegisterNodeGameValue("ジャンプ力",           player_->JumpPowerPtr(),  1.0f, 20.0f);
-	editorManager->RegisterNodeGameValue("卵の投げ初速",         aimThrow_.ThrowSpeedNormalPtr(), 1.0f, 40.0f);
-	editorManager->RegisterNodeGameValue("ロックオン投げ初速",   aimThrow_.ThrowSpeedLockPtr(),   1.0f, 60.0f);
-	editorManager->RegisterNodeGameValue("飲み込みの届く距離",   swallow_.SwallowReachPtr(), 0.5f, 10.0f);
-	editorManager->RegisterNodeGameValue("飲み込みクールタイム", swallow_.SwallowCooldownPtr(), 0.0f, 2.0f);
+	editorManager->RegisterNodeGameValue("プレイヤー移動速度",   [this](float value){ player_->SetMoveSpeed(value); },  0.5f, 20.0f);
+	editorManager->RegisterNodeGameValue("ジャンプ力",           [this](float value){ player_->SetJumpPower(value); },  1.0f, 20.0f);
+	editorManager->RegisterNodeGameValue("卵の投げ初速",         [this](float value){ aimThrow_.SetThrowSpeedNormal(value); }, 1.0f, 40.0f);
+	editorManager->RegisterNodeGameValue("ロックオン投げ初速",   [this](float value){ aimThrow_.SetThrowSpeedLock(value); },   1.0f, 60.0f);
+	editorManager->RegisterNodeGameValue("飲み込みの届く距離",   [this](float value){ swallow_.SetSwallowReach(value); }, 0.5f, 10.0f);
+	editorManager->RegisterNodeGameValue("飲み込みクールタイム", [this](float value){ swallow_.SetSwallowCooldown(value); }, 0.0f, 2.0f);
 
 	// レールはエディタ保持の最新データから構築（編集・緑線・プレイヤーを同じデータに一本化）
 	SyncRailsFromEditor();
@@ -671,21 +696,6 @@ void GamePlayScene::UpdatePlayMode(){
 	swallow_.SetActionBlocked(aimThrow_.IsAiming());
 	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
 	player_->Update(railField_.GetRails());
-	// 歩いて壁にぶつかった：顔がつぶれる動き・ぺたんの音・小さな手ごたえ
-	if ( player_->ConsumeWallBump() ) {
-		avatar_.PlayWallBump();
-		AudioManager::GetInstance()->PlayWave("resources/kamishibai/se_patan.wav", false, 0.45f);
-		hitFeel_.Trigger(0.04f, 0.05f);
-	}
-	// ジャンプ台で跳ねた：足元のばねを縮めてびよんと戻し、音を鳴らす
-	{
-		int springRail = -1; float springDist = 0.0f, springFoot = 0.0f;
-		if ( player_->ConsumeSpringBounce(springRail, springDist, springFoot) ) {
-			blockSystem_.NotifySpringBounce(springRail, springDist, springFoot);
-			AudioManager::GetInstance()->PlayWave("resources/se/se_spring.wav", false, 0.6f);
-		}
-	}
-
 	// 敵の移動＋吸い込みTick。吸い込み完了 → お腹に+1（口元で緑がふわっと）。
 	//   ブロックを渡す＝パトロールの敵が壁で引き返す（貫通防止）
 	enemyMgr_.Update(railField_.GetRails(), player_->GetPosition(), deltaTime, [&](const Vector3& pos){
@@ -787,17 +797,6 @@ void GamePlayScene::UpdateSceneVisuals(EngineMode mode){
 			railField_.ResetMotion(true);
 		}
 		screenFx_.UpdateIris({ playerPos.x, playerPos.y + 0.8f, playerPos.z }, *GetCamera()); // 円の中心＝胸元
-	}
-
-	// ？ブロックから出たコイン：カウント加算＋金色の粒が飛び出す演出
-	Vector3 bumpCoinPos {};
-	while ( blockSystem_.ConsumeBumpCoin(bumpCoinPos) ) {
-		coinSystem_.AddBonus(1);
-		for ( int i = 0; i < 6; ++i ) {
-			float angle = ( float ) i / 6.0f * Math::kTwoPi;
-			Vector3 vel = { std::cos(angle) * 1.5f, 3.5f + ( float ) ( i % 3 ) * 0.6f, std::sin(angle) * 1.5f };
-			eggSystem_.SpawnPuff(bumpCoinPos, vel, { 1.0f, 0.85f, 0.2f, 1.0f }, 0.12f, 0.5f, "fxSphere");
-		}
 	}
 
 	// プレイヤーの見た目（Play中は追従、Edit中はスタート地点のプレビュー）

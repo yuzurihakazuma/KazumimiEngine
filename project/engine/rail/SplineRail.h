@@ -1,4 +1,6 @@
 #pragma once
+#include <algorithm>
+#include <utility>
 #include <vector>
 #include "engine/rail/RailSkin.h"
 #include "engine/math/struct.h"
@@ -15,8 +17,8 @@ namespace KazumimiEngine {
 //     Nodes()  … 通る点            Config() … エディタで決める設定（タイプ・表示・道の見た目・穴 など）
 //     Links()  … ほかのレールとのつながり（RailConnections が作る）
 //     Motion() … 動くレールの設定と今の動き    Train() … 列車    Board() … 渡し板
-//   読むだけの所は Config() などを使う。書き換える所（レールを作る RailField・つなぐ RailConnections・
-//   動かす RailMotion）だけが EditConfig() などを使う（書き換える場所が、名前で見分けられる）
+//   読むのは Config() など（どれも const）。書き換えは SetVisible() のような項目ごとの関数だけで、
+//   中身への参照は外へ渡さない（書き換えるのは、レールを作る RailField・つなぐ RailConnections・動かす RailMotion）
 // =====================================================================
 class SplineRail{
 public:
@@ -186,22 +188,102 @@ public:
     };
 
     // ============================================================
-    // 持ち物への入口。読むだけの所は const の方（Config() など）を使う。
-    //   書き換える所は Edit〜 を使う（レールを作る・つなぐ・動かす所だけ）。
-    //   ノードや線のつなぎ方を書き換えた後は、BuildDistanceTable を呼ぶこと
+    // 持ち物への入口。読むのは Nodes() / Config() / Links() / Motion() / Train() / Board()（どれも const）。
+    //   書き換えは、下の Set〜 などの関数だけ（中身への参照は外へ渡さない）。
+    //   形（ノード・線のつなぎ方・ループ・つなぎ目の向き）を書き換えると「距離の表が古い」印が付く（Dirty Flag）。
+    //   書き換え終わったら RebuildIfDirty（印のある時だけ作り直す）か BuildDistanceTable を呼ぶこと
     // ============================================================
     const std::vector<Vector3>& Nodes() const { return nodes_; }
-    std::vector<Vector3>&       EditNodes() { return nodes_; }
     const ConfigData& Config() const { return config_; }
-    ConfigData&       EditConfig() { return config_; }
     const LinkData&   Links() const { return links_; }
-    LinkData&         EditLinks() { return links_; }
     const MotionData& Motion() const { return motion_; }
-    MotionData&       EditMotion() { return motion_; }
     const TrainData&  Train() const { return train_; }
-    TrainData&        EditTrain() { return train_; }
     const BoardData&  Board() const { return board_; }
-    BoardData&        EditBoard() { return board_; }
+
+    // --- ノード（通る点）の書き換え ---
+    void SetNodes(std::vector<Vector3> nodes) { nodes_ = std::move(nodes); tableDirty_ = true; }
+    void AddNode(const Vector3& node) { nodes_.push_back(node); tableDirty_ = true; }
+    void ClearNodes() { nodes_.clear(); tableDirty_ = true; }
+    void SetNode(size_t index, const Vector3& node) { nodes_[index] = node; tableDirty_ = true; }
+    void SetFrontNode(const Vector3& node) { nodes_.front() = node; tableDirty_ = true; }
+    void SetBackNode(const Vector3& node) { nodes_.back() = node; tableDirty_ = true; }
+    void ReverseNodes() { std::reverse(nodes_.begin(), nodes_.end()); tableDirty_ = true; }
+
+    // --- 設定（ConfigData）の書き換え ---
+    void SetType(RailType value) { config_.type = value; }
+    void SetVisible(bool value) { config_.visible = value; }
+    void SetLineMode(int value) { if ( config_.lineMode != value ) { tableDirty_ = true; } config_.lineMode = value; }
+    void SetRoadMode(int value) { config_.roadMode = value; }
+    void SetEndPlaza(int value) { config_.endPlaza = value; }
+    void SetSkin(const RailSkin& value) { config_.skin = value; }
+    void SetGroundType(GroundType value) { config_.groundType = value; }
+    void SetNodeHole(const std::vector<int>& value) { config_.nodeHole = value; }
+    void SetOneWay(int value) { config_.oneWay = value; }
+    void SetSpeedMul(float value) { config_.speedMul = value; }
+    void ClearNodeHole() { config_.nodeHole.clear(); }
+
+    // --- ほかのレールとのつながり（LinkData）の書き換え ---
+    void SetIsLoop(bool value) { if ( links_.isLoop != value ) { tableDirty_ = true; } links_.isLoop = value; }
+    void SetHasFrontTangent(bool value) { if ( links_.hasFrontTangent != value ) { tableDirty_ = true; } links_.hasFrontTangent = value; }
+    void SetHasBackTangent(bool value) { if ( links_.hasBackTangent != value ) { tableDirty_ = true; } links_.hasBackTangent = value; }
+    void SetFrontTangent(const Vector3& value) { links_.frontTangent = value; tableDirty_ = true; }
+    void SetBackTangent(const Vector3& value) { links_.backTangent = value; tableDirty_ = true; }
+    void SetFrontConnIndex(int value) { links_.frontConnIndex = value; }
+    void SetFrontConnToFront(bool value) { links_.frontConnToFront = value; }
+    void SetBackConnIndex(int value) { links_.backConnIndex = value; }
+    void SetBackConnToFront(bool value) { links_.backConnToFront = value; }
+    void SetBranchPoints(const std::vector<BranchPoint>& value) { links_.branchPoints = value; }
+    void AddBranchPoint(const BranchPoint& point) { links_.branchPoints.push_back(point); }
+    void ClearBranchPoints() { links_.branchPoints.clear(); }
+
+    // --- 動くレール（MotionData）の書き換え ---
+    void SetMotionAmp(const Vector3& value) { motion_.motionAmp = value; }
+    void SetMotionPeriod(float value) { motion_.motionPeriod = value; }
+    void SetAnimOffset(const Vector3& value) { motion_.animOffset = value; }
+    void SetMotionType(int value) { motion_.motionType = value; }
+    void SetGuideRail(int value) { motion_.guideRail = value; }
+    void SetMotionPhase(float value) { motion_.motionPhase = value; }
+    void SetGuideStart(float value) { motion_.guideStart = value; }
+    void SetGuideEnd(float value) { motion_.guideEnd = value; }
+    void SetGuideMode(int value) { motion_.guideMode = value; }
+    void SetGuideDwell(float value) { motion_.guideDwell = value; }
+    void SetMotionTrigger(int value) { motion_.motionTrigger = value; }
+    void SetMotionTime(float value) { motion_.motionTime = value; }
+    void SetMotionStarted(bool value) { motion_.motionStarted = value; }
+    void SetGuideAlign(int value) { motion_.guideAlign = value; }
+    void SetAnimYaw(float value) { motion_.animYaw = value; }
+    void SetAnimPivot(const Vector3& value) { motion_.animPivot = value; }
+    void SetRestYaw(float value) { motion_.restYaw = value; }
+    void SetAppearTrigger(int value) { motion_.appearTrigger = value; }
+    void SetAppeared(bool value) { motion_.appeared = value; }
+    void SetAppearAnim(float value) { motion_.appearAnim = value; }
+
+    // --- 列車（TrainData）の書き換え ---
+    void SetTrain(int value) { train_.train = value; }
+    void SetTrainDepart(float value) { train_.trainDepart = value; }
+    void SetTrainReturn(float value) { train_.trainReturn = value; }
+    void SetTrainEngine(int value) { train_.trainEngine = value; }
+    void SetTrainSpeed(float value) { train_.trainSpeed = value; }
+    void SetTrainSpeedMuls(const std::vector<float>& value) { train_.trainSpeedMuls = value; }
+    void SetTrainHome(int value) { train_.trainHome = value; }
+    void SetTrainFlip(float value) { train_.trainFlip = value; }
+    void SetTrainState(TrainState value) { train_.trainState = value; }
+    void SetTrainAt(int value) { train_.trainAt = value; }
+    void SetTrainFrom(int value) { train_.trainFrom = value; }
+    void SetTrainTimer(float value) { train_.trainTimer = value; }
+    void SetTrainProgress(float value) { train_.trainProgress = value; }
+    void SetTrainSpeedNow(float value) { train_.trainSpeedNow = value; }
+    void SetTrainDist(float value) { train_.trainDist = value; }
+    void SetTrainNeedsLeave(bool value) { train_.trainNeedsLeave = value; }
+    void SetIsTrack(bool value) { train_.isTrack = value; }
+
+    // --- 渡し板（BoardData）の書き換え ---
+    void SetBoardKind(int value) { board_.boardKind = value; }
+    void SetBoardTriggered(bool value) { board_.boardTriggered = value; }
+    void SetBoardTrain(int value) { board_.boardTrain = value; }
+    void SetBoardStation(int value) { board_.boardStation = value; }
+    void SetBoardHingeFront(bool value) { board_.boardHingeFront = value; }
+    void SetBoardOpen(float value) { board_.boardOpen = value; }
 
     // front→back ベクトルの主軸からタイプを自動判定（|X|>=|Z|→横／それ以外→縦）
     void AutoDetectType();
@@ -213,6 +295,9 @@ public:
 
     // ① レールの長さを事前に計算する関数（ノードを追加/削除した時に1回だけ呼ぶ）
     void BuildDistanceTable();
+    // 形を変えた印が付いている時だけ、距離の表を作り直す（作り直したら true）。何本もあるレールの一部だけを変えた後に使う
+    bool RebuildIfDirty();
+    bool IsTableDirty() const { return tableDirty_; }
 
     // ② 進みたい「距離(Distance)」から、スプラインの「t」を逆算する関数
     float GetTFromDistance(float targetDistance) const;
@@ -313,6 +398,7 @@ private:
     std::vector<float> distanceTable_;  // 曲線を細かく刻んだ点ごとの、始めからの距離
     std::vector<float> tTable_;         // その点の、曲線のパラメーター t
     float totalLength_ = 0.0f;          // レールの長さ(m)。読むのは GetLength
+    bool  tableDirty_ = true;           // 形を変えてから、まだ距離の表を作り直していない（Dirty Flag）
     std::vector<RailFrame> frameCache_; // 位置と向きの表。読むのは GetFrames / GetFrameAtDistance
 };
 

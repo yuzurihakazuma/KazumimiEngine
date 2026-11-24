@@ -89,12 +89,17 @@ public:
     float ComboFlowerPop() const{ return comboFlowerPop_; }
 
 private:
-    enum class Kind { Tree, Fence, Rock, Sign, Flower, Bullseye };
+    // 的の種類ごとのふるまい（木・柵・岩・看板・花・コンボの的）。中身は cpp。背景のモデル名から決める
+    class TargetStyle;
+    struct TargetStyles;
     enum class State { Idle, Flying, Gone, Regrowing };
+    // 的の状態ごとのクラス（立っている・飛んでいる・消えている・生え戻り中）。中身は cpp
+    class TargetState;
+    struct TargetStates;
     // コンボの的 1 つ（背景の木・岩・看板など）。当たりの位置と、今の状態
     struct Target {
         int     item = -1;        // StageBackdrop の番号
-        Kind    kind = Kind::Tree;
+        const TargetStyle* style = nullptr; // 種類ごとのふるまい（持たない。TargetStyles の中の物）
         KazumimiEngine::Vector3 center {};        // 当たりの中心（木は葉の所）
         KazumimiEngine::Vector3 mid {};           // 箱の真ん中（飛ぶ時に回る中心）
         float   halfHeight = 0.5f;
@@ -139,7 +144,6 @@ private:
     void SpawnChips(const Target& target, const KazumimiEngine::Vector3& at, int count);
     void ReleaseHighlight();
     float DepthOf(const KazumimiEngine::Vector3& p) const;
-    static Kind KindOf(const std::string& model, bool& outTarget);
 
     StageBackdrop* backdrop_ = nullptr;
     EggSystem*     eggs_ = nullptr;

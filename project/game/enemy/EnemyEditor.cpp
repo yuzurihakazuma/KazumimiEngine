@@ -30,16 +30,13 @@ std::string EnemyEditor::DisplayName(const EnemySpawnData& spawn){
 
 void EnemyEditor::Initialize() {
     // 起動時にテスト用の初期エネミー（Zako 1体）を登録しておく
-    std::vector<EnemySpawnData>& datas = model_.MutableDatas();
-    datas.clear();
     // レール0、距離5.0mの場所に雑魚敵を初期配置する
     EnemySpawnData first;
     first.type = EnemyType::Zako;
     first.railIndex = 0;
     first.distance = 5.0f;
-    datas.push_back(first);
+    model_.Replace({ first }); // 選択を外して、変更通知も立てる
     addPanel_.Reset();
-    model_.MarkChanged();
     history_.Reset(model_.Datas());
 }
 
@@ -71,11 +68,13 @@ void EnemyEditor::TickHistory(){
 }
 
 void EnemyEditor::Undo(){
-    if ( history_.Undo(model_.MutableDatas()) ) { model_.OnRestored(); }
+    std::vector<EnemySpawnData> datas = model_.Datas();
+    if ( history_.Undo(datas) ) { model_.Restore(std::move(datas)); }
 }
 
 void EnemyEditor::Redo(){
-    if ( history_.Redo(model_.MutableDatas()) ) { model_.OnRestored(); }
+    std::vector<EnemySpawnData> datas = model_.Datas();
+    if ( history_.Redo(datas) ) { model_.Restore(std::move(datas)); }
 }
 
 // ================================================================

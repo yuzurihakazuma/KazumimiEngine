@@ -129,17 +129,10 @@ void BlockSystem::NotifyHeadBump(int rail, float dist, float headY){
         // コインの飛び出し位置＝ブロックの上面中央
         Vector3 pos {}; float yaw = 0.0f;
         if ( rails_ && BlockShape::PoseOnRail(*rails_, block, pos, yaw) ) {
-            bumpCoinQueue_.push_back({ pos.x, pos.y + kSize + 0.3f, pos.z });
+            onCoinBumped_.Emit({ pos.x, pos.y + kSize + 0.3f, pos.z });
         }
     });
     if ( changed ) { RebuildLooks(); } // 使用済みの見た目（灰色）へ差し替え
-}
-
-bool BlockSystem::ConsumeBumpCoin(Vector3& outPos){
-    if ( bumpCoinQueue_.empty() ) return false;
-    outPos = bumpCoinQueue_.back();
-    bumpCoinQueue_.pop_back();
-    return true;
 }
 
 // Play開始時：？ブロックを全部未使用へ戻す
@@ -148,7 +141,6 @@ void BlockSystem::ResetPlay(){
     for ( auto& block : blocks_ ) {
         if ( block.used ) { block.used = false; changed = true; }
     }
-    bumpCoinQueue_.clear();
     if ( changed ) { RebuildLooks(); }
 }
 

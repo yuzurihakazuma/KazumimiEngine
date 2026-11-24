@@ -96,7 +96,9 @@ namespace {
 }
 
 StageSelectScene::StageSelectScene(){
-	features_.overlay2D = true; // 操作の案内（SDF 文字）
+	Features features;
+	features.overlay2D = true; // 操作の案内（SDF 文字）
+	UseFeatures(features);
 }
 StageSelectScene::~StageSelectScene(){
 	OnFinalize();
@@ -120,6 +122,9 @@ void StageSelectScene::OnLoadResources(){
 }
 
 void StageSelectScene::OnInitialize(){
+	// 飛び込みからの知らせ（飛び込みは、音・紙吹雪・箱庭を知らない）
+	dive_.OnJumped().Connect([this]{ OnDiveJumped(); });
+	dive_.OnLanded().Connect([this]{ OnDiveLanded(); });
 	data_.Load(kMapFile);
 	timing_.Load(kDiveFile);
 	BuildMap();
@@ -209,8 +214,8 @@ void StageSelectScene::UpdateRoadCloth(){
 	roadMesh_.UpdateCloth(road_);
 }
 
-// 布の道が、次のマスへ転がって伸びる。伸び切ったら、次のマスへ歩けるようになる
-void StageSelectScene::UpdateRoadOpen(float deltaTime){
+// 布の道が、次のマスへ転がって伸びる。伸び切ったら、次のマスへ歩けるようになる（伸び切ったフレームに true）
+bool StageSelectScene::UpdateRoadOpen(float deltaTime){
 	roadOpenTime_ += deltaTime;
 	const float t = Easing::Clamp01(( roadOpenTime_ - kRoadOpenWait ) / kRoadOpenTime);
 	roadFront_ = Math::Lerp(roadOpenFrom_, roadOpenTarget_, Easing::EaseInOutSine(t));
@@ -226,29 +231,30 @@ void StageSelectScene::UpdateRoadOpen(float deltaTime){
 		roadRoll_->SetScale({ data_.roadWidth / 1.8f, radius, radius });
 		roadRoll_->Update();
 	}
-	if ( t < 1.0f ) { return; }
+	if ( t < 1.0f ) { return false; }
 	// 伸び切った：ロールはぽんと消えて、綿のけむりと紙吹雪。次のマスへ行ける
 	reachable_ = roadOpenTo_;
-	phase_ = Phase::Map;
-	phaseTime_ = 0.0f;
 	if ( !road_.empty() ) {
 		const Vector3 end = road_[0].GetPositionByDistance(roadFront_);
 		fx_.PuffRing({ end.x, end.y + 0.1f, end.z }, 8, 1.2f, 0.4f, PaperFx::PuffColor::White);
 		fx_.Confetti({ end.x, end.y + 0.3f, end.z }, 24, 2.8f, 0.08f);
 	}
 	AudioManager::GetInstance()->PlayWave(kSplashSe, false, 0.7f);
+	return true;
 }
 
 void StageSelectScene::BuildMap(){
 	// 道：1本の布ロード
 	road_.clear();
 	SplineRail rail;
-	rail.EditNodes() = data_.road;
+	rail.SetNodes(data_.road);
 	rail.BuildDistanceTable();
 	rail.AutoDetectType();
-	rail.EditConfig().skin.style = RailSkin::Cloth;
-	rail.EditConfig().skin.width = data_.roadWidth;
-	rail.EditConfig().skin.color = data_.roadColor;
+	RailSkin cloth = rail.Config().skin;
+	cloth.style = RailSkin::Cloth;
+	cloth.width = data_.roadWidth;
+	cloth.color = data_.roadColor;
+	rail.SetSkin(cloth);
 	road_.push_back(std::move(rail));
 	RailConnections::Build(road_);
 	roadMesh_.SetJointVisible(2);
@@ -375,46 +381,146 @@ int StageSelectScene::StandingNode() const{
 	return std::abs(dinoDistance_ - nodes_[targetNode_].roadDistance) < 0.01f ? targetNode_ : -1;
 }
 
+// =====================================================================
+//  進行の段階ごとの状態クラス。
+//   StageSelectScene は、今の段階を見て分岐しない（Phases::Of(phase_) で PhaseState を引いて、仮想関数を呼ぶだけ）。
+//   次の段階へ進むかどうかは、各状態が自分で決める（scene.ChangePhase）
+// =====================================================================
+class StageSelectScene::PhaseState {
+public:
+	virtual ~PhaseState() = default;
+	// 毎フレームの進行
+	virtual void Update(StageSelectScene& scene, float deltaTime) const = 0;
+	// マスからマスへ歩く（既定＝行き先へ歩くだけ。キーを受け付けるのはマップの間だけ）
+	virtual void Walk(StageSelectScene& scene, float deltaTime) const { scene.WalkToTarget(deltaTime); }
+	// 立っているマスのプレビュー（箱庭が跳ねる・パネル・カメラ）を出す段階か
+	virtual bool ShowsPreview() const { return false; }
+	// プレビューしているマスを、そのまま持ち続ける段階か（飛び込みの間は変えない）
+	virtual bool LocksPreview() const { return false; }
+	// 自分で操作できる段階か（案内の文字・パネル・プレビューのカメラの振れ）
+	virtual bool IsPlayable() const { return false; }
+	// 布の道が伸びている段階か（カメラを寄せる・ロールを描く）
+	virtual bool IsRoadOpening() const { return false; }
+	// 始まりの円を開いている段階か
+	virtual bool IsOpening() const { return false; }
+};
+
+// 状態クラスの入れ物（StageSelectScene の中の物に触れるよう、StageSelectScene の中に置く）
+struct StageSelectScene::Phases {
+	// Phase の番号と同じ並びの表
+	static const PhaseState& Of(Phase phase);
+
+	// 始まり：円が開く。開き切ったらマップへ（クリアして戻って来た時は、先に道が伸びる）
+	class Opening final : public PhaseState {
+	public:
+		void Update(StageSelectScene& scene, float deltaTime) const override {
+			if ( scene.phaseTime_ >= kOpenTime ) {
+				scene.ChangePhase(Phase::Map);
+				PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, false);
+				if ( scene.roadOpenPending_ ) {
+					// クリアして戻って来た：次のマスへ、布の道が転がって伸びる
+					scene.roadOpenPending_ = false;
+					scene.ChangePhase(Phase::RoadOpen);
+					scene.roadOpenTime_ = 0.0f;
+					scene.roadOpenFrom_ = scene.roadFront_;
+					scene.roadOpenTarget_ = scene.RoadFrontFor(scene.roadOpenTo_);
+					AudioManager::GetInstance()->PlayWave(kRoadSe, false, 0.8f);
+				}
+			}
+			Phases::Of(scene.phase_).Walk(scene, deltaTime); // 移った先の段階の歩き方で（マップなら、このフレームからキーを受け付ける）
+		}
+		bool IsOpening() const override { return true; }
+	};
+
+	// マップ：A / D でマスからマスへ歩く。SPACE で飛び込む・T でタイトルへ
+	class Map final : public PhaseState {
+	public:
+		void Update(StageSelectScene& scene, float deltaTime) const override { Walk(scene, deltaTime); }
+		void Walk(StageSelectScene& scene, float deltaTime) const override {
+			if ( !IsTypingInEditor() && !scene.nodes_.empty() ) {
+				Input* input = Input::GetInstance();
+				if ( input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) ) { scene.targetNode_ = ( std::max )( scene.targetNode_ - 1, 0 ); }
+				// 右へは、布の道が敷いてあるマスまで
+				if ( input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) ) { scene.targetNode_ = ( std::min )( scene.targetNode_ + 1, ( std::max )( scene.reachable_ - 1, 0 ) ); }
+				if ( input->TriggerKey(DIK_SPACE) && scene.StandingNode() >= 0 && scene.data_.stages[scene.targetNode_].unlocked && scene.nodes_[scene.targetNode_].diorama ) {
+					scene.StartDive();
+					scene.ChangePhase(Phase::Dive);
+					scene.phaseTime_ = 0.0f;
+					return;
+				}
+				if ( input->TriggerKey(DIK_T) ) {
+					scene.ChangePhase(Phase::Leaving);
+					scene.phaseTime_ = 0.0f;
+					KamishibaiTransition::ChangeSceneWithCard("TITLE");
+					return;
+				}
+			}
+			scene.WalkToTarget(deltaTime);
+		}
+		bool ShowsPreview() const override { return true; }
+		bool IsPlayable() const override { return true; }
+	};
+
+	// 道が伸びる：クリアして戻って来た時、次のマスへ布の道が転がって伸びる（操作は待つ）。伸び切ったらマップへ
+	class RoadOpen final : public PhaseState {
+	public:
+		void Update(StageSelectScene& scene, float deltaTime) const override {
+			if ( scene.UpdateRoadOpen(deltaTime) ) {
+				scene.ChangePhase(Phase::Map);
+				scene.phaseTime_ = 0.0f;
+			}
+			Phases::Of(scene.phase_).Walk(scene, deltaTime); // 伸びている間は立ったまま待つ（伸び切ったフレームからキーを受け付ける）
+		}
+		bool IsRoadOpening() const override { return true; }
+	};
+
+	// 飛び込み：恐竜が箱庭へ飛び込む。終わったら、ステージ開始カードで本編へ
+	class Dive final : public PhaseState {
+	public:
+		void Update(StageSelectScene& scene, float deltaTime) const override {
+			if ( !scene.dive_.IsActive() ) { return; }
+			scene.UpdateDive(deltaTime);
+			if ( scene.dive_.IsFinished() ) {
+				scene.ChangePhase(Phase::Leaving);
+				scene.lastNode_ = scene.targetNode_;
+				StageIntroSequence::RequestDropIn(); // 着いたら上から落ちてくる
+				KamishibaiTransition::ChangeSceneWithStageIntro("GAMEPLAY", scene.data_.stages[scene.targetNode_].stage);
+			}
+		}
+		bool ShowsPreview() const override { return true; }
+		bool LocksPreview() const override { return true; }
+	};
+
+	// 出ていく：次のシーンへ切り替わるのを待つ（飛び込みの形は最後まで動かす）
+	class Leaving final : public PhaseState {
+	public:
+		void Update(StageSelectScene& scene, float deltaTime) const override { scene.UpdateDive(deltaTime); }
+	};
+};
+
+const StageSelectScene::PhaseState& StageSelectScene::Phases::Of(Phase phase){
+	static const Opening opening {};
+	static const Map map {};
+	static const RoadOpen roadOpen {};
+	static const Dive dive {};
+	static const Leaving leaving {};
+	static const PhaseState* const kTable[] = { &opening, &map, &roadOpen, &dive, &leaving };
+	return *kTable[static_cast<size_t>( phase )];
+}
+
 bool StageSelectScene::IsPreviewing() const{
-	return phase_ != Phase::Opening && StandingNode() >= 0;
+	return !Phases::Of(phase_).IsOpening() && StandingNode() >= 0;
 }
 
 void StageSelectScene::OnUpdate(){
 	const float dt = kDeltaTime;
 	phaseTime_ += dt;
-	switch ( phase_ ) {
-	case Phase::Opening:
-		if ( phaseTime_ >= kOpenTime ) {
-			phase_ = Phase::Map;
-			PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, false);
-			if ( roadOpenPending_ ) {
-				// クリアして戻って来た：次のマスへ、布の道が転がって伸びる
-				roadOpenPending_ = false;
-				phase_ = Phase::RoadOpen;
-				roadOpenTime_ = 0.0f;
-				roadOpenFrom_ = roadFront_;
-				roadOpenTarget_ = RoadFrontFor(roadOpenTo_);
-				AudioManager::GetInstance()->PlayWave(kRoadSe, false, 0.8f);
-			}
-		}
-		UpdateWalk(dt);
-		break;
-	case Phase::Map:
-		UpdateWalk(dt);
-		break;
-	case Phase::RoadOpen:
-		UpdateRoadOpen(dt);
-		UpdateWalk(dt); // 立ったまま待つ（キーは Map の間だけ受け付ける）
-		break;
-	case Phase::Dive:
-	case Phase::Leaving:
-		UpdateDive(dt);
-		break;
-	}
+	Phases::Of(phase_).Update(*this, dt); // 段階ごとの進行（次の段階へ進むかも、状態が決める）
 
 	// 立っているマスが変わった：箱庭が跳ねる・パネルの中身・カメラが回り始める位置
-	const int standing = ( phase_ == Phase::Map || phase_ == Phase::Dive ) ? StandingNode() : -1;
-	if ( standing != previewNode_ && phase_ != Phase::Dive ) {
+	const PhaseState& state = Phases::Of(phase_);
+	const int standing = state.ShowsPreview() ? StandingNode() : -1;
+	if ( standing != previewNode_ && !state.LocksPreview() ) {
 		if ( previewNode_ >= 0 && nodes_[previewNode_].diorama ) { nodes_[previewNode_].diorama->SetSelected(false); }
 		previewNode_ = standing;
 		if ( standing >= 0 ) {
@@ -423,7 +529,7 @@ void StageSelectScene::OnUpdate(){
 			if ( diorama ) { diorama->SetSelected(true); }
 			StageRecords* records = StageRecords::GetInstance();
 			WorldMapPanel::Counts counts;
-			counts.coins = records->Get(stage.stage).bestCoins;
+			counts.coins = records->BestCoins(stage.stage);
 			counts.comboFound = records->ComboFlowersFound(stage.stage);
 			counts.comboTotal = StageRecords::CountComboTargets(stage.stage);
 			counts.stars = records->StarCount(stage.stage);
@@ -438,7 +544,7 @@ void StageSelectScene::OnUpdate(){
 	const float wanted = previewing ? 1.0f : 0.0f;
 	const float step = dt / kPreviewBlendTime;
 	previewBlend_ = previewBlend_ < wanted ? ( std::min )( previewBlend_ + step, wanted ) : ( std::max )( previewBlend_ - step * 1.5f, wanted );
-	if ( previewing && phase_ == Phase::Map ) {
+	if ( previewing && state.IsPlayable() ) {
 		orbitAngle_ += dt * 2.0f * kPi / ( std::max )( data_.stages[previewNode_].orbitSeconds, 1.0f );
 	}
 
@@ -467,16 +573,16 @@ void StageSelectScene::OnUpdate(){
 		}
 	}
 	// 伸びる先を見せるカメラの寄せ：伸びている間だけ寄せて、終わったら戻す
-	const float panWanted = ( phase_ == Phase::RoadOpen ) ? 1.0f : 0.0f;
+	const float panWanted = state.IsRoadOpening() ? 1.0f : 0.0f;
 	roadPan_ += std::clamp(panWanted - roadPan_, -kRoadPanSpeed * dt, kRoadPanSpeed * dt);
 	roadMesh_.Update(road_);
 	backdrop_.Update(GetCamera());
 	fx_.Update(dt, GetCamera());
-	panel_.Update(dt, previewing && phase_ == Phase::Map && previewBlend_ > 0.25f);
+	panel_.Update(dt, previewing && state.IsPlayable() && previewBlend_ > 0.25f);
 	UpdateTexts();
 
 	// 始まりの円：恐竜を中心に開く
-	if ( phase_ == Phase::Opening ) {
+	if ( state.IsOpening() ) {
 		const float t = Easing::Clamp01(phaseTime_ / kOpenTime);
 		float u = 0.5f, v = 0.5f;
 		Vector2 ndc;
@@ -489,24 +595,8 @@ void StageSelectScene::OnUpdate(){
 	}
 }
 
-// マスからマスへ歩く（A / D）。SPACE で飛び込む・T でタイトルへ
-void StageSelectScene::UpdateWalk(float deltaTime){
-	if ( phase_ == Phase::Map && !IsTypingInEditor() && !nodes_.empty() ) {
-		Input* input = Input::GetInstance();
-		if ( input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) ) { targetNode_ = ( std::max )( targetNode_ - 1, 0 ); }
-		// 右へは、布の道が敷いてあるマスまで
-		if ( input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) ) { targetNode_ = ( std::min )( targetNode_ + 1, ( std::max )( reachable_ - 1, 0 ) ); }
-		if ( input->TriggerKey(DIK_SPACE) && StandingNode() >= 0 && data_.stages[targetNode_].unlocked && nodes_[targetNode_].diorama ) {
-			StartDive();
-			return;
-		}
-		if ( input->TriggerKey(DIK_T) ) {
-			phase_ = Phase::Leaving;
-			phaseTime_ = 0.0f;
-			KamishibaiTransition::ChangeSceneWithCard("TITLE");
-			return;
-		}
-	}
+// 行き先のマスへ歩く（どのマスへ行くかは、状態クラスが決める）
+void StageSelectScene::WalkToTarget(float deltaTime){
 	if ( nodes_.empty() ) { return; }
 	const float goal = nodes_[targetNode_].roadDistance;
 	const float diff = goal - dinoDistance_;
@@ -523,33 +613,39 @@ void StageSelectScene::StartDive(){
 	const float yaw = std::atan2(target.x - from.x, target.z - from.z);
 	dinoYaw_ = yaw;
 	dive_.Start(timing_, from, yaw, target, node.diorama->Scale(), cameraPosition_, cameraLook_);
-	phase_ = Phase::Dive;
-	phaseTime_ = 0.0f;
 	if ( dino_ ) {
 		dino_->SetClip("Idle", true);
 		dinoClip_ = "Idle";
 	}
 }
 
+StageDiorama* StageSelectScene::PreviewDiorama(){
+	return previewNode_ >= 0 ? nodes_[previewNode_].diorama.get() : nullptr;
+}
+
+// 飛び込み：跳んだ瞬間（足元に綿のけむり）
+void StageSelectScene::OnDiveJumped(){
+	AudioManager::GetInstance()->PlayWave(kJumpSe, false, 0.8f);
+	const Vector3 feet = road_[0].GetPositionByDistance(dinoDistance_);
+	fx_.PuffRing(feet, 6, 1.1f, 0.32f, PaperFx::PuffColor::Kraft);
+}
+
+// 飛び込み：箱庭に着いた瞬間（箱庭が弾む・紙吹雪・円を閉じ始める）
+void StageSelectScene::OnDiveLanded(){
+	AudioManager::GetInstance()->PlayWave(kSplashSe);
+	if ( StageDiorama* diorama = PreviewDiorama() ) { diorama->Splash(); }
+	const Vector3 target = dive_.Target();
+	fx_.Confetti({ target.x, target.y + 0.05f, target.z }, 36, 2.6f, 0.06f);
+	fx_.PuffRing(target, 8, 0.45f, 0.075f, PaperFx::PuffColor::White); // 小さな恐竜を隠さない大きさ
+	PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
+}
+
 // 飛び込み：5段の形・箱庭の弾み・円を閉じて、ステージ開始カードへ
 void StageSelectScene::UpdateDive(float deltaTime){
 	if ( !dive_.IsActive() ) { return; }
-	StageDiorama* diorama = previewNode_ >= 0 ? nodes_[previewNode_].diorama.get() : nullptr;
+	StageDiorama* diorama = PreviewDiorama();
 	if ( diorama ) { dive_.SetTarget(diorama->StartPoint(), diorama->Scale()); } // 箱庭と一緒に動く
-	dive_.Update(deltaTime);
-	if ( dive_.ConsumeJumped() ) {
-		AudioManager::GetInstance()->PlayWave(kJumpSe, false, 0.8f);
-		const Vector3 feet = road_[0].GetPositionByDistance(dinoDistance_);
-		fx_.PuffRing(feet, 6, 1.1f, 0.32f, PaperFx::PuffColor::Kraft);
-	}
-	if ( dive_.ConsumeLanded() ) {
-		AudioManager::GetInstance()->PlayWave(kSplashSe);
-		if ( diorama ) { diorama->Splash(); }
-		const Vector3 target = dive_.Target();
-		fx_.Confetti({ target.x, target.y + 0.05f, target.z }, 36, 2.6f, 0.06f);
-		fx_.PuffRing(target, 8, 0.45f, 0.075f, PaperFx::PuffColor::White); // 小さな恐竜を隠さない大きさ
-		PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
-	}
+	dive_.Update(deltaTime); // 跳んだ・着いた瞬間は、知らせ（OnDiveJumped / OnDiveLanded）で受け取る
 	// 円は、箱庭の中に立った小さな恐竜へ閉じる
 	if ( dive_.IrisRadius() < 1.99f ) {
 		float u = 0.5f, v = 0.5f;
@@ -561,12 +657,6 @@ void StageSelectScene::UpdateDive(float deltaTime){
 			v = 1.0f - ( ndc.y * 0.5f + 0.5f );
 		}
 		PostEffect::GetInstance()->SetIrisParams(( std::max )( dive_.IrisRadius(), 0.0f ), u, v);
-	}
-	if ( phase_ == Phase::Dive && dive_.IsFinished() ) {
-		phase_ = Phase::Leaving;
-		lastNode_ = targetNode_;
-		StageIntroSequence::RequestDropIn(); // 着いたら上から落ちてくる
-		KamishibaiTransition::ChangeSceneWithStageIntro("GAMEPLAY", data_.stages[targetNode_].stage);
 	}
 }
 
@@ -610,7 +700,7 @@ void StageSelectScene::UpdateTexts(){
 	if ( !guideText_ ) { return; }
 	const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
 	const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
-	const float alpha = phase_ == Phase::Map ? 0.9f : 0.0f;
+	const float alpha = Phases::Of(phase_).IsPlayable() ? 0.9f : 0.0f;
 	guideText_->SetColor({ 1.0f, 0.97f, 0.88f, alpha });
 	guideText_->SetOutlineColor({ 0.27f, 0.17f, 0.08f, alpha });
 	guideText_->SetPosition(width - kGuideFontSize * 8.5f, height - kGuideFontSize * 2.0f);
@@ -680,7 +770,7 @@ void StageSelectScene::OnDrawOpaque(ID3D12GraphicsCommandList* /*commandList*/){
 		if ( node.diorama ) { node.diorama->DrawOpaque(); }
 	}
 	if ( dino_ ) { dino_->Draw(); }
-	if ( phase_ == Phase::RoadOpen && roadRoll_ ) { roadRoll_->Draw(); } // 伸びている布の先のロール
+	if ( Phases::Of(phase_).IsRoadOpening() && roadRoll_ ) { roadRoll_->Draw(); } // 伸びている布の先のロール
 }
 
 void StageSelectScene::OnDrawInstanced(){
@@ -692,7 +782,7 @@ void StageSelectScene::OnDrawInstanced(){
 }
 
 void StageSelectScene::OnDrawOverlay2D(ID3D12GraphicsCommandList* commandList){
-	if ( guideText_ && phase_ == Phase::Map ) { SDFManager::GetInstance()->DrawTextItem(commandList, *guideText_, kFontAtlas); }
+	if ( guideText_ && Phases::Of(phase_).IsPlayable() ) { SDFManager::GetInstance()->DrawTextItem(commandList, *guideText_, kFontAtlas); }
 }
 
 void StageSelectScene::OnDrawUI(ID3D12GraphicsCommandList* /*commandList*/){

@@ -30,7 +30,11 @@ struct StageRecord {
 class StageRecords : public KazumimiEngine::Singleton<StageRecords> {
 	friend class KazumimiEngine::Singleton<StageRecords>; // 土台（Singleton）だけが作れる
 public:
-    StageRecord& Get(const std::string& stage){ return records_[stage]; }
+    // 1 回のプレイでためたコインのいちばん多い数（記録が無ければ 0）
+    int BestCoins(const std::string& stage) const{
+        auto found = records_.find(stage);
+        return found == records_.end() ? 0 : found->second.bestCoins;
+    }
 
     void NoteCoins(const std::string& stage, int coins){
         StageRecord& record = records_[stage];

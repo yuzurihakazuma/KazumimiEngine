@@ -7,6 +7,7 @@
 #include "game/stage/BlockGrid.h"
 #include "game/stage/BlockRenderer.h"
 #include "game/stage/BlockWorldShapes.h"
+#include "engine/utils/Signal.h"
 
 namespace KazumimiEngine {
 class SplineRail;
@@ -108,8 +109,8 @@ public:
     void  NotifyHeadBump(int rail, float dist, float headY);
     // ジャンプ台で跳ねた（足元のばねを縮めて戻す見た目）
     void  NotifySpringBounce(int rail, float dist, float footY);
-    // 頭突きで出たコインのワールド位置（1フレーム分。シーンが取り出して演出とカウントに使う）
-    bool  ConsumeBumpCoin(KazumimiEngine::Vector3& outPos);
+    // ？ブロックを頭突きしてコインが出た瞬間の知らせ（引数＝コインのワールド位置。シーンが演出とカウントに使う）
+    KazumimiEngine::Signal<const KazumimiEngine::Vector3&>& OnCoinBumped(){ return onCoinBumped_; }
     // Play開始時：？ブロックを全部未使用に戻す
     void  ResetPlay();
 
@@ -126,5 +127,5 @@ private:
     BlockGrid        grid_;
     BlockRenderer    renderer_;
     BlockWorldShapes shapes_;
-    std::vector<KazumimiEngine::Vector3> bumpCoinQueue_; // 頭突きで出たコインの位置（シーンが ConsumeBumpCoin で取り出す）
+    KazumimiEngine::Signal<const KazumimiEngine::Vector3&> onCoinBumped_; // 頭突きでコインが出た知らせ
 };

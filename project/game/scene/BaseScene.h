@@ -42,7 +42,7 @@ public:
     void DrawDebugUI() final;
 
 protected:
-    // --- シーンごとに選べる共通機能（コンストラクタで設定する）---
+    // --- シーンごとに選べる共通機能（コンストラクタで UseFeatures に渡す）---
     struct Features {
         bool demoShowcase = false; // エンジン機能の展示（回転キューブ・オーラ・SDF卵・スキンメッシュ人形）
         bool overlay2D    = false; // OnDrawOverlay2D を使う（最終画像へ重ねる2D。Game View にも映る）
@@ -51,7 +51,7 @@ protected:
         //   タイトルの背景のように、ステージとは別の配置を持つシーンが指定する
         std::string sceneMap;
     };
-    Features features_;
+    void UseFeatures(const Features& features) { features_ = features; }
 
     // --- 差し込み口：初期化・終了 ---
     virtual void OnLoadResources() {}   // カメラより先：音・モデル・テクスチャの読み込み
@@ -89,6 +89,8 @@ protected:
     bool          IsDemoVisible() const;             // 展示を使っていて、表示メニューで表示中
 
 private:
+    Features features_; // このシーンが使う共通機能（UseFeatures で決める）
+
     void SetupCameras();
     void SetupDemo();
     void SyncDemoPresence();

@@ -25,7 +25,6 @@ using namespace KazumimiEngine;
 namespace {
     constexpr float kPi = Math::kPi;
     constexpr float kDeg = Math::kRadToDeg; // ラジアン → 度（掛ける）
-    constexpr size_t kUndoLimit = 80;
     constexpr int   kOpTranslate = 7, kOpRotate = 120, kOpScale = 896; // ImGuizmo::OPERATION
 
     // 置いた物の分類（パレットの並び・消しゴムの対象）
@@ -71,6 +70,227 @@ namespace {
     }
 }
 
+// =====================================================================
+//  道具ごとのふるまい。
+//   BackdropEditTool は、今の道具を見て分岐しない（Modes::Of(tool_) で ToolMode を引いて、仮想関数を呼ぶだけ）
+// =====================================================================
+class BackdropEditTool::ToolMode {
+public:
+    virtual ~ToolMode() = default;
+    // パネルの、この道具の説明と設定
+    virtual void DrawOptions(BackdropEditTool& tool) const = 0;
+    // Game View の上の操作。hover＝マウスの下の物（無ければ -1）
+    virtual void Update(BackdropEditTool& tool, const SceneEditContext& context, int hover) const = 0;
+    // 置く時のばらつき（向き・大きさ）の欄を出すか
+    virtual bool UsesPlaceVariation() const { return false; }
+    // 置いてある物を選ぶ道具か（マウスの下の枠・コンボの道の表示に使う）
+    virtual bool SelectsItems() const { return false; }
+};
+
+// 道具ごとのクラスの入れ物（BackdropEditTool の中の物に触れるよう、BackdropEditTool の中に置く）
+struct BackdropEditTool::Modes {
+    static const ToolMode& Of(Tool tool);
+
+    // 選ぶ：クリック・範囲選択・つかんで動かす
+    class Select final : public ToolMode {
+    public:
+        void DrawOptions([[maybe_unused]] BackdropEditTool& tool) const override {
+#ifdef USE_IMGUI
+            ImGui::TextDisabled("クリック＝選ぶ（Shift で追加）／空いた所をドラッグ＝範囲選択\n"
+                                "つかんでドラッグ＝地面の上を動かす（Ctrl で複製して動かす）\n"
+                                "Delete＝消す  Ctrl+D＝複製  右クリック＝メニュー");
+            ImGui::Checkbox("地面・丘・空も選ぶ", &tool.includeGround_);
+#endif
+        }
+        void Update(BackdropEditTool& tool, const SceneEditContext& context, int hover) const override { tool.UpdateSelect(context, hover); }
+        bool SelectsItems() const override { return true; }
+    };
+
+    // 置く：パレットで選んだ物を、クリックした所に置く
+    class Place final : public ToolMode {
+    public:
+        void DrawOptions([[maybe_unused]] BackdropEditTool& tool) const override {
+#ifdef USE_IMGUI
+            ImGui::TextDisabled("パレットで選んで、Game View の地面をクリック（続けて置ける）");
+#endif
+        }
+        void Update(BackdropEditTool& tool, const SceneEditContext& context, int /*hover*/) const override { tool.UpdatePlace(context); }
+        bool UsesPlaceVariation() const override { return true; }
+    };
+
+    // ブラシ：チェックした物をまぜて、ドラッグで塗る
+    class Brush final : public ToolMode {
+    public:
+        void DrawOptions([[maybe_unused]] BackdropEditTool& tool) const override {
+#ifdef USE_IMGUI
+            ImGui::TextDisabled("左ドラッグで塗る（チェックした物をまぜて置く）");
+            ImGui::SliderFloat("ブラシの大きさ", &tool.brushRadius_, 0.5f, 6.0f, "%.1f m");
+            ImGui::SliderFloat("すき間", &tool.brushSpacing_, 0.3f, 2.5f, "%.1f m");
+            int column = 0;
+            for ( auto& [model, on] : tool.brushModels_ ) {
+                if ( column++ % 3 != 0 ) { ImGui::SameLine(); }
+                ImGui::Checkbox(( model + "##brush" ).c_str(), &on);
+            }
+#endif
+        }
+        void Update(BackdropEditTool& tool, const SceneEditContext& context, int /*hover*/) const override { tool.UpdateBrush(context, false); }
+        bool UsesPlaceVariation() const override { return true; }
+    };
+
+    // 消しゴム：ドラッグで消す
+    class Eraser final : public ToolMode {
+    public:
+        void DrawOptions([[maybe_unused]] BackdropEditTool& tool) const override {
+#ifdef USE_IMGUI
+            ImGui::TextDisabled("左ドラッグで消す");
+            ImGui::SliderFloat("消しゴムの大きさ", &tool.brushRadius_, 0.5f, 6.0f, "%.1f m");
+            ImGui::Checkbox("草・花だけ消す", &tool.eraseDecorOnly_);
+#endif
+        }
+        void Update(BackdropEditTool& tool, const SceneEditContext& context, int /*hover*/) const override { tool.UpdateBrush(context, true); }
+    };
+
+    // 地面：升目を塗る・線で道を引く（塗り方は GroundBrush）
+    class Ground final : public ToolMode {
+    public:
+        void DrawOptions(BackdropEditTool& tool) const override { tool.DrawGroundPanel(); }
+        void Update(BackdropEditTool& tool, const SceneEditContext& context, int /*hover*/) const override { tool.UpdateGround(context); }
+    };
+};
+
+// Tool の番号と同じ並びの表
+const BackdropEditTool::ToolMode& BackdropEditTool::Modes::Of(Tool tool){
+    static const Select select {};
+    static const Place place {};
+    static const Brush brush {};
+    static const Eraser eraser {};
+    static const Ground ground {};
+    static const ToolMode* const kTable[] = { &select, &place, &brush, &eraser, &ground };
+    return *kTable[static_cast<size_t>( tool )];
+}
+
+// =====================================================================
+//  地面の塗り方ごとのふるまい（升目をどう変えるか・塗る枠の色・パネルの欄・Game View の操作）
+// =====================================================================
+class BackdropEditTool::GroundBrush {
+public:
+    virtual ~GroundBrush() = default;
+    // 升目 1 つを塗る
+    virtual void ApplyCell(BackdropEditTool& /*tool*/, StageBackdrop& /*backdrop*/, int /*column*/, int /*row*/) const {}
+    // 塗る升目の枠の色
+    virtual Vector4 CursorColor() const { return { 0.4f, 1.0f, 0.5f, 1.0f }; }
+    // 地面の無い所に作る高さの欄を出すか（地面を作る塗り方だけ）
+    virtual bool UsesBuildHeight() const { return false; }
+    // 「上の物をどける」のチェックの名前（出さない塗り方は nullptr）
+    virtual const char* ClearDecorLabel() const { return nullptr; }
+    // パネルの欄（既定＝升目を塗る塗り方の共通の欄）
+    virtual void DrawOptions([[maybe_unused]] BackdropEditTool& tool) const {
+#ifdef USE_IMGUI
+        ImGui::SliderInt("塗る大きさ（升）", &tool.groundSize_, 1, 9);
+        if ( UsesBuildHeight() ) {
+            ImGui::DragFloat("地面の無い所に作る高さ", &tool.groundHeight_, 0.05f, -5.0f, 20.0f, "%.2f m");
+            ImGui::SameLine();
+            if ( ImGui::SmallButton("-段##gh") ) { tool.groundHeight_ -= StageBackdrop::kStepHeight; }
+            ImGui::SameLine();
+            if ( ImGui::SmallButton("+段##gh") ) { tool.groundHeight_ += StageBackdrop::kStepHeight; }
+            ImGui::Checkbox("塗り始めた所の地面の高さを使う", &tool.pickHeight_);
+            ImGui::Checkbox("塗った所の高さもそろえる", &tool.alignHeight_);
+        }
+        if ( const char* label = ClearDecorLabel() ) { ImGui::Checkbox(label, &tool.clearDecor_); }
+#endif
+    }
+    // Game View の操作（既定＝ドラッグで升目を塗る）
+    virtual void Update(BackdropEditTool& tool, const SceneEditContext& context) const { tool.UpdateGroundCells(context); }
+};
+
+// 地面の塗り方ごとのクラスの入れ物
+struct BackdropEditTool::GroundBrushes {
+    static const GroundBrush& Of(GroundPaint paint);
+
+    // 草・道・土：升目をその種類にする（地面が無ければ作る）
+    class Surface final : public GroundBrush {
+    public:
+        Surface(GroundKind kind, const Vector4& cursorColor, const char* clearDecorLabel)
+            : kind_(kind), cursorColor_(cursorColor), clearDecorLabel_(clearDecorLabel) {}
+        void ApplyCell(BackdropEditTool& tool, StageBackdrop& backdrop, int column, int row) const override {
+            float top = 0.0f;
+            const bool exists = backdrop.CellTop(column, row, top);
+            const float nextTop = ( exists && !tool.alignHeight_ ) ? top : tool.groundHeight_;
+            if ( exists && std::abs(nextTop - top) > 0.001f ) { tool.MoveCellDecor(backdrop, column, row, top, nextTop - top); }
+            backdrop.PaintCell(column, row, kind_, nextTop);
+            if ( clearDecorLabel_ && tool.clearDecor_ ) { tool.ClearCellDecor(backdrop, column, row, false); }
+        }
+        Vector4 CursorColor() const override { return cursorColor_; }
+        bool UsesBuildHeight() const override { return true; }
+        const char* ClearDecorLabel() const override { return clearDecorLabel_; }
+
+    private:
+        GroundKind  kind_;
+        Vector4     cursorColor_;
+        const char* clearDecorLabel_; // nullptr＝上の草花はどけない（草・土）
+    };
+
+    // 穴にする：升目を消す
+    class Hole final : public GroundBrush {
+    public:
+        void ApplyCell(BackdropEditTool& tool, StageBackdrop& backdrop, int column, int row) const override {
+            float top = 0.0f;
+            if ( !backdrop.CellTop(column, row, top) ) { return; }
+            if ( tool.clearDecor_ ) { tool.ClearCellDecor(backdrop, column, row, true); }
+            backdrop.EraseCell(column, row);
+        }
+        Vector4 CursorColor() const override { return { 1.0f, 0.35f, 0.3f, 1.0f }; }
+        const char* ClearDecorLabel() const override { return "穴の上の物もどける"; }
+    };
+
+    // 段を上げる・下げる：升目の高さを 1 段動かす（上の飾りも一緒に）
+    class Step final : public GroundBrush {
+    public:
+        explicit Step(float delta) : delta_(delta) {}
+        void ApplyCell(BackdropEditTool& tool, StageBackdrop& backdrop, int column, int row) const override {
+            float top = 0.0f;
+            GroundKind kind = GroundKind::Grass;
+            if ( !backdrop.CellTop(column, row, top, &kind) ) { return; }
+            tool.MoveCellDecor(backdrop, column, row, top, delta_);
+            backdrop.PaintCell(column, row, kind, top + delta_);
+        }
+
+    private:
+        float delta_; // 動かす高さ（上げる＝正）
+    };
+
+    // 道を線で引く：升目ではなく、引いた線からつながった道を作る
+    class PathLine final : public GroundBrush {
+    public:
+        void DrawOptions([[maybe_unused]] BackdropEditTool& tool) const override {
+#ifdef USE_IMGUI
+            ImGui::TextDisabled("左ドラッグで線を引くと、なめらかにつながった紙の道（段ボールのふち付き）ができる。\n"
+                                "曲がり角と端は丸くなる。できた道はクリック1回で1本まるごと選べる（Alt+クリックで1つだけ）");
+            ImGui::SliderFloat("道の幅", &tool.pathWidth_, 0.6f, 4.0f, "%.1f m");
+            ImGui::Checkbox("道の上の草花をどける", &tool.clearDecor_);
+#endif
+        }
+        void Update(BackdropEditTool& tool, const SceneEditContext& context) const override { tool.UpdatePathLine(context); }
+    };
+};
+
+// GroundPaint の番号と同じ並びの表
+const BackdropEditTool::GroundBrush& BackdropEditTool::GroundBrushes::Of(GroundPaint paint){
+    static const Surface grass { GroundKind::Grass, { 0.4f, 1.0f, 0.5f, 1.0f }, nullptr };
+    static const Surface path  { GroundKind::Path,  { 1.0f, 0.85f, 0.3f, 1.0f }, "道の上の草花をどける" };
+    static const Surface dirt  { GroundKind::Dirt,  { 0.85f, 0.6f, 0.35f, 1.0f }, nullptr };
+    static const Hole hole {};
+    static const Step raise { StageBackdrop::kStepHeight };
+    static const Step lower { -StageBackdrop::kStepHeight };
+    static const PathLine pathLine {};
+    static const GroundBrush* const kTable[] = { &grass, &path, &dirt, &hole, &raise, &lower, &pathLine };
+    return *kTable[static_cast<size_t>( paint )];
+}
+
+bool BackdropEditTool::ShowComboPreview() const{
+    return enabled_ && comboPreview_ && Modes::Of(tool_).SelectsItems();
+}
+
 BackdropEditTool::BackdropEditTool(){
     for ( const char* model : { "grass_tuft_00", "grass_tuft_01", "grass_tuft_02" } ) { brushModels_[model] = true; }
     for ( const char* model : { "flower_orange", "flower_red", "flower_white" } ) { brushModels_[model] = false; }
@@ -100,26 +320,18 @@ bool BackdropEditTool::IsEditing(const SceneEditContext& context) const{
 
 // ===== 履歴 =====
 void BackdropEditTool::PushUndo(StageBackdrop& backdrop){
-    undo_.push_back(backdrop.Items());
-    if ( undo_.size() > kUndoLimit ) { undo_.erase(undo_.begin()); }
-    redo_.clear();
+    history_.BeginOperation(backdrop); // ここから先の変化が、操作 1 回ぶんのコマンドになる
 }
 
 void BackdropEditTool::Undo(StageBackdrop& backdrop){
-    if ( undo_.empty() ) return;
-    redo_.push_back(backdrop.Items());
-    backdrop.SetItems(undo_.back());
-    undo_.pop_back();
+    if ( !history_.Undo(backdrop) ) return;
     selection_.clear();
     Changed();
     status_ = "元に戻した";
 }
 
 void BackdropEditTool::Redo(StageBackdrop& backdrop){
-    if ( redo_.empty() ) return;
-    undo_.push_back(backdrop.Items());
-    backdrop.SetItems(redo_.back());
-    redo_.pop_back();
+    if ( !history_.Redo(backdrop) ) return;
     selection_.clear();
     Changed();
     status_ = "やり直した";
@@ -176,38 +388,8 @@ void BackdropEditTool::DrawPanel(const SceneEditContext& context){
     ImGui::Checkbox("コンボの道を見せる##bd", &comboPreview_);
     if ( ImGui::IsItemHovered() ) { ImGui::SetTooltip("選んだ木・柵・岩・看板・花・コンボの的に、卵を当てた時にはじける順を線で見せる\n（青＝左のふち・白＝真ん中・橙＝右のふちに当てた時）"); }
 
-    switch ( tool_ ) {
-    case Tool::Select:
-        ImGui::TextDisabled("クリック＝選ぶ（Shift で追加）／空いた所をドラッグ＝範囲選択\n"
-                            "つかんでドラッグ＝地面の上を動かす（Ctrl で複製して動かす）\n"
-                            "Delete＝消す  Ctrl+D＝複製  右クリック＝メニュー");
-        ImGui::Checkbox("地面・丘・空も選ぶ", &includeGround_);
-        break;
-    case Tool::Place:
-        ImGui::TextDisabled("パレットで選んで、Game View の地面をクリック（続けて置ける）");
-        break;
-    case Tool::Brush:
-        ImGui::TextDisabled("左ドラッグで塗る（チェックした物をまぜて置く）");
-        ImGui::SliderFloat("ブラシの大きさ", &brushRadius_, 0.5f, 6.0f, "%.1f m");
-        ImGui::SliderFloat("すき間", &brushSpacing_, 0.3f, 2.5f, "%.1f m");
-        {
-            int column = 0;
-            for ( auto& [model, on] : brushModels_ ) {
-                if ( column++ % 3 != 0 ) { ImGui::SameLine(); }
-                ImGui::Checkbox(( model + "##brush" ).c_str(), &on);
-            }
-        }
-        break;
-    case Tool::Eraser:
-        ImGui::TextDisabled("左ドラッグで消す");
-        ImGui::SliderFloat("消しゴムの大きさ", &brushRadius_, 0.5f, 6.0f, "%.1f m");
-        ImGui::Checkbox("草・花だけ消す", &eraseDecorOnly_);
-        break;
-    case Tool::Ground:
-        DrawGroundPanel();
-        break;
-    }
-    if ( tool_ == Tool::Place || tool_ == Tool::Brush ) {
+    Modes::Of(tool_).DrawOptions(*this); // 道具ごとの説明と設定
+    if ( Modes::Of(tool_).UsesPlaceVariation() ) {
         ImGui::Checkbox("向きをばらす", &randomTurn_);
         if ( randomTurn_ ) { ImGui::SameLine(); ImGui::SetNextItemWidth(110.0f); ImGui::SliderFloat("##turn", &turnRange_, 0.0f, 180.0f, "±%.0f°"); }
         ImGui::DragFloatRange2("大きさ", &scaleMin_, &scaleMax_, 0.02f, 0.2f, 6.0f, "%.2f", "%.2f");
@@ -220,11 +402,11 @@ void BackdropEditTool::DrawPanel(const SceneEditContext& context){
     ImGui::Separator();
 
     // 保存・履歴・作り直し
-    ImGui::BeginDisabled(undo_.empty());
+    ImGui::BeginDisabled(!history_.CanUndo());
     if ( ImGui::Button("元に戻す (Ctrl+Z)##bd") ) { Undo(*backdrop); }
     ImGui::EndDisabled();
     ImGui::SameLine();
-    ImGui::BeginDisabled(redo_.empty());
+    ImGui::BeginDisabled(!history_.CanRedo());
     if ( ImGui::Button("やり直す (Ctrl+Y)##bd") ) { Redo(*backdrop); }
     ImGui::EndDisabled();
     if ( ImGui::Button(dirty_ ? "手直しを保存 (Ctrl+S) *##bd" : "手直しを保存 (Ctrl+S)##bd") ) { Save(context); }
@@ -367,18 +549,12 @@ bool BackdropEditTool::UpdateGameView(const SceneEditContext& context){
     }
 
     if ( view.hovered ) { HandleKeys(context); }
-    switch ( tool_ ) {
-    case Tool::Select: UpdateSelect(context, hover); break;
-    case Tool::Place:  UpdatePlace(context);  break;
-    case Tool::Brush:  UpdateBrush(context, false); break;
-    case Tool::Eraser: UpdateBrush(context, true);  break;
-    case Tool::Ground: UpdateGround(context); break;
-    }
+    Modes::Of(tool_).Update(*this, context, hover); // 道具ごとの操作
     UpdateContextMenu(context, hover);
     UpdateGizmo(context);
 
     // 見た目：マウスの下（白）・選んでいる物（黄、先頭は橙）
-    if ( hover >= 0 && tool_ == Tool::Select && drag_ == Drag::None ) { DrawBox(backdrop, hover, { 1.0f, 1.0f, 1.0f, 0.9f }); }
+    if ( hover >= 0 && Modes::Of(tool_).SelectsItems() && drag_ == Drag::None ) { DrawBox(backdrop, hover, { 1.0f, 1.0f, 1.0f, 0.9f }); }
     for ( size_t k = 0; k < selection_.size(); ++k ) {
         DrawBox(backdrop, selection_[k], k == 0 ? Vector4 { 1.0f, 0.55f, 0.1f, 1.0f } : Vector4 { 1.0f, 0.9f, 0.2f, 1.0f });
     }
@@ -600,7 +776,6 @@ void BackdropEditTool::UpdateBrush(const SceneEditContext& context, bool erase){
         DrawCircle(backdrop, center, brushRadius_, erase ? Vector4 { 1.0f, 0.35f, 0.3f, 1.0f } : Vector4 { 0.4f, 1.0f, 0.5f, 1.0f });
     }
     if ( !ImGui::IsMouseDown(0) ) {
-        if ( stroking_ && undo_.size() && undo_.back() == backdrop.Items() ) { undo_.pop_back(); } // 何も変わらなかった
         stroking_ = false;
         return;
     }
@@ -673,32 +848,17 @@ void BackdropEditTool::DrawGroundPanel(){
     paintButton("段を上げる##gp", GroundPaint::Raise); ImGui::SameLine();
     paintButton("段を下げる##gp", GroundPaint::Lower);
     paintButton("道を線で引く（つながった道）##gp", GroundPaint::PathLine);
-    if ( groundPaint_ == GroundPaint::PathLine ) {
-        ImGui::TextDisabled("左ドラッグで線を引くと、なめらかにつながった紙の道（段ボールのふち付き）ができる。\n"
-                            "曲がり角と端は丸くなる。できた道はクリック1回で1本まるごと選べる（Alt+クリックで1つだけ）");
-        ImGui::SliderFloat("道の幅", &pathWidth_, 0.6f, 4.0f, "%.1f m");
-        ImGui::Checkbox("道の上の草花をどける", &clearDecor_);
-        return;
-    }
-    ImGui::SliderInt("塗る大きさ（升）", &groundSize_, 1, 9);
-    if ( groundPaint_ != GroundPaint::Hole && groundPaint_ != GroundPaint::Raise && groundPaint_ != GroundPaint::Lower ) {
-        ImGui::DragFloat("地面の無い所に作る高さ", &groundHeight_, 0.05f, -5.0f, 20.0f, "%.2f m");
-        ImGui::SameLine();
-        if ( ImGui::SmallButton("-段##gh") ) { groundHeight_ -= StageBackdrop::kStepHeight; }
-        ImGui::SameLine();
-        if ( ImGui::SmallButton("+段##gh") ) { groundHeight_ += StageBackdrop::kStepHeight; }
-        ImGui::Checkbox("塗り始めた所の地面の高さを使う", &pickHeight_);
-        ImGui::Checkbox("塗った所の高さもそろえる", &alignHeight_);
-    }
-    if ( groundPaint_ == GroundPaint::Path || groundPaint_ == GroundPaint::Hole ) {
-        ImGui::Checkbox(groundPaint_ == GroundPaint::Hole ? "穴の上の物もどける" : "道の上の草花をどける", &clearDecor_);
-    }
+    GroundBrushes::Of(groundPaint_).DrawOptions(*this); // 塗り方ごとの欄
 #endif
 }
 
 void BackdropEditTool::UpdateGround(const SceneEditContext& context){
+    GroundBrushes::Of(groundPaint_).Update(*this, context);
+}
+
+// 升目を塗る塗り方（草・道・土・穴・段）の共通の操作：指している升目の枠を出し、左ドラッグで塗る
+void BackdropEditTool::UpdateGroundCells(const SceneEditContext& context){
 #ifdef USE_IMGUI
-    if ( groundPaint_ == GroundPaint::PathLine ) { UpdatePathLine(context); return; }
     StageBackdrop& backdrop = *context.backdrop;
     const auto& view = context.View();
     Vector3 origin, dir;
@@ -716,10 +876,7 @@ void BackdropEditTool::UpdateGround(const SceneEditContext& context){
     const int first = -half, last = groundSize_ - 1 - half;
 
     // 見た目：塗る升目の枠（今の高さ・地面が無ければ作る高さ）
-    const Vector4 color = groundPaint_ == GroundPaint::Hole ? Vector4 { 1.0f, 0.35f, 0.3f, 1.0f }
-                        : groundPaint_ == GroundPaint::Path ? Vector4 { 1.0f, 0.85f, 0.3f, 1.0f }
-                        : groundPaint_ == GroundPaint::Dirt ? Vector4 { 0.85f, 0.6f, 0.35f, 1.0f }
-                        : Vector4 { 0.4f, 1.0f, 0.5f, 1.0f };
+    const Vector4 color = GroundBrushes::Of(groundPaint_).CursorColor();
     const float cell = backdrop.GridCell();
     for ( int a = first; a <= last; ++a ) {
         for ( int b = first; b <= last; ++b ) {
@@ -746,7 +903,6 @@ void BackdropEditTool::UpdateGround(const SceneEditContext& context){
             }
             backdrop.MergeCells(column0 - 2, row0 - 2, column1 + 2, row1 + 2);
         }
-        if ( stroking_ && !undo_.empty() && undo_.back() == backdrop.Items() ) { undo_.pop_back(); } // 何も変わらなかった
         stroking_ = false;
         strokeCells_.clear();
         return;
@@ -806,8 +962,8 @@ void BackdropEditTool::UpdatePathLine(const SceneEditContext& context){
                 BuildPath(backdrop);
                 Changed();
                 status_ = "道を引いた（クリックで1本まるごと選べる）";
-            } else if ( !undo_.empty() ) {
-                undo_.pop_back(); // 線になっていない（クリックだけ）
+            } else {
+                history_.DiscardOperation(); // 線になっていない（クリックだけ）
             }
         }
         stroking_ = false;
@@ -946,35 +1102,7 @@ void BackdropEditTool::BuildPath(StageBackdrop& backdrop){
 }
 
 void BackdropEditTool::ApplyGroundCell(StageBackdrop& backdrop, int column, int row){
-    float top = 0.0f;
-    GroundKind kind = GroundKind::Grass;
-    const bool exists = backdrop.CellTop(column, row, top, &kind);
-    switch ( groundPaint_ ) {
-    case GroundPaint::Grass:
-    case GroundPaint::Path:
-    case GroundPaint::Dirt: {
-        const GroundKind next = groundPaint_ == GroundPaint::Path ? GroundKind::Path
-                              : groundPaint_ == GroundPaint::Dirt ? GroundKind::Dirt : GroundKind::Grass;
-        const float nextTop = ( exists && !alignHeight_ ) ? top : groundHeight_;
-        if ( exists && std::abs(nextTop - top) > 0.001f ) { MoveCellDecor(backdrop, column, row, top, nextTop - top); }
-        backdrop.PaintCell(column, row, next, nextTop);
-        if ( groundPaint_ == GroundPaint::Path && clearDecor_ ) { ClearCellDecor(backdrop, column, row, false); }
-        break;
-    }
-    case GroundPaint::Hole:
-        if ( !exists ) break;
-        if ( clearDecor_ ) { ClearCellDecor(backdrop, column, row, true); }
-        backdrop.EraseCell(column, row);
-        break;
-    case GroundPaint::Raise:
-    case GroundPaint::Lower: {
-        if ( !exists ) break;
-        const float delta = groundPaint_ == GroundPaint::Raise ? StageBackdrop::kStepHeight : -StageBackdrop::kStepHeight;
-        MoveCellDecor(backdrop, column, row, top, delta);
-        backdrop.PaintCell(column, row, kind, top + delta);
-        break;
-    }
-    }
+    GroundBrushes::Of(groundPaint_).ApplyCell(*this, backdrop, column, row); // どう塗るかは GroundBrush の派生が決める
 }
 
 // 升目の上の飾りを消す（includeProps=true なら木・柵・岩なども）
@@ -1224,8 +1352,7 @@ void BackdropEditTool::Regenerate(const SceneEditContext& context){
     PushUndo(backdrop);
     int missed = 0;
     backdrop.ReloadBase(context.stageName, edits, &missed);
-    undo_.clear(); // 自動配置が変わったので、前の状態へは戻さない（番号が合わない）
-    redo_.clear();
+    history_.Clear(); // 自動配置が変わったので、前の状態へは戻さない（番号が合わない）
     selection_.clear();
     Changed();
     status_ = "自動配置を作り直した" + ( missed ? "（手直しのうち " + std::to_string(missed) + " 個は、元の物が無くなったので当たらなかった）" : std::string() );

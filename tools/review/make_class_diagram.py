@@ -1,6 +1,8 @@
 """UML クラス図（設計の一部）を PNG に描く。
   python tools/review/make_class_diagram.py   →  docs/class_diagram.png
-載せている範囲：エンジンとゲームのつなぎ（Framework / シーン）と、プレイ中の敵・ゲームオーバー演出。
+載せている範囲：エンジンとゲームのつなぎ（Framework / シーン）と、プレイ中の敵（ふるまい・当たった時の結果）・ゲームオーバー演出。
+ステレオタイプ：«abstract»＝純粋仮想関数を持つクラスだけに付ける（C++ には interface が無いので、«interface» は使わない。
+  派生との線は、どれも実線の継承）。
 記号：白い三角＝継承、黒いひし形＝コンポジション（寿命を一緒に管理する）、白いひし形＝集約（借りているだけ）、点線の矢印＝依存。
 同じ内容の Mermaid 版は docs/class_diagram.md（図を直す時は両方を直す）。
 """
@@ -133,7 +135,7 @@ def own(points, filled, mult=None, mult_pos=None, name=None, name_pos=None):
 
 
 # ---- 枠：エンジン層（namespace）----
-d.text((60, 22), 'たまごザウルスの大冒険　クラス図（設計の一部：シーンのつなぎ・敵のふるまい・ゲームオーバーの状態）', font=title_font, fill=INK)
+d.text((60, 22), 'たまごザウルスの大冒険　クラス図（設計の一部：シーンのつなぎ・敵のふるまいと当たり・ゲームオーバーの状態）', font=title_font, fill=INK)
 d.rectangle([40, 86, W - 40, 470], outline=(110, 130, 170), width=3)
 d.rectangle([40, 86, 640, 124], fill=(110, 130, 170))
 d.text((52, 92), 'namespace KazumimiEngine（エンジン層：project/engine）', font=small, fill=PAPER)
@@ -141,15 +143,15 @@ d.text((760, 486), 'ゲーム層（project/game）：エンジンを使う側。
 
 # ---- 箱 ----
 box('Framework', 80, 190, 330, 'Framework', ['+ Run()', '+ Initialize()', '+ Update()', '+ DrawScene() {abstract}'], '«abstract»', engine=True)
-box('ASF', 500, 190, 400, 'AbstractSceneFactory', ['+ CreateScene(name) {abstract}'], '«interface»', engine=True)
+box('ASF', 500, 190, 400, 'AbstractSceneFactory', ['+ CreateScene(name) {abstract}'], '«abstract»', engine=True)
 box('SceneManager', 1010, 190, 420, 'SceneManager', ['+ ChangeScene(next)', '+ SetSceneFactory(factory)', '+ SetTransition(transition)', '+ Update() / Draw()'], '«Singleton»', engine=True)
-box('IScene', 1620, 190, 380, 'IScene', ['+ Initialize() {abstract}', '+ Update() {abstract}', '+ Draw() {abstract}', '+ Finalize() {abstract}'], '«interface»', engine=True)
-box('IST', 2080, 190, 440, 'ISceneTransition', ['+ Update(dt) {abstract}', '+ IsActive() {abstract}', '+ DrawInto(target) {abstract}'], '«interface»', engine=True)
+box('IScene', 1620, 190, 380, 'IScene', ['+ Initialize() {abstract}', '+ Update() {abstract}', '+ Draw() {abstract}', '+ Finalize() {abstract}'], '«abstract»', engine=True)
+box('IST', 2080, 190, 440, 'ISceneTransition', ['+ Update(dt) {abstract}', '+ IsActive() {abstract}', '+ DrawInto(target) {abstract}'], '«abstract»', engine=True)
 
 box('Game', 80, 560, 330, 'Game', ['+ Initialize()', '+ Update()', '+ DrawScene()'])
 box('SceneFactory', 500, 560, 400, 'SceneFactory', ['+ CreateScene(name)'])
-box('BaseScene', 1620, 560, 380, 'BaseScene', ['+ Initialize() / Update() / Draw()', '# OnInitialize()', '# OnUpdate()', '# OnDrawOpaque() ほか'], '«abstract»')
-box('Kamishibai', 2080, 560, 440, 'KamishibaiTransition', ['+ Play(timeline)', '+ Update(dt)', '+ DrawInto(target)'], '«Singleton»')
+box('BaseScene', 1620, 560, 380, 'BaseScene', ['+ Initialize() / Update() / Draw()', '# OnInitialize()', '# OnUpdate()', '# OnDrawOpaque() ほか'])
+box('Kamishibai', 2080, 560, 440, 'KamishibaiTransition', ['+ Play(definitionName)', '+ Update(dt)', '+ DrawInto(target)'], '«Singleton»')
 
 box('TitleScene', 1200, 930, 320, 'TitleScene', ['# OnInitialize()', '# OnUpdate()'])
 box('StageSelect', 1620, 930, 380, 'StageSelectScene', ['# OnInitialize()', '# OnUpdate()'])
@@ -158,14 +160,20 @@ box('GamePlay', 2040, 930, 400, 'GamePlayScene', ['# OnInitialize()', '# OnUpdat
 box('EnemyManager', 1560, 1250, 380, 'EnemyManager', ['+ Spawn(spawns, rails)', '+ Update(rails, playerPos, dt)'])
 box('GameOverFlow', 2040, 1250, 400, 'GameOverFlow', ['+ UpdateBeforeGame()', '+ UpdateAfterCombat()'])
 
-box('Enemy', 1560, 1560, 380, 'Enemy', ['+ Initialize(spawn)', '+ Update()', '+ Draw()'])
+box('Enemy', 1560, 1560, 380, 'Enemy', ['+ Initialize(spawn)', '+ Update()', '+ Draw()', '+ ReceiveHit(hit, context)'])
 box('GameOverSeq', 2040, 1560, 400, 'GameOverSequence', ['+ Start()', '+ Update()', '- Enter(phase)'])
-box('EnemyBehavior', 900, 1560, 460, 'EnemyBehavior', ['+ Create(type) {static}', '+ StartClip(patrols) {abstract}', '+ Update(model, frame) {abstract}', '+ Reset()'], '«abstract»')
+box('EnemyBehavior', 900, 1560, 460, 'EnemyBehavior', ['+ Create(type) {static}', '+ StartClip(patrols) {abstract}', '+ Update(model, frame) {abstract}', '+ ReceiveHit(hit, enemy) {abstract}', '+ Reset()'], '«abstract»')
+box('EnemyHit', 80, 1560, 540, 'EnemyHit', ['+ OnWalker(enemy, context)', '+ OnBiter(enemy, context)', '+ OnFlyer(enemy, context)', '# Resolve(enemy, context) {abstract}'], '«abstract»')
 
-box('Walker', 620, 1900, 300, 'WalkerBehavior', ['+ Update(model, frame)'])
-box('Biter', 980, 1900, 300, 'BiterBehavior', ['+ Update(model, frame)', '+ Reset()'])
-box('Flyer', 1340, 1900, 300, 'FlyerBehavior', ['+ Update(model, frame)'])
-box('PhaseState', 2040, 1900, 400, 'PhaseState', ['+ Length(sequence)', '+ Enter(sequence)', '+ Update(sequence, t, dt)'], '«abstract»')
+box('Walker', 640, 1900, 300, 'WalkerBehavior', ['+ Update(model, frame)', '+ ReceiveHit(hit, enemy)'])
+box('Biter', 980, 1900, 300, 'BiterBehavior', ['+ Update(model, frame)', '+ ReceiveHit(hit, enemy)'])
+box('Flyer', 1320, 1900, 300, 'FlyerBehavior', ['+ Update(model, frame)', '+ ReceiveHit(hit, enemy)'])
+box('PhaseState', 2040, 1900, 400, 'PhaseState', ['+ Length(sequence)', '+ Enter(sequence)', '+ Update(sequence, t, dt)'])
+
+box('StompHit', 60, 2180, 195, 'StompHit', ['# Resolve(...)'])
+box('BodyHit', 270, 2180, 195, 'BodyHit', ['# Resolve(...)'])
+box('SpitHit', 480, 2180, 195, 'SpitHit', ['# Resolve(...)'])
+box('EggHit', 690, 2180, 195, 'EggHit', ['# Resolve(...)'])
 
 box('Freeze', 1500, 2230, 250, 'FreezeState', ['+ Update(...)'])
 box('Crumple', 1790, 2230, 250, 'CrumpleState', ['+ Update(...)'])
@@ -178,7 +186,8 @@ inherit(['SceneFactory'], 'ASF', 0)
 inherit(['BaseScene'], 'IScene', 0)
 inherit(['Kamishibai'], 'IST', 0)
 inherit(['TitleScene', 'StageSelect', 'GamePlay'], 'BaseScene', 880)
-inherit(['Walker', 'Biter', 'Flyer'], 'EnemyBehavior', 1850)
+inherit(['Walker', 'Biter', 'Flyer'], 'EnemyBehavior', 1856)
+inherit(['StompHit', 'BodyHit', 'SpitHit', 'EggHit'], 'EnemyHit', 2130)
 inherit(['Freeze', 'Crumple', 'Choose', 'Leave'], 'PhaseState', 2170)
 
 # ---- コンポジション（黒いひし形）：unique_ptr・値のメンバ ----
@@ -201,14 +210,21 @@ own([(mid_x('SceneManager') + 120, b['SceneManager'][1]), (mid_x('SceneManager')
 poly([(b['SceneFactory'][2], 660), (b['BaseScene'][0], 660)], dashed=True)
 arrow((b['BaseScene'][0], 660), (b['SceneFactory'][2], 660))
 label((1010, 626), '«create»　名前から各シーン（BaseScene の派生）を作る')
+# 敵の種類（EnemyBehavior の派生）が、当たった物（EnemyHit）の「この種類の敵に当たった時」を呼ぶ
+poly([(b['EnemyBehavior'][0], 1730), (b['EnemyHit'][2], 1730)], dashed=True)
+arrow((b['EnemyHit'][2], 1730), (b['EnemyBehavior'][0], 1730))
+label((b['EnemyHit'][2] + 96, 1696), '«use»')
 
 # ---- 注釈 ----
 d.rectangle([900, 2230, 1440, 2380], fill=(250, 250, 250), outline=INK, width=2)
 for i, t in enumerate(['PhaseState の派生は 12 個（図は 4 個だけ）', 'ほか：Reveal / Capture / Open / Screen /', 'ResumeShot / Unscreen / Fold / Rebuild', '次の状態は、各状態が自分で決める（State）']):
     d.text((914, 2242 + i * 33), t, font=small, fill=INK)
-d.rectangle([60, 1900, 560, 2014], fill=(250, 250, 250), outline=INK, width=2)
+d.rectangle([60, 1378, 560, 1492], fill=(250, 250, 250), outline=INK, width=2)
 for i, t in enumerate(['EnemyBehavior＝Strategy。敵の種類ごとの', '動きを派生に分け、Enemy は種類で分岐', 'しない（派生を選ぶのは Create だけ）']):
-    d.text((74, 1910 + i * 33), t, font=small, fill=INK)
+    d.text((74, 1388 + i * 33), t, font=small, fill=INK)
+d.rectangle([60, 2302, 885, 2404], fill=(250, 250, 250), outline=INK, width=2)
+for i, t in enumerate(['ダブルディスパッチ：当たった結果は「当たった物 × 敵の種類」で決まる。', 'Enemy.ReceiveHit → 敵の種類の ReceiveHit（1 段目）→', '当たった物の OnWalker / OnBiter / OnFlyer（2 段目）']):
+    d.text((74, 2310 + i * 31), t, font=small, fill=INK)
 
 # ---- 凡例 ----
 lx, ly = 80, 940

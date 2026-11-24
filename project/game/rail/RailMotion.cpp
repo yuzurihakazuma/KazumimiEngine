@@ -17,10 +17,10 @@ namespace {
     void UpdateAppear(SplineRail& rail, float dt, int ridingRail){
         if ( rail.Motion().appearTrigger < 0 ) return;
         if ( !rail.Motion().appeared && ( ridingRail == rail.Motion().appearTrigger || ridingRail == RailMotion::kStartAll ) ) {
-            rail.EditMotion().appeared = true;
+            rail.SetAppeared(true);
         }
         if ( rail.Motion().appeared && rail.Motion().appearAnim < 1.0f ) {
-            rail.EditMotion().appearAnim = ( std::min )( 1.0f, rail.Motion().appearAnim + dt / 0.6f );
+            rail.SetAppearAnim(( std::min )( 1.0f, rail.Motion().appearAnim + dt / 0.6f ));
         }
     }
 
@@ -41,7 +41,7 @@ namespace {
     void FollowGuide(SplineRail& rail, const std::vector<SplineRail>& rails, float period, float u){
         int g = rail.Motion().guideRail;
         if ( g < 0 || g >= ( int ) rails.size() || &rails[g] == &rail || rails[g].GetLength() <= 0.0f ) {
-            rail.EditMotion().animOffset = { 0.0f, 0.0f, 0.0f };
+            rail.SetAnimOffset({ 0.0f, 0.0f, 0.0f });
             return;
         }
         const SplineRail& guide = rails[g];
@@ -75,7 +75,7 @@ namespace {
         const float d = s0 + ( s1 - s0 ) * w;
         Vector3 p  = guide.GetPositionByDistance(d);
         Vector3 p0 = guide.GetPositionByDistance(s0);
-        rail.EditMotion().animOffset = { p.x - p0.x, p.y - p0.y, p.z - p0.z };
+        rail.SetAnimOffset({ p.x - p0.x, p.y - p0.y, p.z - p0.z });
 
         // 列車式：ガイドの進行方向に足場の向きを合わせて転回（縦向き⇔横向きも滑らか）。
         //   ほぼ真上/真下の区間では向きを保つ（水平成分が無いとヨーが定まらないため）
@@ -85,7 +85,7 @@ namespace {
         if ( horizLen <= 0.15f ) return;
         float targetYaw = std::atan2(guideTan.x, guideTan.z) - rail.Motion().restYaw;
         // 最短角で連続に追従（±180°の境目でクルッと一回転しない）
-        rail.EditMotion().animYaw += Math::AngleDelta(rail.Motion().animYaw, targetYaw);
+        rail.SetAnimYaw(rail.Motion().animYaw + ( Math::AngleDelta(rail.Motion().animYaw, targetYaw) ));
     }
 }
 
@@ -107,12 +107,12 @@ namespace {
 
     // 足場の真ん中をガイドの距離 d に置き、向きをガイドに合わせる（ガイドの上に真ん中が乗る。高さはガイドの高さ＝足場の上の面）
     void PlaceTrain(SplineRail& rail, const SplineRail& guide, float d){
-        rail.EditTrain().trainDist = d;
+        rail.SetTrainDist(d);
         const Vector3 p = guide.GetPositionByDistance(d);
-        rail.EditMotion().animOffset = { p.x - rail.Motion().animPivot.x, p.y - rail.Motion().animPivot.y, p.z - rail.Motion().animPivot.z };
+        rail.SetAnimOffset({ p.x - rail.Motion().animPivot.x, p.y - rail.Motion().animPivot.y, p.z - rail.Motion().animPivot.z });
         const Vector3 tangent = guide.GetTangentByDistance(d);
         if ( std::sqrt(tangent.x * tangent.x + tangent.z * tangent.z) > 0.15f ) {
-            rail.EditMotion().animYaw = Math::WrapAngle(std::atan2(tangent.x, tangent.z) + rail.Train().trainFlip - rail.Motion().restYaw);
+            rail.SetAnimYaw(Math::WrapAngle(std::atan2(tangent.x, tangent.z) + rail.Train().trainFlip - rail.Motion().restYaw));
         }
     }
 
@@ -140,36 +140,36 @@ namespace {
     void AdvanceTrain(SplineRail& rail, const std::vector<SplineRail>& rails, float dt, bool riding, bool aboard, bool preview){
         const SplineRail* guide = GuideOf(rail, rails);
         const RailMotion::TrainLayout layout = RailMotion::MakeTrainLayout(rail, rails);
-        if ( !guide || !layout.valid ) { rail.EditMotion().animOffset = { 0.0f, 0.0f, 0.0f }; return; }
+        if ( !guide || !layout.valid ) { rail.SetAnimOffset({ 0.0f, 0.0f, 0.0f }); return; }
         using State = SplineRail::TrainState;
         switch ( rail.Train().trainState ) {
         case State::Wait:
-            if ( rail.Train().trainNeedsLeave && !aboard ) { rail.EditTrain().trainNeedsLeave = false; }
+            if ( rail.Train().trainNeedsLeave && !aboard ) { rail.SetTrainNeedsLeave(false); }
             if ( preview || ( riding && !rail.Train().trainNeedsLeave ) ) {
-                rail.EditTrain().trainState = State::Depart; // 乗った：少し待って発車
-                rail.EditTrain().trainTimer = 0.0f;
+                rail.SetTrainState(State::Depart); // 乗った：少し待って発車
+                rail.SetTrainTimer(0.0f);
             } else if ( !aboard && rail.Train().trainAt != rail.Train().trainHome && rail.Train().trainReturn >= 0.0f ) {
-                rail.EditTrain().trainTimer += dt; // だれも乗っていない：しばらく待ったら元の駅へ戻る（戻らないと、ミスしてやり直す時に乗れない）
+                rail.SetTrainTimer(rail.Train().trainTimer + ( dt )); // だれも乗っていない：しばらく待ったら元の駅へ戻る（戻らないと、ミスしてやり直す時に乗れない）
                 if ( rail.Train().trainTimer >= rail.Train().trainReturn ) {
-                    rail.EditTrain().trainFrom = rail.Train().trainAt;
-                    rail.EditTrain().trainAt = rail.Train().trainHome;
-                    rail.EditTrain().trainProgress = 0.0f;
-                    rail.EditTrain().trainSpeedNow = 0.0f;
-                    rail.EditTrain().trainState = State::Run;
+                    rail.SetTrainFrom(rail.Train().trainAt);
+                    rail.SetTrainAt(rail.Train().trainHome);
+                    rail.SetTrainProgress(0.0f);
+                    rail.SetTrainSpeedNow(0.0f);
+                    rail.SetTrainState(State::Run);
                 }
             } else {
-                rail.EditTrain().trainTimer = 0.0f;
+                rail.SetTrainTimer(0.0f);
             }
             break;
         case State::Depart:
-            if ( !preview && !aboard ) { rail.EditTrain().trainState = State::Wait; rail.EditTrain().trainTimer = 0.0f; break; } // 発車の前に降りた
-            rail.EditTrain().trainTimer += dt;
+            if ( !preview && !aboard ) { rail.SetTrainState(State::Wait); rail.SetTrainTimer(0.0f); break; } // 発車の前に降りた
+            rail.SetTrainTimer(rail.Train().trainTimer + ( dt ));
             if ( rail.Train().trainTimer >= ( std::max )( rail.Train().trainDepart, 0.0f ) ) {
-                rail.EditTrain().trainFrom = rail.Train().trainAt;
-                rail.EditTrain().trainAt = 1 - rail.Train().trainAt;
-                rail.EditTrain().trainProgress = 0.0f;
-                rail.EditTrain().trainSpeedNow = 0.0f;
-                rail.EditTrain().trainState = State::Run;
+                rail.SetTrainFrom(rail.Train().trainAt);
+                rail.SetTrainAt(1 - rail.Train().trainAt);
+                rail.SetTrainProgress(0.0f);
+                rail.SetTrainSpeedNow(0.0f);
+                rail.SetTrainState(State::Run);
             }
             break;
         case State::Run: {
@@ -182,21 +182,21 @@ namespace {
             const float remaining = ( to - rail.Train().trainDist ) * dir;
             const float brake = std::sqrt(2.0f * kAccel * ( std::max )( remaining, 0.0f ));
             const float wanted = ( std::min )( TrainSpeedAt(rail, *guide, rail.Train().trainDist), brake );
-            if ( wanted > rail.Train().trainSpeedNow ) { rail.EditTrain().trainSpeedNow = ( std::min )( wanted, rail.Train().trainSpeedNow + kAccel * dt ); }
-            else                               { rail.EditTrain().trainSpeedNow = ( std::max )( wanted, rail.Train().trainSpeedNow - kAccel * 2.0f * dt ); }
-            if ( brake < rail.Train().trainSpeedNow ) { rail.EditTrain().trainSpeedNow = brake; } // 駅に止まるのは必ず守る
+            if ( wanted > rail.Train().trainSpeedNow ) { rail.SetTrainSpeedNow(( std::min )( wanted, rail.Train().trainSpeedNow + kAccel * dt )); }
+            else                               { rail.SetTrainSpeedNow(( std::max )( wanted, rail.Train().trainSpeedNow - kAccel * 2.0f * dt )); }
+            if ( brake < rail.Train().trainSpeedNow ) { rail.SetTrainSpeedNow(brake); } // 駅に止まるのは必ず守る
             const float step = ( std::max )( rail.Train().trainSpeedNow, kMinSpeed ) * dt;
             const float total = std::abs(to - from);
             if ( remaining <= step || total < 1e-4f ) {
-                rail.EditTrain().trainDist = to;
-                rail.EditTrain().trainProgress = 1.0f;
-                rail.EditTrain().trainSpeedNow = 0.0f;
-                rail.EditTrain().trainState = State::Wait;
-                rail.EditTrain().trainTimer = 0.0f;
-                rail.EditTrain().trainNeedsLeave = aboard && !preview; // 乗ったまま着いた：降りて乗り直すまで発車しない
+                rail.SetTrainDist(to);
+                rail.SetTrainProgress(1.0f);
+                rail.SetTrainSpeedNow(0.0f);
+                rail.SetTrainState(State::Wait);
+                rail.SetTrainTimer(0.0f);
+                rail.SetTrainNeedsLeave(aboard && !preview); // 乗ったまま着いた：降りて乗り直すまで発車しない
             } else {
-                rail.EditTrain().trainDist += dir * step;
-                rail.EditTrain().trainProgress = 1.0f - ( remaining - step ) / total;
+                rail.SetTrainDist(rail.Train().trainDist + ( dir * step ));
+                rail.SetTrainProgress(1.0f - ( remaining - step ) / total);
             }
             break;
         }
@@ -234,19 +234,19 @@ void RailMotion::SetupTrain(SplineRail& train, const std::vector<SplineRail>& ra
     float s0 = 0.0f, s1 = 0.0f;
     TrainSection(train, *guide, s0, s1);
     const float placed = guide->GetClosestDistance(train.Motion().animPivot);
-    train.EditTrain().trainHome = ( std::abs(placed - s0) <= std::abs(placed - s1) ) ? 0 : 1;
+    train.SetTrainHome(( std::abs(placed - s0) <= std::abs(placed - s1) ) ? 0 : 1);
     // 向き：足場の向きとガイドの向きが逆なら、足場を逆向きのまま走らせる
     const Vector3 tangent = guide->GetTangentByDistance(placed);
     const float rest[2] = { std::sin(train.Motion().restYaw), std::cos(train.Motion().restYaw) };
-    train.EditTrain().trainFlip = ( rest[0] * tangent.x + rest[1] * tangent.z < 0.0f ) ? kPi : 0.0f;
+    train.SetTrainFlip(( rest[0] * tangent.x + rest[1] * tangent.z < 0.0f ) ? kPi : 0.0f);
 }
 
 void RailMotion::SetupBoard(SplineRail& board, const std::vector<SplineRail>& rails){
     if ( board.Board().boardKind != 1 ) { return; } // ころころは SetupRollBoard（つながりが決まってから）
-    if ( board.Board().boardTrain < 0 || board.Board().boardTrain >= ( int ) rails.size() || board.Nodes().size() < 2 ) { board.EditBoard().boardKind = 0; return; }
+    if ( board.Board().boardTrain < 0 || board.Board().boardTrain >= ( int ) rails.size() || board.Nodes().size() < 2 ) { board.SetBoardKind(0); return; }
     const SplineRail& train = rails[board.Board().boardTrain];
     const SplineRail* guide = GuideOf(train, rails);
-    if ( !train.IsTrain() || !guide ) { board.EditBoard().boardKind = 0; return; }
+    if ( !train.IsTrain() || !guide ) { board.SetBoardKind(0); return; }
     // 線路に遠い方のはしが、ちょうつがい（駅の側）。近い方のはしの所の駅の板
     auto offTrack = [&](const Vector3& p, float& outDist){
         outDist = guide->GetClosestDistance(p);
@@ -256,17 +256,17 @@ void RailMotion::SetupBoard(SplineRail& board, const std::vector<SplineRail>& ra
     float frontDist = 0.0f, backDist = 0.0f;
     const float front = offTrack(board.Nodes().front(), frontDist);
     const float back = offTrack(board.Nodes().back(), backDist);
-    board.EditBoard().boardHingeFront = ( front >= back );
+    board.SetBoardHingeFront(( front >= back ));
     const float trackDist = board.Board().boardHingeFront ? backDist : frontDist;
     const TrainLayout layout = MakeTrainLayout(train, rails);
-    board.EditBoard().boardStation = ( std::abs(trackDist - layout.station[0]) <= std::abs(trackDist - layout.station[1]) ) ? 0 : 1;
+    board.SetBoardStation(( std::abs(trackDist - layout.station[0]) <= std::abs(trackDist - layout.station[1]) ) ? 0 : 1);
 }
 
 void RailMotion::SetupRollBoard(SplineRail& board){
     if ( !board.IsRollBoard() ) { return; }
-    if ( board.Nodes().size() < 2 ) { board.EditBoard().boardKind = 0; return; }
+    if ( board.Nodes().size() < 2 ) { board.SetBoardKind(0); return; }
     // ほかの道とつながっているはしから転がり出す（両方・どちらもつながっていなければ始点から）
-    board.EditBoard().boardHingeFront = !( board.Links().frontConnIndex < 0 && board.Links().backConnIndex >= 0 );
+    board.SetBoardHingeFront(!( board.Links().frontConnIndex < 0 && board.Links().backConnIndex >= 0 ));
 }
 
 bool RailMotion::GetRollPose(const SplineRail& board, RollPose& out){
@@ -293,6 +293,63 @@ bool RailMotion::BoardShouldOpen(const SplineRail& board, const std::vector<Spli
     return train.IsTrain() && train.Train().trainState == SplineRail::TrainState::Wait && train.Train().trainAt == board.Board().boardStation;
 }
 
+namespace {
+    // =====================================================================
+    //  動くレールの動き方（マップの motionType の番号ごとに 1 クラス）。
+    //   u＝周期の中の位置（0〜1）。動き方を足す時は、派生を 1 つ足して PathOf の表に 1 行足す
+    // =====================================================================
+    class MotionPath {
+    public:
+        virtual ~MotionPath() = default;
+        virtual void Apply(SplineRail& rail, const std::vector<SplineRail>& rails, float period, float u) const = 0;
+    };
+
+    // 0：サイン往復
+    class SineSwingPath final : public MotionPath {
+    public:
+        void Apply(SplineRail& rail, const std::vector<SplineRail>& /*rails*/, float /*period*/, float u) const override {
+            rail.SetAnimOffset(Scaled(rail.Motion().motionAmp, std::sin(u * kTwoPi)));
+        }
+    };
+
+    // 1：端で一時停止する往復
+    class DwellSwingPath final : public MotionPath {
+    public:
+        void Apply(SplineRail& rail, const std::vector<SplineRail>& /*rails*/, float /*period*/, float u) const override {
+            rail.SetAnimOffset(Scaled(rail.Motion().motionAmp, DwellSwing(u)));
+        }
+    };
+
+    // 2：円運動（XZ楕円＋Y。半径は amp の各成分。amp.x と amp.z で円になる）
+    class CirclePath final : public MotionPath {
+    public:
+        void Apply(SplineRail& rail, const std::vector<SplineRail>& /*rails*/, float /*period*/, float u) const override {
+            const float th = u * kTwoPi;
+            const Vector3& amp = rail.Motion().motionAmp;
+            rail.SetAnimOffset({ amp.x * std::cos(th), amp.y * std::sin(th), amp.z * std::sin(th) });
+        }
+    };
+
+    // 3：ガイドのレールに沿って動く
+    class GuidePath final : public MotionPath {
+    public:
+        void Apply(SplineRail& rail, const std::vector<SplineRail>& rails, float period, float u) const override {
+            FollowGuide(rail, rails, period, u);
+        }
+    };
+
+    // motionType の番号と同じ並びの表（知らない番号はサイン往復）
+    const MotionPath& PathOf(int motionType){
+        static const SineSwingPath sine {};
+        static const DwellSwingPath dwell {};
+        static const CirclePath circle {};
+        static const GuidePath guide {};
+        static const MotionPath* const kTable[] = { &sine, &dwell, &circle, &guide };
+        const bool known = motionType >= 0 && motionType < static_cast<int>( sizeof(kTable) / sizeof(kTable[0]) );
+        return *kTable[known ? motionType : 0];
+    }
+}
+
 bool RailMotion::Advance(std::vector<SplineRail>& rails, float dt, int ridingRail, int playerRail){
     bool anyMotion = false;
     if ( playerRail < 0 ) { playerRail = ridingRail; }
@@ -303,19 +360,19 @@ bool RailMotion::Advance(std::vector<SplineRail>& rails, float dt, int ridingRai
         if ( board.IsRollBoard() ) {
             // ころころ：卵が当たったら、転がって広がる（3.5m/秒・短くても 0.5 秒）。広がったらそのまま。
             //   エディタのプレビューでは当てなくても広がる（どう広がるかを見る）
-            if ( ridingRail == kStartAll ) { board.EditBoard().boardTriggered = true; }
+            if ( ridingRail == kStartAll ) { board.SetBoardTriggered(true); }
             if ( board.Board().boardTriggered ) {
                 RollPose pose;
                 const float time = GetRollPose(board, pose) ? ( std::max )( 0.5f, pose.length / 3.5f ) : 0.5f;
-                board.EditBoard().boardOpen = ( std::min )( 1.0f, board.Board().boardOpen + dt / time );
+                board.SetBoardOpen(( std::min )( 1.0f, board.Board().boardOpen + dt / time ));
             }
             continue;
         }
         const bool keep = ( playerRail == ( int ) railIndex ) && board.Board().boardOpen > 0.0f;
         const bool open = keep || BoardShouldOpen(board, rails);
         constexpr float kOpenTime = 0.45f, kCloseTime = 0.3f;
-        board.EditBoard().boardOpen = open ? ( std::min )( 1.0f, board.Board().boardOpen + dt / kOpenTime )
-                               : ( std::max )( 0.0f, board.Board().boardOpen - dt / kCloseTime );
+        board.SetBoardOpen(open ? ( std::min )( 1.0f, board.Board().boardOpen + dt / kOpenTime )
+                               : ( std::max )( 0.0f, board.Board().boardOpen - dt / kCloseTime ));
     }
     for ( size_t railIndex = 0; railIndex < rails.size(); ++railIndex ) {
         SplineRail& rail = rails[railIndex];
@@ -332,41 +389,34 @@ bool RailMotion::Advance(std::vector<SplineRail>& rails, float dt, int ridingRai
         //   エディタのプレビュー（kStartAll）では全レール強制発動＝動きを確認できる
         if ( rail.Motion().motionTrigger == 1 && !rail.Motion().motionStarted ) {
             if ( ridingRail != ( int ) railIndex && ridingRail != kStartAll ) continue;
-            rail.EditMotion().motionStarted = true;
+            rail.SetMotionStarted(true);
         }
-        rail.EditMotion().motionTime += dt; // 発動してからの経過時間（最初から動くレールはPlay開始からの時間）
+        rail.SetMotionTime(rail.Motion().motionTime + ( dt )); // 発動してからの経過時間（最初から動くレールはPlay開始からの時間）
         const float period = ( rail.Motion().motionPeriod > 0.1f ) ? rail.Motion().motionPeriod : 0.1f;
         float u = rail.Motion().motionTime / period + rail.Motion().motionPhase;
         u -= std::floor(u); // 0〜1 の周期位置
 
-        switch ( rail.Motion().motionType ) {
-        case 1:  rail.EditMotion().animOffset = Scaled(rail.Motion().motionAmp, DwellSwing(u)); break;
-        case 2: { // 円運動（XZ楕円＋Y。半径は amp の各成分。amp.x と amp.z で円になる）
-            const float th = u * kTwoPi;
-            const Vector3& amp = rail.Motion().motionAmp;
-            rail.EditMotion().animOffset = { amp.x * std::cos(th), amp.y * std::sin(th), amp.z * std::sin(th) };
-            break;
-        }
-        case 3:  FollowGuide(rail, rails, period, u); break;
-        default: rail.EditMotion().animOffset = Scaled(rail.Motion().motionAmp, std::sin(u * kTwoPi)); break; // 0: サイン往復
-        }
+        PathOf(rail.Motion().motionType).Apply(rail, rails, period, u); // 動き方ごとの式は MotionPath の派生が持つ
     }
     return anyMotion;
 }
 
 void RailMotion::Reset(std::vector<SplineRail>& rails, bool keepRolls){
     for ( auto& rail : rails ) {
-        rail.EditMotion().animOffset = { 0.0f, 0.0f, 0.0f };
-        rail.EditMotion().motionTime = 0.0f;
-        rail.EditMotion().motionStarted = false;
-        rail.EditMotion().appeared   = ( rail.Motion().appearTrigger < 0 );
-        rail.EditMotion().appearAnim = rail.Motion().appeared ? 1.0f : 0.0f;
-        rail.EditMotion().animYaw = 0.0f; // 列車式の回転も基準向きへ戻す
+        rail.SetAnimOffset({ 0.0f, 0.0f, 0.0f });
+        rail.SetMotionTime(0.0f);
+        rail.SetMotionStarted(false);
+        rail.SetAppeared(( rail.Motion().appearTrigger < 0 ));
+        rail.SetAppearAnim(rail.Motion().appeared ? 1.0f : 0.0f);
+        rail.SetAnimYaw(0.0f); // 列車式の回転も基準向きへ戻す
         // 列車：元の駅で待つ
-        rail.EditTrain().trainState = SplineRail::TrainState::Wait;
-        rail.EditTrain().trainAt = rail.EditTrain().trainFrom = rail.Train().trainHome;
-        rail.EditTrain().trainTimer = rail.EditTrain().trainProgress = rail.EditTrain().trainSpeedNow = 0.0f;
-        rail.EditTrain().trainNeedsLeave = false;
+        rail.SetTrainState(SplineRail::TrainState::Wait);
+        rail.SetTrainAt(rail.Train().trainHome);
+        rail.SetTrainFrom(rail.Train().trainHome);
+        rail.SetTrainTimer(0.0f);
+        rail.SetTrainProgress(0.0f);
+        rail.SetTrainSpeedNow(0.0f);
+        rail.SetTrainNeedsLeave(false);
     }
     for ( auto& rail : rails ) {
         if ( !rail.IsTrain() ) { continue; }
@@ -377,9 +427,9 @@ void RailMotion::Reset(std::vector<SplineRail>& rails, bool keepRolls){
     // 渡し板：列車が止まっている駅の板は開いて、ほかは閉じて始める。ころころは巻き直す（落ちて戻った時はそのまま）
     for ( auto& rail : rails ) {
         if ( rail.IsRollBoard() ) {
-            if ( !keepRolls ) { rail.EditBoard().boardOpen = 0.0f; rail.EditBoard().boardTriggered = false; }
+            if ( !keepRolls ) { rail.SetBoardOpen(0.0f); rail.SetBoardTriggered(false); }
         } else if ( rail.IsBoard() ) {
-            rail.EditBoard().boardOpen = BoardShouldOpen(rail, rails) ? 1.0f : 0.0f;
+            rail.SetBoardOpen(BoardShouldOpen(rail, rails) ? 1.0f : 0.0f);
         }
     }
 }

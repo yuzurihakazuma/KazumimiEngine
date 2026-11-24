@@ -23,10 +23,10 @@ bool EnemyRailPin::Apply(EnemyEditor& enemyEditor, const std::vector<SplineRail>
 	// 張り直す前に、まだ敵の履歴に積んでいない利用者の変更があるかを見ておく
 	const bool historyClean = enemyEditor.IsHistoryClean();
 	bool repinned = false;
-	auto& spawnDatas = enemyEditor.MutableSpawnDatas();
+	const auto& spawnDatas = enemyEditor.GetSpawnDatas();
 	for ( size_t i = 0; i < spawnDatas.size() && i < valid_.size(); ++i ) {
 		if ( !valid_[i] ) continue;
-		auto& spawnData = spawnDatas[i];
+		const auto& spawnData = spawnDatas[i];
 		if ( spawnData.railIndex < 0 || spawnData.railIndex >= ( int ) newRails.size() ) continue;
 		const SplineRail& newRail = newRails[spawnData.railIndex];
 		if ( newRail.Nodes().size() < 2 ) continue;
@@ -39,7 +39,9 @@ bool EnemyRailPin::Apply(EnemyEditor& enemyEditor, const std::vector<SplineRail>
 		}
 		float repinnedDist = newRail.GetClosestDistance(positions_[i]);
 		if ( repinnedDist != spawnData.distance ) {
-			spawnData.distance = repinnedDist;
+			EnemySpawnData moved = spawnData;
+			moved.distance = repinnedDist;
+			enemyEditor.SetSpawnData(( int ) i, moved);
 			repinned = true;
 		}
 	}

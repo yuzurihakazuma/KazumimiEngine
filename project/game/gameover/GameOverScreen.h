@@ -28,14 +28,17 @@ public:
     const KazumimiEngine::Vector2& BoardSize() const{ return boardSize_; } // 板の絵の大きさ（1920×1080 基準の画素）
     void SetBackground(float alpha){ backgroundAlpha_ = alpha; }
     void SetChoice(int choice);
-    bool IsOpened() const{ return state_ == State::Opened; }
-    bool IsClosed() const{ return state_ == State::Closed && closeTime_ >= closeDuration_; }
+    bool IsOpened() const;
+    bool IsClosed() const;
 
     void Update(float deltaTime);
     void Draw();
 
 private:
     enum class State { Hidden, Opening, Opened, Closed };
+    // 状態ごとのクラス（中身は cpp）
+    class ScreenState;
+    struct States;
     void DrawAt(KazumimiEngine::Sprite* sprite, const KazumimiEngine::Vector2& size, float x, float y, float scale, float alpha, float rotation = 0.0f);
 
     std::unique_ptr<KazumimiEngine::Sprite> background_, board_, title_, dino_, enemy_, hand_;

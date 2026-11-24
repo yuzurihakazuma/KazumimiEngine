@@ -199,15 +199,19 @@ void DemoShowcase::DrawImGui(){
         ImGui::TextDisabled("距離場に足す量で形が痩せる/太る（SDFだけの演出）");
         ImGui::Checkbox("自動アニメ（溶ける⇔生える）", &sdfErodeAuto_);
         if ( sdfErodeAuto_ ) {
-            ImGui::TextDisabled("erode: %.2f m", sdfEgg_->RefErode());
+            ImGui::TextDisabled("erode: %.2f m", sdfEgg_->GetErode());
         } else {
-            ImGui::SliderFloat("erode (m)", &sdfEgg_->RefErode(), -0.3f, 1.2f);
+            float erode = sdfEgg_->GetErode();
+            if ( ImGui::SliderFloat("erode (m)", &erode, -0.3f, 1.2f) ) { sdfEgg_->SetErode(erode); }
         }
-        ImGui::DragFloat3("位置", &sdfEgg_->RefTranslation().x, 0.1f);
-        ImGui::DragFloat("スケール", &sdfEgg_->RefScale(), 0.05f, 0.2f, 10.0f);
+        KazumimiEngine::Vector3 eggPosition = sdfEgg_->GetTranslation();
+        if ( ImGui::DragFloat3("位置", &eggPosition.x, 0.1f) ) { sdfEgg_->SetTranslation(eggPosition); }
+        float eggScale = sdfEgg_->GetScale();
+        if ( ImGui::DragFloat("スケール", &eggScale, 0.05f, 0.2f, 10.0f) ) { sdfEgg_->SetScale(eggScale); }
         if ( sdfEgg_->HasMorph() ) {
             // 距離場のlerpによる連続変形（0=卵 / 1=敵ボール。中間も破綻しない）
-            ImGui::SliderFloat("モーフ (卵→ボール)", &sdfEgg_->RefMorphT(), 0.0f, 1.0f);
+            float morphT = sdfEgg_->GetMorphT();
+            if ( ImGui::SliderFloat("モーフ (卵→ボール)", &morphT, 0.0f, 1.0f) ) { sdfEgg_->SetMorphT(morphT); }
         }
     } else {
         ImGui::TextDisabled("resources/sdf3d/egg.sdf3d が読み込まれていません");

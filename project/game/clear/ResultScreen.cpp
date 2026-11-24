@@ -225,13 +225,77 @@ void ResultScreen::BuildRows(){
     rows_.AddCall("案内を出す", [](ResultScreen& screen){ screen.promptShown_ = 0.0f; });
 }
 
+// =====================================================================
+//  段階ごとの状態クラス（閉じている → 出している → 決定を待つ → 終わり）。
+//   次の段階へ進むかどうかは、各状態が自分で決める
+// =====================================================================
+class ResultScreen::PhaseState {
+public:
+    virtual ~PhaseState() = default;
+    virtual bool IsOpen() const { return true; }
+    virtual bool IsFinished() const { return false; }
+    // 出してからの秒数を進める速さ（早送りできるのは、出している間だけ）
+    virtual float Speed(const ResultScreen& /*screen*/) const { return 1.0f; }
+    // 毎フレーム。step＝速さを掛けた経過秒、decide＝決定ボタンを押した
+    virtual void Update(ResultScreen& /*screen*/, float /*step*/, bool /*decide*/) const {}
+};
+
+// 状態クラスの入れ物（ResultScreen の中の物に触れるよう、ResultScreen の中に置く）
+struct ResultScreen::Phases {
+    // Phase の番号と同じ並びの表
+    static const PhaseState& Of(Phase phase);
+
+    // 閉じている
+    class Closed final : public PhaseState {
+    public:
+        bool IsOpen() const override { return false; }
+    };
+
+    // 行を順に出している（決定ボタンで早送り）。出し終わったら、決定を待つ
+    class Showing final : public PhaseState {
+    public:
+        float Speed(const ResultScreen& screen) const override { return screen.speed_; }
+        void Update(ResultScreen& screen, float step, bool decide) const override {
+            if ( decide ) { screen.speed_ = kFastSpeed; } // 早送り
+            screen.rows_.Update(screen, step);
+            if ( screen.rows_.IsFinished() ) { screen.phase_ = Phase::Waiting; }
+        }
+    };
+
+    // 全部出した：決定ボタンを待つ
+    class Waiting final : public PhaseState {
+    public:
+        void Update(ResultScreen& screen, float /*step*/, bool decide) const override {
+            if ( decide ) { screen.phase_ = Phase::Finished; }
+        }
+    };
+
+    // 決定ボタンで閉じる所まで終わった
+    class Finished final : public PhaseState {
+    public:
+        bool IsFinished() const override { return true; }
+    };
+};
+
+const ResultScreen::PhaseState& ResultScreen::Phases::Of(Phase phase){
+    static const Closed closed {};
+    static const Showing showing {};
+    static const Waiting waiting {};
+    static const Finished finished {};
+    static const PhaseState* const kTable[] = { &closed, &showing, &waiting, &finished };
+    return *kTable[static_cast<size_t>( phase )];
+}
+
+bool ResultScreen::IsOpen() const{ return Phases::Of(phase_).IsOpen(); }
+bool ResultScreen::IsFinished() const{ return Phases::Of(phase_).IsFinished(); }
+
 void ResultScreen::Update(float deltaTime, bool decide){
-    if ( phase_ == Phase::Closed ) { return; }
+    if ( !IsOpen() ) { return; }
     time_ += deltaTime;
     openTime_ += deltaTime;
 
     // 出してからの秒数を進める（早送り中は速く）
-    const float step = deltaTime * ( phase_ == Phase::Showing ? speed_ : 1.0f );
+    const float step = deltaTime * Phases::Of(phase_).Speed(*this);
     auto advance = [step](float& shown){ if ( shown >= 0.0f ) { shown += step; } };
     advance(titleShown_);
     advance(promptShown_);
@@ -239,18 +303,7 @@ void ResultScreen::Update(float deltaTime, bool decide){
     for ( float& shown : stampShown_ ) { advance(shown); }
     for ( float& shown : flowerShown_ ) { advance(shown); }
 
-    switch ( phase_ ) {
-    case Phase::Showing:
-        if ( decide ) { speed_ = kFastSpeed; } // 早送り
-        rows_.Update(*this, step);
-        if ( rows_.IsFinished() ) { phase_ = Phase::Waiting; }
-        break;
-    case Phase::Waiting:
-        if ( decide ) { phase_ = Phase::Finished; }
-        break;
-    default:
-        break;
-    }
+    Phases::Of(phase_).Update(*this, step, decide); // 段階ごとの進行（次の段階へ進むかも、状態が決める）
 }
 
 // --------------------------------------------------------------------- 描く
@@ -280,7 +333,7 @@ void ResultScreen::DrawNumberRight(const std::string& text, float right, float y
 }
 
 void ResultScreen::Draw(){
-    if ( phase_ == Phase::Closed ) { return; }
+    if ( !IsOpen() ) { return; }
     const float screenWidth = static_cast<float>( WindowProc::GetInstance()->GetClientWidth() );
     const float screenHeight = static_cast<float>( WindowProc::GetInstance()->GetClientHeight() );
     scale_ = UiScale::FromHeight(screenHeight);
@@ -370,7 +423,7 @@ void ResultScreen::Draw(){
     // 決定ボタンの案内（ふわふわ上下する）
     if ( promptShown_ >= 0.0f ) {
         const float pop = Pop(promptShown_);
-        if ( phase_ != Phase::Finished ) {
+        if ( !IsFinished() ) {
             const float bob = std::sin(time_ * 2.0f * Easing::kPi * kPromptBobRate) * kPromptBob;
             PlaceNatural(prompt_.get(), promptSize_, layout_.prompt.x, layout_.prompt.y + bob, pop);
         }

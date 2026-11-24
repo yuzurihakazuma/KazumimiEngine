@@ -5,6 +5,7 @@
 #include "game/player/PlayerBlockContact.h"
 #include "game/player/PlayerFacing.h"
 #include "game/player/PlayerKnockback.h"
+#include "engine/utils/Signal.h"
 
 #include <vector>
 
@@ -34,14 +35,14 @@ public:
     void SetRotation(const KazumimiEngine::Vector3& rot){ rotation_ = rot; }
 
     // 接地状態（空中判定、および踏みつけ判定に使用）
-    bool IsGrounded() const{ return jump_.grounded; }
+    bool IsGrounded() const{ return jump_.IsGrounded(); }
     // 歩いて壁（ブロック）にぶつかった瞬間か。読むと消える（見た目のぶつかった動き・音に使う）
-    bool ConsumeWallBump(){ const bool bumped = wallBumped_; wallBumped_ = false; return bumped; }
+    KazumimiEngine::Signal<>& OnWallBumped(){ return onWallBumped_; }
     static constexpr float kBumpRunTime  = 0.15f; // これだけ走ってから壁に当たった時だけ、ぶつかる
     // 今いる所の真下の地面（道の上面・ブロックの上面）の高さ。空中状態・穴の上は false（後ろの卵を地面に置くのに使う）
     bool GetGroundBelow(const std::vector<KazumimiEngine::SplineRail>& rails, float& outY) const;
     // ふんばり中（足バタバタアニメの切り替え用）
-    bool IsFluttering() const{ return jump_.fluttering; }
+    bool IsFluttering() const{ return jump_.IsFluttering(); }
     // 今乗っているレール番号（「乗ったら動き出すレール」の発動判定に使用）
     int  GetCurrentRail() const{ return currentRailIndex_; }
     float GetCurrentDistance() const{ return currentDistance_; } // 今のレールの上の距離(m)
@@ -68,11 +69,11 @@ public:
     void SetFaceOverride(bool active, float yaw){ facing_.SetOverride(active, yaw); }
     void SetTurnRate(float rate){ facing_.SetTurnRate(rate); } // 向きを変える速さ（PlayerFacing::kDefaultTurnRate が既定）
 
-    // --- ノードエディタの「→ ゲーム値」用：調整したい変数のポインタを公開 ---
-    float* MoveSpeedPtr(){ return &moveSpeed_; }
+    // --- 調整用（ノードエディタの「→ ゲーム値」・タイトルの自動操縦）---
+    void SetMoveSpeed(float speed){ moveSpeed_ = speed; }
     // 歩く速さの倍率（卵を構えている間はゆっくり歩く、など。1＝ふつう）
     void SetMoveSpeedScale(float scale){ moveSpeedScale_ = scale; }
-    float* JumpPowerPtr(){ return &jump_.power; }
+    void SetJumpPower(float power){ jump_.SetPower(power); }
 
     // スタート地点（リスポーン先）。マップ設定から Sync 後にシーンが渡す
     void SetSpawn(int rail, float dist){ spawnRail_ = rail; spawnDist_ = dist; }
@@ -91,12 +92,8 @@ public:
     void Respawn(){ fellOut_ = false; Initialize(); } // スタートへ戻す
     // 敵にぶつかって弾かれた瞬間か（体力を減らす。取得するとフラグは消える）
     bool ConsumeDamaged(){ bool hit = damaged_; damaged_ = false; return hit; }
-    // ジャンプ台で跳ねた瞬間（シーンがばねの見た目・音に使う）。足元のレール・距離・高さ
-    bool ConsumeSpringBounce(int& rail, float& dist, float& footY){
-        if ( !springBounced_ ) { return false; }
-        springBounced_ = false; rail = springRail_; dist = springDist_; footY = springFoot_;
-        return true;
-    }
+    // ジャンプ台で跳ねた瞬間の知らせ（ばねの見た目・音に使う）。引数＝足元のレール・距離・高さ
+    KazumimiEngine::Signal<int, float, float>& OnSpringBounced(){ return onSpringBounced_; }
     static constexpr float kSpringVelocity = 14.0f; // ジャンプ台の打ち上げの速さ(m/s)。重力25で約3.9m
 
     // ===== レール乗り換えデバッガ用（RailTransferDebugger が毎フレーム読む）=====
@@ -195,10 +192,9 @@ private:
     bool holdOnFall_ = false;     // 落ちたらその場で止めて待つ（シーンが体力で決める）
     bool fellOut_ = false;        // 落ちて止まっている
     bool damaged_ = false;        // 敵にぶつかった（シーンが Consume）
-    bool  springBounced_ = false; // ジャンプ台で跳ねた（シーンが Consume）
-    int   springRail_ = -1;
-    float springDist_ = 0.0f;
-    float springFoot_ = 0.0f;
+    // 知らせ（オブザーバー）：受け取る側（シーン）が Connect する。Player は、だれが聞いているかを知らない
+    KazumimiEngine::Signal<> onWallBumped_;                    // 歩いて壁にぶつかった瞬間（押し続けている間は 1 回だけ）
+    KazumimiEngine::Signal<int, float, float> onSpringBounced_; // ジャンプ台で跳ねた瞬間
 
     // ---- レール移動の主状態（これだけで位置が決まる）----
     float currentDistance_ = 0.0f;    // 現在レール上を進んだ距離 (m)

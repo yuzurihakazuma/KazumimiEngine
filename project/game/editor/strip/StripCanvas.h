@@ -6,6 +6,8 @@
 #include "game/editor/strip/StripLayout.h"
 #include "game/editor/strip/StripState.h"
 
+#include <array>
+
 // =====================================================================
 //  StripCanvas：展開図のキャンバス（横スクロールできる子ウィンドウ）
 //   ・このフレームの寸法（StripLayout）を決める（拡大率・表示する段数・「全体」ボタン）
@@ -48,6 +50,11 @@ private:
     void HandleKeys(const StripContext& context, StripState& state, const StripLayout& layout, const Hover& hover);
     void HandlePanZoom(StripState& state, const StripLayout& layout, bool hovered);
     void DrawStatusLine(const StripState& state, const StripLayout& layout, const Hover& hover) const;
+
+    // 道具（StripTool の番号と同じ並び）。使う時は、基底のポインタで Update / Cancel / IsBusy を呼ぶ
+    static constexpr int kToolCount = 3;
+    std::array<IStripTool*, kToolCount> Tools() { return { &blockTool_, &enemyTool_, &coinTool_ }; }
+    std::array<const IStripTool*, kToolCount> Tools() const { return { &blockTool_, &enemyTool_, &coinTool_ }; }
 
     StripBlockTool blockTool_;
     StripEnemyTool enemyTool_;

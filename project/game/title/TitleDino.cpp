@@ -61,7 +61,6 @@ void TitleDino::ShowImmediately(){
 
 void TitleDino::CancelAction(){
     action_ = Action::None;
-    tongueHitPending_ = false;
     throwReleasePending_ = false;
     if ( model_ ) { model_->ClearBoneScaleOverride(); }
 }
@@ -86,12 +85,6 @@ void TitleDino::StartThrow(){
     model_->SetClip("Throw", false);
     model_->SetAnimationTime(kThrowStartTime);
     model_->SetPlaybackSpeed(kThrowPlaySpeed);
-}
-
-bool TitleDino::ConsumeTongueHit(){
-    const bool pending = tongueHitPending_;
-    tongueHitPending_ = false;
-    return pending;
 }
 
 bool TitleDino::ConsumeThrowRelease(){
@@ -150,7 +143,7 @@ void TitleDino::Update(const Player& player, float deltaTime){
         model_->SetBoneScaleOverride("Tongue", { 1.0f, tongueStretch_, 1.0f });
         if ( !tongueHitFired_ && actionTime_ >= kTongueHitTime ) {
             tongueHitFired_ = true;
-            tongueHitPending_ = true;
+            onTongueHit_.Emit();
         }
         if ( actionTime_ >= kTongueTime ) { action_ = Action::None; }
         break;

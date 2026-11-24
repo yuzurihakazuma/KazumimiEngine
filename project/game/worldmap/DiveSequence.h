@@ -1,6 +1,7 @@
 #pragma once
 #include "engine/math/struct.h"
 #include "game/worldmap/WorldMapData.h"
+#include "engine/utils/Signal.h"
 
 // =====================================================================
 //  DiveSequence：箱庭への飛び込み（ステージ選択・飛び込み演出 企画書の5段）。
@@ -37,9 +38,9 @@ public:
     // 円の半径（2＝全開）
     float IrisRadius() const;
 
-    // 段の始まり（1回だけ true。音・弾み用）
-    bool ConsumeJumped();
-    bool ConsumeLanded();
+    // 段の始まりの知らせ（1 回の飛び込みで 1 回ずつ。音・弾み用）
+    KazumimiEngine::Signal<>& OnJumped(){ return onJumped_; }
+    KazumimiEngine::Signal<>& OnLanded(){ return onLanded_; }
 
 private:
     float EndTime() const;
@@ -52,5 +53,7 @@ private:
     float   endScale_ = 0.1f;
     float   yaw_ = 0.0f;
     KazumimiEngine::Vector3 cameraStart_ {}, lookStart_ {};
-    bool    jumpTaken_ = false, landTaken_ = false;
+    bool    jumpTaken_ = false, landTaken_ = false; // もう知らせたか
+    KazumimiEngine::Signal<> onJumped_; // しゃがみが終わって跳んだ瞬間
+    KazumimiEngine::Signal<> onLanded_; // 箱庭に着いた瞬間
 };

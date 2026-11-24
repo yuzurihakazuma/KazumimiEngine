@@ -3393,16 +3393,149 @@ void RailEditor::DrawCreateTab(){
 #endif
 }
 
+#ifdef USE_IMGUI
+namespace {
+	// 「形から作る」の、形を決める数値（どの形でも同じ物を持ち回る。形ごとに使う物だけを欄に出す）
+	struct RailShapeParams {
+		float length     = 10.0f; // 長さ (m)
+		int   divisions  = 4;     // 分割数
+		float radius     = 3.0f;  // 半径・振れ幅 (m)
+		float stepHeight = 1.0f;  // 階段の 1 段の高さ (m)
+	};
+
+	// =====================================================================
+	//  レールの形（「形から作る」の 1 種類）。数値の欄と、点の並びの作り方を持つ。
+	//   形を足す時は、派生クラスを 1 つ足して RailShapes の表に 1 行足す
+	// =====================================================================
+	class RailShape {
+	public:
+		virtual ~RailShape() = default;
+		virtual const char* Name() const = 0;
+		// この形で使う数値の欄
+		virtual void DrawParams(RailShapeParams& params) const = 0;
+		// 原点から +X へ向けた点の並び（設置の時に、クリックした所へ動かして回す）
+		virtual std::vector<Vector3> Build(const RailShapeParams& params) const = 0;
+
+	protected:
+		static int Divisions(const RailShapeParams& params){ return ( params.divisions < 1 ) ? 1 : params.divisions; }
+	};
+
+	// 直線（+X方向）
+	class StraightShape final : public RailShape {
+	public:
+		const char* Name() const override { return "直線"; }
+		void DrawParams(RailShapeParams& params) const override {
+			ImGui::DragFloat("長さ (m)", &params.length, 0.5f, 1.0f, 100.0f);
+			ImGui::DragInt("分割数", &params.divisions, 1, 1, 32);
+		}
+		std::vector<Vector3> Build(const RailShapeParams& params) const override {
+			std::vector<Vector3> line;
+			const int div = Divisions(params);
+			for ( int k = 0; k <= div; ++k ) {
+				float t = static_cast< float >( k ) / static_cast< float >( div );
+				line.push_back({ params.length * t, 0.0f, 0.0f });
+			}
+			return line;
+		}
+	};
+
+	// L字（+Xに半分 → +Zに半分）
+	class CornerShape final : public RailShape {
+	public:
+		const char* Name() const override { return "L字"; }
+		void DrawParams(RailShapeParams& params) const override {
+			ImGui::DragFloat("長さ (m)", &params.length, 0.5f, 1.0f, 100.0f);
+		}
+		std::vector<Vector3> Build(const RailShapeParams& params) const override {
+			return { { 0.0f, 0.0f, 0.0f }, { params.length * 0.5f, 0.0f, 0.0f }, { params.length * 0.5f, 0.0f, params.length * 0.5f } };
+		}
+	};
+
+	// 円（最初と最後が同じ位置 → ゲーム側が自動でループ認識）
+	class CircleShape final : public RailShape {
+	public:
+		const char* Name() const override { return "円 (ループ)"; }
+		void DrawParams(RailShapeParams& params) const override {
+			ImGui::DragFloat("半径 (m)", &params.radius, 0.1f, 0.5f, 30.0f);
+			ImGui::DragInt("分割数", &params.divisions, 1, 6, 32);
+		}
+		std::vector<Vector3> Build(const RailShapeParams& params) const override {
+			std::vector<Vector3> line;
+			const int div = Divisions(params);
+			const int seg = ( div < 6 ) ? 6 : div;
+			for ( int k = 0; k <= seg; ++k ) {
+				float ang = Math::kTwoPi * static_cast< float >( k ) / static_cast< float >( seg );
+				line.push_back({ std::cos(ang) * params.radius, 0.0f, std::sin(ang) * params.radius });
+			}
+			return line;
+		}
+	};
+
+	// 階段（+Xに進んで +Yに上がるを繰り返す）
+	class StairsShape final : public RailShape {
+	public:
+		const char* Name() const override { return "階段"; }
+		void DrawParams(RailShapeParams& params) const override {
+			ImGui::DragFloat("長さ (m)", &params.length, 0.5f, 1.0f, 100.0f);
+			ImGui::DragInt("分割数", &params.divisions, 1, 1, 32);
+			ImGui::DragFloat("1段の高さ (m)", &params.stepHeight, 0.1f, 0.1f, 10.0f);
+		}
+		std::vector<Vector3> Build(const RailShapeParams& params) const override {
+			std::vector<Vector3> line;
+			const int div = Divisions(params);
+			float run = params.length / static_cast< float >( div );
+			Vector3 p { 0.0f, 0.0f, 0.0f };
+			line.push_back(p);
+			for ( int k = 0; k < div; ++k ) {
+				p.x += run;               line.push_back(p); // 水平に進む
+				p.y += params.stepHeight; line.push_back(p); // 1段上がる
+			}
+			return line;
+		}
+	};
+
+	// S字カーブ（+Xに進みながらZへsin波で振れる）
+	class WaveShape final : public RailShape {
+	public:
+		const char* Name() const override { return "S字カーブ"; }
+		void DrawParams(RailShapeParams& params) const override {
+			ImGui::DragFloat("長さ (m)", &params.length, 0.5f, 1.0f, 100.0f);
+			ImGui::DragInt("分割数", &params.divisions, 1, 1, 32);
+			ImGui::DragFloat("振れ幅 (m)", &params.radius, 0.1f, 0.5f, 30.0f);
+		}
+		std::vector<Vector3> Build(const RailShapeParams& params) const override {
+			std::vector<Vector3> line;
+			const int div = Divisions(params);
+			const int seg = ( div < 2 ) ? 4 : div * 2;
+			for ( int k = 0; k <= seg; ++k ) {
+				float t = static_cast< float >( k ) / static_cast< float >( seg );
+				line.push_back({ params.length * t, 0.0f, std::sin(t * Math::kTwoPi) * params.radius });
+			}
+			return line;
+		}
+	};
+
+	// 選べる形の一覧（コンボの並び）
+	constexpr int kRailShapeCount = 5;
+	const RailShape* RailShapeAt(int index){
+		static const StraightShape straight {};
+		static const CornerShape corner {};
+		static const CircleShape circle {};
+		static const StairsShape stairs {};
+		static const WaveShape wave {};
+		static const RailShape* const kTable[kRailShapeCount] = { &straight, &corner, &circle, &stairs, &wave };
+		return kTable[( index >= 0 && index < kRailShapeCount ) ? index : 0];
+	}
+}
+#endif
+
 // 作成タブ：形を選んで作る（形・向き・長さなどを決めて、Game View でクリックして置く）
 void RailEditor::DrawShapeStampSection(){
 #ifdef USE_IMGUI
 	// --- パラメータ式シェイプ生成（スタンプ配置：生成→マウスに追従→クリックで設置）---
 	{
 		static int   shapeType   = 0;
-		static float shapeLen    = 10.0f;
-		static int   shapeDiv    = 4;
-		static float shapeRadius = 3.0f;
-		static float shapeStepH  = 1.0f;
+		static RailShapeParams shapeParams;           // 形を決める数値（形ごとに使う物だけを欄に出す）
 		static float shapeYawDeg = 0.0f;              // 生成する形の向き（0°=+X。90°=+Z奥）
 		static std::vector<Vector3> shapeBase;        // 回転前（+X向き）の形。向き変更の再適用に使う
 
@@ -3418,10 +3551,12 @@ void RailEditor::DrawShapeStampSection(){
 			return out;
 			};
 
-		const char* shapeNames[] = { "直線", "L字", "円 (ループ)", "階段", "S字カーブ" };
+		const char* shapeNames[kRailShapeCount] = {};
+		for ( int i = 0; i < kRailShapeCount; ++i ) { shapeNames[i] = RailShapeAt(i)->Name(); }
 		ImGui::Text("形を選んでパラメータを決めて「生成」:");
 		ImGui::SetNextItemWidth(150.0f);
 		ImGui::Combo("形", &shapeType, shapeNames, IM_ARRAYSIZE(shapeNames));
+		const RailShape* shape = RailShapeAt(shapeType); // 選んだ形（この後の欄と「生成」は、形の種類では分岐しない）
 
 		// --- 向き：ドラッグで自由な角度＋ワンタッチの90°ボタン。配置待ち中の変更も即反映 ---
 		bool yawChanged = false;
@@ -3442,75 +3577,12 @@ void RailEditor::DrawShapeStampSection(){
 
 		// 形ごとのパラメータ（必要なものだけ表示）
 		ImGui::PushItemWidth(140.0f);
-		if ( shapeType == 0 || shapeType == 1 || shapeType == 3 || shapeType == 4 ) {
-			ImGui::DragFloat("長さ (m)", &shapeLen, 0.5f, 1.0f, 100.0f);
-		}
-		if ( shapeType == 0 || shapeType == 3 || shapeType == 4 ) {
-			ImGui::DragInt("分割数", &shapeDiv, 1, 1, 32);
-		}
-		if ( shapeType == 2 ) {
-			ImGui::DragFloat("半径 (m)", &shapeRadius, 0.1f, 0.5f, 30.0f);
-			ImGui::DragInt("分割数", &shapeDiv, 1, 6, 32);
-		}
-		if ( shapeType == 4 ) {
-			ImGui::DragFloat("振れ幅 (m)", &shapeRadius, 0.1f, 0.5f, 30.0f);
-		}
-		if ( shapeType == 3 ) {
-			ImGui::DragFloat("1段の高さ (m)", &shapeStepH, 0.1f, 0.1f, 10.0f);
-		}
+		shape->DrawParams(shapeParams); // 形ごとの数値の欄
 		ImGui::PopItemWidth();
 
 		if ( ImGui::Button("生成 (Game Viewでクリックして設置)", ImVec2(250.0f, 0.0f)) ) {
-			std::vector<Vector3> line;
-			const Vector3 base = { 0.0f, 0.0f, 0.0f }; // 原点基準で作り、設置時にクリック位置へ平行移動
-			int div = ( shapeDiv < 1 ) ? 1 : shapeDiv;
-
-			switch ( shapeType ) {
-			case 0: // 直線（+X方向）
-				for ( int k = 0; k <= div; ++k ) {
-					float t = static_cast< float >( k ) / static_cast< float >( div );
-					line.push_back({ base.x + shapeLen * t, base.y, base.z });
-				}
-				break;
-			case 1: // L字（+Xに半分 → +Zに半分）
-				line.push_back(base);
-				line.push_back({ base.x + shapeLen * 0.5f, base.y, base.z });
-				line.push_back({ base.x + shapeLen * 0.5f, base.y, base.z + shapeLen * 0.5f });
-				break;
-			case 2: // 円（最初と最後が同じ位置 → ゲーム側が自動でループ認識）
-			{
-				int seg = ( div < 6 ) ? 6 : div;
-				for ( int k = 0; k <= seg; ++k ) {
-					float ang = Math::kTwoPi * static_cast< float >( k ) / static_cast< float >( seg );
-					line.push_back({ base.x + std::cos(ang) * shapeRadius,
-					                 base.y,
-					                 base.z + std::sin(ang) * shapeRadius });
-				}
-			}
-			break;
-			case 3: // 階段（+Xに進んで +Yに上がるを繰り返す）
-			{
-				float run = shapeLen / static_cast< float >( div );
-				Vector3 p = base;
-				line.push_back(p);
-				for ( int k = 0; k < div; ++k ) {
-					p.x += run;        line.push_back(p); // 水平に進む
-					p.y += shapeStepH; line.push_back(p); // 1段上がる
-				}
-			}
-			break;
-			case 4: // S字カーブ（+Xに進みながらZへsin波で振れる）
-			{
-				int seg = ( div < 2 ) ? 4 : div * 2;
-				for ( int k = 0; k <= seg; ++k ) {
-					float t = static_cast< float >( k ) / static_cast< float >( seg );
-					line.push_back({ base.x + shapeLen * t,
-					                 base.y,
-					                 base.z + std::sin(t * Math::kTwoPi) * shapeRadius });
-				}
-			}
-			break;
-			}
+			// 原点基準で作り、設置時にクリック位置へ平行移動（点の並びは RailShape の派生が作る）
+			std::vector<Vector3> line = shape->Build(shapeParams);
 
 			if ( !line.empty() ) {
 				// すぐ路線にせず「配置待ち（スタンプ）」にする → Game Viewでクリックした場所に設置。

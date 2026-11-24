@@ -88,11 +88,77 @@ void GameOverScreen::SetChoice(int choice){
     choiceTime_ = 0.0f;
 }
 
+// =====================================================================
+//  状態ごとのクラス（隠れている → 出てくる → 出ている → しまっている）。
+//   出てくる割合・しまう時の大きさ・次の状態へ進むかを、各状態が決める
+// =====================================================================
+class GameOverScreen::ScreenState {
+public:
+    virtual ~ScreenState() = default;
+    virtual bool IsVisible() const { return true; }
+    virtual bool IsOpened() const { return false; }
+    // しまい終わったか
+    virtual bool IsClosed(const GameOverScreen& /*screen*/) const { return false; }
+    // 出てくる順の進み（開く時間に対する割合。出切っていれば 1）
+    virtual float OpenProgress(const GameOverScreen& /*screen*/) const { return 1.0f; }
+    // しまう時の大きさ（全部いっしょにちぢむ。しまっていなければ 1）
+    virtual float CloseScale(const GameOverScreen& /*screen*/) const { return 1.0f; }
+    virtual void Update(GameOverScreen& /*screen*/, float /*deltaTime*/) const {}
+};
+
+// 状態クラスの入れ物（GameOverScreen の中の物に触れるよう、GameOverScreen の中に置く）
+struct GameOverScreen::States {
+    // State の番号と同じ並びの表
+    static const ScreenState& Of(State state);
+
+    // 隠れている
+    class Hidden final : public ScreenState {
+    public:
+        bool IsVisible() const override { return false; }
+    };
+
+    // 出てくる途中（板 → 文字 → ボタン → 恐竜・敵 → 手袋）。出切ったら「出ている」へ
+    class Opening final : public ScreenState {
+    public:
+        float OpenProgress(const GameOverScreen& screen) const override { return screen.time_ / screen.openDuration_; }
+        void Update(GameOverScreen& screen, float /*deltaTime*/) const override {
+            if ( screen.time_ >= screen.openDuration_ ) { screen.state_ = State::Opened; }
+        }
+    };
+
+    // 出ている（選べる）
+    class Opened final : public ScreenState {
+    public:
+        bool IsOpened() const override { return true; }
+    };
+
+    // しまっている（全部ちぢんで消える）
+    class Closed final : public ScreenState {
+    public:
+        bool IsClosed(const GameOverScreen& screen) const override { return screen.closeTime_ >= screen.closeDuration_; }
+        float CloseScale(const GameOverScreen& screen) const override {
+            return 1.0f - Easing::EaseInQuad(Easing::Clamp01(screen.closeTime_ / screen.closeDuration_));
+        }
+        void Update(GameOverScreen& screen, float deltaTime) const override { screen.closeTime_ += deltaTime; }
+    };
+};
+
+const GameOverScreen::ScreenState& GameOverScreen::States::Of(State state){
+    static const Hidden hidden {};
+    static const Opening opening {};
+    static const Opened opened {};
+    static const Closed closed {};
+    static const ScreenState* const kTable[] = { &hidden, &opening, &opened, &closed };
+    return *kTable[static_cast<size_t>( state )];
+}
+
+bool GameOverScreen::IsOpened() const{ return States::Of(state_).IsOpened(); }
+bool GameOverScreen::IsClosed() const{ return States::Of(state_).IsClosed(*this); }
+
 void GameOverScreen::Update(float deltaTime){
     time_ += deltaTime;
     choiceTime_ += deltaTime;
-    if ( state_ == State::Opening && time_ >= openDuration_ ) { state_ = State::Opened; }
-    if ( state_ == State::Closed ) { closeTime_ += deltaTime; }
+    States::Of(state_).Update(*this, deltaTime); // 出切った・しまう時間、は状態が決める
     handY_ += ( kButtonY[choice_] - handY_ ) * ( std::min )( deltaTime * 18.0f, 1.0f );
 }
 
@@ -110,7 +176,8 @@ void GameOverScreen::DrawAt(Sprite* sprite, const Vector2& size, float x, float 
 }
 
 void GameOverScreen::Draw(){
-    if ( state_ == State::Hidden && backgroundAlpha_ <= 0.0f ) { return; }
+    const ScreenState& state = States::Of(state_);
+    if ( !state.IsVisible() && backgroundAlpha_ <= 0.0f ) { return; }
     // 背景（画面いっぱい）
     if ( background_ && backgroundAlpha_ > 0.0f ) {
         const float width = ( float ) WindowProc::GetInstance()->GetClientWidth();
@@ -121,11 +188,11 @@ void GameOverScreen::Draw(){
         background_->Update();
         background_->Draw();
     }
-    if ( state_ == State::Hidden ) { return; }
+    if ( !state.IsVisible() ) { return; }
 
     // 出てくる順（開く時間に対する割合）。しまう時は全部いっしょにちぢむ
-    const float t = state_ == State::Opening ? time_ / openDuration_ : 1.0f;
-    const float close = state_ == State::Closed ? 1.0f - Easing::EaseInQuad(Easing::Clamp01(closeTime_ / closeDuration_)) : 1.0f;
+    const float t = state.OpenProgress(*this);
+    const float close = state.CloseScale(*this);
 
     // 板：ポンとふくらんで出る（紙玉が開いて板になった時は、はじめから出ている）
     if ( boardVisible_ ) {

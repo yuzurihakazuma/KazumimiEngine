@@ -49,9 +49,10 @@ public:
     // プレイヤーの当たり判定の形をワイヤーで描く（デバッグ表示用）
     void DrawPlayerHitShape(const Player& player, const KazumimiEngine::Vector4& color) const;
 
-private:
+    // 踏みつけ・命中のエフェクトを出す（EnemyHit の派生が、当たった結果として呼ぶ）
     void SpawnStompEffect(const KazumimiEngine::Vector3& pos, KazumimiEngine::Camera* camera, KazumimiEngine::StompEffectType type);
 
+private:
     std::list<std::unique_ptr<KazumimiEngine::StompEffect>> stompEffects_;
     // 使い終わったエフェクトの置き場（Obj3d×23個/体の作り直しを避ける。敵を倒した瞬間のカクつき対策）
     std::vector<std::unique_ptr<KazumimiEngine::StompEffect>> stompPool_;

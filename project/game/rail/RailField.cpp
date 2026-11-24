@@ -44,8 +44,8 @@ void RailField::BuildRailsFromEditor(const EditorManager& editor){
     rails_.clear();
     for ( size_t i = 0; i < lines.size(); ++i ) {
         SplineRail rail;
-        rail.EditNodes() = lines[i];
-        rail.EditConfig().lineMode = ValueAt(lineModes, i, 0);
+        rail.SetNodes(lines[i]);
+        rail.SetLineMode(ValueAt(lineModes, i, 0));
         rail.BuildDistanceTable();
         rails_.push_back(rail);
     }
@@ -67,44 +67,44 @@ void RailField::ApplyMotionSettings(const EditorManager& editor){
     for ( size_t i = 0; i < rails_.size(); ++i ) {
         SplineRail& rail = rails_[i];
         if ( i < motions.size() ) {
-            rail.EditMotion().motionAmp    = { motions[i].x, motions[i].y, motions[i].z };
-            rail.EditMotion().motionPeriod = ( motions[i].w > 0.1f ) ? motions[i].w : 0.1f;
+            rail.SetMotionAmp({ motions[i].x, motions[i].y, motions[i].z });
+            rail.SetMotionPeriod(( motions[i].w > 0.1f ) ? motions[i].w : 0.1f);
         }
-        rail.EditMotion().motionType    = ValueAt(motionTypes, i, 0);
-        rail.EditMotion().guideRail     = ValueAt(guideRails, i, -1);
-        rail.EditMotion().motionPhase   = ValueAt(motionPhases, i, 0.0f);
-        rail.EditMotion().guideStart    = ValueAt(guideStarts, i, 0.0f);
-        rail.EditMotion().guideEnd      = ValueAt(guideEnds, i, -1.0f);
-        rail.EditMotion().guideMode     = ValueAt(guideModes, i, 0);
-        rail.EditMotion().guideDwell    = ValueAt(guideDwells, i, 0.0f);
-        rail.EditMotion().motionTrigger = ValueAt(motionTriggers, i, 0);
-        rail.EditMotion().appearTrigger = ValueAt(appearTriggers, i, -1);
-        rail.EditMotion().guideAlign    = ValueAt(guideAligns, i, 0);
+        rail.SetMotionType(ValueAt(motionTypes, i, 0));
+        rail.SetGuideRail(ValueAt(guideRails, i, -1));
+        rail.SetMotionPhase(ValueAt(motionPhases, i, 0.0f));
+        rail.SetGuideStart(ValueAt(guideStarts, i, 0.0f));
+        rail.SetGuideEnd(ValueAt(guideEnds, i, -1.0f));
+        rail.SetGuideMode(ValueAt(guideModes, i, 0));
+        rail.SetGuideDwell(ValueAt(guideDwells, i, 0.0f));
+        rail.SetMotionTrigger(ValueAt(motionTriggers, i, 0));
+        rail.SetAppearTrigger(ValueAt(appearTriggers, i, -1));
+        rail.SetGuideAlign(ValueAt(guideAligns, i, 0));
         const RailTrain train = ( i < trains.size() ) ? trains[i] : RailTrain {};
-        rail.EditTrain().train       = train.enabled;
-        rail.EditTrain().trainDepart = train.departSec;
-        rail.EditTrain().trainReturn = train.returnSec;
-        rail.EditTrain().trainEngine = train.engine;
-        rail.EditTrain().trainSpeed  = ( std::max )( train.speed, 0.1f );
-        rail.EditTrain().trainSpeedMuls = train.speedMuls;
-        rail.EditTrain().isTrack     = false;
-        rail.EditBoard().boardTrain  = ( train.boardFor >= 0 && train.boardFor != ( int ) i ) ? train.boardFor : -1;
-        rail.EditBoard().boardKind   = train.boardMode == 1 ? 2 : ( rail.Board().boardTrain >= 0 ? 1 : 0 );
-        rail.EditBoard().boardTriggered = false;
-        rail.EditBoard().boardOpen   = 0.0f;
+        rail.SetTrain(train.enabled);
+        rail.SetTrainDepart(train.departSec);
+        rail.SetTrainReturn(train.returnSec);
+        rail.SetTrainEngine(train.engine);
+        rail.SetTrainSpeed(( std::max )( train.speed, 0.1f ));
+        rail.SetTrainSpeedMuls(train.speedMuls);
+        rail.SetIsTrack(false);
+        rail.SetBoardTrain(( train.boardFor >= 0 && train.boardFor != ( int ) i ) ? train.boardFor : -1);
+        rail.SetBoardKind(train.boardMode == 1 ? 2 : ( rail.Board().boardTrain >= 0 ? 1 : 0 ));
+        rail.SetBoardTriggered(false);
+        rail.SetBoardOpen(0.0f);
         // 列車式回転の基準：基準位置でのレール中点と向きを1回だけ計測（この時点で回転・移動はゼロ）
         if ( rail.Nodes().size() >= 2 && rail.GetLength() > 0.0f ) {
             float mid = rail.GetLength() * 0.5f;
-            rail.EditMotion().animPivot = rail.GetPositionByDistance(mid);
+            rail.SetAnimPivot(rail.GetPositionByDistance(mid));
             Vector3 midTan = rail.GetTangentByDistance(mid);
             float horizLen = std::sqrt(midTan.x * midTan.x + midTan.z * midTan.z);
-            rail.EditMotion().restYaw = ( horizLen > 1e-4f ) ? std::atan2(midTan.x, midTan.z) : 0.0f;
+            rail.SetRestYaw(( horizLen > 1e-4f ) ? std::atan2(midTan.x, midTan.z) : 0.0f);
         }
     }
     // 列車：ガイドは線路（歩けない・つながない）。元の駅と向きを決める
     for ( SplineRail& rail : rails_ ) {
         if ( !rail.IsTrain() || rail.Motion().guideRail >= ( int ) rails_.size() ) { continue; }
-        rails_[rail.Motion().guideRail].EditTrain().isTrack = true;
+        rails_[rail.Motion().guideRail].SetIsTrack(true);
         RailMotion::SetupTrain(rail, rails_);
     }
     for ( SplineRail& rail : rails_ ) { RailMotion::SetupBoard(rail, rails_); } // 渡し板（列車の駅が決まってから）
@@ -116,8 +116,8 @@ void RailField::ApplyRailTypes(const EditorManager& editor){
     const auto& types = editor.GetEditorRailTypes();
     for ( size_t i = 0; i < rails_.size(); ++i ) {
         int type = ValueAt(types, i, -1);
-        if ( type == 0 )      rails_[i].EditConfig().type = SplineRail::RailType::Horizontal;
-        else if ( type == 1 ) rails_[i].EditConfig().type = SplineRail::RailType::Vertical;
+        if ( type == 0 )      rails_[i].SetType(SplineRail::RailType::Horizontal);
+        else if ( type == 1 ) rails_[i].SetType(SplineRail::RailType::Vertical);
         else                  rails_[i].AutoDetectType();
     }
 }
@@ -134,19 +134,21 @@ void RailField::ApplySurfaceSettings(const EditorManager& editor){
     const auto& skins     = editor.GetEditorRailSkins();
     for ( size_t i = 0; i < rails_.size(); ++i ) {
         SplineRail& rail = rails_[i];
-        rail.EditConfig().groundType = static_cast< SplineRail::GroundType >( ValueAt(grounds, i, 0) );
-        if ( i < holes.size() ) rail.EditConfig().nodeHole = holes[i];
-        else                    rail.EditConfig().nodeHole.clear();
-        rail.EditConfig().visible  = ValueAt(visible, i, 1) != 0;
-        rail.EditConfig().roadMode = ValueAt(roadModes, i, 0);
-        rail.EditConfig().endPlaza = ValueAt(endPlazas, i, 0);
-        rail.EditConfig().oneWay   = ValueAt(oneWays, i, 0);
-        rail.EditConfig().speedMul = ( i < speedMuls.size() && speedMuls[i] > 0.05f ) ? speedMuls[i] : 1.0f;
-        rail.EditConfig().skin     = ( i < skins.size() ) ? skins[i] : RailSkin {};
+        rail.SetGroundType(static_cast< SplineRail::GroundType >( ValueAt(grounds, i, 0) ));
+        if ( i < holes.size() ) rail.SetNodeHole(holes[i]);
+        else                    rail.ClearNodeHole();
+        rail.SetVisible(ValueAt(visible, i, 1) != 0);
+        rail.SetRoadMode(ValueAt(roadModes, i, 0));
+        rail.SetEndPlaza(ValueAt(endPlazas, i, 0));
+        rail.SetOneWay(ValueAt(oneWays, i, 0));
+        rail.SetSpeedMul(( i < speedMuls.size() && speedMuls[i] > 0.05f ) ? speedMuls[i] : 1.0f);
+        rail.SetSkin(( i < skins.size() ) ? skins[i] : RailSkin {});
         // 列車の足場と線路には道も布も敷かない（列車と線路は TrainVisuals が描く。布は roadMode を見ないので見た目も消す）
         if ( rail.IsTrain() || rail.Train().isTrack || rail.IsBoard() ) { // 渡し板も板の模型を描く
-            rail.EditConfig().roadMode = 1;
-            rail.EditConfig().skin.style = RailSkin::Hidden;
+            rail.SetRoadMode(1);
+            RailSkin hidden = rail.Config().skin;
+            hidden.style = RailSkin::Hidden;
+            rail.SetSkin(hidden);
         }
     }
 }
@@ -194,7 +196,7 @@ bool RailField::HitRoll(const Vector3& from, const Vector3& to, float radius){
         const Vector3 q { from.x + d.x * t - pose.center.x, from.y + d.y * t - pose.center.y, from.z + d.z * t - pose.center.z };
         const float reach = pose.radius + radius + 0.35f; // 筒は横に長い（幅 1.8m）ので、球を少し大きく
         if ( q.x * q.x + q.y * q.y + q.z * q.z <= reach * reach ) {
-            rail.EditBoard().boardTriggered = true;
+            rail.SetBoardTriggered(true);
             return true;
         }
     }

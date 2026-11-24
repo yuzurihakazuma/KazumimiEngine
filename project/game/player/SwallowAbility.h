@@ -77,8 +77,8 @@ public:
     void Reset();
 
     // ノードエディタの「→ ゲーム値」用（舌の届く距離・再使用間隔を外から調整できる）
-    float* SwallowReachPtr(){ return &swallowReach_; }
-    float* SwallowCooldownPtr(){ return &swallowCooldown_; }
+    void SetSwallowReach(float reach){ swallowReach_ = reach; }
+    void SetSwallowCooldown(float seconds){ swallowCooldown_ = seconds; }
 
 private:
 public:

@@ -17,7 +17,7 @@ using namespace railstrip;
 // =====================================================================
 //  道具：コイン
 // =====================================================================
-void StripCoinTool::Update(const StripContext& context, const StripState& state, const StripLayout& layout, bool hovered){
+bool StripCoinTool::Update(const StripContext& context, StripState& state, const StripLayout& layout, bool hovered){
 #ifdef USE_IMGUI
     ImGuiIO& io = ImGui::GetIO();
     ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -44,7 +44,7 @@ void StripCoinTool::Update(const StripContext& context, const StripState& state,
 
     // ---- ドラッグ中（確定は離した時。ドラッグ中は移動先を描くだけ＝軽い）----
     if ( dragIndex_ >= 0 ) {
-        if ( dragIndex_ >= ( int ) coins.size() ) { dragIndex_ = -1; return; }
+        if ( dragIndex_ >= ( int ) coins.size() ) { dragIndex_ = -1; return false; }
         if ( ImGui::IsMouseDown(ImGuiMouseButton_Left) ) {
             if ( ImGui::IsMouseDragging(ImGuiMouseButton_Left, 3.0f) ) {
                 dragData_.rail   = currentRail;
@@ -66,10 +66,10 @@ void StripCoinTool::Update(const StripContext& context, const StripState& state,
             }
             dragIndex_ = -1;
         }
-        return;
+        return false;
     }
 
-    if ( !inEditArea ) return;
+    if ( !inEditArea ) return false;
 
     // ---- マウスの下のコイン ----
     int overCoin = -1;
@@ -122,4 +122,5 @@ void StripCoinTool::Update(const StripContext& context, const StripState& state,
 #else
     ( void ) context; ( void ) state; ( void ) layout; ( void ) hovered;
 #endif
+    return false; // この道具は、途中の操作を全部やめさせる事は無い
 }

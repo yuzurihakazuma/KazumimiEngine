@@ -70,10 +70,10 @@ public:
     // 深度だけをカメラ側へずらす量(m)。同じ形の実体と重ねて描く時（交代のクロスフェード）に、面の取り合いでちらつかない
     void SetDepthBias(float meters) { depthBias_ = meters; }
 
-    Vector3& RefTranslation() { return translation_; }   // ImGui編集用
-    float&   RefScale() { return scale_; }               // ImGui編集用
-    float&   RefErode() { return erode_; }               // ImGui編集用
-    float&   RefMorphT() { return morphT_; }             // ImGui編集用
+    const Vector3& GetTranslation() const { return translation_; }
+    float GetScale() const { return scale_; }
+    float GetErode() const { return erode_; }
+    float GetMorphT() const { return morphT_; }
     bool IsLoaded() const { return volA_.loaded; }
     bool HasMorph() const { return volB_.loaded; }
 

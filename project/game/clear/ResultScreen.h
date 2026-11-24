@@ -51,17 +51,20 @@ public:
     void Open(const Data& data);
     // 片付ける（プレイ開始・エディタへ戻った時）
     void Close();
-    bool IsOpen() const{ return phase_ != Phase::Closed; }
+    bool IsOpen() const;
 
     // 毎フレーム。decide＝決定ボタンを押した瞬間（出している途中は早送り・待っている時は終わり）
     void Update(float deltaTime, bool decide);
     // 決定ボタンで閉じる所まで終わった
-    bool IsFinished() const{ return phase_ == Phase::Finished; }
+    bool IsFinished() const;
 
     void Draw();
 
 private:
     enum class Phase { Closed, Showing, Waiting, Finished };
+    // 段階ごとの状態クラス（中身は cpp）
+    class PhaseState;
+    struct Phases;
     using RowSequence = KazumimiEngine::StepSequence<ResultScreen>;
 
     void BuildRows();                 // 出す順番を、列に組み立てる

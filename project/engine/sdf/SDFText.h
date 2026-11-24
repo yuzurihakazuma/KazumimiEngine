@@ -37,15 +37,16 @@ public:
     void SetTransform3D(const Vector3& worldPos, float worldScale);
     void SetScreenMode(); // スクリーン配置（2D）に戻す
     bool Is3D() const { return use3D_; }
-    Vector3& RefWorldPos() { return worldPos3D_; }   // ImGui編集用
-    float& RefWorldScale() { return worldScale3D_; } // ImGui編集用
+    const Vector3& GetWorldPos() const { return worldPos3D_; }
+    float GetWorldScale() const { return worldScale3D_; }
+    // 3D の位置・大きさだけを変える（2D / 3D の切り替えはしない。調整ウィンドウ用）
+    void SetWorldPos(const Vector3& worldPos) { worldPos3D_ = worldPos; }
+    void SetWorldScale(float worldScale) { worldScale3D_ = worldScale; }
 
     // --- 近接表示（看板用）：プレイヤーが近くにいる時だけ表示する ---
     void SetProximity(bool enabled, float radius) { proximityEnabled_ = enabled; proximityRadius_ = radius; }
     bool  IsProximityEnabled() const { return proximityEnabled_; }
     float GetProximityRadius() const { return proximityRadius_; }
-    bool&  RefProximityEnabled() { return proximityEnabled_; } // ImGui編集用
-    float& RefProximityRadius() { return proximityRadius_; }   // ImGui編集用
     // 表示アルファ（フェード用。SDFManager が毎フレーム距離から設定する）
     void SetDrawAlpha(float a) { drawAlpha_ = a; }
 
@@ -53,10 +54,10 @@ public:
     float GetX() const { return posX_; }
     float GetY() const { return posY_; }
     float GetFontSize() const { return fontSize_; }
-    Vector4& RefColor() { return color_; }               // ImGui編集用
-    Vector4& RefOutlineColor() { return outlineColor_; } // ImGui編集用
-    float& RefOutlineWidth() { return outlineWidth_; }   // ImGui編集用
-    float& RefThickness() { return thickness_; }         // 太さ調整（+太く/-細く）
+    const Vector4& GetColor() const { return color_; }
+    const Vector4& GetOutlineColor() const { return outlineColor_; }
+    float GetOutlineWidth() const { return outlineWidth_; }
+    float GetThickness() const { return thickness_; }     // 太さ調整（+太く/-細く）
     void SetThickness(float t) { thickness_ = t; }
 
     // 毎フレーム呼ぶ（必要なら頂点バッファ再構築＋CB更新）

@@ -34,7 +34,6 @@ void TitleLogoBoard::Finalize(){
 void TitleLogoBoard::Reset(){
     state_ = State::Hidden;
     time_ = 0.0f;
-    landedPending_ = false;
 }
 
 void TitleLogoBoard::Launch(const Vector3& from){
@@ -46,13 +45,6 @@ void TitleLogoBoard::Launch(const Vector3& from){
 void TitleLogoBoard::PlaceLanded(){
     state_ = State::Landed;
     time_ = 10.0f; // 揺れが収まった後の状態
-    landedPending_ = false;
-}
-
-bool TitleLogoBoard::ConsumeLanded(){
-    const bool pending = landedPending_;
-    landedPending_ = false;
-    return pending;
 }
 
 void TitleLogoBoard::Update(float deltaTime){
@@ -74,7 +66,7 @@ void TitleLogoBoard::Update(float deltaTime){
         if ( t >= 1.0f ) {
             state_ = State::Landed;
             time_ = 0.0f;
-            landedPending_ = true;
+            onLanded_.Emit();
         }
     } else {
         // 刺さった直後：左右にぐらぐら揺れて、縦に少しつぶれてから戻る（だんだん収まる）

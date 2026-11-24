@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "engine/utils/Signal.h"
+
 class Player;
 namespace KazumimiEngine { class SkinnedObj3d; }
 
@@ -33,7 +35,7 @@ public:
     void CancelAction();               // ベロ・投げを途中でやめる
     void SetBow(float angle){ bow_ = angle; } // 前へ傾ける角度(rad)。足元を軸にお辞儀する（タイトルの終わり）
     bool IsBusy() const{ return action_ != Action::None; }
-    bool ConsumeTongueHit();           // ベロが届いた瞬間に1回だけ true
+    KazumimiEngine::Signal<>& OnTongueHit(){ return onTongueHit_; } // ベロが届いた瞬間の知らせ
     bool ConsumeThrowRelease();        // 卵が手を離れる瞬間に1回だけ true
 
     KazumimiEngine::Vector3 GetHandPosition() const;   // 手（卵を持つ位置）
@@ -47,7 +49,7 @@ private:
     Action  action_ = Action::None;
     float   actionTime_ = 0.0f;   // ベロ・投げを始めてからの秒数
     float   tongueStretch_ = 1.0f;
-    bool    tongueHitPending_ = false;
+    KazumimiEngine::Signal<> onTongueHit_; // ベロが届いた瞬間
     bool    tongueHitFired_ = false;
     bool    throwReleasePending_ = false;
     bool    throwReleaseFired_ = false;

@@ -2233,9 +2233,9 @@ void EditorManager::SetParticleEmitter(GPUParticleEmitter* emitter){
 }
 
 // ノードエディタの「→ ゲーム値」ノードのターゲットを登録する（シーンから）
-void EditorManager::RegisterNodeGameValue(const std::string& label, float* target, float minV, float maxV){
+void EditorManager::RegisterNodeGameValue(const std::string& label, std::function<void(float)> apply, float minV, float maxV){
     if ( nodeEditor_ ) {
-        nodeEditor_->RegisterGameValue(label, target, minV, maxV);
+        nodeEditor_->RegisterGameValue(label, std::move(apply), minV, maxV);
     }
 }
 

@@ -156,10 +156,15 @@ namespace {
 }
 
 TitleScene::TitleScene(){
-	features_.overlay2D = true;                        // 操作の案内を最終画像へ重ねる
-	features_.sceneMap = "resources/map/title.json";   // 背景とレール（ステージのマップとは別ファイル）
+	Features features;
+	features.overlay2D = true;                        // 操作の案内を最終画像へ重ねる
+	features.sceneMap = "resources/map/title.json";   // 背景とレール（ステージのマップとは別ファイル）
 	// レールは使うが、エディタの線とノードは既定では出さない（インスペクターの「レールを編集する」で出す）
-	features_.railEditing = false;
+	features.railEditing = false;
+	UseFeatures(features);
+	// 看板と恐竜からの知らせ（看板・恐竜は、メニュー・音・紙くずを知らない）
+	logo_.OnLanded().Connect([this]{ OnLogoLanded(); });
+	dino_.OnTongueHit().Connect([this]{ OnTongueHit(); });
 }
 TitleScene::~TitleScene(){
 	OnFinalize();
@@ -314,11 +319,267 @@ void TitleScene::OnPreUpdate(){
 }
 
 // =====================================================================
+//  進行の段階ごとの状態クラス。
+//   TitleScene は、今の段階を見て分岐しない（Phases::Of(phase_) で PhaseState を引いて、仮想関数を呼ぶだけ）。
+//   次の段階へ進むかどうかは、各状態が自分で決める（scene.ChangePhase）
+// =====================================================================
+class TitleScene::PhaseState {
+public:
+	virtual ~PhaseState() = default;
+	// 恐竜を動かす前：入力・自動操縦を決める
+	virtual void Update(TitleScene& /*scene*/) const {}
+	// 卵の位置と大きさを決める（恐竜の手の位置を使うので、恐竜を動かした後）。
+	//   既定＝手を離れた卵が、山なりに画面へ飛んでいく。戻り値 false＝このフレームは卵を動かさない
+	virtual bool PlaceEgg(TitleScene& scene, float deltaTime, Vector3& position, float& size) const {
+		scene.eggTime_ += deltaTime;
+		const float t = Easing::Clamp01(scene.eggTime_ / kEggFlightTime);
+		position = Math::Lerp(scene.eggFrom_, scene.eggTo_, t);
+		position.y += 1.0f * 4.0f * t * ( 1.0f - t );
+		size = Math::Lerp(size, 0.55f, t);
+		return true;
+	}
+	// 画面を閉じる（フレームの最後）
+	virtual void UpdateIris(TitleScene& /*scene*/, float /*deltaTime*/) const {}
+	// 操作の案内を出す段階か
+	virtual bool ShowsGuide() const { return false; }
+};
+
+// 状態クラスの入れ物（TitleScene の中の物に触れるよう、TitleScene の中に置く）
+struct TitleScene::Phases {
+	// Phase の番号と同じ並びの表
+	static const PhaseState& Of(Phase phase);
+
+	// 登場：走る → 奥のレールの途中でロゴを投げる → 刺さったらメニューが出る → 手前の中央に着いたら操作開始
+	class Intro final : public PhaseState {
+	public:
+		void Update(TitleScene& scene) const override {
+			Input* input = Input::GetInstance();
+			if ( DecidePressed() || ( !IsTypingInEditor() && input->TriggerKey(DIK_SPACE) ) ) {
+				scene.SkipIntro(); // 待たずに始めたい人向け
+				return;
+			}
+			scene.introTime_ += kDeltaTime;
+			if ( scene.introTime_ > kIntroTimeLimit ) { scene.SkipIntro(); return; }
+
+			// 奥の右の角 → 手前の右の角 → スタート地点（手前の中央）
+			const auto& rails = scene.railField_.GetRails();
+			const Vector3 start = rails[scene.railField_.GetStartRail()].GetPositionByDistance(scene.railField_.GetStartDistance());
+			const Vector3 waypoints[] = {
+				{ kRailX, 0.0f, kRailBack },
+				{ kRailX, 0.0f, kRailFront },
+				{ start.x, 0.0f, start.z },
+			};
+			PlayerInput::AutoPilot pilot = scene.SteerAutoPilot(waypoints, ( int ) ( sizeof(waypoints) / sizeof(waypoints[0]) ));
+
+			// 奥のレールの途中で、小さく跳ねながらロゴを投げる
+			//   （最初の数フレームは恐竜の位置がまだ決まっていないので見ない）
+			if ( !scene.logoThrown_ && scene.introTime_ > 0.1f && scene.waypointIndex_ == 0 && scene.player_.GetPosition().x >= kLogoThrowX ) {
+				scene.logoThrown_ = true;
+				Vector3 from = scene.player_.GetPosition();
+				from.y += 1.6f; // 頭の上から
+				scene.logo_.Launch(from);
+				pilot.jumpPressed = true;
+				scene.pilotHopFrames_ = 8;
+				AudioManager::GetInstance()->PlayWave(TitleAssets::kThrowSe);
+			}
+			if ( scene.pilotHopFrames_ > 0 ) { --scene.pilotHopFrames_; pilot.jumpHeld = true; }
+			scene.player_.SetAutoPilot(true, pilot);
+
+			// ロゴが刺さった瞬間（音・メニューを出す）は、知らせ（OnLogoLanded）で受け取る
+			const bool arrived = ( scene.waypointIndex_ >= 3 );
+			if ( arrived && scene.logo_.HasLanded() && scene.menu_.IsReady() ) { scene.EnterMenu(); }
+		}
+	};
+
+	// A/D で的を選ぶと、恐竜がその前まで自動で歩く。SPACE（Enter / E）でベロを当てて決定。
+	//   歩いている途中で押した決定は、着いた時に行う
+	class Menu final : public PhaseState {
+	public:
+		void Update(TitleScene& scene) const override {
+			// 行き先の的（光らせるのは着いてから。走っている途中は どれも光らせない）
+			int selected = scene.menuTarget_;
+			if ( selected < 0 ) { selected = TitleMenu::Item_Start; }
+			// A/D は いつでも（奥を回っている途中でも）効く。押した向き＝画面の左/右へ走り、その向きで次に来る的で止まる。
+			//   端から先は奥の道でつながっている（つづきで A → 奥を回って せってい / せっていで D → つづき）
+			if ( !IsTypingInEditor() ) {
+				Input* input = Input::GetInstance();
+				if ( input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) )  { selected = scene.PickMenuTarget(selected, -1.0f); }
+				if ( input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) ) { selected = scene.PickMenuTarget(selected, +1.0f); }
+			}
+			scene.menuTarget_ = selected;
+
+			PlayerInput::AutoPilot pilot;
+			bool arrived = false;
+			if ( !scene.menuRoute_.empty() ) {
+				// 角をたどって的の正面まで（登場と同じ自動操縦）
+				pilot = scene.SteerAutoPilot(scene.menuRoute_.data(), ( int ) scene.menuRoute_.size());
+				if ( scene.waypointIndex_ >= ( int ) scene.menuRoute_.size() ) {
+					scene.menuRoute_.clear();
+					scene.menuDirection_ = 0.0f;
+					scene.player_.SetMoveSpeed(kMenuMoveSpeed);
+				}
+			} else {
+				// 的の正面にぴったり止める：最後の1フレームは残りの分だけ進む（押しっぱなしだと的の手前/奥に
+				//   最大 1フレーム分ずれて止まり、来た向きで止まる位置が変わる＝連打するとずれて見えた）
+				const float toTargetX = scene.menu_.Position(selected).x - scene.player_.GetPosition().x;
+				const float step = ( std::max )( scene.player_.GetMoveSpeed() * kDeltaTime, 0.001f );
+				arrived = std::abs(toTargetX) <= kStopDistance;
+				if ( !arrived ) { pilot.moveX = std::clamp(toTargetX / step, -1.0f, 1.0f); }
+			}
+			scene.player_.SetAutoPilot(true, pilot);
+			scene.menu_.SetSelected(arrived ? selected : -1); // 走っている途中に、通りがかりの的や行き先の的が光らないように
+
+			// 決定は、的の正面に止まっている時だけ（走っている途中に押しても何もしない）
+			if ( DecidePressed() && arrived && scene.player_.IsGrounded() ) {
+				const int focus = selected;
+				const Vector3 target = scene.menu_.GetTargetCenter(focus);
+				const float toX = target.x - scene.player_.GetPosition().x;
+				const float toZ = target.z - scene.player_.GetPosition().z;
+				scene.tongueDistance_ = std::sqrt(toX * toX + toZ * toZ);
+				scene.aimYaw_ = std::atan2(toX, toZ);
+				scene.aimTime_ = 0.0f;
+				scene.noticeTime_ = 0.0f;
+				// 決定の動きが終わるまで、その場で的のほうを向かせる
+				scene.player_.SetMovementLocked(true);
+				scene.player_.SetFaceOverride(true, scene.aimYaw_);
+				scene.ChangePhase(Phase::Aim);
+			}
+		}
+		bool ShowsGuide() const override { return true; }
+	};
+
+	// 的のほうへ向き直ったら、ベロを伸ばす
+	class Aim final : public PhaseState {
+	public:
+		void Update(TitleScene& scene) const override {
+			scene.aimTime_ += kDeltaTime;
+			const bool facing = std::abs(AngleDelta(scene.player_.GetRotation().y, scene.aimYaw_)) < 0.06f;
+			if ( facing || scene.aimTime_ > kAimTimeLimit ) {
+				scene.dino_.ShootTongue(scene.tongueDistance_);
+				AudioManager::GetInstance()->PlayWave(TitleAssets::kThrowSe);
+				scene.ChangePhase(Phase::Tongue);
+			}
+		}
+	};
+
+	// ベロが当たったら的を揺らす。戻り切ったら、項目ごとの動きへ
+	class Tongue final : public PhaseState {
+	public:
+		void Update(TitleScene& scene) const override {
+			const int selected = scene.menu_.GetSelected();
+			if ( selected < 0 ) { scene.ReleasePlayer(); scene.ChangePhase(Phase::Menu); return; }
+
+			// ベロが届いた瞬間（的を揺らす・音）は、知らせ（OnTongueHit）で受け取る
+			if ( scene.dino_.IsBusy() ) { return; } // まだベロを出している
+
+			if ( selected == TitleMenu::Item_Start ) {
+				// カメラのほうへ向き直る
+				const Vector3 toCamera = kCameraPosition - scene.player_.GetPosition();
+				scene.aimYaw_ = std::atan2(toCamera.x, toCamera.z);
+				scene.player_.SetFaceOverride(true, scene.aimYaw_);
+				scene.ChangePhase(Phase::TurnToCamera);
+			} else {
+				// つづき／せってい はまだ中身が無い：的を震わせて知らせ、歩ける状態へ戻る
+				scene.menu_.Refuse(selected);
+				scene.noticeTime_ = kNoticeTime;
+				scene.ReleasePlayer();
+				scene.ChangePhase(Phase::Menu);
+			}
+		}
+	};
+
+	// スタート決定：カメラのほうへ向き直ったら、卵を構えて投げる
+	class TurnToCamera final : public PhaseState {
+	public:
+		void Update(TitleScene& scene) const override {
+			if ( std::abs(AngleDelta(scene.player_.GetRotation().y, scene.aimYaw_)) < 0.06f ) {
+				scene.dino_.StartThrow();
+				scene.eggVisible_ = true;
+				scene.ChangePhase(Phase::Throw);
+			}
+		}
+	};
+
+	// 卵を構えている：手に持ち、手を離れたら飛ばす
+	class Throw final : public PhaseState {
+	public:
+		bool PlaceEgg(TitleScene& scene, float /*deltaTime*/, Vector3& position, float& /*size*/) const override {
+			position = scene.dino_.GetHandPosition();
+			if ( scene.dino_.ConsumeThrowRelease() ) {
+				scene.eggFrom_ = position;
+				// カメラのすぐ前を狙う
+				const Vector3 forward = VectorMath::Normalize(kCameraTarget - kCameraPosition);
+				scene.eggTo_ = kCameraPosition + forward * 1.3f;
+				scene.eggTime_ = 0.0f;
+				scene.ChangePhase(Phase::EggFlight);
+				AudioManager::GetInstance()->PlayWave(TitleAssets::kThrowSe);
+			}
+			return true;
+		}
+	};
+
+	// 卵が画面へ飛んでくる：届いたら、絵ごと吹き飛ばして紙芝居を始める
+	class EggFlight final : public PhaseState {
+	public:
+		bool PlaceEgg(TitleScene& scene, float deltaTime, Vector3& position, float& size) const override {
+			PhaseState::PlaceEgg(scene, deltaTime, position, size); // 山なりに飛ぶ
+			if ( Easing::Clamp01(scene.eggTime_ / kEggFlightTime) < 1.0f ) { return true; }
+			// 画面（タイトルの絵）に当たった：絵ごと横へ吹き飛ばして、紙芝居を始める（resources/transition/title_open.json）。
+			//   卵は絵に当たって消える（このフレームの画面が「吹き飛ぶ絵」になるので、写る前に隠す）
+			AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
+			scene.eggVisible_ = false;
+			scene.shakeBase_ = scene.GetCamera()->GetWorldPosition();
+			scene.shakeTime_ = kShakeTime;
+			if ( KamishibaiTransition::GetInstance()->Play("title_open") ) {
+				scene.ChangePhase(Phase::Done);
+				return false;
+			}
+			// 紙芝居の定義が無い時は、今までどおり丸く閉じる
+			scene.irisTime_ = 0.0f;
+			PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
+			scene.ChangePhase(Phase::IrisOut);
+			return true;
+		}
+	};
+
+	// 画面の中央へ向けて丸く閉じ、閉じ切ったらステージ選択へ
+	class IrisOut final : public PhaseState {
+	public:
+		void UpdateIris(TitleScene& scene, float deltaTime) const override {
+			scene.irisTime_ += deltaTime;
+			const float t = Easing::Clamp01(scene.irisTime_ / kIrisCloseTime);
+			PostEffect::GetInstance()->SetIrisParams(1.4f * ( 1.0f - Easing::EaseInQuad(t) ), 0.5f, 0.5f);
+			if ( scene.irisTime_ >= kIrisCloseTime + kIrisHoldTime ) {
+				scene.ChangePhase(Phase::Done);
+				SceneManager::GetInstance()->ChangeScene(std::make_unique<StageSelectScene>());
+			}
+		}
+	};
+
+	// 終わり：次のシーンへ切り替わるのを待つ
+	class Done final : public PhaseState {};
+};
+
+const TitleScene::PhaseState& TitleScene::Phases::Of(Phase phase){
+	static const Intro intro {};
+	static const Menu menu {};
+	static const Aim aim {};
+	static const Tongue tongue {};
+	static const TurnToCamera turnToCamera {};
+	static const Throw throwEgg {};
+	static const EggFlight eggFlight {};
+	static const IrisOut irisOut {};
+	static const Done done {};
+	static const PhaseState* const kTable[] = { &intro, &menu, &aim, &tongue, &turnToCamera, &throwEgg, &eggFlight, &irisOut, &done };
+	return *kTable[static_cast<size_t>( phase )];
+}
+
+// =====================================================================
 //  進行
 // =====================================================================
 // 登場：恐竜を奥のレールの左端に出し、自動操縦で走らせる
 void TitleScene::StartIntro(){
-	phase_ = Phase::Intro;
+	ChangePhase(Phase::Intro);
 	logoThrown_ = false;
 	eggVisible_ = false;
 	noticeTime_ = 0.0f;
@@ -345,7 +606,7 @@ void TitleScene::StartIntro(){
 	player_.Initialize();
 	// 落ちた時に戻る場所は、マップのスタート地点（手前の中央）にしておく
 	player_.SetSpawn(railField_.GetStartRail(), railField_.GetStartDistance());
-	*player_.MoveSpeedPtr() = kIntroMoveSpeed;
+	player_.SetMoveSpeed(kIntroMoveSpeed);
 	player_.SetAutoPilot(true);
 
 	dino_.Appear();
@@ -367,13 +628,31 @@ void TitleScene::SkipIntro(){
 
 // メニュー：A/D で選んだ的の前まで、恐竜が自動で歩く（自分で歩き回らなくてよい）
 void TitleScene::EnterMenu(){
-	*player_.MoveSpeedPtr() = kMenuMoveSpeed;
+	player_.SetMoveSpeed(kMenuMoveSpeed);
 	player_.SetAutoPilot(true);
 	menu_.SetSelected(TitleMenu::Item_Start);
 	menuTarget_ = TitleMenu::Item_Start;
 	menuRoute_.clear();
 	menuDirection_ = 0.0f;
-	phase_ = Phase::Menu;
+	ChangePhase(Phase::Menu);
+}
+
+// ロゴが飛んで来て刺さった瞬間：音を鳴らし、メニューを出す。刺さった根元から紙くずが舞う
+void TitleScene::OnLogoLanded(){
+	AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
+	menu_.Show();
+	paperBits_.Burst({ kLogoLand.x, kLogoLand.y + 0.3f, kLogoLand.z - 0.2f }, 14, 3.0f, 3.6f);
+}
+
+// ベロが的に届いた瞬間：的を揺らし、音を鳴らす。的の手前の面から紙くずが舞う
+void TitleScene::OnTongueHit(){
+	const int selected = menu_.GetSelected();
+	if ( selected < 0 ) { return; }
+	menu_.Hit(selected);
+	AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
+	Vector3 hit = menu_.GetTargetCenter(selected);
+	hit.z -= 0.2f;
+	paperBits_.Burst(hit, 8, 2.4f, 2.6f, 0.18f);
 }
 
 void TitleScene::ReleasePlayer(){
@@ -386,22 +665,7 @@ void TitleScene::OnUpdate(){
 	const auto& rails = railField_.GetRails();
 	player_.SetCameraYaw(GetCamera()->GetRotation().y);
 
-	switch ( phase_ ) {
-	case Phase::Intro:  UpdateIntro();  break;
-	case Phase::Menu:   UpdateMenu();   break;
-	case Phase::Aim:    UpdateAim();    break;
-	case Phase::Tongue: UpdateTongue(); break;
-	case Phase::TurnToCamera:
-		// カメラのほうへ向き直ったら、卵を構えて投げる
-		if ( std::abs(AngleDelta(player_.GetRotation().y, aimYaw_)) < 0.06f ) {
-			dino_.StartThrow();
-			eggVisible_ = true;
-			phase_ = Phase::Throw;
-		}
-		break;
-	default:
-		break;
-	}
+	Phases::Of(phase_).Update(*this); // 段階ごとの進行（次の段階へ進むかも、状態が決める）
 
 	// 本編と同じ移動処理（レール上の移動・乗り換え・ジャンプ）
 	player_.Update(rails);
@@ -462,103 +726,6 @@ PlayerInput::AutoPilot TitleScene::SteerAutoPilot(const Vector3* waypoints, int 
 	return pilot;
 }
 
-// 登場：走る → 奥のレールの途中でロゴを投げる → 刺さったらメニューが出る → 手前の中央に着いたら操作開始
-void TitleScene::UpdateIntro(){
-	Input* input = Input::GetInstance();
-	if ( DecidePressed() || ( !IsTypingInEditor() && input->TriggerKey(DIK_SPACE) ) ) {
-		SkipIntro(); // 待たずに始めたい人向け
-		return;
-	}
-	introTime_ += kDeltaTime;
-	if ( introTime_ > kIntroTimeLimit ) { SkipIntro(); return; }
-
-	// 奥の右の角 → 手前の右の角 → スタート地点（手前の中央）
-	const auto& rails = railField_.GetRails();
-	const Vector3 start = rails[railField_.GetStartRail()].GetPositionByDistance(railField_.GetStartDistance());
-	const Vector3 waypoints[] = {
-		{ kRailX, 0.0f, kRailBack },
-		{ kRailX, 0.0f, kRailFront },
-		{ start.x, 0.0f, start.z },
-	};
-	PlayerInput::AutoPilot pilot = SteerAutoPilot(waypoints, ( int ) ( sizeof(waypoints) / sizeof(waypoints[0]) ));
-
-	// 奥のレールの途中で、小さく跳ねながらロゴを投げる
-	//   （最初の数フレームは恐竜の位置がまだ決まっていないので見ない）
-	if ( !logoThrown_ && introTime_ > 0.1f && waypointIndex_ == 0 && player_.GetPosition().x >= kLogoThrowX ) {
-		logoThrown_ = true;
-		Vector3 from = player_.GetPosition();
-		from.y += 1.6f; // 頭の上から
-		logo_.Launch(from);
-		pilot.jumpPressed = true;
-		pilotHopFrames_ = 8;
-		AudioManager::GetInstance()->PlayWave(TitleAssets::kThrowSe);
-	}
-	if ( pilotHopFrames_ > 0 ) { --pilotHopFrames_; pilot.jumpHeld = true; }
-	player_.SetAutoPilot(true, pilot);
-
-	if ( logo_.ConsumeLanded() ) {
-		AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
-		menu_.Show();
-		// 刺さった根元から紙くずが舞う
-		paperBits_.Burst({ kLogoLand.x, kLogoLand.y + 0.3f, kLogoLand.z - 0.2f }, 14, 3.0f, 3.6f);
-	}
-	const bool arrived = ( waypointIndex_ >= 3 );
-	if ( arrived && logo_.HasLanded() && menu_.IsReady() ) { EnterMenu(); }
-}
-
-// A/D で的を選ぶと、恐竜がその前まで自動で歩く。SPACE（Enter / E）でベロを当てて決定。
-//   歩いている途中で押した決定は、着いた時に行う
-void TitleScene::UpdateMenu(){
-	// 行き先の的（光らせるのは着いてから。走っている途中は どれも光らせない）
-	int selected = menuTarget_;
-	if ( selected < 0 ) { selected = TitleMenu::Item_Start; }
-	// A/D は いつでも（奥を回っている途中でも）効く。押した向き＝画面の左/右へ走り、その向きで次に来る的で止まる。
-	//   端から先は奥の道でつながっている（つづきで A → 奥を回って せってい / せっていで D → つづき）
-	if ( !IsTypingInEditor() ) {
-		Input* input = Input::GetInstance();
-		if ( input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) )  { selected = PickMenuTarget(selected, -1.0f); }
-		if ( input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) ) { selected = PickMenuTarget(selected, +1.0f); }
-	}
-	menuTarget_ = selected;
-
-	PlayerInput::AutoPilot pilot;
-	bool arrived = false;
-	if ( !menuRoute_.empty() ) {
-		// 角をたどって的の正面まで（登場と同じ自動操縦）
-		pilot = SteerAutoPilot(menuRoute_.data(), ( int ) menuRoute_.size());
-		if ( waypointIndex_ >= ( int ) menuRoute_.size() ) {
-			menuRoute_.clear();
-			menuDirection_ = 0.0f;
-			*player_.MoveSpeedPtr() = kMenuMoveSpeed;
-		}
-	} else {
-		// 的の正面にぴったり止める：最後の1フレームは残りの分だけ進む（押しっぱなしだと的の手前/奥に
-		//   最大 1フレーム分ずれて止まり、来た向きで止まる位置が変わる＝連打するとずれて見えた）
-		const float toTargetX = menu_.RefPosition(selected).x - player_.GetPosition().x;
-		const float step = ( std::max )( *player_.MoveSpeedPtr() * kDeltaTime, 0.001f );
-		arrived = std::abs(toTargetX) <= kStopDistance;
-		if ( !arrived ) { pilot.moveX = std::clamp(toTargetX / step, -1.0f, 1.0f); }
-	}
-	player_.SetAutoPilot(true, pilot);
-	menu_.SetSelected(arrived ? selected : -1); // 走っている途中に、通りがかりの的や行き先の的が光らないように
-
-	// 決定は、的の正面に止まっている時だけ（走っている途中に押しても何もしない）
-	if ( DecidePressed() && arrived && player_.IsGrounded() ) {
-		const int focus = selected;
-		const Vector3 target = menu_.GetTargetCenter(focus);
-		const float toX = target.x - player_.GetPosition().x;
-		const float toZ = target.z - player_.GetPosition().z;
-		tongueDistance_ = std::sqrt(toX * toX + toZ * toZ);
-		aimYaw_ = std::atan2(toX, toZ);
-		aimTime_ = 0.0f;
-		noticeTime_ = 0.0f;
-		// 決定の動きが終わるまで、その場で的のほうを向かせる
-		player_.SetMovementLocked(true);
-		player_.SetFaceOverride(true, aimYaw_);
-		phase_ = Phase::Aim;
-	}
-}
-
 // A/D を押した時の行き先を決めて、道順を作る。screenSide：-1=左(A) / +1=右(D)。
 //   ・押した向きは「画面の左右」。手前の道では左＝周の +1 向き、奥と左右の道では左＝周の -1 向き
 //     （奥を右へ走っている途中で左を押すと、引き返して つづき に戻る）
@@ -572,12 +739,12 @@ int TitleScene::PickMenuTarget(int selected, float screenSide){
 
 	const bool moving = !menuRoute_.empty();
 	const float origin = ( moving && direction == menuDirection_ )
-		? LoopPosition(menu_.RefPosition(selected).x, kRailFront) // 今の行き先より先の的
+		? LoopPosition(menu_.Position(selected).x, kRailFront) // 今の行き先より先の的
 		: from;
 	int best = selected;
 	float bestAhead = kLoopLength + 1.0f;
 	for ( int item = 0; item < ( int ) TitleMenu::Item_Count; ++item ) {
-		const float ahead = LoopAhead(origin, LoopPosition(menu_.RefPosition(item).x, kRailFront), direction);
+		const float ahead = LoopAhead(origin, LoopPosition(menu_.Position(item).x, kRailFront), direction);
 		if ( ahead > 0.05f && ahead < bestAhead ) { bestAhead = ahead; best = item; }
 	}
 	BuildMenuRoute(best, direction);
@@ -587,7 +754,7 @@ int TitleScene::PickMenuTarget(int selected, float screenSide){
 // 恐竜の今いる所から、的の正面までの道順（direction の向きに進んで通る角の並び＋的の正面）を作る
 void TitleScene::BuildMenuRoute(int item, float direction){
 	const Vector3& position = player_.GetPosition();
-	const float targetX = menu_.RefPosition(item).x;
+	const float targetX = menu_.Position(item).x;
 	const float from = LoopPosition(position.x, position.z);
 	float travel = LoopAhead(from, LoopPosition(targetX, kRailFront), direction);
 	if ( travel > kLoopLength - 0.5f ) { travel = 0.0f; } // ほんの少し行き過ぎているだけ：一周せずに戻る
@@ -609,47 +776,7 @@ void TitleScene::BuildMenuRoute(int item, float direction){
 	pilotReleaseFrames_ = 0;
 	pilotSwitchWait_ = 0;
 	// 角を回る（奥の道を通る）時は一周が長いので速めに走る
-	*player_.MoveSpeedPtr() = passed.empty() ? kMenuMoveSpeed : kMenuWrapSpeed;
-}
-
-// 的のほうへ向き直ったら、ベロを伸ばす
-void TitleScene::UpdateAim(){
-	aimTime_ += kDeltaTime;
-	const bool facing = std::abs(AngleDelta(player_.GetRotation().y, aimYaw_)) < 0.06f;
-	if ( facing || aimTime_ > kAimTimeLimit ) {
-		dino_.ShootTongue(tongueDistance_);
-		AudioManager::GetInstance()->PlayWave(TitleAssets::kThrowSe);
-		phase_ = Phase::Tongue;
-	}
-}
-
-// ベロが当たったら的を揺らす。戻り切ったら、項目ごとの動きへ
-void TitleScene::UpdateTongue(){
-	const int selected = menu_.GetSelected();
-	if ( selected < 0 ) { ReleasePlayer(); phase_ = Phase::Menu; return; }
-
-	if ( dino_.ConsumeTongueHit() ) {
-		menu_.Hit(selected);
-		AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
-		Vector3 hit = menu_.GetTargetCenter(selected);
-		hit.z -= 0.2f; // 的の手前の面から
-		paperBits_.Burst(hit, 8, 2.4f, 2.6f, 0.18f);
-	}
-	if ( dino_.IsBusy() ) { return; } // まだベロを出している
-
-	if ( selected == TitleMenu::Item_Start ) {
-		// カメラのほうへ向き直る
-		const Vector3 toCamera = kCameraPosition - player_.GetPosition();
-		aimYaw_ = std::atan2(toCamera.x, toCamera.z);
-		player_.SetFaceOverride(true, aimYaw_);
-		phase_ = Phase::TurnToCamera;
-	} else {
-		// つづき／せってい はまだ中身が無い：的を震わせて知らせ、歩ける状態へ戻る
-		menu_.Refuse(selected);
-		noticeTime_ = kNoticeTime;
-		ReleasePlayer();
-		phase_ = Phase::Menu;
-	}
+	player_.SetMoveSpeed(passed.empty() ? kMenuMoveSpeed : kMenuWrapSpeed);
 }
 
 // 卵が画面に当たった衝撃：カメラを小刻みに揺らして、だんだん収める（まわりが倒れるきっかけに見せる）
@@ -676,12 +803,12 @@ void TitleScene::BeginExitEffect(){
 		const float dz = position.z - origin.z;
 		return std::sqrt(dx * dx + dz * dz) * TitleTopple::kDelayPerMeter;
 	};
-	logoFallDelay_ = delayFrom(logo_.RefLandPosition());
-	logoFallDirection_ = TitleTopple::Direction(logo_.RefLandPosition().x - origin.x);
+	logoFallDelay_ = delayFrom(logo_.LandPosition());
+	logoFallDirection_ = TitleTopple::Direction(logo_.LandPosition().x - origin.x);
 	toppleDuration_ = ( std::max )( ambience_.GetToppleDuration(), logoFallDelay_ + TitleTopple::EndTime(kLogoWeight) );
 	for ( int i = 0; i < TitleMenu::Item_Count; ++i ) {
-		menuFallDelays_[i] = delayFrom(menu_.RefPosition(i));
-		menuFallDirections_[i] = TitleTopple::Direction(menu_.RefPosition(i).x - origin.x);
+		menuFallDelays_[i] = delayFrom(menu_.Position(i));
+		menuFallDirections_[i] = TitleTopple::Direction(menu_.Position(i).x - origin.x);
 		toppleDuration_ = ( std::max )( toppleDuration_, menuFallDelays_[i] + TitleTopple::EndTime(kMenuWeight) );
 	}
 	toppleTime_ = 0.0f;
@@ -732,40 +859,7 @@ void TitleScene::UpdateEgg(float deltaTime){
 	Vector3 position {};
 	float size = 0.29f; // 手のサイズに合う大きさ
 
-	if ( phase_ == Phase::Throw ) {
-		position = dino_.GetHandPosition();
-		if ( dino_.ConsumeThrowRelease() ) {
-			eggFrom_ = position;
-			// カメラのすぐ前を狙う
-			const Vector3 forward = VectorMath::Normalize(kCameraTarget - kCameraPosition);
-			eggTo_ = kCameraPosition + forward * 1.3f;
-			eggTime_ = 0.0f;
-			phase_ = Phase::EggFlight;
-			AudioManager::GetInstance()->PlayWave(TitleAssets::kThrowSe);
-		}
-	} else {
-		eggTime_ += deltaTime;
-		const float t = Easing::Clamp01(eggTime_ / kEggFlightTime);
-		position = Math::Lerp(eggFrom_, eggTo_, t);
-		position.y += 1.0f * 4.0f * t * ( 1.0f - t );
-		size = Math::Lerp(size, 0.55f, t);
-		if ( phase_ == Phase::EggFlight && t >= 1.0f ) {
-			// 画面（タイトルの絵）に当たった：絵ごと横へ吹き飛ばして、紙芝居を始める（resources/transition/title_open.json）。
-			//   卵は絵に当たって消える（このフレームの画面が「吹き飛ぶ絵」になるので、写る前に隠す）
-			AudioManager::GetInstance()->PlayWave(TitleAssets::kHitSe);
-			eggVisible_ = false;
-			shakeBase_ = GetCamera()->GetWorldPosition();
-			shakeTime_ = kShakeTime;
-			if ( KamishibaiTransition::GetInstance()->Play("title_open") ) {
-				phase_ = Phase::Done;
-				return;
-			}
-			// 紙芝居の定義が無い時は、今までどおり丸く閉じる
-			irisTime_ = 0.0f;
-			PostEffect::GetInstance()->SetEffectActive(PostEffectType::IrisWipe, true);
-			phase_ = Phase::IrisOut;
-		}
-	}
+	if ( !Phases::Of(phase_).PlaceEgg(*this, deltaTime, position, size) ) { return; } // 持っている・飛んでいる・当たった、は状態が決める
 
 	egg_->SetTranslation(position);
 	egg_->SetRotation({ eggTime_ * 9.0f, 0.0f, eggTime_ * 5.0f }); // 回りながら飛ぶ
@@ -775,14 +869,7 @@ void TitleScene::UpdateEgg(float deltaTime){
 
 // 画面の中央へ向けて丸く閉じ、閉じ切ったらステージ選択へ
 void TitleScene::UpdateIrisOut(float deltaTime){
-	if ( phase_ != Phase::IrisOut ) { return; }
-	irisTime_ += deltaTime;
-	const float t = Easing::Clamp01(irisTime_ / kIrisCloseTime);
-	PostEffect::GetInstance()->SetIrisParams(1.4f * ( 1.0f - Easing::EaseInQuad(t) ), 0.5f, 0.5f);
-	if ( irisTime_ >= kIrisCloseTime + kIrisHoldTime ) {
-		phase_ = Phase::Done;
-		SceneManager::GetInstance()->ChangeScene(std::make_unique<StageSelectScene>());
-	}
+	Phases::Of(phase_).UpdateIris(*this, deltaTime);
 }
 
 // 操作の案内は歩ける間だけ出す（ゆっくり点滅）。「じゅんびちゅう」は少しの間だけ出して消える
@@ -791,7 +878,7 @@ void TitleScene::UpdateTexts(float deltaTime){
 	const float width  = ( float ) WindowProc::GetInstance()->GetClientWidth();
 	const float height = ( float ) WindowProc::GetInstance()->GetClientHeight();
 
-	const float wanted = ( phase_ == Phase::Menu ) ? 1.0f : 0.0f;
+	const float wanted = Phases::Of(phase_).ShowsGuide() ? 1.0f : 0.0f;
 	guideAlpha_ += ( wanted - guideAlpha_ ) * ( std::min )( deltaTime * 8.0f, 1.0f );
 	if ( guideText_ ) {
 		const float blink = 0.8f + 0.2f * std::sin(textTime_ * 2.5f);
@@ -852,10 +939,14 @@ void TitleScene::OnDrawInspector(){
 	ImGui::TextDisabled("登場の自動操縦は「奥右の角→手前右の角→スタート地点」を目指します");
 
 	ImGui::SeparatorText("背景の動き");
-	ImGui::Checkbox("風（草・花・木・雲がゆれる）", &ambience_.RefWindEnabled());
-	ImGui::SliderFloat("風の強さ", &ambience_.RefWindStrength(), 0.0f, 2.5f);
-	ImGui::Checkbox("紙の波", &ambience_.RefWavesEnabled());
-	ImGui::Checkbox("エディタを出している間も動かす", &ambience_.RefMoveWhileEditing());
+	bool windEnabled = ambience_.IsWindEnabled();
+	if ( ImGui::Checkbox("風（草・花・木・雲がゆれる）", &windEnabled) ) { ambience_.SetWindEnabled(windEnabled); }
+	float windStrength = ambience_.WindStrength();
+	if ( ImGui::SliderFloat("風の強さ", &windStrength, 0.0f, 2.5f) ) { ambience_.SetWindStrength(windStrength); }
+	bool wavesEnabled = ambience_.IsWavesEnabled();
+	if ( ImGui::Checkbox("紙の波", &wavesEnabled) ) { ambience_.SetWavesEnabled(wavesEnabled); }
+	bool moveWhileEditing = ambience_.MovesWhileEditing();
+	if ( ImGui::Checkbox("エディタを出している間も動かす", &moveWhileEditing) ) { ambience_.SetMoveWhileEditing(moveWhileEditing); }
 	ImGui::TextDisabled("置いた位置は変えず、表示だけを動かしています（保存しても揺れは書き込まれません）");
 
 	ImGui::SeparatorText("紙ふぶき");
@@ -863,10 +954,15 @@ void TitleScene::OnDrawInspector(){
 	if ( ImGui::Checkbox("ただよう紙を出す", &ambient) ) { paperBits_.SetAmbient(ambient); }
 
 	ImGui::SeparatorText("看板とメニュー");
-	ImGui::DragFloat3("ロゴが刺さる位置", &logo_.RefLandPosition().x, 0.05f);
-	ImGui::DragFloat3("的：つづき", &menu_.RefPosition(TitleMenu::Item_Continue).x, 0.05f);
-	ImGui::DragFloat3("的：スタート", &menu_.RefPosition(TitleMenu::Item_Start).x, 0.05f);
-	ImGui::DragFloat3("的：せってい", &menu_.RefPosition(TitleMenu::Item_Options).x, 0.05f);
+	Vector3 logoLand = logo_.LandPosition();
+	if ( ImGui::DragFloat3("ロゴが刺さる位置", &logoLand.x, 0.05f) ) { logo_.SetLandPosition(logoLand); }
+	const struct { const char* label; int item; } targetRows[] = {
+		{ "的：つづき", TitleMenu::Item_Continue }, { "的：スタート", TitleMenu::Item_Start }, { "的：せってい", TitleMenu::Item_Options },
+	};
+	for ( const auto& row : targetRows ) {
+		Vector3 targetPosition = menu_.Position(row.item);
+		if ( ImGui::DragFloat3(row.label, &targetPosition.x, 0.05f) ) { menu_.SetPosition(row.item, targetPosition); }
+	}
 	ImGui::TextDisabled("ここでの変更は保存されません（決まった値は TitleLayout.h へ書く）");
 
 	ImGui::SeparatorText("ぼかし（ジオラマ風）");

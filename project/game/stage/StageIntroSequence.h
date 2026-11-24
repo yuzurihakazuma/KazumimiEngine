@@ -52,9 +52,9 @@ public:
     static void RequestDropIn(){ dropRequested_ = true; }
 
     // 演技の最中か（最中はゲームの時間を止め、プレイヤーの入力の代わりをする）
-    bool IsActive() const{ return state_ != State::None; }
+    bool IsActive() const;
     // HUD を隠すか（カメラが戻り始めたら出す）
-    bool IsHudHidden() const{ return state_ != State::None && state_ != State::Returning; }
+    bool IsHudHidden() const;
 
     // プレイヤーの更新の前：入力の代わり（何も押さない）と、演技の途中の向き・土ぼこり
     void UpdateInput(const Context& context, float dt);
@@ -71,6 +71,28 @@ public:
 private:
     enum class State { None, Waiting, Wave, Push, Action, Returning };
     enum class Roll { Hidden, Placed, Pushed, Rolling };
+    enum class Drop { None, Waiting, Falling, Landing }; // 上から落ちてくる（ワールドマップから）
+
+    // 段階ごとの状態クラス（中身は cpp）：演技（ActState）・落下（DropState）・ロール（RollState）
+    class ActState;
+    struct Acts;
+    class DropState;
+    struct Drops;
+    class RollState;
+    struct Rolls;
+    void ChangeState(State next, Player& player, const Context& context); // 次の段階へ（入った時の動きは状態が決める）
+    void TrackJump(Player& player, const Context& context, float dt);     // ジャンプの途中の向きと土ぼこり
+
+    // 合図（OnCue）ごとの中身
+    void CueStart(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueDrop(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueTurn(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CuePush(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueRollGo(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueAction(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueSparkle(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueReturn(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
+    void CueEnd(Player& player, const KazumimiEngine::Vector3& position, const Context& context);
 
     void PlaceCamera(const KazumimiEngine::Vector3& playerPosition, PlayCameraController& camCtrl);
     void UpdateDrop(const Context& context, float dt);
@@ -90,7 +112,6 @@ private:
     float   lookLift_ = 0.0f;       // ジャンプで頭が上がった分だけ、カメラの見る所も上げる（なめらかに）
 
     // 上から落ちてくる（ワールドマップから）
-    enum class Drop { None, Waiting, Falling, Landing };
     static inline bool dropRequested_ = false;
     Drop    drop_ = Drop::None;
     float   dropTime_ = 0.0f;
