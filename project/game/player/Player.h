@@ -38,6 +38,9 @@ public:
     bool IsGrounded() const{ return jump_.IsGrounded(); }
     // 歩いて壁（ブロック）にぶつかった瞬間か。読むと消える（見た目のぶつかった動き・音に使う）
     KazumimiEngine::Signal<>& OnWallBumped(){ return onWallBumped_; }
+    // 跳んだ・落ちた後に地面へ着いた瞬間の知らせ（歩いているだけ・小さな段差では出ない。足元の土ぼこりに使う）
+    KazumimiEngine::Signal<>& OnLanded(){ return onLanded_; }
+    static constexpr float kLandFxSpeed = 2.0f;   // これより速く落ちてきた時だけ、着地を知らせる(m/s)
     static constexpr float kBumpRunTime  = 0.15f; // これだけ走ってから壁に当たった時だけ、ぶつかる
     // 今いる所の真下の地面（道の上面・ブロックの上面）の高さ。空中状態・穴の上は false（後ろの卵を地面に置くのに使う）
     bool GetGroundBelow(const std::vector<KazumimiEngine::SplineRail>& rails, float& outY) const;
@@ -194,6 +197,7 @@ private:
     bool damaged_ = false;        // 敵にぶつかった（シーンが Consume）
     // 知らせ（オブザーバー）：受け取る側（シーン）が Connect する。Player は、だれが聞いているかを知らない
     KazumimiEngine::Signal<> onWallBumped_;                    // 歩いて壁にぶつかった瞬間（押し続けている間は 1 回だけ）
+    KazumimiEngine::Signal<> onLanded_;                        // 落ちてきて地面に着いた瞬間
     KazumimiEngine::Signal<int, float, float> onSpringBounced_; // ジャンプ台で跳ねた瞬間
 
     // ---- レール移動の主状態（これだけで位置が決まる）----

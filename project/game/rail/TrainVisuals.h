@@ -56,6 +56,7 @@ private:
         float   smokeTimer = 0.0f;
         bool    hasChimney = false;
         KazumimiEngine::Vector3 chimney {};   // 煙突の口（世界）
+        bool    wasRunning = false; // 前のフレームに走っていたか（発車・停車の瞬間を見つける）
     };
 
     // 渡し板 1 枚ぶんの見た目の状態（レールの番号・前のフレームの開き具合・矢印の弾み）

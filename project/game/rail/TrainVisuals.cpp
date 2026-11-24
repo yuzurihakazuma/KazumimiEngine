@@ -280,6 +280,15 @@ void TrainVisuals::Update(const std::vector<SplineRail>& rails, const Camera* ca
     for ( TrainState& state : trains_ ) {
         if ( state.rail < 0 || state.rail >= ( int ) rails.size() || !rails[state.rail].IsTrain() ) { continue; }
         AddTrain(rails, state);
+        // 発車・停車の瞬間：車両の足元（線路の上）に、綿のけむりの輪
+        const bool running = rails[state.rail].IsTrainRunning();
+        if ( running != state.wasRunning && deltaTime > 0.0f && smokeReady_ ) {
+            const SplineRail& car = rails[state.rail];
+            Vector3 feet = car.GetPositionByDistance(car.GetLength() * 0.5f);
+            feet.y -= kRoofTop - 0.2f; // 足場（屋根の上）ではなく、車輪の高さに出す（乗っている恐竜を隠さない）
+            smoke_.PuffRing(feet, 6, 1.0f, 0.35f, running ? PaperFx::PuffColor::White : PaperFx::PuffColor::Kraft);
+        }
+        state.wasRunning = running;
         // 煙突から綿のけむり（走っている間はぽこぽこ、止まっている間はゆっくり）
         state.smokeTimer -= deltaTime;
         if ( state.hasChimney && state.smokeTimer <= 0.0f ) {

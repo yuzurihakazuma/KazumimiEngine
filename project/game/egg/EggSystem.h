@@ -164,7 +164,7 @@ private:
     //   1 個ごとの生成/破棄は GPU リソースの確保を伴い、敵を倒した瞬間などの一斉発生でカクつく原因になるので、
     //   使い終わった物は捨てずにここへ返して、次に出す時に使い回す
     std::unordered_map<std::string, std::vector<std::unique_ptr<KazumimiEngine::Obj3d>>> visualPool_;
-    static constexpr size_t kPoolLimit = 32; // モデルごとに取っておく数の上限
+    static constexpr size_t kPoolLimit = 96; // モデルごとに取っておく数の上限（コンボの後半は、丸い粒が 60 個以上同時に出る）
     // プールから 1 個出す（空なら作る。モデルが未登録なら nullptr）
     std::unique_ptr<KazumimiEngine::Obj3d> AcquireVisual(const std::string& modelName);
     // 使い終わった 1 個をプールへ返す（上限を超える分は捨てる）

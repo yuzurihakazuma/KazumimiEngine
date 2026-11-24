@@ -509,6 +509,8 @@ bool Player::UpdateJumpAndLand(const SplineRail& rail, const std::vector<SplineR
     if ( landVelocity < -0.5f && blockContact_.IsOnSpring(currentRailIndex_, currentDistance_, jump_.Height()) ) {
         jump_.Launch(kSpringVelocity); // 約3.9m 上がる（跳ねた後もふんばり可能）
         onSpringBounced_.Emit(currentRailIndex_, currentDistance_, jump_.Height());
+    } else if ( landVelocity < -kLandFxSpeed ) {
+        onLanded_.Emit(); // 落ちてきて着いた（立っている間は毎フレームここを通るので、速さで見分ける）
     }
     return false;
 }
@@ -686,6 +688,7 @@ void Player::LandFromAir(const std::vector<SplineRail>& rails, int rail, float d
     facing_.SetGroundTangent(rails[rail].GetTangentByDistance(dist)); // 着地したレールの坂（このフレームから使われる）
     // ふんばりの回数は持ち越す（次のジャンプかレール上の着地でリセット。以前からの挙動）
     jump_.Settle(footHeight);
+    onLanded_.Emit(); // 空中からレールへ着いた
     airVelocity_    = { 0.0f, 0.0f, 0.0f };
     dsSign_         = 0.0f; // 次の入力で進行方向を決め直す
     switchCooldown_ = 0.1f;

@@ -74,6 +74,16 @@ namespace {
 	constexpr float kStartCueDuration = 1.0f;                        // 「スタート！」を出している長さ（秒）
 	// 遠くの見える限界（m）。カメラの既定 100 だと、ステージの奥の空（80m ほど先）が斜めから見た時に切れる
 	constexpr float kFarClip = 200.0f;
+
+	// 動きに合わせた小さい粒の色（どれも光らない。工作の素材の色）
+	const Vector4 kDustColor  { 0.86f, 0.76f, 0.60f, 1.0f }; // 土ぼこり（クラフト紙）
+	const Vector4 kSmokeColor { 0.97f, 0.98f, 1.00f, 1.0f }; // 白いけむり（綿）
+	const Vector4 kGoldColor  { 1.00f, 0.85f, 0.20f, 1.0f }; // コインの金
+	constexpr float kFlutterPuffInterval = 0.1f;             // ふんばり中の足元の粒を出す間(秒)
+	// 恐竜の足元に出す粒は、体に隠れないよう、体の外側（中心からこの距離）から出す。
+	//   恐竜の見た目は当たりの筒（半径 0.35m）より大きいので、それより外に取る
+	constexpr float kBodyClear = 0.65f;
+	constexpr float kCoinClear = 0.12f;                       // コインの粒：コインのふちから
 }
 
 void GamePlayScene::OnLoadResources(){
@@ -164,6 +174,12 @@ void GamePlayScene::SetupClear(){
 	// 集計係は、出来事を受け取って数えるだけ（卵・体力・敵の処理と、クリア演出を直接つながない）
 	eggCombo_.OnComboChanged().Connect([this](int combo){ clear_.NoteCombo(combo); });
 	gameOver_.OnDamaged().Connect([this]{ clear_.NoteDamage(); });
+	// ダメージを受けた：体から白い粒がぱっと散る（小さく・短く。恐竜を隠さない）
+	gameOver_.OnDamaged().Connect([this]{
+		if ( !player_ ) { return; }
+		const Vector3& at = player_->GetPosition();
+		SpawnPuffRing({ at.x, at.y + 0.6f, at.z }, 6, kBodyClear, 2.4f, 1.2f, 0.16f, 0.35f, kSmokeColor);
+	});
 	enemyMgr_.OnEnemyDefeated().Connect([this]{ clear_.NoteEnemyDefeated(); });
 }
 
@@ -270,6 +286,42 @@ void GamePlayScene::DrawStartCue(){
 	startPop_->Draw();
 }
 
+// 小さい粒の輪：count 個を輪の形に、中心から radius(m) 離れた所から、横へ spread(m/秒)・上へ rise(m/秒) で出す。縮みながら消える
+//   （恐竜の足元や進む先に出す粒は、0.2m 以下・0.4 秒以下・6 個以下にする。光る演出は足さない）
+void GamePlayScene::SpawnPuffRing(const Vector3& at, int count, float radius, float spread, float rise, float size, float life, const Vector4& color){
+	for ( int i = 0; i < count; ++i ) {
+		// 画面の左右（X）へ多く出るよう、輪を少し回しておく（奥と手前だけに出ると、体と重なって見えない）
+		const float angle = ( float ) i / ( float ) count * Math::kTwoPi + 0.3f;
+		const float dirX = std::cos(angle), dirZ = std::sin(angle);
+		const Vector3 from { at.x + dirX * radius, at.y + 0.08f, at.z + dirZ * radius };
+		const Vector3 velocity { dirX * spread, rise + 0.2f * ( float ) ( i % 2 ), dirZ * spread };
+		eggSystem_.SpawnPuff(from, velocity, color, size, life, "fxSphere");
+	}
+}
+
+// 動きに合わせた小さい粒（プレイヤーの更新の後に毎フレーム）
+void GamePlayScene::UpdateMoveFx(float deltaTime){
+	const Vector3& feet = player_->GetPosition();
+	// ふんばりジャンプ中：足元から小さい粒がぽつぽつ落ちる（効いている事が分かるように）
+	if ( player_->IsFluttering() ) {
+		flutterPuffTimer_ -= deltaTime;
+		if ( flutterPuffTimer_ <= 0.0f ) {
+			flutterPuffTimer_ = kFlutterPuffInterval;
+			eggSystem_.SpawnPuff({ feet.x, feet.y + 0.05f, feet.z }, { 0.0f, -0.8f, 0.0f }, kSmokeColor, 0.09f, 0.25f, "fxSphere");
+		}
+	} else {
+		flutterPuffTimer_ = 0.0f;
+	}
+	// 列車に乗った・降りた瞬間：足元に土ぼこり
+	const auto& rails = railField_.GetRails();
+	const int rail = player_->GetCurrentRail();
+	const bool onTrain = rail >= 0 && rail < ( int ) rails.size() && rails[rail].IsTrain();
+	if ( onTrain != wasOnTrain_ ) {
+		SpawnPuffRing(feet, 4, kBodyClear, 1.6f, 0.5f, 0.15f, 0.35f, kDustColor);
+		wasOnTrain_ = onTrain;
+	}
+}
+
 // プレイヤー・敵エディタ・レール・各種シーン部品の用意
 void GamePlayScene::SetupGameplay(){
 	player_ = std::make_unique<Player>();
@@ -280,11 +332,22 @@ void GamePlayScene::SetupGameplay(){
 		avatar_.PlayWallBump();
 		AudioManager::GetInstance()->PlayWave("resources/kamishibai/se_patan.wav", false, 0.45f);
 		hitFeel_.Trigger(0.04f, 0.05f);
+		const Vector3& at = player_->GetPosition(); // 胸の高さに、小さい土ぼこり
+		SpawnPuffRing({ at.x, at.y + 0.5f, at.z }, 4, kBodyClear, 1.4f, 0.7f, 0.13f, 0.3f, kDustColor);
 	});
 	//   ジャンプ台で跳ねた：足元のばねを縮めてびよんと戻し、音を鳴らす
 	player_->OnSpringBounced().Connect([this](int rail, float distance, float footY){
 		blockSystem_.NotifySpringBounce(rail, distance, footY);
 		AudioManager::GetInstance()->PlayWave("resources/se/se_spring.wav", false, 0.6f);
+		SpawnPuffRing(player_->GetPosition(), 6, kBodyClear, 2.0f, 0.6f, 0.15f, 0.35f, kSmokeColor); // 足元に白いけむりの輪
+	});
+	//   跳んだ・落ちた後に地面へ着いた：足元に小さい土ぼこり
+	player_->OnLanded().Connect([this]{
+		SpawnPuffRing(player_->GetPosition(), 4, kBodyClear, 1.7f, 0.5f, 0.15f, 0.35f, kDustColor);
+	});
+	//   コインを取った：金の粒がぽんと上がる
+	coinSystem_.OnCoinCollected().Connect([this](const Vector3& coinPos){
+		SpawnPuffRing(coinPos, 5, kCoinClear, 1.3f, 2.2f, 0.1f, 0.35f, kGoldColor);
 	});
 	//   ？ブロックからコインが出た：カウント加算＋金色の粒が飛び出す演出
 	blockSystem_.OnCoinBumped().Connect([this](const Vector3& coinPos){
@@ -329,7 +392,7 @@ void GamePlayScene::SetupGameplay(){
 	// ロード中のいま全部作ってプールに積んでおく。パフの数は最悪フレーム
 	// （卵トレイル約13個借用中＋命中バースト8＋割れ演出6＋投げ煙6）を賄う量＝返却上限に合わせる
 	combat_.Prewarm(GetCamera(), 4);
-	eggSystem_.PrewarmVisualPool("fxSphere", 32);
+	eggSystem_.PrewarmVisualPool("fxSphere", 72); // 丸い粒：コンボの後半（60 個以上）と、動きの小さい粒の分
 	eggSystem_.PrewarmVisualPool("eggShell", 28);
 	eggSystem_.PrewarmVisualPool("eggShellGreen", 12);
 	eggSystem_.PrewarmVisualPool("egg", 8);    // 卵（持てる数＋割れて消えるまでの分）
@@ -573,6 +636,8 @@ void GamePlayScene::HandleModeTransition(EngineMode current){
 
 // エディット → プレイ：最新レールで確定し、プレイヤーをスタートへ、エフェクト・卵を消す
 void GamePlayScene::OnPlayStart(){
+	flutterPuffTimer_ = 0.0f; // 動きの粒は、前のプレイの続きから始めない
+	wasOnTrain_ = false;
 	screenFx_.EnablePlayLook(); // クラフト世界観の常時ポストエフェクト（プレイ中だけ）
 	SyncRailsFromEditor();
 	// 右クリック「ここからテストプレイ」：この1回だけ開始位置を上書きする
@@ -696,6 +761,7 @@ void GamePlayScene::UpdatePlayMode(){
 	swallow_.SetActionBlocked(aimThrow_.IsAiming());
 	transferDebugger_.BeforePlayerUpdate(*player_, railField_.GetRails()); // 入力の記録・再生（乗り換えデバッガ）
 	player_->Update(railField_.GetRails());
+	UpdateMoveFx(deltaTime); // ふんばり中の足元の粒・列車の乗り降りの土ぼこり
 	// 敵の移動＋吸い込みTick。吸い込み完了 → お腹に+1（口元で緑がふわっと）。
 	//   ブロックを渡す＝パトロールの敵が壁で引き返す（貫通防止）
 	enemyMgr_.Update(railField_.GetRails(), player_->GetPosition(), deltaTime, [&](const Vector3& pos){

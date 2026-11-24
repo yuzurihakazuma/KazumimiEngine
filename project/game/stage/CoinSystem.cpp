@@ -56,6 +56,7 @@ void CoinSystem::Update(const Vector3& playerPos, bool playMode, float dt){
         if ( playMode && Touches(playerPos, CurrentPos(coin)) ) {
             coin.taken = true;
             ++collected_;
+            onCoinCollected_.Emit(CurrentPos(coin));
         }
     }
 }

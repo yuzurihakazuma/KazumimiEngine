@@ -103,6 +103,11 @@ private:
 	void UpdatePlayMode();                         // プレイ中のゲーム進行
 	void UpdateSceneVisuals(KazumimiEngine::EngineMode mode);      // モード問わず毎フレーム行う見た目の更新
 
+	// 小さい粒の輪を出す（土ぼこり・けむり・金の粒）。count 個が横へ広がりながら少し上がって、縮んで消える。
+	//   radius＝出し始める所の、中心からの距離（恐竜の足元に出す時は、体の外側から出して隠れないようにする）
+	void SpawnPuffRing(const KazumimiEngine::Vector3& at, int count, float radius, float spread, float rise, float size, float life, const KazumimiEngine::Vector4& color);
+	void UpdateMoveFx(float deltaTime); // ふんばり中の足元の粒・列車の乗り降りの土ぼこり
+
 	// --- DrawDebugUI の段階 ---
 	void DrawHitShapes();   // 当たり判定の形をワイヤーで表示
 	SceneEditContext MakeEditContext();
@@ -164,6 +169,8 @@ private:
 	bool  railFullSyncPending_ = false;    // ドラッグ終了後に本同期を1回行うフラグ
 	int   testPlayRail_ = -1;              // 「ここからテストプレイ」：次の Edit→Play の開始地点（-1=通常）
 	float testPlayDist_ = 0.0f;
+	float flutterPuffTimer_ = 0.0f;        // ふんばり中の足元の粒を、次に出すまでの秒
+	bool  wasOnTrain_ = false;             // 前のフレームに列車の上にいたか（乗り降りの瞬間を見つける）
 	bool  showHitShapes_ = false;          // 当たり判定の形の表示
 
 	// 体力（♡）とゲームオーバー（中身は game/gameover/GameOverFlow。ここは決まった所で呼ぶだけ）

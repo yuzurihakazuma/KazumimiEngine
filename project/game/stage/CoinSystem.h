@@ -3,6 +3,7 @@
 #include <memory>
 #include "engine/math/struct.h"
 #include "engine/utils/Level/LevelData.h" // CoinData
+#include "engine/utils/Signal.h"
 
 namespace KazumimiEngine {
 class Obj3d;
@@ -23,6 +24,8 @@ public:
     void Update(const KazumimiEngine::Vector3& playerPos, bool playMode, float dt);
     void Draw() const;
     int CollectedCount() const{ return collected_; }
+    // コインを取った瞬間の知らせ（引数＝コインの位置。シーンが粒の演出に使う）
+    KazumimiEngine::Signal<const KazumimiEngine::Vector3&>& OnCoinCollected(){ return onCoinCollected_; }
     int TotalCount() const{ return ( int ) coins_.size(); }
     // ？ブロック等から出たボーナスコイン（配置コインの総数には含まれない）
     void AddBonus(int count){ collected_ += count; }
@@ -41,5 +44,6 @@ private:
     static bool Touches(const KazumimiEngine::Vector3& foot, const KazumimiEngine::Vector3& center);
     std::vector<Coin> coins_;
     int   collected_ = 0;
+    KazumimiEngine::Signal<const KazumimiEngine::Vector3&> onCoinCollected_; // コインを取った瞬間
     float spinT_ = 0.0f; // 全コイン共通の回転タイマー
 };
